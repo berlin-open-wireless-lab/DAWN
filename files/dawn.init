@@ -1,0 +1,40 @@
+#!/bin/sh /etc/rc.common
+ 
+USE_PROCD=1
+
+START=50
+STOP=50
+
+PROG=/usr/sbin/dawn
+NAME=dawn
+
+start_service()
+{
+	echo "Starting Service..."
+
+	local broadcast_ip
+	local broadcast_port
+
+	config_load "${NAME}"
+	config_get broadcast_ip dawn broadcast_ip
+	config_get broadcast_port dawn broadcast_port
+
+	procd_open_instance
+	echo "$PROG -p $broadcast_port -i $broadcast_ip"
+	procd_set_param command "$PROG"
+	procd_append_param command -p "${broadcast_port}"
+	procd_append_param command -i "${broadcast_ip}"
+
+	procd_set_param stdout 1
+	procd_set_param stderr 1
+
+	echo "${command}"
+
+	#procd_append_param command stdout 1
+
+	procd_set_param respawn
+	echo "Closing instance"
+
+	procd_close_instance
+  	echo "Dawn isntance started! (TESTstsasdft)"
+}
