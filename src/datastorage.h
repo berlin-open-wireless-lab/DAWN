@@ -12,6 +12,8 @@
 #define ETH_ALEN 6
 #endif
 
+#define SORT_NUM 5
+
 // Probe entrys
 typedef struct {
 	uint8_t bssid_addr[ETH_ALEN];
@@ -37,5 +39,6 @@ int mac_first_in_probe_list(uint8_t bssid_addr[], uint8_t client_addr[]);
 
 pthread_mutex_t list_mutex;
 node* probe_list_head;
+char sort_string[SORT_NUM];
 
 #endif

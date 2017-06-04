@@ -56,7 +56,6 @@ int go_next(char sort_order[], int i, probe_entry entry, probe_entry next_entry)
     int conditions = 1;
     for(int j = 0; j < i; j++)
     {
-        printf("go_next %i", j);
         i &= !(go_next(sort_order, j, entry, next_entry));
     }
     return conditions && go_next_help(sort_order, i, entry, next_entry);
@@ -70,7 +69,7 @@ node* insert(node* head, probe_entry entry) {
 
 
     // length of sorting string
-    char sort_string[] = "cfsb";
+    //char sort_string[] = "cfsb";
     int i = 0;
 
     if(!head)
@@ -221,6 +220,7 @@ int mac_is_greater(uint8_t addr1[], uint8_t addr2[])
 void print_list()
 {
     pthread_mutex_lock(&list_mutex);  
+    printf("------------------\n");
     node* head = probe_list_head;
     if(!head)
     {
@@ -233,6 +233,7 @@ void print_list()
         print_probe_entry(next->data);
         next = next->ptr;
     }
+    printf("------------------\n");
     pthread_mutex_unlock(&list_mutex);
 }
 
@@ -245,7 +246,8 @@ void print_probe_entry(probe_entry entry)
     sprintf(mac_buf_ap, "%x:%x:%x:%x:%x:%x", MAC2STR(entry.bssid_addr));
     sprintf(mac_buf_client, "%x:%x:%x:%x:%x:%x", MAC2STR(entry.client_addr));
     sprintf(mac_buf_target, "%x:%x:%x:%x:%x:%x", MAC2STR(entry.target_addr));
-
+    
     printf("bssid_addr: %s, client_addr: %s, target_addr: %s, signal: %d, freq: %d\n", 
     mac_buf_ap, mac_buf_client, mac_buf_target, entry.signal, entry.freq);
+    
 }

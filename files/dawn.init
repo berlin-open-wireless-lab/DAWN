@@ -18,12 +18,15 @@ start_service()
 	config_load "${NAME}"
 	config_get broadcast_ip dawn broadcast_ip
 	config_get broadcast_port dawn broadcast_port
+	config_get sort_order dawn sort_order
 
 	procd_open_instance
-	echo "$PROG -p $broadcast_port -i $broadcast_ip"
+	echo "$PROG -p $broadcast_port -i $broadcast_ip -o $sort_order"
 	procd_set_param command "$PROG"
 	procd_append_param command -p "${broadcast_port}"
 	procd_append_param command -i "${broadcast_ip}"
+	procd_append_param command -o "${sort_order}"
+
 
 	procd_set_param stdout 1
 	procd_set_param stderr 1

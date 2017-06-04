@@ -15,7 +15,7 @@ int main(int argc, char **argv)
 	char opt_broadcast_ip[BUFSIZE];
 	char opt_broadcast_port[BUFSIZE];
 
-	while ((ch = getopt(argc, argv, "cs:p:i:b:")) != -1) {
+	while ((ch = getopt(argc, argv, "cs:p:i:b:o:")) != -1) {
 		switch (ch) {
 		case 's':
 			ubus_socket = optarg;
@@ -28,6 +28,9 @@ int main(int argc, char **argv)
 			snprintf(opt_broadcast_ip,BUFSIZE,"%s",optarg);
 			printf("broadcast ip: %s\n", opt_broadcast_ip);
 			break;
+		case 'o':
+			snprintf(sort_string,SORT_NUM,"%s",optarg);
+			printf("sort string: %s\n", sort_string);
 		default:
 			break;
 		}
