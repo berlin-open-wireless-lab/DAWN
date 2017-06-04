@@ -2,10 +2,12 @@
 
 #define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
 
+int go_next_help(char sort_order[], int i, probe_entry entry, probe_entry next_entry);
+int go_next(char sort_order[], int i, probe_entry entry, probe_entry next_entry);
 int mac_is_equal(uint8_t addr1[], uint8_t addr2[]);
 int mac_is_greater(uint8_t addr1[], uint8_t addr2[]);
 void print_probe_entry(probe_entry entry);
-int delete_probe_req(node* head, uint8_t bssid_addr[], uint8_t client_addr[]);
+node* delete_probe_req(node* head, uint8_t bssid_addr[], uint8_t client_addr[]);
 int mac_is_first_in_list(node* head, uint8_t bssid_addr[], uint8_t client_addr[]);
 
 void insert_to_list(probe_entry entry)
@@ -13,10 +15,51 @@ void insert_to_list(probe_entry entry)
     pthread_mutex_lock(&list_mutex);
 
     // first delete probe request
-    delete_probe_req(probe_list_head, entry.bssid_addr, entry.client_addr);
+    probe_list_head = delete_probe_req(probe_list_head, entry.bssid_addr, entry.client_addr);
     probe_list_head = insert(probe_list_head, entry);
     
     pthread_mutex_unlock(&list_mutex);
+}
+
+int go_next_help(char sort_order[], int i, probe_entry entry, probe_entry next_entry)
+{
+    switch(sort_order[i])
+    {
+        // bssid-mac
+        case 'b':
+            return mac_is_greater(entry.bssid_addr, next_entry.bssid_addr) && mac_is_equal(entry.client_addr, next_entry.client_addr);
+            break;
+
+        // client-mac
+        case 'c':
+            return mac_is_greater(entry.client_addr, next_entry.client_addr);
+            break;
+
+        // frequency
+        case 'f':
+            return entry.freq < next_entry.freq && mac_is_equal(entry.client_addr, next_entry.client_addr);
+            break;
+        
+        // signal strength (RSSI)
+        case 's':
+            return entry.signal < next_entry.signal && mac_is_equal(entry.client_addr, next_entry.client_addr);         
+            break;
+
+        default:
+            return 0;
+            break;
+    }
+}
+
+int go_next(char sort_order[], int i, probe_entry entry, probe_entry next_entry)
+{
+    int conditions = 1;
+    for(int j = 0; j < i; j++)
+    {
+        printf("go_next %i", j);
+        i &= !(go_next(sort_order, j, entry, next_entry));
+    }
+    return conditions && go_next_help(sort_order, i, entry, next_entry);
 }
 
 node* insert(node* head, probe_entry entry) {
@@ -25,90 +68,34 @@ node* insert(node* head, probe_entry entry) {
     temp->data = entry;
     temp->ptr = NULL;
 
+
+    // length of sorting string
+    char sort_string[] = "cfsb";
+    int i = 0;
+
     if(!head)
     {
         head = temp;
     } 
     else
     {
-        // TODO: make sorting as startup parameter
-
         prev = NULL;
         next = head;
-        while(next
-            && (
-                mac_is_greater(entry.client_addr, next->data.client_addr) 
-                || (
-                    mac_is_equal(entry.client_addr, next->data.client_addr)
-                    //&& !mac_is_equal(entry.bssid_addr, next->data.bssid_addr) 
-                    && entry.signal < next->data.signal
-                    )
-                || (
-                    mac_is_equal(entry.client_addr, next->data.client_addr)
-                    //&& !mac_is_equal(entry.bssid_addr, next->data.bssid_addr) 
-                    && entry.signal == next->data.signal
-                    && entry.freq < next->data.freq
-                    )
-
-                || (
-                    mac_is_equal(entry.client_addr, next->data.client_addr)
-                    //&& !mac_is_equal(entry.bssid_addr, next->data.bssid_addr) 
-                    && entry.signal == next->data.signal
-                    && entry.freq == next->data.freq
-                    && mac_is_greater(entry.bssid_addr, next->data.bssid_addr)
-                    )
-                )
-            )
+        while(next)
         {
-            /*
-            if(mac_is_smaller(entry.client_addr, next->data.client_addr)
+            if(go_next(sort_string, i, entry, next->data))
+            {
+                prev = next;
+                next = next->ptr;
+            } else if(i < strlen(sort_string)) {
+                i++;
+            } else 
             {
                 break;
             }
-            else if(mac_is_equal(entry.client_addr, next->data.client_addr)
-            {
-                if(entry.freq >= next->data.freq)
-                {
 
-
-                    if(mac_is_smaller(entry.bssid_addr, next->data.bssid_addr))
-                    {
-                        break;
-                    }
-                    else if(mac_is_equal(entry.bssid_addr, next->data.bssid_addr))
-                    {
-                        if()
-                    }
-                }
-            }*/
-            /*
-            if(mac_is_greater(entry.client_addr, next->data.client_addr))
-            {
-                if(entry.freq > next->data.freq)
-                {
-                    if(entry.signal >= next->data.signal)
-                    {
-                        if(mac_is_greater(entry.bssid_addr, next->data.bssid_addr))
-                        {
-                            break;
-                        }
-                    }
-                }
-                
-            }
-            */
-
-
-            prev = next;
-            next = next->ptr;
         }
-        if(next && mac_is_equal(entry.client_addr,next->data.client_addr) 
-            && mac_is_equal(entry.bssid_addr, next->data.bssid_addr)
-            )//&& entry.freq == next->data.freq)
-        {
-            next->data.signal = entry.signal;
-        }
-        else if(!next){
+        if(!next){
             prev->ptr = temp;
         }
         else
@@ -126,12 +113,12 @@ node* insert(node* head, probe_entry entry) {
 
 }
 
-int delete_probe_req(node* head, uint8_t bssid_addr[], uint8_t client_addr[]) 
+node* delete_probe_req(node* head, uint8_t bssid_addr[], uint8_t client_addr[]) 
 {
 
     if(!head)
     {
-        return 1;
+        return head;
     } 
 
     if(mac_is_equal(client_addr, head->data.client_addr)
@@ -140,7 +127,7 @@ int delete_probe_req(node* head, uint8_t bssid_addr[], uint8_t client_addr[])
         node *temp = head;
         head = head->ptr;
         free(temp);
-        return 1; 
+        return head; 
     }
 
     node *prev = NULL;
@@ -158,12 +145,12 @@ int delete_probe_req(node* head, uint8_t bssid_addr[], uint8_t client_addr[])
             node *temp = next;
             prev->ptr = next->ptr;
             free(temp);
-            return 1;
+            return head;
         }
         prev = next;
         next = next->ptr;    
     }
-    return 0;
+    return head;
 }
 
 int mac_is_first_in_list(node* head, uint8_t bssid_addr[], uint8_t client_addr[]) 
