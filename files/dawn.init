@@ -30,11 +30,8 @@ start_service()
 
 	echo "${command}"
 
-	#procd_append_param command stdout 1
-
 	procd_set_param respawn
-	echo "Closing instance"
 
 	procd_close_instance
-  	echo "Dawn isntance started! (TESTstsasdft)"
+  	echo "Dawn instance started!"
 }
