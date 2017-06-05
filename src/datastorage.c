@@ -9,10 +9,14 @@ int mac_is_greater(uint8_t addr1[], uint8_t addr2[]);
 void print_probe_entry(probe_entry entry);
 node* delete_probe_req(node* head, uint8_t bssid_addr[], uint8_t client_addr[]);
 int mac_is_first_in_list(node* head, uint8_t bssid_addr[], uint8_t client_addr[]);
+node* remove_node(node* head, node* curr, node* prev);
+node* remove_old_entries(node* head, time_t current_time, long long int threshold);
 
 void insert_to_list(probe_entry entry)
 {
     pthread_mutex_lock(&list_mutex);
+
+    entry.time = time(0);
 
     // first delete probe request
     probe_list_head = delete_probe_req(probe_list_head, entry.bssid_addr, entry.client_addr);
@@ -114,7 +118,6 @@ node* insert(node* head, probe_entry entry) {
 
 node* delete_probe_req(node* head, uint8_t bssid_addr[], uint8_t client_addr[]) 
 {
-
     if(!head)
     {
         return head;
@@ -149,6 +152,62 @@ node* delete_probe_req(node* head, uint8_t bssid_addr[], uint8_t client_addr[])
         prev = next;
         next = next->ptr;    
     }
+    return head;
+}
+
+void *remove_thread(void *arg)
+{
+    while(1)
+    {
+        sleep(TIME_THRESHOLD);
+        pthread_mutex_lock(&list_mutex);
+        printf("Removing old entries now!\n");
+        probe_list_head = remove_old_entries(probe_list_head, time(0), TIME_THRESHOLD);
+        pthread_mutex_unlock(&list_mutex);
+        print_list();
+    }
+    return 0;
+}
+
+node* remove_old_entries(node* head, time_t current_time, long long int threshold)
+{
+    if(head)
+    {
+        node *prev = NULL;
+        node *next = head;
+        while(next)
+        {
+            printf("Going next...\n");
+            printf("Entry Time: %ld, Curr Time: %lld\n", next->data.time, current_time - threshold);
+            if(next->data.time < current_time - threshold)
+            {
+                printf("Removing node!\n");
+                head = remove_node(head, next, prev);
+            }
+            prev = next;
+            next = next->ptr;    
+        }
+    }
+    
+    return head;
+}
+
+// return headpointer
+node* remove_node(node* head, node* curr, node* prev)
+{
+    if(curr == head)
+    {
+        node *temp = head;
+        head = head->ptr;
+        free(temp);
+    } 
+    else 
+    {
+        node *temp = curr;
+        prev->ptr = curr->ptr;
+        free(temp);
+    }
+    printf("Removed old entry!\n");
     return head;
 }
 
@@ -224,6 +283,7 @@ void print_list()
     node* head = probe_list_head;
     if(!head)
     {
+        printf("------------------\n");
         return;
     }
     node* next;
