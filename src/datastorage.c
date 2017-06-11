@@ -19,6 +19,7 @@ void insert_to_list(probe_entry entry)
     entry.time = time(0);
 
     // first delete probe request
+    //probe_list_head = remove_old_entries(probe_list_head, time(0), TIME_THRESHOLD);
     probe_list_head = delete_probe_req(probe_list_head, entry.bssid_addr, entry.client_addr);
     probe_list_head = insert(probe_list_head, entry);
     
@@ -161,10 +162,10 @@ void *remove_thread(void *arg)
     {
         sleep(TIME_THRESHOLD);
         pthread_mutex_lock(&list_mutex);
-        printf("Removing old entries now!\n");
+        printf("[Thread] : Removing old entries!\n");
         probe_list_head = remove_old_entries(probe_list_head, time(0), TIME_THRESHOLD);
         pthread_mutex_unlock(&list_mutex);
-        print_list();
+        //print_list();
     }
     return 0;
 }
@@ -177,11 +178,11 @@ node* remove_old_entries(node* head, time_t current_time, long long int threshol
         node *next = head;
         while(next)
         {
-            printf("Going next...\n");
-            printf("Entry Time: %ld, Curr Time: %lld\n", next->data.time, current_time - threshold);
+            //printf("Going next...\n");
+            //printf("Entry Time: %ld, Curr Time: %lld\n", next->data.time, current_time - threshold);
             if(next->data.time < current_time - threshold)
             {
-                printf("Removing node!\n");
+                //printf("Removing node!\n");
                 head = remove_node(head, next, prev);
             }
             prev = next;
@@ -207,7 +208,7 @@ node* remove_node(node* head, node* curr, node* prev)
         prev->ptr = curr->ptr;
         free(temp);
     }
-    printf("Removed old entry!\n");
+    //printf("Removed old entry!\n");
     return head;
 }
 
@@ -281,17 +282,15 @@ void print_list()
     pthread_mutex_lock(&list_mutex);  
     printf("------------------\n");
     node* head = probe_list_head;
-    if(!head)
+    if(head)
     {
-        printf("------------------\n");
-        return;
-    }
-    node* next;
-    next = head;
-    while(next)
-    {
-        print_probe_entry(next->data);
-        next = next->ptr;
+        node* next;
+        next = head;
+        while(next)
+        {
+            print_probe_entry(next->data);
+            next = next->ptr;
+        }
     }
     printf("------------------\n");
     pthread_mutex_unlock(&list_mutex);

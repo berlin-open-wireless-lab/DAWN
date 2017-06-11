@@ -38,10 +38,20 @@ int main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
+	if (pthread_mutex_init(&list_mutex, NULL) != 0)
+    {
+        printf("\n mutex init failed\n");
+        return 1;
+    }
+
 	init_socket_runopts(opt_broadcast_ip, opt_broadcast_port);
 	
-	pthread_t tid;
-	pthread_create(&tid, NULL, &remove_thread, NULL);
+	//pthread_t tid;
+	//pthread_create(&tid, NULL, &remove_thread, NULL);
+
+	free_list(probe_list_head);
+
+	pthread_mutex_destroy(&list_mutex);
 
 	dawn_init_ubus(ubus_socket);
 
