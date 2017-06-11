@@ -11,6 +11,7 @@ node* delete_probe_req(node* head, uint8_t bssid_addr[], uint8_t client_addr[]);
 int mac_is_first_in_list(node* head, uint8_t bssid_addr[], uint8_t client_addr[]);
 node* remove_node(node* head, node* curr, node* prev);
 node* remove_old_entries(node* head, time_t current_time, long long int threshold);
+void print_list_with_head(node* head);
 
 void insert_to_list(probe_entry entry)
 {
@@ -19,7 +20,7 @@ void insert_to_list(probe_entry entry)
     entry.time = time(0);
 
     // first delete probe request
-    //probe_list_head = remove_old_entries(probe_list_head, time(0), TIME_THRESHOLD);
+    probe_list_head = remove_old_entries(probe_list_head, time(0), TIME_THRESHOLD);
     probe_list_head = delete_probe_req(probe_list_head, entry.bssid_addr, entry.client_addr);
     probe_list_head = insert(probe_list_head, entry);
     
@@ -178,18 +179,17 @@ node* remove_old_entries(node* head, time_t current_time, long long int threshol
         node *next = head;
         while(next)
         {
-            //printf("Going next...\n");
-            //printf("Entry Time: %ld, Curr Time: %lld\n", next->data.time, current_time - threshold);
             if(next->data.time < current_time - threshold)
             {
-                //printf("Removing node!\n");
                 head = remove_node(head, next, prev);
+                print_list_with_head(head); 
+                next = prev->ptr;
+            } else {
+                prev = next;
+                next = next->ptr;    
             }
-            prev = next;
-            next = next->ptr;    
         }
     }
-    
     return head;
 }
 
@@ -275,6 +275,24 @@ int mac_is_greater(uint8_t addr1[], uint8_t addr2[])
         // if equal continue...
     }
     return 0;
+}
+
+void print_list_with_head(node* head)
+{
+    pthread_mutex_lock(&list_mutex);  
+    printf("------------------\n");
+    if(head)
+    {
+        node* next;
+        next = head;
+        while(next)
+        {
+            print_probe_entry(next->data);
+            next = next->ptr;
+        }
+    }
+    printf("------------------\n");
+    pthread_mutex_unlock(&list_mutex);
 }
 
 void print_list()
