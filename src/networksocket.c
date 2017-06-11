@@ -112,7 +112,7 @@ void* receive_msg(void *args)
         parse_to_probe_req(b.head, &prob_req);
 
         // insert to list 
-        //insert_to_list(prob_req);
+        insert_to_list(prob_req);
     }
 }
 
