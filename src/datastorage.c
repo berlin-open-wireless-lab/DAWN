@@ -182,9 +182,18 @@ node* remove_old_entries(node* head, time_t current_time, long long int threshol
             if(next->data.time < current_time - threshold)
             {
                 head = remove_node(head, next, prev);
-                //print_list_with_head(head); 
-                next = prev->ptr;
-            } else {
+                //print_list_with_head(head);
+                if(prev == NULL) // removed head
+                {
+                    next = head;    
+                } 
+                else 
+                {
+                    next = prev->ptr;
+                }
+            } 
+            else
+            {
                 prev = next;
                 next = next->ptr;    
             }
