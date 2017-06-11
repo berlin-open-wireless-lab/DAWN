@@ -20,7 +20,7 @@ void insert_to_list(probe_entry entry)
     entry.time = time(0);
 
     // first delete probe request
-    probe_list_head = remove_old_entries(probe_list_head, time(0), TIME_THRESHOLD);
+    //probe_list_head = remove_old_entries(probe_list_head, time(0), TIME_THRESHOLD);
     probe_list_head = delete_probe_req(probe_list_head, entry.bssid_addr, entry.client_addr);
     probe_list_head = insert(probe_list_head, entry);
     
@@ -182,7 +182,7 @@ node* remove_old_entries(node* head, time_t current_time, long long int threshol
             if(next->data.time < current_time - threshold)
             {
                 head = remove_node(head, next, prev);
-                print_list_with_head(head); 
+                //print_list_with_head(head); 
                 next = prev->ptr;
             } else {
                 prev = next;
