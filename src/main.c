@@ -6,6 +6,8 @@
 #include "networksocket.h"
 
 #define BUFSIZE 17
+#define BUFSIZE_DIR 255
+
 
 int main(int argc, char **argv)
 {
@@ -14,8 +16,9 @@ int main(int argc, char **argv)
 
 	char opt_broadcast_ip[BUFSIZE];
 	char opt_broadcast_port[BUFSIZE];
+	char opt_hostapd_dir[BUFSIZE_DIR];
 
-	while ((ch = getopt(argc, argv, "cs:p:i:b:o:")) != -1) {
+	while ((ch = getopt(argc, argv, "cs:p:i:b:o:h:")) != -1) {
 		switch (ch) {
 		case 's':
 			ubus_socket = optarg;
@@ -31,10 +34,14 @@ int main(int argc, char **argv)
 		case 'o':
 			snprintf(sort_string,SORT_NUM,"%s",optarg);
 			printf("sort string: %s\n", sort_string);
+		case 'h':
+			snprintf(opt_hostapd_dir,BUFSIZE_DIR,"%s",optarg);
+			printf("hostapd dir: %s\n", opt_hostapd_dir);
 		default:
 			break;
 		}
 	}
+	
 	argc -= optind;
 	argv += optind;
 
@@ -53,7 +60,8 @@ int main(int argc, char **argv)
 
 	pthread_mutex_destroy(&list_mutex);
 
-	dawn_init_ubus(ubus_socket);
 
+	dawn_init_ubus(ubus_socket, opt_hostapd_dir);
+		
     return 0;
 }

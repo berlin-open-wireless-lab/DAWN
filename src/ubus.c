@@ -39,7 +39,7 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
 	    struct blob_attr *msg);
 static int add_subscriber(char* name);
 //int parse_to_probe_req(struct blob_attr *msg, probe_entry* prob_req);
-static int subscribe_to_hostapd_interfaces();
+static int subscribe_to_hostapd_interfaces(char* hostapd_dir);
 
 static int decide_function(probe_entry* prob_req)
 {
@@ -133,7 +133,7 @@ static int add_subscriber(char* name)
 	return 0;
 }
 
-static int subscribe_to_hostapd_interfaces()
+static int subscribe_to_hostapd_interfaces(char* hostapd_dir)
 {
 	DIR * dirp;
 	struct dirent * entry;
@@ -145,7 +145,7 @@ static int subscribe_to_hostapd_interfaces()
 		return -1;
 	}
 
-	dirp = opendir("/var/run/hostapd"); // error handling?
+	dirp = opendir(hostapd_dir); // error handling?
 	while ((entry = readdir(dirp)) != NULL) {
 		if (entry->d_type == DT_SOCK) {
 			char subscribe_name[256];
@@ -154,10 +154,11 @@ static int subscribe_to_hostapd_interfaces()
 			add_subscriber(subscribe_name); 
     	}
     }
+    free(hostapd_dir); // free string
     return 0;
 }
 
-int dawn_init_ubus(const char *ubus_socket)
+int dawn_init_ubus(const char *ubus_socket, char* hostapd_dir)
 {
 	uloop_init();
 	signal(SIGPIPE, SIG_IGN);
@@ -172,7 +173,7 @@ int dawn_init_ubus(const char *ubus_socket)
 
 	ubus_add_uloop(ctx);
 
-	subscribe_to_hostapd_interfaces();
+	subscribe_to_hostapd_interfaces(hostapd_dir);
 	
 	uloop_run();
 
