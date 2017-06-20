@@ -103,6 +103,8 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
 	
 	print_list();
 
+	//sleep(2); // sleep for 2s
+
 	// deny access
 	if(!decide_function(&prob_req))
 	{
