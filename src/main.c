@@ -56,12 +56,11 @@ int main(int argc, char **argv)
 	pthread_t tid;
 	pthread_create(&tid, NULL, &remove_thread, NULL);
 
-	free_list(probe_list_head);
-
-	pthread_mutex_destroy(&list_mutex);
-
-
 	dawn_init_ubus(ubus_socket, opt_hostapd_dir);
 		
+	// free ressources
+	pthread_mutex_destroy(&list_mutex);
+	free_list(probe_list_head);
+    
     return 0;
 }

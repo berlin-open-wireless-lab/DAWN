@@ -38,7 +38,7 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
 	    struct ubus_request_data *req, const char *method,
 	    struct blob_attr *msg);
 static int add_subscriber(char* name);
-//int parse_to_probe_req(struct blob_attr *msg, probe_entry* prob_req);
+int parse_to_probe_req(struct blob_attr *msg, probe_entry* prob_req);
 static int subscribe_to_hostapd_interfaces(char* hostapd_dir);
 
 static int decide_function(probe_entry* prob_req)
@@ -90,7 +90,6 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
 	    struct ubus_request_data *req, const char *method,
 	    struct blob_attr *msg)
 {
-	// write probe to table
 	probe_entry prob_req;
 	parse_to_probe_req(msg, &prob_req);
 	insert_to_list(prob_req);
@@ -101,6 +100,7 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
 	send_string(str);
 
 	printf("[WC] Hostapd-Probe: %s : %s\n", method, str);
+	
 	print_list();
 
 	// deny access
@@ -154,7 +154,7 @@ static int subscribe_to_hostapd_interfaces(char* hostapd_dir)
 			add_subscriber(subscribe_name); 
     	}
     }
-    free(hostapd_dir); // free string
+    //free(hostapd_dir); // free string
     return 0;
 }
 
