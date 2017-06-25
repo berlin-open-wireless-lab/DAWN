@@ -7,22 +7,41 @@ int go_next(char sort_order[], int i, probe_entry entry, probe_entry next_entry)
 int mac_is_equal(uint8_t addr1[], uint8_t addr2[]);
 int mac_is_greater(uint8_t addr1[], uint8_t addr2[]);
 void print_probe_entry(probe_entry entry);
-node* delete_probe_req(node* head, uint8_t bssid_addr[], uint8_t client_addr[]);
+node* delete_probe_req(node** ret_remove, node* head, uint8_t bssid_addr[], uint8_t client_addr[]);
 int mac_is_first_in_list(node* head, uint8_t bssid_addr[], uint8_t client_addr[]);
 node* remove_node(node* head, node* curr, node* prev);
 node* remove_old_entries(node* head, time_t current_time, long long int threshold);
 void print_list_with_head(node* head);
 
-void insert_to_list(probe_entry entry)
+void insert_to_list(probe_entry entry, int inc_counter)
 {
     pthread_mutex_lock(&list_mutex);
 
     entry.time = time(0);
+    entry.counter = 0;
 
     // first delete probe request
     //probe_list_head = remove_old_entries(probe_list_head, time(0), TIME_THRESHOLD);
-    probe_list_head = delete_probe_req(probe_list_head, entry.bssid_addr, entry.client_addr);
-    probe_list_head = insert(probe_list_head, entry);
+    node *tmp_probe_req = NULL;
+    probe_list_head = delete_probe_req(&tmp_probe_req, probe_list_head, entry.bssid_addr, entry.client_addr);
+
+    if(tmp_probe_req) // local ubus
+    {
+        tmp_probe_req->data.signal = entry.signal;
+        tmp_probe_req->data.time = entry.time;
+        if(inc_counter) // when network don't increase counter...
+        {
+            tmp_probe_req->data.counter++;
+        }
+
+        // is this correct?
+        probe_list_head = insert(probe_list_head, tmp_probe_req->data);
+        free(tmp_probe_req);
+    } else 
+    {   
+        printf("New entry!\n");
+        probe_list_head = insert(probe_list_head, entry);
+    }
     
     pthread_mutex_unlock(&list_mutex);
 }
@@ -118,7 +137,7 @@ node* insert(node* head, probe_entry entry) {
 
 }
 
-node* delete_probe_req(node* head, uint8_t bssid_addr[], uint8_t client_addr[]) 
+node* delete_probe_req(node** ret_remove, node* head, uint8_t bssid_addr[], uint8_t client_addr[]) 
 {
     if(!head)
     {
@@ -130,7 +149,9 @@ node* delete_probe_req(node* head, uint8_t bssid_addr[], uint8_t client_addr[])
     {
         node *temp = head;
         head = head->ptr;
-        free(temp);
+        *ret_remove = temp;
+        // don't free pointer
+        //free(temp);
         return head; 
     }
 
@@ -148,7 +169,8 @@ node* delete_probe_req(node* head, uint8_t bssid_addr[], uint8_t client_addr[])
         {
             node *temp = next;
             prev->ptr = next->ptr;
-            free(temp);
+            //free(temp);
+            *ret_remove = temp;
             return head;
         }
         prev = next;
@@ -333,7 +355,7 @@ void print_probe_entry(probe_entry entry)
     sprintf(mac_buf_client, "%x:%x:%x:%x:%x:%x", MAC2STR(entry.client_addr));
     sprintf(mac_buf_target, "%x:%x:%x:%x:%x:%x", MAC2STR(entry.target_addr));
     
-    printf("bssid_addr: %s, client_addr: %s, target_addr: %s, signal: %d, freq: %d\n", 
-    mac_buf_ap, mac_buf_client, mac_buf_target, entry.signal, entry.freq);
+    printf("bssid_addr: %s, client_addr: %s, target_addr: %s, signal: %d, freq: %d, counter: %d\n", 
+    mac_buf_ap, mac_buf_client, mac_buf_target, entry.signal, entry.freq, entry.counter);
     
 }

@@ -24,6 +24,7 @@ typedef struct {
 	uint32_t signal;
 	uint32_t freq;
 	time_t time;
+	int counter;
 }probe_entry;
 
 
@@ -36,7 +37,7 @@ typedef struct node{
 node* insert(node* head, probe_entry entry);
 void free_list(node *head);
 void print_list();
-void insert_to_list(probe_entry entry);
+void insert_to_list(probe_entry entry, int inc_counter);
 int mac_first_in_probe_list(uint8_t bssid_addr[], uint8_t client_addr[]);
 
 void *remove_thread(void *arg);

@@ -37,7 +37,7 @@ start_service()
 
 	echo "${command}"
 
-	procd_set_param respawn
+	# procd_set_param respawn
 
 	procd_close_instance
   	echo "Dawn instance started!"

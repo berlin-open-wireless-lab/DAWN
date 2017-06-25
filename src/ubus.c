@@ -43,6 +43,12 @@ static int subscribe_to_hostapd_interfaces(char* hostapd_dir);
 
 static int decide_function(probe_entry* prob_req)
 {
+	// TODO: Refactor...
+	if(prob_req->counter < MIN_PROBE_REQ)
+	{
+		return 0;
+	}
+
 	int ret = mac_first_in_probe_list(prob_req->bssid_addr, prob_req->client_addr);
 	if(ret)
 	{
@@ -92,7 +98,7 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
 {
 	probe_entry prob_req;
 	parse_to_probe_req(msg, &prob_req);
-	insert_to_list(prob_req);
+	insert_to_list(prob_req, 1);
 
 	// send probe via network
 	char *str;
