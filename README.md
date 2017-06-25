@@ -46,7 +46,7 @@ Add [bowlfeed](https://github.com/berlin-open-wireless-lab/bowl-feed.git) to fee
     
     src-git bowlfeed git@github.com:berlin-open-wireless-lab/bowl-feed.git
     
-Slect dawn under
+Select dawn under
 
     make menuconfig
     
@@ -54,3 +54,12 @@ Compile
 
     make package/dawn/compile
     
+### Configure Dawn
+
+Edit settings under
+
+    /etc/config/dawn
+    
+Restart daemon
+
+    /etc/init.d/dawn restart
