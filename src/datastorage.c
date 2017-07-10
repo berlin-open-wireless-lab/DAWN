@@ -68,9 +68,9 @@ int go_next_help(char sort_order[], int i, probe_entry entry,
     // frequency
     // mac is 5 ghz or 2.4 ghz?
     case 'f':
-      return entry.freq < next_entry.freq &&
-        entry.freq >= 5000 &&
-        next_entry.freq <= 5000 &&
+      return //entry.freq < next_entry.freq &&
+        entry.freq < 5000 &&
+        next_entry.freq >= 5000 &&
         //entry.freq < 5 &&
         mac_is_equal(entry.client_addr, next_entry.client_addr);
       break;
