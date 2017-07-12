@@ -38,7 +38,8 @@ int init_socket_runopts(char *_ip, char *_port, int broadcast_socket) {
     sock = setup_broadcast_socket(ip, port, &addr);
   } else 
   {
-    //sock = setup_multicast_socket(ip, port);
+    printf("Settingup multicastsocket!\n");
+    sock = setup_multicast_socket(ip, port, &addr);
   }
 
   pthread_t sniffer_thread;
@@ -81,11 +82,22 @@ void *receive_msg(void *args) {
   
 int send_string(char *msg) {
   int msglen = strlen(msg);
-  if (sendto(sock, msg, msglen, 0, (struct sockaddr *)&addr,
+  printf("Sending string!\n");
+      if (sendto( sock,
+                msg,
+                msglen,
+                0,
+                (struct sockaddr *) &addr,
+                sizeof (addr)) < 0) {
+       perror ("sendto()");
+       exit (EXIT_FAILURE);
+    }
+
+  /*if (sendto(sock, msg, msglen, 0, (struct sockaddr *)&addr,
              sizeof(addr)) != msglen) {
     fprintf(stderr, "Failed to send message.\n");
     return -1;
-  }
+  }*/
   return 0;
 }
 
