@@ -28,7 +28,7 @@ char recv_string[MAX_RECV_STRING + 1];
 int recv_string_len;
 void *receive_msg(void *args);
 
-int init_socket_runopts(char *_ip, char *_port, int broacst_socket) {
+int init_socket_runopts(char *_ip, char *_port, int broadcast_socket) {
   
   port = atoi(_port);
   ip = _ip;
