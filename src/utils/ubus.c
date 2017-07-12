@@ -8,8 +8,9 @@
 #define ETH_ALEN 6
 #endif
 
-#include "networksocket.h"
 #include "ubus.h"
+
+#include "networksocket.h"
 #include "utils.h"
 
 static struct ubus_context *ctx;

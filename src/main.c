@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  init_socket_runopts(opt_broadcast_ip, opt_broadcast_port);
+  init_socket_runopts(opt_broadcast_ip, opt_broadcast_port, 0);
 
   pthread_t tid;
   pthread_create(&tid, NULL, &remove_thread, NULL);

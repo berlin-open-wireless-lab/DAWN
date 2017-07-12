@@ -16,6 +16,12 @@ SET(SOURCES
 	network/networksocket.c 
 	include/networksocket.h 
 
+	network/broadcastsocket.c 
+	include/broadcastsocket.h 
+
+	network/multicastsocket.c 
+	include/multicastsocket.h 
+
 	utils/ubus.c 
 	include/ubus.h 
 
