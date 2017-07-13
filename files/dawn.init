@@ -39,6 +39,11 @@ start_service()
 
 	# procd_set_param respawn
 
+	echo "Starting mdns"
+	procd_add_mdns "hoho" "udp" "1026" "daemon=special" "colour=fuschia"
+
+	echo "MDNS Startet"
+
 	procd_close_instance
   	echo "Dawn instance started!"
 }
