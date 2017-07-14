@@ -40,8 +40,8 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
                           struct ubus_request_data *req, const char *method,
                           struct blob_attr *msg);
 static int add_subscriber(char *name);
-int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req);
 static int subscribe_to_hostapd_interfaces(char *hostapd_dir);
+static int ubus_get_clients();
 
 static int decide_function(probe_entry *prob_req) {
   // TODO: Refactor...
@@ -172,6 +172,8 @@ int dawn_init_ubus(const char *ubus_socket, char *hostapd_dir) {
 
   subscribe_to_hostapd_interfaces(hostapd_dir);
 
+  ubus_get_clients();
+
   uloop_run();
 
   close_socket();
@@ -179,4 +181,26 @@ int dawn_init_ubus(const char *ubus_socket, char *hostapd_dir) {
   ubus_free(ctx);
   uloop_done();
   return 0;
+}
+
+static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_attr *msg)
+{
+  char *str;
+  if (!msg)
+    return;
+
+  str = blobmsg_format_json_indent(msg, true, -1);
+  printf("%s\n", str);
+  free(str);
+}
+
+static int ubus_get_clients() {
+  uint32_t id;
+  int ret = ubus_lookup_id(ctx, "hostapd.wlan0", &id);
+  if (ret)
+    return ret;
+  int timeout = 1;
+  int ubus_shit = ubus_invoke(ctx, id, "get_clients", NULL, ubus_get_clients_cb, NULL, timeout * 1000);
+  printf("Ubus Shit: %d", ubus_shit);
+  return ubus_shit;
 }
