@@ -27,6 +27,43 @@ typedef struct {
   int counter;
 } probe_entry;
 
+/*
+		static const struct {
+		const char *name;
+		uint32_t flag;
+	} sta_flags[] = {
+		{ "auth", WLAN_STA_AUTH },
+		{ "assoc", WLAN_STA_ASSOC },
+		{ "authorized", WLAN_STA_AUTHORIZED },
+		{ "preauth", WLAN_STA_PREAUTH },
+		{ "wds", WLAN_STA_WDS },
+		{ "wmm", WLAN_STA_WMM },
+		{ "ht", WLAN_STA_HT },
+		{ "vht", WLAN_STA_VHT },
+		{ "wps", WLAN_STA_WPS },
+		{ "mfp", WLAN_STA_MFP },
+	};
+*/
+
+typedef struct {
+	uint32_t freq;
+} client_request;
+
+typedef struct {
+	uint8_t mac[ETH_ALEN];
+	uint32_t freq;
+	uint32_t auth;
+	uint32_t assoc;
+	uint32_t authorized;
+	uint32_t preauth;
+	uint32_t wds;
+	uint32_t wmm;
+	uint32_t ht;
+	uint32_t vht;
+	uint32_t wps;
+	uint32_t mfp;
+} client;
+
 // List
 typedef struct node {
   probe_entry data;
