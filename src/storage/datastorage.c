@@ -98,38 +98,37 @@ void client_array_insert(client entry)
 
 client* client_array_delete(client entry)
 {
-  /*
+  
   int i;
   int found_in_array = 0;
   client* tmp = NULL;
 
-  if(probe_entry_last == -1)
+  if(client_entry_last == -1)
   {
     return NULL;
   }
 
   for(i = 0; i <= client_entry_last; i++)
   {
-    if(mac_is_equal(entry.bssid_addr, probe_array[i].bssid_addr) &&
-        mac_is_equal(entry.client_addr, probe_array[i].client_addr))
+    if(mac_is_equal(entry.bssid_addr, client_array[i].bssid_addr) &&
+        mac_is_equal(entry.client_addr, client_array[i].client_addr))
     {
       found_in_array = 1;
-      tmp = &probe_array[i];
+      tmp = &client_array[i];
       break;
     }
   }
 
   for(int j = i; j <= client_entry_last; j++)
   {
-    probe_array[j] = probe_array[j + 1]; 
+    client_array[j] = client_array[j + 1]; 
   }
 
   if(client_entry_last > -1 && found_in_array)
   {
     client_entry_last--;
   }
-  return tmp;*/
-  return NULL;
+  return tmp;
 }
 
 
