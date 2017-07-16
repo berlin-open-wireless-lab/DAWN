@@ -9,6 +9,7 @@ int go_next(char sort_order[], int i, probe_entry entry,
 int mac_is_equal(uint8_t addr1[], uint8_t addr2[]);
 int mac_is_greater(uint8_t addr1[], uint8_t addr2[]);
 void print_probe_entry(probe_entry entry);
+void remove_old_probe_entries(time_t current_time, long long int threshold);
 
 int probe_entry_last = -1;
 
@@ -93,7 +94,7 @@ void print_array()
 void insert_to_array(probe_entry entry, int inc_counter) 
 {
   pthread_mutex_lock(&probe_array_mutex);
-  
+
   entry.time = time(0);
   entry.counter = 0;
   probe_entry* tmp = probe_array_delete(entry);
@@ -112,9 +113,28 @@ void insert_to_array(probe_entry entry, int inc_counter)
 
   pthread_mutex_unlock(&probe_array_mutex); 
 }
+
+void remove_old_probe_entries(time_t current_time, long long int threshold)
+{
+  for(int i = 0; i < probe_entry_last; i++)
+  {
+    if (probe_array[i].time < current_time - threshold)
+    {
+      probe_array_delete(probe_array[i]);
+    }
+  }
+}
  
-
-
+void *remove_array_thread(void *arg) {
+  while (1) {
+    sleep(TIME_THRESHOLD);
+    pthread_mutex_lock(&probe_array_mutex);
+    printf("[Thread] : Removing old entries!\n");
+    remove_old_probe_entries(time(0), TIME_THRESHOLD);
+    pthread_mutex_unlock(&probe_array_mutex);
+  }
+  return 0;
+}
 
 
 

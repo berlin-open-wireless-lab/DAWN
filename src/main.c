@@ -55,7 +55,8 @@ int main(int argc, char **argv) {
 
   init_socket_runopts(opt_broadcast_ip, opt_broadcast_port, 0);
 
-  //pthread_t tid;
+  pthread_t tid;
+  pthread_create(&tid, NULL, &remove_array_thread, NULL);
   //pthread_create(&tid, NULL, &remove_thread, NULL);
 
   dawn_init_ubus(ubus_socket, opt_hostapd_dir);

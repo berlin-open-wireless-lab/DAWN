@@ -14,7 +14,7 @@
 #endif
 
 #define SORT_NUM 5
-#define TIME_THRESHOLD 60  // every minute
+#define TIME_THRESHOLD 5  // every minute
 
 // Probe entrys
 typedef struct probe_entry_s {
@@ -38,6 +38,7 @@ void insert_to_array(probe_entry entry, int inc_counter);
 void probe_array_insert(probe_entry entry);
 probe_entry* probe_array_delete(probe_entry entry);
 void print_array();
+void *remove_array_thread(void *arg);
 
 pthread_mutex_t probe_array_mutex;
 
