@@ -340,6 +340,7 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
 
   str = blobmsg_format_json_indent(msg, true, -1);
   printf("%s\n", str);
+  print_client_array();
   free(str);
 }
 
@@ -350,6 +351,5 @@ static int ubus_get_clients() {
     return ret;
   int timeout = 1;
   int ubus_shit = ubus_invoke(ctx, id, "get_clients", NULL, ubus_get_clients_cb, NULL, timeout * 1000);
-  printf("Ubus Shit: %d", ubus_shit);
   return ubus_shit;
 }
