@@ -35,6 +35,7 @@ int main(int argc, char **argv) {
       case 'h':
         snprintf(opt_hostapd_dir, BUFSIZE_DIR, "%s", optarg);
         printf("hostapd dir: %s\n", opt_hostapd_dir);
+        hostapd_dir_glob = optarg;
       default:
         break;
     }

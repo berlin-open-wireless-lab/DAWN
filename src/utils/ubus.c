@@ -349,11 +349,23 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
 }
 
 static int ubus_get_clients() {
-  uint32_t id;
-  int ret = ubus_lookup_id(ctx, "hostapd.wlan0", &id);
-  if (ret)
-    return ret;
-  int timeout = 1;
-  int ubus_shit = ubus_invoke(ctx, id, "get_clients", NULL, ubus_get_clients_cb, NULL, timeout * 1000);
-  return ubus_shit;
+  DIR *dirp;
+  struct dirent *entry;
+
+  dirp = opendir(hostapd_dir_glob);  // error handling?
+  while ((entry = readdir(dirp)) != NULL) {
+    if (entry->d_type == DT_SOCK) {
+      char hostapd_iface[256];
+      uint32_t id;
+      sprintf(hostapd_iface, "hostapd.%s", entry->d_name);
+      printf("Subscribing to %s\n", hostapd_iface);
+      int ret = ubus_lookup_id(ctx, hostapd_iface, &id);
+      if(!ret)
+      {  
+        int timeout = 1;
+        ubus_invoke(ctx, id, "get_clients", NULL, ubus_get_clients_cb, NULL, timeout * 1000);
+      }
+    }
+  }
+  return 0;
 }
