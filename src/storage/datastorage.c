@@ -9,6 +9,142 @@ int go_next(char sort_order[], int i, probe_entry entry,
 int mac_is_equal(uint8_t addr1[], uint8_t addr2[]);
 int mac_is_greater(uint8_t addr1[], uint8_t addr2[]);
 void print_probe_entry(probe_entry entry);
+void remove_old_probe_entries(time_t current_time, long long int threshold);
+
+int probe_entry_last = -1;
+
+
+void probe_array_insert(probe_entry entry)
+{
+  if(probe_entry_last == -1)
+  {
+    probe_array[0] = entry;
+    probe_entry_last++;
+    return;
+  }
+  
+  int i;
+  for(i = 0; i <= probe_entry_last; i++)
+  {
+    if(!go_next(sort_string, SORT_NUM, entry, probe_array[i]))
+    {
+      break;
+    }
+  }
+  for(int j = probe_entry_last; j >= i; j--)
+  {
+    if(j + 1 <= ARRAY_LEN)
+    {
+      probe_array[j + 1] = probe_array[j]; 
+    }
+  }
+  probe_array[i] = entry;
+
+  if(probe_entry_last < ARRAY_LEN)
+  {
+    probe_entry_last++;    
+  }
+}
+
+probe_entry* probe_array_delete(probe_entry entry)
+{
+  int i;
+  int found_in_array = 0;
+  probe_entry* tmp = NULL;
+
+  if(probe_entry_last == -1)
+  {
+    return NULL;
+  }
+
+  for(i = 0; i <= probe_entry_last; i++)
+  {
+    if(mac_is_equal(entry.bssid_addr, probe_array[i].bssid_addr) &&
+        mac_is_equal(entry.client_addr, probe_array[i].client_addr))
+    {
+      found_in_array = 1;
+      tmp = &probe_array[i];
+      break;
+    }
+  }
+
+  for(int j = i; j <= probe_entry_last; j++)
+  {
+    probe_array[j] = probe_array[j + 1]; 
+  }
+
+  if(probe_entry_last > -1 && found_in_array)
+  {
+    probe_entry_last--;
+  }
+  return tmp;
+}
+
+void print_array()
+{
+  printf("------------------\n");
+  printf("Probe Entry Last: %d\n", probe_entry_last);
+  for(int i = 0; i <= probe_entry_last; i++)
+  {
+    print_probe_entry(probe_array[i]);
+  }
+  printf("------------------\n");
+}
+
+void insert_to_array(probe_entry entry, int inc_counter) 
+{
+  pthread_mutex_lock(&probe_array_mutex);
+
+  entry.time = time(0);
+  entry.counter = 0;
+  probe_entry* tmp = probe_array_delete(entry);
+
+  if(tmp != NULL)
+  {
+    entry.counter = tmp->counter;
+  }
+
+  if (inc_counter)
+  {
+    entry.counter++;
+  }
+
+  probe_array_insert(entry);
+
+  pthread_mutex_unlock(&probe_array_mutex); 
+}
+
+void remove_old_probe_entries(time_t current_time, long long int threshold)
+{
+  for(int i = 0; i < probe_entry_last; i++)
+  {
+    if (probe_array[i].time < current_time - threshold)
+    {
+      probe_array_delete(probe_array[i]);
+    }
+  }
+}
+ 
+void *remove_array_thread(void *arg) {
+  while (1) {
+    sleep(TIME_THRESHOLD);
+    pthread_mutex_lock(&probe_array_mutex);
+    printf("[Thread] : Removing old entries!\n");
+    remove_old_probe_entries(time(0), TIME_THRESHOLD);
+    pthread_mutex_unlock(&probe_array_mutex);
+  }
+  return 0;
+}
+
+
+
+
+
+
+
+
+
+
 node *delete_probe_req(node **ret_remove, node *head, uint8_t bssid_addr[],
                        uint8_t client_addr[]);
 int mac_is_first_in_list(node *head, uint8_t bssid_addr[],
@@ -24,6 +160,7 @@ void insert_to_list(probe_entry entry, int inc_counter) {
   entry.time = time(0);
   entry.counter = 0;
 
+  
   // first delete probe request
   // probe_list_head = remove_old_entries(probe_list_head, time(0),
   // TIME_THRESHOLD);

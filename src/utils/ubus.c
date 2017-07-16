@@ -86,7 +86,7 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
 static int add_subscriber(char *name);
 static int subscribe_to_hostapd_interfaces(char *hostapd_dir);
 static int ubus_get_clients();
-
+/*
 static int decide_function(probe_entry *prob_req) {
   // TODO: Refactor...
   if (prob_req->counter < MIN_PROBE_REQ) {
@@ -102,7 +102,7 @@ static int decide_function(probe_entry *prob_req) {
   }
   return ret;
 }
-
+*/
 static void hostapd_handle_remove(struct ubus_context *ctx,
                                   struct ubus_subscriber *s, uint32_t id) {
   fprintf(stderr, "Object %08x went away\n", id);
@@ -136,7 +136,8 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
                           struct blob_attr *msg) {
   probe_entry prob_req;
   parse_to_probe_req(msg, &prob_req);
-  insert_to_list(prob_req, 1);
+  //insert_to_list(prob_req, 1);
+  insert_to_array(prob_req, 1);
 
   // send probe via network
   char *str;
@@ -145,14 +146,14 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
 
   printf("[WC] Hostapd-Probe: %s : %s\n", method, str);
 
-  print_list();
+  print_array();
 
   // sleep(2); // sleep for 2s
 
   // deny access
-  if (!decide_function(&prob_req)) {
-    return UBUS_STATUS_UNKNOWN_ERROR;
-  }
+  //if (!decide_function(&prob_req)) {
+  //  return UBUS_STATUS_UNKNOWN_ERROR;
+  //}
 
   // allow access
   return 0;

@@ -75,8 +75,10 @@ void *receive_msg(void *args) {
     printf("Parsed: '%s'\n", str);
     parse_to_probe_req(b.head, &prob_req);
 
+    insert_to_array(prob_req, 0);
+
     // insert to list
-    insert_to_list(prob_req, 0);
+    //insert_to_list(prob_req, 0);
   }
 }
   
