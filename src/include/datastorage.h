@@ -45,6 +45,7 @@ typedef struct client_s {
 	uint8_t vht;
 	uint8_t wps;
 	uint8_t mfp;
+	time_t time;
 	uint32_t aid;
 } client;
 
@@ -56,6 +57,8 @@ typedef struct client_s {
 
 struct client_s client_array[ARRAY_CLIENT_LEN];
 pthread_mutex_t client_array_mutex;
+
+void insert_client_to_array(client entry);
 
 void client_array_insert(client entry);
 client* client_array_delete(client entry);

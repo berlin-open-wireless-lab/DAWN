@@ -76,7 +76,7 @@ void client_array_insert(client entry)
   int i;
   for(i = 0; i <= client_entry_last; i++)
   {
-    if(!client_array_go_next("bs", 2, entry, client_array[i]))
+    if(!client_array_go_next("bc", 2, entry, client_array[i]))
     {
       break;
     }
@@ -254,7 +254,20 @@ void *remove_array_thread(void *arg) {
   return 0;
 }
 
+void insert_client_to_array(client entry)
+{
+  pthread_mutex_lock(&client_array_mutex);
+  entry.time = time(0);
 
+  printf("Deleting Client:\n");
+  client_array_delete(entry);
+  printf("Inserting Client:\n");
+  client_array_insert(entry);
+  printf("Inseted Client\n");
+
+
+  pthread_mutex_unlock(&client_array_mutex);
+}
 
 
 

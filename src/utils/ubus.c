@@ -287,6 +287,8 @@ dump_client(struct blob_attr **tb, uint8_t client_addr[], const char* bssid_addr
     client_entry.aid =  blobmsg_get_u32(tb[CLIENT_AID]);
   }
 
+  insert_client_to_array(client_entry);
+
   printf("Dumped Client!\n");
 }
 
