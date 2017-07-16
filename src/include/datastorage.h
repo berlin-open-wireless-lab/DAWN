@@ -59,6 +59,8 @@ pthread_mutex_t client_array_mutex;
 
 void client_array_insert(client entry);
 client* client_array_delete(client entry);
+void print_client_array();
+void print_client_entry(client entry);
 
 #define ARRAY_LEN 1000
 

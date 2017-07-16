@@ -581,3 +581,24 @@ void print_probe_entry(probe_entry entry) {
       mac_buf_ap, mac_buf_client, mac_buf_target, entry.signal, entry.freq,
       entry.counter);
 }
+
+void print_client_entry(client entry) {
+  char mac_buf_ap[20];
+  char mac_buf_client[20];
+
+  sprintf(mac_buf_ap, "%x:%x:%x:%x:%x:%x", MAC2STR(entry.bssid_addr));
+  sprintf(mac_buf_client, "%x:%x:%x:%x:%x:%x", MAC2STR(entry.client_addr));
+
+  printf("bssid_addr: %s, client_addr: %s, freq: ""%d\n",
+      mac_buf_ap, mac_buf_client, entry.freq);
+}
+
+void print_client_array() {
+  printf("--------Clients------\n");
+  printf("Probe Entry Last: %d\n", client_entry_last);
+  for(int i = 0; i <= client_entry_last; i++)
+  {
+    print_client_entry(client_array[i]);
+  }
+  printf("------------------\n");
+}
