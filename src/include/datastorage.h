@@ -34,7 +34,7 @@ typedef struct {
 typedef struct client_s {
 	uint8_t bssid_addr[ETH_ALEN];
 	uint8_t client_addr[ETH_ALEN];
-	uint8_t freq;
+	uint32_t freq;
 	uint8_t auth;
 	uint8_t assoc;
 	uint8_t authorized;

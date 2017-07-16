@@ -602,7 +602,7 @@ void print_client_entry(client entry) {
   sprintf(mac_buf_ap, "%x:%x:%x:%x:%x:%x", MAC2STR(entry.bssid_addr));
   sprintf(mac_buf_client, "%x:%x:%x:%x:%x:%x", MAC2STR(entry.client_addr));
 
-  printf("bssid_addr: %s, client_addr: %s, freq: ""%d\n",
+  printf("bssid_addr: %s, client_addr: %s, freq: %d\n",
       mac_buf_ap, mac_buf_client, entry.freq);
 }
 

@@ -246,9 +246,11 @@ dump_client(struct blob_attr **tb, uint8_t client_addr[], const char* bssid_addr
 
   sprintf(mac_buf_ap, "%x:%x:%x:%x:%x:%x", MAC2STR(client_entry.bssid_addr));
   sprintf(mac_buf_client, "%x:%x:%x:%x:%x:%x", MAC2STR(client_entry.client_addr));
+  client_entry.freq = freq;
 
   printf("Client Address: %s\n", mac_buf_client);
   printf("AP Address: %s\n", mac_buf_ap);
+  printf("Freq: %d\n", freq);
 
   //hwaddr_aton(client_addr, client_entry.client_addr);
 
