@@ -14,10 +14,10 @@
 #endif
 
 #define SORT_NUM 5
-#define TIME_THRESHOLD 60  // every minute
+#define TIME_THRESHOLD 5  // every minute
 
 // Probe entrys
-typedef struct {
+typedef struct probe_entry_s {
   uint8_t bssid_addr[ETH_ALEN];
   uint8_t client_addr[ETH_ALEN];
   uint8_t target_addr[ETH_ALEN];
@@ -26,6 +26,40 @@ typedef struct {
   time_t time;
   int counter;
 } probe_entry;
+
+
+// Array
+
+#define ARRAY_LEN 1000
+
+struct probe_entry_s probe_array[ARRAY_LEN];
+
+void insert_to_array(probe_entry entry, int inc_counter);
+void probe_array_insert(probe_entry entry);
+probe_entry* probe_array_delete(probe_entry entry);
+void print_array();
+void *remove_array_thread(void *arg);
+
+pthread_mutex_t probe_array_mutex;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // List
 typedef struct node {

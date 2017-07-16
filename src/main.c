@@ -48,10 +48,16 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  if (pthread_mutex_init(&probe_array_mutex, NULL) != 0) {
+    printf("\n mutex init failed\n");
+    return 1;
+  }  
+
   init_socket_runopts(opt_broadcast_ip, opt_broadcast_port, 0);
 
   pthread_t tid;
-  pthread_create(&tid, NULL, &remove_thread, NULL);
+  pthread_create(&tid, NULL, &remove_array_thread, NULL);
+  //pthread_create(&tid, NULL, &remove_thread, NULL);
 
   dawn_init_ubus(ubus_socket, opt_hostapd_dir);
 
