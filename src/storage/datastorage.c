@@ -12,6 +12,76 @@ void print_probe_entry(probe_entry entry);
 void remove_old_probe_entries(time_t current_time, long long int threshold);
 
 int probe_entry_last = -1;
+int client_entry_last = -1;
+
+void client_array_insert(client entry)
+{
+  /*
+  if(client_entry_last == -1)
+  {
+    probe_array[0] = entry;
+    client_entry_last++;
+    return;
+  }
+  
+  int i;
+  for(i = 0; i <= client_entry_last; i++)
+  {
+    if(!go_next(sort_string, SORT_NUM, entry, probe_array[i]))
+    {
+      break;
+    }
+  }
+  for(int j = client_entry_last; j >= i; j--)
+  {
+    if(j + 1 <= ARRAY_LEN)
+    {
+      probe_array[j + 1] = probe_array[j]; 
+    }
+  }
+  probe_array[i] = entry;
+
+  if(client_entry_last < ARRAY_LEN)
+  {
+    client_entry_last++;    
+  }*/
+}
+
+client* client_array_delete(client entry)
+{
+  /*
+  int i;
+  int found_in_array = 0;
+  client* tmp = NULL;
+
+  if(probe_entry_last == -1)
+  {
+    return NULL;
+  }
+
+  for(i = 0; i <= client_entry_last; i++)
+  {
+    if(mac_is_equal(entry.bssid_addr, probe_array[i].bssid_addr) &&
+        mac_is_equal(entry.client_addr, probe_array[i].client_addr))
+    {
+      found_in_array = 1;
+      tmp = &probe_array[i];
+      break;
+    }
+  }
+
+  for(int j = i; j <= client_entry_last; j++)
+  {
+    probe_array[j] = probe_array[j + 1]; 
+  }
+
+  if(client_entry_last > -1 && found_in_array)
+  {
+    client_entry_last--;
+  }
+  return tmp;*/
+  return NULL;
+}
 
 
 void probe_array_insert(probe_entry entry)

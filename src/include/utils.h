@@ -2,6 +2,8 @@
 #define __DAWN_UTILS_H
 
 #define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
+#define STR2MAC(a) &(a)[0], &(a)[1], &(a)[2], &(a)[3], &(a)[4], &(a)[5]
+
 
 static int hex_to_bin(char ch) {
   if ((ch >= '0') && (ch <= '9')) return ch - '0';

@@ -27,58 +27,49 @@ typedef struct probe_entry_s {
   int counter;
 } probe_entry;
 
-/*
-		static const struct {
-		const char *name;
-		uint32_t flag;
-	} sta_flags[] = {
-		{ "auth", WLAN_STA_AUTH },
-		{ "assoc", WLAN_STA_ASSOC },
-		{ "authorized", WLAN_STA_AUTHORIZED },
-		{ "preauth", WLAN_STA_PREAUTH },
-		{ "wds", WLAN_STA_WDS },
-		{ "wmm", WLAN_STA_WMM },
-		{ "ht", WLAN_STA_HT },
-		{ "vht", WLAN_STA_VHT },
-		{ "wps", WLAN_STA_WPS },
-		{ "mfp", WLAN_STA_MFP },
-	};
-*/
-
 typedef struct {
 	uint32_t freq;
 } client_request;
 
-typedef struct {
-	uint8_t mac[ETH_ALEN];
-	uint32_t freq;
-	uint32_t auth;
-	uint32_t assoc;
-	uint32_t authorized;
-	uint32_t preauth;
-	uint32_t wds;
-	uint32_t wmm;
-	uint32_t ht;
-	uint32_t vht;
-	uint32_t wps;
-	uint32_t mfp;
+typedef struct client_s {
+	uint8_t bssid_addr[ETH_ALEN];
+	uint8_t client_addr[ETH_ALEN];
+	uint8_t freq;
+	uint8_t auth;
+	uint8_t assoc;
+	uint8_t authorized;
+	uint8_t preauth;
+	uint8_t wds;
+	uint8_t wmm;
+	uint8_t ht;
+	uint8_t vht;
+	uint8_t wps;
+	uint8_t mfp;
+	uint32_t aid;
 } client;
 
 
 // Array
 
+
+#define ARRAY_CLIENT_LEN 1000
+
+struct probe_entry_s client_array[ARRAY_CLIENT_LEN];
+pthread_mutex_t client_array_mutex;
+
+void client_array_insert(client entry);
+client* client_array_delete(client entry);
+
 #define ARRAY_LEN 1000
 
 struct probe_entry_s probe_array[ARRAY_LEN];
+pthread_mutex_t probe_array_mutex;
 
 void insert_to_array(probe_entry entry, int inc_counter);
 void probe_array_insert(probe_entry entry);
 probe_entry* probe_array_delete(probe_entry entry);
 void print_array();
 void *remove_array_thread(void *arg);
-
-pthread_mutex_t probe_array_mutex;
-
 
 
 

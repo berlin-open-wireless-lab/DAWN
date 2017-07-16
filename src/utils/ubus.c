@@ -35,12 +35,14 @@ static const struct blobmsg_policy prob_policy[__PROB_MAX] = {
 
 enum {
   CLIENT_TABLE,
+  CLIENT_TABLE_BSSID,
   CLIENT_TABLE_FREQ,
   __CLIENT_TABLE_MAX,
 };
 
 static const struct blobmsg_policy client_table_policy[__CLIENT_TABLE_MAX] = {
     [CLIENT_TABLE] = {.name = "clients", .type = BLOBMSG_TYPE_TABLE},
+    [CLIENT_TABLE_BSSID] = {.name = "bssid", .type = BLOBMSG_TYPE_STRING},
     [CLIENT_TABLE_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
 };
 
@@ -229,31 +231,69 @@ int dawn_init_ubus(const char *ubus_socket, char *hostapd_dir) {
 }
 
 static void
-dump_client(struct blob_attr **tb)
+dump_client(struct blob_attr **tb, uint8_t client_addr[], const char* bssid_addr, uint32_t freq)
 {
   printf("DUMPING CLIENT:\n");
 
+  client client_entry;
+
+  hwaddr_aton(bssid_addr, client_entry.bssid_addr);
+
+  memcpy(client_entry.client_addr, client_addr, ETH_ALEN * sizeof(uint8_t));
+
+  char mac_buf_client[20];
+  char mac_buf_ap[20];
+
+  sprintf(mac_buf_ap, "%x:%x:%x:%x:%x:%x", MAC2STR(client_entry.bssid_addr));
+  sprintf(mac_buf_client, "%x:%x:%x:%x:%x:%x", MAC2STR(client_entry.client_addr));
+  printf("Testing client mac: %s\n", client_entry.client_addr);
+
+  printf("Client Address: %s\n", mac_buf_client);
+  printf("AP Address: %s\n", mac_buf_ap);
+
+
+  //hwaddr_aton(client_addr, client_entry.client_addr);
+
   if (tb[CLIENT_AUTH]) {
-    printf("AUTH: %d\n", blobmsg_get_u8(tb[CLIENT_AUTH]));
+    client_entry.auth =  blobmsg_get_u8(tb[CLIENT_AUTH]);
   }
   if (tb[CLIENT_ASSOC]) {
-    printf("ASSOC: %d\n", blobmsg_get_u8(tb[CLIENT_ASSOC]));
+    client_entry.assoc =  blobmsg_get_u8(tb[CLIENT_ASSOC]);
+  }
+  if(tb[CLIENT_AUTHORIZED])
+  {
+    client_entry.authorized =  blobmsg_get_u8(tb[CLIENT_AUTHORIZED]);
+  }
+  if(tb[CLIENT_PREAUTH]){
+    client_entry.preauth =  blobmsg_get_u8(tb[CLIENT_PREAUTH]);
+  }
+  if(tb[CLIENT_WDS]){
+    client_entry.wds =  blobmsg_get_u8(tb[CLIENT_WDS]);
+  }
+  if(tb[CLIENT_WMM]){
+    client_entry.wmm =  blobmsg_get_u8(tb[CLIENT_WMM]);
+  }
+  if(tb[CLIENT_HT]){
+    client_entry.ht =  blobmsg_get_u8(tb[CLIENT_HT]);
+  }
+  if(tb[CLIENT_VHT]){
+    client_entry.vht =  blobmsg_get_u8(tb[CLIENT_VHT]);
+  }
+  if(tb[CLIENT_WPS]){
+    client_entry.wps =  blobmsg_get_u8(tb[CLIENT_WPS]);
+  }
+  if(tb[CLIENT_MFP]){
+    client_entry.mfp =  blobmsg_get_u8(tb[CLIENT_MFP]);
+  }
+  if(tb[CLIENT_AID]){
+    client_entry.aid =  blobmsg_get_u32(tb[CLIENT_AID]);
   }
 
-  if(tb[CLIENT_PREAUTH]){
-    printf("Preauth: %d\n", blobmsg_get_u8(tb[CLIENT_PREAUTH]));
-  }
-  if(tb[CLIENT_HT]){
-    printf("HT: %d\n", blobmsg_get_u8(tb[CLIENT_HT]));
-  }
-  if(tb[CLIENT_HT]){
-    printf("AID: %d\n", blobmsg_get_u32(tb[CLIENT_AID]));
-  }
   printf("Dumped Client!\n");
 }
 
 static void
-dump_client_table(struct blob_attr *head, int len)
+dump_client_table(struct blob_attr *head, int len, const char* bssid_addr, uint32_t freq)
 {
   struct blob_attr *attr;
   struct blobmsg_hdr *hdr;
@@ -267,7 +307,13 @@ dump_client_table(struct blob_attr *head, int len)
     char* str = blobmsg_format_json_indent(attr, true, -1);
     printf("%s\n", str);
 
-    dump_client(tb);
+    int tmp_int_mac[ETH_ALEN];
+    uint8_t tmp_mac[ETH_ALEN];
+    sscanf((char*)hdr->name, "%x:%x:%x:%x:%x:%x", STR2MAC(tmp_int_mac));
+    for(int i = 0; i < ETH_ALEN; ++i )
+        tmp_mac[i] = (uint8_t) tmp_int_mac[i];
+
+    dump_client(tb, tmp_mac, bssid_addr, freq);
   }
 }
 
@@ -276,8 +322,10 @@ static int parse_to_clients(struct blob_attr *msg) {
 
   blobmsg_parse(client_table_policy, __CLIENT_TABLE_MAX, tb, blob_data(msg), blob_len(msg));
 
-  if (tb[CLIENT_TABLE]) {
-    dump_client_table(blobmsg_data(tb[CLIENT_TABLE]), blobmsg_data_len(tb[CLIENT_TABLE]));
+
+
+  if (tb[CLIENT_TABLE] && tb[CLIENT_TABLE_BSSID] && tb[CLIENT_TABLE_FREQ]) {
+    dump_client_table(blobmsg_data(tb[CLIENT_TABLE]), blobmsg_data_len(tb[CLIENT_TABLE]), blobmsg_data(tb[CLIENT_TABLE_BSSID]), blobmsg_get_u32(tb[CLIENT_TABLE_FREQ]));
   }
 
   printf("Parsing client request success!!!\n");
