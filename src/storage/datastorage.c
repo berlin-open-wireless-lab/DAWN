@@ -15,6 +15,7 @@ int client_array_go_next(char sort_order[], int i, client entry,
             client next_entry);
 int client_array_go_next_help(char sort_order[], int i, client entry,
                  client next_entry);
+void remove_old_client_entries(time_t current_time, long long int threshold);
 
 int probe_entry_last = -1;
 int client_entry_last = -1;
@@ -232,6 +233,17 @@ void insert_to_array(probe_entry entry, int inc_counter)
   pthread_mutex_unlock(&probe_array_mutex); 
 }
 
+void remove_old_client_entries(time_t current_time, long long int threshold)
+{
+  for(int i = 0; i < probe_entry_last; i++)
+  {
+    if (client_array[i].time < current_time - threshold)
+    {
+      client_array_delete(client_array[i]);
+    }
+  }
+}
+
 void remove_old_probe_entries(time_t current_time, long long int threshold)
 {
   for(int i = 0; i < probe_entry_last; i++)
@@ -253,6 +265,18 @@ void *remove_array_thread(void *arg) {
   }
   return 0;
 }
+
+void *remove_client_array_thread(void *arg) {
+  while (1) {
+    sleep(TIME_THRESHOLD_CLIENT);
+    pthread_mutex_lock(&client_array_mutex);
+    printf("[Thread] : Removing old client entries!\n");
+    remove_old_client_entries(time(0), TIME_THRESHOLD_CLIENT);
+    pthread_mutex_unlock(&client_array_mutex);
+  }
+  return 0;
+}
+
 
 void insert_client_to_array(client entry)
 {

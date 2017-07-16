@@ -60,10 +60,12 @@ int main(int argc, char **argv) {
 
   init_socket_runopts(opt_broadcast_ip, opt_broadcast_port, 0);
 
-  pthread_t tid;
-  pthread_create(&tid, NULL, &remove_array_thread, NULL);
+  pthread_t tid_probe;
+  pthread_create(&tid_probe, NULL, &remove_array_thread, NULL);
 
-
+  pthread_t tid_client;
+  pthread_create(&tid_client, NULL, &remove_client_array_thread, NULL);
+  
   //pthread_create(&tid, NULL, &remove_thread, NULL);
 
   dawn_init_ubus(ubus_socket, opt_hostapd_dir);
