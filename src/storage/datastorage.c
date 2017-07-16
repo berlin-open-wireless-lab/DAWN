@@ -11,15 +11,64 @@ int mac_is_greater(uint8_t addr1[], uint8_t addr2[]);
 void print_probe_entry(probe_entry entry);
 void remove_old_probe_entries(time_t current_time, long long int threshold);
 
+int client_array_go_next(char sort_order[], int i, client entry,
+            client next_entry);
+int client_array_go_next_help(char sort_order[], int i, client entry,
+                 client next_entry);
+
 int probe_entry_last = -1;
 int client_entry_last = -1;
 
+int client_array_go_next_help(char sort_order[], int i, client entry,
+                 client next_entry) {
+  switch (sort_order[i]) {
+    // bssid-mac
+    case 'b':
+      return mac_is_greater(entry.bssid_addr, next_entry.bssid_addr) &&
+             mac_is_equal(entry.client_addr, next_entry.client_addr);
+      break;
+
+    // client-mac
+    case 'c':
+      return mac_is_greater(entry.client_addr, next_entry.client_addr);
+      break;
+
+    // frequency
+    // mac is 5 ghz or 2.4 ghz?
+   // case 'f':
+    //  return //entry.freq < next_entry.freq &&
+    //    entry.freq < 5000 &&
+    //    next_entry.freq >= 5000 &&
+    //    //entry.freq < 5 &&
+    //    mac_is_equal(entry.client_addr, next_entry.client_addr);
+    //  break;
+
+    // signal strength (RSSI)
+    //case 's':
+    //  return entry.signal < next_entry.signal &&
+    //         mac_is_equal(entry.client_addr, next_entry.client_addr);
+    //  break;
+
+    default:
+      return 0;
+      break;
+  }
+}
+
+int client_array_go_next(char sort_order[], int i, client entry,
+            client next_entry) {
+  int conditions = 1;
+  for (int j = 0; j < i; j++) {
+    i &= !(client_array_go_next(sort_order, j, entry, next_entry));
+  }
+  return conditions && client_array_go_next_help(sort_order, i, entry, next_entry);
+}
+
 void client_array_insert(client entry)
 {
-  /*
   if(client_entry_last == -1)
   {
-    probe_array[0] = entry;
+    client_array[0] = entry;
     client_entry_last++;
     return;
   }
@@ -27,7 +76,7 @@ void client_array_insert(client entry)
   int i;
   for(i = 0; i <= client_entry_last; i++)
   {
-    if(!go_next(sort_string, SORT_NUM, entry, probe_array[i]))
+    if(!client_array_go_next("bs", 2, entry, client_array[i]))
     {
       break;
     }
@@ -36,15 +85,15 @@ void client_array_insert(client entry)
   {
     if(j + 1 <= ARRAY_LEN)
     {
-      probe_array[j + 1] = probe_array[j]; 
+      client_array[j + 1] = client_array[j]; 
     }
   }
-  probe_array[i] = entry;
+  client_array[i] = entry;
 
   if(client_entry_last < ARRAY_LEN)
   {
     client_entry_last++;    
-  }*/
+  }
 }
 
 client* client_array_delete(client entry)

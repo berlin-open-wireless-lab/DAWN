@@ -54,7 +54,7 @@ typedef struct client_s {
 
 #define ARRAY_CLIENT_LEN 1000
 
-struct probe_entry_s client_array[ARRAY_CLIENT_LEN];
+struct client_s client_array[ARRAY_CLIENT_LEN];
 pthread_mutex_t client_array_mutex;
 
 void client_array_insert(client entry);
