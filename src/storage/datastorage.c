@@ -283,12 +283,8 @@ void insert_client_to_array(client entry)
   pthread_mutex_lock(&client_array_mutex);
   entry.time = time(0);
 
-  printf("Deleting Client:\n");
   client_array_delete(entry);
-  printf("Inserting Client:\n");
   client_array_insert(entry);
-  printf("Inseted Client\n");
-
 
   pthread_mutex_unlock(&client_array_mutex);
 }

@@ -112,6 +112,7 @@ static void hostapd_handle_remove(struct ubus_context *ctx,
 
 int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req) {
   struct blob_attr *tb[__PROB_MAX];
+  
   blobmsg_parse(prob_policy, __PROB_MAX, tb, blob_data(msg), blob_len(msg));
 
   if (hwaddr_aton(blobmsg_data(tb[PROB_BSSID_ADDR]), prob_req->bssid_addr))
@@ -125,11 +126,20 @@ int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req) {
 
   if (tb[PROB_SIGNAL]) {
     prob_req->signal = blobmsg_get_u32(tb[PROB_SIGNAL]);
+  } 
+  else
+  {
+    return -1;
   }
 
   if (tb[PROB_FREQ]) {
     prob_req->freq = blobmsg_get_u32(tb[PROB_FREQ]);
   }
+  else
+  {
+    return -1;
+  }
+
   return 0;
 }
 
@@ -233,8 +243,6 @@ int dawn_init_ubus(const char *ubus_socket, char *hostapd_dir) {
 static void
 dump_client(struct blob_attr **tb, uint8_t client_addr[], const char* bssid_addr, uint32_t freq)
 {
-  printf("DUMPING CLIENT:\n");
-
   client client_entry;
 
   hwaddr_aton(bssid_addr, client_entry.bssid_addr);
@@ -247,12 +255,6 @@ dump_client(struct blob_attr **tb, uint8_t client_addr[], const char* bssid_addr
   sprintf(mac_buf_ap, "%x:%x:%x:%x:%x:%x", MAC2STR(client_entry.bssid_addr));
   sprintf(mac_buf_client, "%x:%x:%x:%x:%x:%x", MAC2STR(client_entry.client_addr));
   client_entry.freq = freq;
-
-  printf("Client Address: %s\n", mac_buf_client);
-  printf("AP Address: %s\n", mac_buf_ap);
-  printf("Freq: %d\n", freq);
-
-  //hwaddr_aton(client_addr, client_entry.client_addr);
 
   if (tb[CLIENT_AUTH]) {
     client_entry.auth =  blobmsg_get_u8(tb[CLIENT_AUTH]);
@@ -290,8 +292,6 @@ dump_client(struct blob_attr **tb, uint8_t client_addr[], const char* bssid_addr
   }
 
   insert_client_to_array(client_entry);
-
-  printf("Dumped Client!\n");
 }
 
 static void
@@ -302,12 +302,10 @@ dump_client_table(struct blob_attr *head, int len, const char* bssid_addr, uint3
 
   __blob_for_each_attr(attr, head, len) {
     hdr = blob_data(attr);
-    printf("%s\n", hdr->name); // mac client
 
     struct blob_attr *tb[__CLIENT_MAX];
     blobmsg_parse(client_policy, __CLIENT_MAX, tb, blobmsg_data(attr), blobmsg_len(attr));
-    char* str = blobmsg_format_json_indent(attr, true, -1);
-    printf("%s\n", str);
+    //char* str = blobmsg_format_json_indent(attr, true, -1);
 
     int tmp_int_mac[ETH_ALEN];
     uint8_t tmp_mac[ETH_ALEN];
@@ -319,33 +317,30 @@ dump_client_table(struct blob_attr *head, int len, const char* bssid_addr, uint3
   }
 }
 
-static int parse_to_clients(struct blob_attr *msg) {
+int parse_to_clients(struct blob_attr *msg) {
   struct blob_attr *tb[__CLIENT_TABLE_MAX];
 
   blobmsg_parse(client_table_policy, __CLIENT_TABLE_MAX, tb, blob_data(msg), blob_len(msg));
-
-
 
   if (tb[CLIENT_TABLE] && tb[CLIENT_TABLE_BSSID] && tb[CLIENT_TABLE_FREQ]) {
     dump_client_table(blobmsg_data(tb[CLIENT_TABLE]), blobmsg_data_len(tb[CLIENT_TABLE]), blobmsg_data(tb[CLIENT_TABLE_BSSID]), blobmsg_get_u32(tb[CLIENT_TABLE_FREQ]));
   }
 
-  printf("Parsing client request success!!!\n");
   return 0;
 }
 
 static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_attr *msg)
 {
-  char *str;
   if (!msg)
     return;
 
   parse_to_clients(msg);
 
-  str = blobmsg_format_json_indent(msg, true, -1);
-  printf("%s\n", str);
+  char *str = blobmsg_format_json(msg, true);
+  send_string(str);
   print_client_array();
-  free(str);
+
+  // TODO SEND CLIENT VIA NETWORK!
 }
 
 static int ubus_get_clients() {
@@ -358,7 +353,6 @@ static int ubus_get_clients() {
       char hostapd_iface[256];
       uint32_t id;
       sprintf(hostapd_iface, "hostapd.%s", entry->d_name);
-      printf("Subscribing to %s\n", hostapd_iface);
       int ret = ubus_lookup_id(ctx, hostapd_iface, &id);
       if(!ret)
       {  
@@ -366,6 +360,16 @@ static int ubus_get_clients() {
         ubus_invoke(ctx, id, "get_clients", NULL, ubus_get_clients_cb, NULL, timeout * 1000);
       }
     }
+  }
+  return 0;
+}
+
+void *update_clients_thread(void *arg)
+{
+  while (1){
+    sleep(TIME_THRESHOLD_CLIENT);
+    printf("[Thread] : Updating clients!\n");
+    ubus_get_clients();
   }
   return 0;
 }
