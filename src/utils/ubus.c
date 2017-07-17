@@ -230,8 +230,8 @@ int dawn_init_ubus(const char *ubus_socket, char *hostapd_dir) {
 
   subscribe_to_hostapd_interfaces(hostapd_dir);
 
-  //ubus_get_clients();
-
+  ubus_get_clients();
+/*
   printf("Deleting Client\n");
   //"78:02:f8:bc:ac:0b"
 
@@ -241,7 +241,7 @@ int dawn_init_ubus(const char *ubus_socket, char *hostapd_dir) {
   for(int i = 0; i < ETH_ALEN; ++i )
       tmp_mac[i] = (uint8_t) tmp_int_mac[i];
   del_client(tmp_mac, 5, 1, 60000);
-
+*/
   uloop_run();
 
   close_socket();
