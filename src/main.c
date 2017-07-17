@@ -35,6 +35,7 @@ int main(int argc, char **argv) {
       case 'h':
         snprintf(opt_hostapd_dir, BUFSIZE_DIR, "%s", optarg);
         printf("hostapd dir: %s\n", opt_hostapd_dir);
+        hostapd_dir_glob = optarg;
       default:
         break;
     }
@@ -53,10 +54,24 @@ int main(int argc, char **argv) {
     return 1;
   }  
 
+  if (pthread_mutex_init(&client_array_mutex, NULL) != 0) {
+    printf("\n mutex init failed\n");
+    return 1;
+  }
+
   init_socket_runopts(opt_broadcast_ip, opt_broadcast_port, 0);
 
-  pthread_t tid;
-  pthread_create(&tid, NULL, &remove_array_thread, NULL);
+  pthread_t tid_probe;
+  pthread_create(&tid_probe, NULL, &remove_array_thread, NULL);
+
+  pthread_t tid_client;
+  pthread_create(&tid_client, NULL, &remove_client_array_thread, NULL);
+
+  pthread_t tid_get_client;
+  pthread_create(&tid_get_client, NULL, &update_clients_thread, NULL);
+
+
+  
   //pthread_create(&tid, NULL, &remove_thread, NULL);
 
   dawn_init_ubus(ubus_socket, opt_hostapd_dir);

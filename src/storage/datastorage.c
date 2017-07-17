@@ -11,7 +11,126 @@ int mac_is_greater(uint8_t addr1[], uint8_t addr2[]);
 void print_probe_entry(probe_entry entry);
 void remove_old_probe_entries(time_t current_time, long long int threshold);
 
+int client_array_go_next(char sort_order[], int i, client entry,
+            client next_entry);
+int client_array_go_next_help(char sort_order[], int i, client entry,
+                 client next_entry);
+void remove_old_client_entries(time_t current_time, long long int threshold);
+
 int probe_entry_last = -1;
+int client_entry_last = -1;
+
+int client_array_go_next_help(char sort_order[], int i, client entry,
+                 client next_entry) {
+  switch (sort_order[i]) {
+    // bssid-mac
+    case 'b':
+      return mac_is_greater(entry.bssid_addr, next_entry.bssid_addr) &&
+             mac_is_equal(entry.client_addr, next_entry.client_addr);
+      break;
+
+    // client-mac
+    case 'c':
+      return mac_is_greater(entry.client_addr, next_entry.client_addr);
+      break;
+
+    // frequency
+    // mac is 5 ghz or 2.4 ghz?
+   // case 'f':
+    //  return //entry.freq < next_entry.freq &&
+    //    entry.freq < 5000 &&
+    //    next_entry.freq >= 5000 &&
+    //    //entry.freq < 5 &&
+    //    mac_is_equal(entry.client_addr, next_entry.client_addr);
+    //  break;
+
+    // signal strength (RSSI)
+    //case 's':
+    //  return entry.signal < next_entry.signal &&
+    //         mac_is_equal(entry.client_addr, next_entry.client_addr);
+    //  break;
+
+    default:
+      return 0;
+      break;
+  }
+}
+
+int client_array_go_next(char sort_order[], int i, client entry,
+            client next_entry) {
+  int conditions = 1;
+  for (int j = 0; j < i; j++) {
+    i &= !(client_array_go_next(sort_order, j, entry, next_entry));
+  }
+  return conditions && client_array_go_next_help(sort_order, i, entry, next_entry);
+}
+
+void client_array_insert(client entry)
+{
+  if(client_entry_last == -1)
+  {
+    client_array[0] = entry;
+    client_entry_last++;
+    return;
+  }
+  
+  int i;
+  for(i = 0; i <= client_entry_last; i++)
+  {
+    if(!client_array_go_next("bc", 2, entry, client_array[i]))
+    {
+      break;
+    }
+  }
+  for(int j = client_entry_last; j >= i; j--)
+  {
+    if(j + 1 <= ARRAY_LEN)
+    {
+      client_array[j + 1] = client_array[j]; 
+    }
+  }
+  client_array[i] = entry;
+
+  if(client_entry_last < ARRAY_LEN)
+  {
+    client_entry_last++;    
+  }
+}
+
+client* client_array_delete(client entry)
+{
+  
+  int i;
+  int found_in_array = 0;
+  client* tmp = NULL;
+
+  if(client_entry_last == -1)
+  {
+    return NULL;
+  }
+
+  for(i = 0; i <= client_entry_last; i++)
+  {
+    if(mac_is_equal(entry.bssid_addr, client_array[i].bssid_addr) &&
+        mac_is_equal(entry.client_addr, client_array[i].client_addr))
+    {
+      found_in_array = 1;
+      tmp = &client_array[i];
+      break;
+    }
+  }
+
+  for(int j = i; j <= client_entry_last; j++)
+  {
+    client_array[j] = client_array[j + 1]; 
+  }
+
+  if(client_entry_last > -1 && found_in_array)
+  {
+    client_entry_last--;
+  }
+  return tmp;
+}
 
 
 void probe_array_insert(probe_entry entry)
@@ -114,6 +233,17 @@ void insert_to_array(probe_entry entry, int inc_counter)
   pthread_mutex_unlock(&probe_array_mutex); 
 }
 
+void remove_old_client_entries(time_t current_time, long long int threshold)
+{
+  for(int i = 0; i < probe_entry_last; i++)
+  {
+    if (client_array[i].time < current_time - threshold)
+    {
+      client_array_delete(client_array[i]);
+    }
+  }
+}
+
 void remove_old_probe_entries(time_t current_time, long long int threshold)
 {
   for(int i = 0; i < probe_entry_last; i++)
@@ -136,7 +266,28 @@ void *remove_array_thread(void *arg) {
   return 0;
 }
 
+void *remove_client_array_thread(void *arg) {
+  while (1) {
+    sleep(TIME_THRESHOLD_CLIENT);
+    pthread_mutex_lock(&client_array_mutex);
+    printf("[Thread] : Removing old client entries!\n");
+    remove_old_client_entries(time(0), TIME_THRESHOLD_CLIENT);
+    pthread_mutex_unlock(&client_array_mutex);
+  }
+  return 0;
+}
 
+
+void insert_client_to_array(client entry)
+{
+  pthread_mutex_lock(&client_array_mutex);
+  entry.time = time(0);
+
+  client_array_delete(entry);
+  client_array_insert(entry);
+
+  pthread_mutex_unlock(&client_array_mutex);
+}
 
 
 
@@ -462,4 +613,25 @@ void print_probe_entry(probe_entry entry) {
       "%d, counter: %d\n",
       mac_buf_ap, mac_buf_client, mac_buf_target, entry.signal, entry.freq,
       entry.counter);
+}
+
+void print_client_entry(client entry) {
+  char mac_buf_ap[20];
+  char mac_buf_client[20];
+
+  sprintf(mac_buf_ap, "%x:%x:%x:%x:%x:%x", MAC2STR(entry.bssid_addr));
+  sprintf(mac_buf_client, "%x:%x:%x:%x:%x:%x", MAC2STR(entry.client_addr));
+
+  printf("bssid_addr: %s, client_addr: %s, freq: %d\n",
+      mac_buf_ap, mac_buf_client, entry.freq);
+}
+
+void print_client_array() {
+  printf("--------Clients------\n");
+  printf("Probe Entry Last: %d\n", client_entry_last);
+  for(int i = 0; i <= client_entry_last; i++)
+  {
+    print_client_entry(client_array[i]);
+  }
+  printf("------------------\n");
 }

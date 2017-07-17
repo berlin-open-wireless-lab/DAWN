@@ -16,7 +16,7 @@
 #include "ubus.h"
 
 /* Network Defines */
-#define MAX_RECV_STRING 255
+#define MAX_RECV_STRING 1500
 #define NET_CONFIG_PATH "/etc/wlancontroller/networkconfig.conf"
 
 /* Network Attributes */
@@ -69,13 +69,31 @@ void *receive_msg(void *args) {
     blob_buf_init(&b, 0);
     blobmsg_add_json_from_string(&b, recv_string);
 
-    recv_string[recv_string_len] = '\0';
+    //recv_string[recv_string_len] = '\0';
     char *str;
     str = blobmsg_format_json(b.head, true);
-    printf("Parsed: '%s'\n", str);
-    parse_to_probe_req(b.head, &prob_req);
 
-    insert_to_array(prob_req, 0);
+
+    /*
+      TODO: REFACTOR THIS!!! (just workaround)
+            OTHERWISE NULLPOINTER?!
+    */
+
+    if(strstr(str, "clients") != NULL) {
+      parse_to_clients(b.head);
+    } else 
+    {
+      if(parse_to_probe_req(b.head, &prob_req) == 0)
+      { 
+        insert_to_array(prob_req, 0);
+      }
+    }
+
+    //if(parse_to_probe_req(b.head, &prob_req) == 0)
+    //{ 
+    //  insert_to_array(prob_req, 0);
+    //}
+
 
     // insert to list
     //insert_to_list(prob_req, 0);
