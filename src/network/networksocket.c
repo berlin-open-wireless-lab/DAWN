@@ -16,7 +16,7 @@
 #include "ubus.h"
 
 /* Network Defines */
-#define MAX_RECV_STRING 1500
+#define MAX_RECV_STRING 500
 #define NET_CONFIG_PATH "/etc/wlancontroller/networkconfig.conf"
 
 /* Network Attributes */
@@ -61,6 +61,17 @@ void *receive_msg(void *args) {
       continue;
     }
 
+    if(recv_string == NULL)
+    {
+      return 0;
+    }
+
+    if(strlen(recv_string) <= 0)
+    {
+      return 0;
+    }
+    recv_string[recv_string_len] = '\0';
+
     printf("[WC] Network-Received: %s\n", recv_string);
 
     probe_entry prob_req;
@@ -69,7 +80,6 @@ void *receive_msg(void *args) {
     blob_buf_init(&b, 0);
     blobmsg_add_json_from_string(&b, recv_string);
 
-    //recv_string[recv_string_len] = '\0';
     char *str;
     str = blobmsg_format_json(b.head, true);
 
@@ -77,11 +87,26 @@ void *receive_msg(void *args) {
     /*
       TODO: REFACTOR THIS!!! (just workaround)
             OTHERWISE NULLPOINTER?!
+
+    */
+
+    if(str == NULL)
+    {
+      return 0;
+    }
+
+    if( strlen(str) <= 0)
+    {
+      return 0;
+    }
+
+    /*
+      HERE IS NULLPOINTER PROBABLY
     */
 
     if(strstr(str, "clients") != NULL) {
       parse_to_clients(b.head);
-    } else 
+    } else if(strstr(str, "target")!= NULL)
     {
       if(parse_to_probe_req(b.head, &prob_req) == 0)
       { 
@@ -101,6 +126,7 @@ void *receive_msg(void *args) {
 }
   
 int send_string(char *msg) {
+  pthread_mutex_lock(&send_mutex);
   int msglen = strlen(msg);
   printf("Sending string! %s\n", msg);
       if (sendto( sock,
@@ -112,6 +138,8 @@ int send_string(char *msg) {
        perror ("sendto()");
        exit (EXIT_FAILURE);
     }
+  pthread_mutex_unlock(&send_mutex);
+
 
   /*if (sendto(sock, msg, msglen, 0, (struct sockaddr *)&addr,
              sizeof(addr)) != msglen) {
