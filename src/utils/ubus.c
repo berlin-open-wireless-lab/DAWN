@@ -406,6 +406,9 @@ void del_client(const uint8_t* client_addr, uint32_t reason, uint8_t deauth, uin
     On which interface is the client?
     First send to all ifaces to ban client... xD
     Maybe Hashmap?
+
+    * get_clients method and look if client is there
+    * save on which hostapd the client is...
   */
 
   blob_buf_init(&b, 0);
