@@ -256,11 +256,11 @@ dump_client(struct blob_attr **tb, uint8_t client_addr[], const char* bssid_addr
 
   memcpy(client_entry.client_addr, client_addr, ETH_ALEN * sizeof(uint8_t));
 
-  char mac_buf_client[20];
-  char mac_buf_ap[20];
+  //char mac_buf_client[20];
+  //char mac_buf_ap[20];
 
-  sprintf(mac_buf_ap, "%x:%x:%x:%x:%x:%x", MAC2STR(client_entry.bssid_addr));
-  sprintf(mac_buf_client, "%x:%x:%x:%x:%x:%x", MAC2STR(client_entry.client_addr));
+  //sprintf(mac_buf_ap, "%x:%x:%x:%x:%x:%x", MAC2STR(client_entry.bssid_addr));
+  //sprintf(mac_buf_client, "%x:%x:%x:%x:%x:%x", MAC2STR(client_entry.client_addr));
   client_entry.freq = freq;
 
   if (tb[CLIENT_AUTH]) {
@@ -331,6 +331,10 @@ int parse_to_clients(struct blob_attr *msg) {
 
   if (tb[CLIENT_TABLE] && tb[CLIENT_TABLE_BSSID] && tb[CLIENT_TABLE_FREQ]) {
     dump_client_table(blobmsg_data(tb[CLIENT_TABLE]), blobmsg_data_len(tb[CLIENT_TABLE]), blobmsg_data(tb[CLIENT_TABLE_BSSID]), blobmsg_get_u32(tb[CLIENT_TABLE_FREQ]));
+    
+    /* BSSID */
+    uint8_t bssid[ETH_ALEN];
+    hwaddr_aton(blobmsg_data(tb[CLIENT_TABLE_BSSID]), bssid);
   }
 
   return 0;
