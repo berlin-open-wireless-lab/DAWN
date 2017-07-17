@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  init_socket_runopts(opt_broadcast_ip, opt_broadcast_port, 0);
+  init_socket_runopts(opt_broadcast_ip, opt_broadcast_port, 1);
 
   pthread_t tid_probe;
   pthread_create(&tid_probe, NULL, &remove_array_thread, NULL);

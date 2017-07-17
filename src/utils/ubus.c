@@ -333,8 +333,13 @@ int parse_to_clients(struct blob_attr *msg) {
     dump_client_table(blobmsg_data(tb[CLIENT_TABLE]), blobmsg_data_len(tb[CLIENT_TABLE]), blobmsg_data(tb[CLIENT_TABLE_BSSID]), blobmsg_get_u32(tb[CLIENT_TABLE_FREQ]));
     
     /* BSSID */
+    /* 
+      * here i know my bssid to kick the clients
+      * seems a good idea ?!
+     */
     uint8_t bssid[ETH_ALEN];
     hwaddr_aton(blobmsg_data(tb[CLIENT_TABLE_BSSID]), bssid);
+    kick_clients(bssid);
   }
 
   return 0;
@@ -376,7 +381,7 @@ static int ubus_get_clients() {
 void *update_clients_thread(void *arg)
 {
   while (1){
-    sleep(TIME_THRESHOLD_CLIENT);
+    sleep(TIME_THRESHOLD_CLIENT_UPDATE);
     printf("[Thread] : Updating clients!\n");
     ubus_get_clients();
   }

@@ -1,5 +1,7 @@
 #include "datastorage.h"
 
+#include "ubus.h"
+
 #define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
 
 int go_next_help(char sort_order[], int i, probe_entry entry,
@@ -16,9 +18,58 @@ int client_array_go_next(char sort_order[], int i, client entry,
 int client_array_go_next_help(char sort_order[], int i, client entry,
                  client next_entry);
 void remove_old_client_entries(time_t current_time, long long int threshold);
+int kick_client(uint8_t bssid[], uint8_t client[]);
 
 int probe_entry_last = -1;
 int client_entry_last = -1;
+
+int kick_client(uint8_t bssid[], uint8_t client[])
+{
+  int i;
+  for(i = 0; i <= client_entry_last; i++)
+  {
+    if(mac_is_equal(probe_array[i].client_addr, client))
+    {
+      // check if bssid is first in list...
+      return (mac_is_equal(bssid, probe_array[i].bssid_addr));
+    }
+  }
+  return 0;
+}
+
+void kick_clients(uint8_t bssid[])
+{
+  // Seach for BSSID
+  int i;
+  for(i = 0; i <= client_entry_last; i++)
+  {
+    if(mac_is_equal(client_array[i].bssid_addr, bssid))
+    {
+      break;
+    }
+  }
+
+  // Go threw clients
+  int j;
+  for(j = i; j <= client_entry_last; j++)
+  {
+    if(!mac_is_equal(client_array[j].bssid_addr, bssid))
+    {
+      break;
+    }
+    if(kick_client(bssid, client_array[j].client_addr))
+    {
+      /*
+        TODO: KICK ONLY FROM ONE BSSID?
+      */
+      printf("KICKING CLIENT!!!!!!!!!!!!!\n");
+      del_client(client_array[j].client_addr, 5, 1, 60000);
+    } else 
+    {
+      printf("STAAAY CLIENT!!!!!!!!!!!!!\n");
+    }
+  }
+}
 
 int client_array_go_next_help(char sort_order[], int i, client entry,
                  client next_entry) {
