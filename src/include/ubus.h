@@ -1,6 +1,7 @@
 #ifndef __DAWN_UBUS_H
 #define __DAWN_UBUS_H
 
+#include <libubox/blobmsg_json.h>
 #include "datastorage.h"
 
 #define MIN_PROBE_REQ 2  // TODO: Parse from config file...
