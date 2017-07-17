@@ -102,7 +102,7 @@ void *receive_msg(void *args) {
   
 int send_string(char *msg) {
   int msglen = strlen(msg);
-  printf("Sending string!\n");
+  printf("Sending string! %s\n", msg);
       if (sendto( sock,
                 msg,
                 msglen,

@@ -15,6 +15,7 @@
 
 static struct ubus_context *ctx;
 static struct ubus_subscriber hostapd_event;
+static struct blob_buf b;
 
 enum {
   PROB_BSSID_ADDR,
@@ -229,7 +230,17 @@ int dawn_init_ubus(const char *ubus_socket, char *hostapd_dir) {
 
   subscribe_to_hostapd_interfaces(hostapd_dir);
 
-  ubus_get_clients();
+  //ubus_get_clients();
+
+  printf("Deleting Client\n");
+  //"78:02:f8:bc:ac:0b"
+
+  int tmp_int_mac[ETH_ALEN];
+  uint8_t tmp_mac[ETH_ALEN];
+  sscanf("78:02:f8:bc:ac:0b", "%x:%x:%x:%x:%x:%x", STR2MAC(tmp_int_mac));
+  for(int i = 0; i < ETH_ALEN; ++i )
+      tmp_mac[i] = (uint8_t) tmp_int_mac[i];
+  del_client(tmp_mac, 5, 1, 60000);
 
   uloop_run();
 
@@ -292,6 +303,8 @@ dump_client(struct blob_attr **tb, uint8_t client_addr[], const char* bssid_addr
   }
 
   insert_client_to_array(client_entry);
+
+  // void del_client(const uint8_t client_addr[], uint32_t reason, uint8_t deauth, uint32_t ban_time)
 }
 
 static void
@@ -372,4 +385,49 @@ void *update_clients_thread(void *arg)
     ubus_get_clients();
   }
   return 0;
+}
+
+/* hostapd function */
+#define MACSTR "%02x:%02x:%02x:%02x:%02x:%02x"
+
+static void
+blobmsg_add_macaddr(struct blob_buf *buf, const char *name, const uint8_t *addr)
+{
+  char *s;
+
+  s = blobmsg_alloc_string_buffer(buf, name, 20);
+  sprintf(s, MACSTR, MAC2STR(addr));
+  blobmsg_add_string_buffer(buf);
+}
+
+void del_client(const uint8_t* client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time)
+{
+  /* Problem:
+    On which interface is the client?
+    First send to all ifaces to ban client... xD
+    Maybe Hashmap?
+  */
+
+  blob_buf_init(&b, 0);
+  blobmsg_add_macaddr(&b, "addr", client_addr);
+  blobmsg_add_u32(&b, "reason", reason);
+  blobmsg_add_u8(&b, "deauth", deauth);
+  blobmsg_add_u32(&b, "ban_time", ban_time);
+
+  DIR *dirp;
+  struct dirent *entry;
+  dirp = opendir(hostapd_dir_glob);  // error handling?
+  while ((entry = readdir(dirp)) != NULL) {
+    if (entry->d_type == DT_SOCK) {
+      char hostapd_iface[256];
+      uint32_t id;
+      sprintf(hostapd_iface, "hostapd.%s", entry->d_name);
+      int ret = ubus_lookup_id(ctx, hostapd_iface, &id);
+      if(!ret)
+      {  
+        int timeout = 1;
+        ubus_invoke(ctx, id, "del_client", b.head, NULL, NULL, timeout * 1000);
+      }
+    }
+  }
 }
