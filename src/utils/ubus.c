@@ -48,8 +48,6 @@ static const struct blobmsg_policy client_table_policy[__CLIENT_TABLE_MAX] = {
 };
 
 enum {
-  //CLIENT_TABLE,
-  //CLIENT_TABLE_FREQ,
   CLIENT_AUTH,
   CLIENT_ASSOC,
   CLIENT_AUTHORIZED,
@@ -65,8 +63,6 @@ enum {
 };
 
 static const struct blobmsg_policy client_policy[__CLIENT_MAX] = {
-    //[CLIENT_TABLE] = {.name = "clients", .type = BLOBMSG_TYPE_TABLE},
-    //[CLIENT_TABLE_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
     [CLIENT_AUTH] = {.name = "auth", .type = BLOBMSG_TYPE_INT8},
     [CLIENT_ASSOC] = {.name = "assoc", .type = BLOBMSG_TYPE_INT8},
     [CLIENT_AUTHORIZED] = {.name = "authorized", .type = BLOBMSG_TYPE_INT8},
@@ -303,8 +299,6 @@ dump_client(struct blob_attr **tb, uint8_t client_addr[], const char* bssid_addr
   }
 
   insert_client_to_array(client_entry);
-
-  // void del_client(const uint8_t client_addr[], uint32_t reason, uint8_t deauth, uint32_t ban_time)
 }
 
 static void
@@ -352,8 +346,6 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
   char *str = blobmsg_format_json(msg, true);
   send_string(str);
   print_client_array();
-
-  // TODO SEND CLIENT VIA NETWORK!
 }
 
 static int ubus_get_clients() {
