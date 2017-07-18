@@ -38,6 +38,8 @@ enum {
   CLIENT_TABLE,
   CLIENT_TABLE_BSSID,
   CLIENT_TABLE_FREQ,
+  CLIENT_TABLE_HT,
+  CLIENT_TABLE_VHT,
   __CLIENT_TABLE_MAX,
 };
 
@@ -45,6 +47,8 @@ static const struct blobmsg_policy client_table_policy[__CLIENT_TABLE_MAX] = {
     [CLIENT_TABLE] = {.name = "clients", .type = BLOBMSG_TYPE_TABLE},
     [CLIENT_TABLE_BSSID] = {.name = "bssid", .type = BLOBMSG_TYPE_STRING},
     [CLIENT_TABLE_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
+    [CLIENT_TABLE_HT] = {.name = "ht_supported", .type = BLOBMSG_TYPE_INT8},
+    [CLIENT_TABLE_VHT] = {.name = "vht_supported", .type = BLOBMSG_TYPE_INT8},
 };
 
 enum {
@@ -248,7 +252,7 @@ int dawn_init_ubus(const char *ubus_socket, char *hostapd_dir) {
 }
 
 static void
-dump_client(struct blob_attr **tb, uint8_t client_addr[], const char* bssid_addr, uint32_t freq)
+dump_client(struct blob_attr **tb, uint8_t client_addr[], const char* bssid_addr, uint32_t freq, uint8_t ht_supported, uint8_t vht_supported)
 {
   client client_entry;
 
@@ -262,6 +266,9 @@ dump_client(struct blob_attr **tb, uint8_t client_addr[], const char* bssid_addr
   //sprintf(mac_buf_ap, "%x:%x:%x:%x:%x:%x", MAC2STR(client_entry.bssid_addr));
   //sprintf(mac_buf_client, "%x:%x:%x:%x:%x:%x", MAC2STR(client_entry.client_addr));
   client_entry.freq = freq;
+
+  client_entry.ht_supported = ht_supported;
+  client_entry.vht_supported = vht_supported;
 
   if (tb[CLIENT_AUTH]) {
     client_entry.auth =  blobmsg_get_u8(tb[CLIENT_AUTH]);
@@ -302,7 +309,7 @@ dump_client(struct blob_attr **tb, uint8_t client_addr[], const char* bssid_addr
 }
 
 static void
-dump_client_table(struct blob_attr *head, int len, const char* bssid_addr, uint32_t freq)
+dump_client_table(struct blob_attr *head, int len, const char* bssid_addr, uint32_t freq, uint8_t ht_supported, uint8_t vht_supported)
 {
   struct blob_attr *attr;
   struct blobmsg_hdr *hdr;
@@ -320,7 +327,7 @@ dump_client_table(struct blob_attr *head, int len, const char* bssid_addr, uint3
     for(int i = 0; i < ETH_ALEN; ++i )
         tmp_mac[i] = (uint8_t) tmp_int_mac[i];
 
-    dump_client(tb, tmp_mac, bssid_addr, freq);
+    dump_client(tb, tmp_mac, bssid_addr, freq, ht_supported, vht_supported);
   }
 }
 
@@ -329,8 +336,8 @@ int parse_to_clients(struct blob_attr *msg) {
 
   blobmsg_parse(client_table_policy, __CLIENT_TABLE_MAX, tb, blob_data(msg), blob_len(msg));
 
-  if (tb[CLIENT_TABLE] && tb[CLIENT_TABLE_BSSID] && tb[CLIENT_TABLE_FREQ]) {
-    dump_client_table(blobmsg_data(tb[CLIENT_TABLE]), blobmsg_data_len(tb[CLIENT_TABLE]), blobmsg_data(tb[CLIENT_TABLE_BSSID]), blobmsg_get_u32(tb[CLIENT_TABLE_FREQ]));
+  if (tb[CLIENT_TABLE] && tb[CLIENT_TABLE_BSSID] && tb[CLIENT_TABLE_FREQ] && tb[CLIENT_TABLE_HT] && tb[CLIENT_TABLE_VHT]) {
+    dump_client_table(blobmsg_data(tb[CLIENT_TABLE]), blobmsg_data_len(tb[CLIENT_TABLE]), blobmsg_data(tb[CLIENT_TABLE_BSSID]), blobmsg_get_u32(tb[CLIENT_TABLE_FREQ]), blobmsg_get_u8(tb[CLIENT_TABLE_HT]), blobmsg_get_u8(tb[CLIENT_TABLE_VHT]));
     
     /* BSSID */
     /* 
