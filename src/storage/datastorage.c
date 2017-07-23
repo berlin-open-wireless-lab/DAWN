@@ -661,8 +661,8 @@ void print_probe_entry(probe_entry entry) {
 
   printf(
       "bssid_addr: %s, client_addr: %s, target_addr: %s, signal: %d, freq: "
-      "%d, counter: %d\n",
-      mac_buf_ap, mac_buf_client, mac_buf_target, entry.signal, entry.freq,
+      "%d, ht: %d, vht: %d, counter: %d\n",
+      mac_buf_ap, mac_buf_client, mac_buf_target, entry.signal, entry.freq, entry.ht_support, entry.vht_support,
       entry.counter);
 }
 
@@ -679,7 +679,7 @@ void print_client_entry(client entry) {
 
 void print_client_array() {
   printf("--------Clients------\n");
-  printf("Probe Entry Last: %d\n", client_entry_last);
+  printf("Client Entry Last: %d\n", client_entry_last);
   for(int i = 0; i <= client_entry_last; i++)
   {
     print_client_entry(client_array[i]);
