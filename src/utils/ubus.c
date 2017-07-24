@@ -29,13 +29,13 @@ enum {
 };
 
 static const struct blobmsg_policy prob_policy[__PROB_MAX] = {
-        [PROB_BSSID_ADDR] = {.name = "bssid", .type = BLOBMSG_TYPE_STRING},
-        [PROB_CLIENT_ADDR] = {.name = "address", .type = BLOBMSG_TYPE_STRING},
-        [PROB_TARGET_ADDR] = {.name = "target", .type = BLOBMSG_TYPE_STRING},
-        [PROB_SIGNAL] = {.name = "signal", .type = BLOBMSG_TYPE_INT32},
-        [PROB_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
-        [PROB_HT_SUPPORT] = {.name = "ht_support", .type = BLOBMSG_TYPE_INT8},
-        [PROB_VHT_SUPPORT] = {.name = "vht_support", .type = BLOBMSG_TYPE_INT8},
+    [PROB_BSSID_ADDR] = {.name = "bssid", .type = BLOBMSG_TYPE_STRING},
+    [PROB_CLIENT_ADDR] = {.name = "address", .type = BLOBMSG_TYPE_STRING},
+    [PROB_TARGET_ADDR] = {.name = "target", .type = BLOBMSG_TYPE_STRING},
+    [PROB_SIGNAL] = {.name = "signal", .type = BLOBMSG_TYPE_INT32},
+    [PROB_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
+    [PROB_HT_SUPPORT] = {.name = "ht_support", .type = BLOBMSG_TYPE_INT8},
+    [PROB_VHT_SUPPORT] = {.name = "vht_support", .type = BLOBMSG_TYPE_INT8},
 };
 
 enum {
@@ -48,11 +48,11 @@ enum {
 };
 
 static const struct blobmsg_policy client_table_policy[__CLIENT_TABLE_MAX] = {
-        [CLIENT_TABLE] = {.name = "clients", .type = BLOBMSG_TYPE_TABLE},
-        [CLIENT_TABLE_BSSID] = {.name = "bssid", .type = BLOBMSG_TYPE_STRING},
-        [CLIENT_TABLE_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
-        [CLIENT_TABLE_HT] = {.name = "ht_supported", .type = BLOBMSG_TYPE_INT8},
-        [CLIENT_TABLE_VHT] = {.name = "vht_supported", .type = BLOBMSG_TYPE_INT8},
+    [CLIENT_TABLE] = {.name = "clients", .type = BLOBMSG_TYPE_TABLE},
+    [CLIENT_TABLE_BSSID] = {.name = "bssid", .type = BLOBMSG_TYPE_STRING},
+    [CLIENT_TABLE_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
+    [CLIENT_TABLE_HT] = {.name = "ht_supported", .type = BLOBMSG_TYPE_INT8},
+    [CLIENT_TABLE_VHT] = {.name = "vht_supported", .type = BLOBMSG_TYPE_INT8},
 };
 
 enum {
@@ -71,17 +71,17 @@ enum {
 };
 
 static const struct blobmsg_policy client_policy[__CLIENT_MAX] = {
-        [CLIENT_AUTH] = {.name = "auth", .type = BLOBMSG_TYPE_INT8},
-        [CLIENT_ASSOC] = {.name = "assoc", .type = BLOBMSG_TYPE_INT8},
-        [CLIENT_AUTHORIZED] = {.name = "authorized", .type = BLOBMSG_TYPE_INT8},
-        [CLIENT_PREAUTH] = {.name = "preauth", .type = BLOBMSG_TYPE_INT8},
-        [CLIENT_WDS] = {.name = "wds", .type = BLOBMSG_TYPE_INT8},
-        [CLIENT_WMM] = {.name = "wmm", .type = BLOBMSG_TYPE_INT8},
-        [CLIENT_HT] = {.name = "ht", .type = BLOBMSG_TYPE_INT8},
-        [CLIENT_VHT] = {.name = "vht", .type = BLOBMSG_TYPE_INT8},
-        [CLIENT_WPS] = {.name = "wps", .type = BLOBMSG_TYPE_INT8},
-        [CLIENT_MFP] = {.name = "mfp", .type = BLOBMSG_TYPE_INT8},
-        [CLIENT_AID] = {.name = "aid", .type = BLOBMSG_TYPE_INT32},
+    [CLIENT_AUTH] = {.name = "auth", .type = BLOBMSG_TYPE_INT8},
+    [CLIENT_ASSOC] = {.name = "assoc", .type = BLOBMSG_TYPE_INT8},
+    [CLIENT_AUTHORIZED] = {.name = "authorized", .type = BLOBMSG_TYPE_INT8},
+    [CLIENT_PREAUTH] = {.name = "preauth", .type = BLOBMSG_TYPE_INT8},
+    [CLIENT_WDS] = {.name = "wds", .type = BLOBMSG_TYPE_INT8},
+    [CLIENT_WMM] = {.name = "wmm", .type = BLOBMSG_TYPE_INT8},
+    [CLIENT_HT] = {.name = "ht", .type = BLOBMSG_TYPE_INT8},
+    [CLIENT_VHT] = {.name = "vht", .type = BLOBMSG_TYPE_INT8},
+    [CLIENT_WPS] = {.name = "wps", .type = BLOBMSG_TYPE_INT8},
+    [CLIENT_MFP] = {.name = "mfp", .type = BLOBMSG_TYPE_INT8},
+    [CLIENT_AID] = {.name = "aid", .type = BLOBMSG_TYPE_INT32},
 };
 
 /* Function Definitions */
