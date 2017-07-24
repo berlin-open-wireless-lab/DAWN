@@ -55,11 +55,8 @@ typedef struct client_s {
 
 
 // Array
-
-
 #define ARRAY_CLIENT_LEN 1000
-#define TIME_THRESHOLD_CLIENT 60
-#define TIME_THRESHOLD_CLIENT_UPDATE 10
+#define TIME_THRESHOLD_CLIENT 5
 
 struct client_s client_array[ARRAY_CLIENT_LEN];
 pthread_mutex_t client_array_mutex;

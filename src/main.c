@@ -58,12 +58,7 @@ int main(int argc, char **argv) {
     printf("\n mutex init failed\n");
     return 1;
   }
-
-  if (pthread_mutex_init(&send_mutex, NULL) != 0) {
-    printf("\n mutex init failed\n");
-    return 1;
-  }
-
+  
   init_socket_runopts(opt_broadcast_ip, opt_broadcast_port, 1);
 
   pthread_t tid_probe;
