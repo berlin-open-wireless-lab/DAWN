@@ -98,6 +98,18 @@ static int subscribe_to_hostapd_interfaces(char *hostapd_dir);
 
 static int ubus_get_clients();
 
+/* hostapd function */
+#define MACSTR "%02x:%02x:%02x:%02x:%02x:%02x"
+
+static void
+blobmsg_add_macaddr(struct blob_buf *buf, const char *name, const uint8_t *addr) {
+    char *s;
+
+    s = blobmsg_alloc_string_buffer(buf, name, 20);
+    sprintf(s, MACSTR, MAC2STR(addr));
+    blobmsg_add_string_buffer(buf);
+}
+
 /*
 static int decide_function(probe_entry *prob_req) {
   // TODO: Refactor...
@@ -166,9 +178,9 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
     str = blobmsg_format_json(msg, true);
     send_string(str);
 
-    printf("[WC] Hostapd-Probe: %s : %s\n", method, str);
+    //printf("[WC] Hostapd-Probe: %s : %s\n", method, str);
 
-    print_array();
+    //print_array();
 
     // sleep(2); // sleep for 2s
 
@@ -331,7 +343,7 @@ dump_client_table(struct blob_attr *head, int len, const char *bssid_addr, uint3
     }
 }
 
-int parse_to_clients(struct blob_attr *msg) {
+int parse_to_clients(struct blob_attr *msg, int do_kick) {
     struct blob_attr *tb[__CLIENT_TABLE_MAX];
 
     blobmsg_parse(client_table_policy, __CLIENT_TABLE_MAX, tb, blob_data(msg), blob_len(msg));
@@ -349,7 +361,10 @@ int parse_to_clients(struct blob_attr *msg) {
          */
         uint8_t bssid[ETH_ALEN];
         hwaddr_aton(blobmsg_data(tb[CLIENT_TABLE_BSSID]), bssid);
-        kick_clients(bssid);
+
+        if(do_kick){
+            kick_clients(bssid);
+        }
     }
 
     return 0;
@@ -359,7 +374,7 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     if (!msg)
         return;
 
-    parse_to_clients(msg);
+    parse_to_clients(msg, 1);
 
     char *str = blobmsg_format_json(msg, true);
     send_string(str);
@@ -393,18 +408,6 @@ void *update_clients_thread(void *arg) {
         ubus_get_clients();
     }
     return 0;
-}
-
-/* hostapd function */
-#define MACSTR "%02x:%02x:%02x:%02x:%02x:%02x"
-
-static void
-bblobmsg_add_macaddr(struct blob_buf *buf, const char *name, const uint8_t *addr) {
-    char *s;
-
-    s = blobmsg_alloc_string_buffer(buf, name, 20);
-    sprintf(s, MACSTR, MAC2STR(addr));
-    blobmsg_add_string_buffer(buf);
 }
 
 void del_client(const uint8_t *client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time) {

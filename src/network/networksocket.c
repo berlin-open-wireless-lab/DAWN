@@ -69,7 +69,7 @@ void *receive_msg(void *args) {
         }
         recv_string[recv_string_len] = '\0';
 
-        printf("[WC] Network-Received: %s\n", recv_string);
+        //printf("[WC] Network-Received: %s\n", recv_string);
 
         probe_entry prob_req;
         struct blob_buf b;
@@ -84,6 +84,7 @@ void *receive_msg(void *args) {
         /*
           TODO: REFACTOR THIS!!! (just workaround)
                 OTHERWISE NULLPOINTER?!
+                * MAYBE THIS IS UNNECESSARY :O
 
         */
 
@@ -100,7 +101,7 @@ void *receive_msg(void *args) {
         */
 
         if (strstr(str, "clients") != NULL) {
-            parse_to_clients(b.head);
+            parse_to_clients(b.head, 0);
         } else if (strstr(str, "target") != NULL) {
             if (parse_to_probe_req(b.head, &prob_req) == 0) {
                 insert_to_array(prob_req, 0);
@@ -121,7 +122,7 @@ void *receive_msg(void *args) {
 int send_string(char *msg) {
     pthread_mutex_lock(&send_mutex);
     int msglen = strlen(msg);
-    printf("Sending string! %s\n", msg);
+    //printf("Sending string! %s\n", msg);
     if (sendto(sock,
                msg,
                msglen,

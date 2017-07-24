@@ -26,19 +26,110 @@ int client_array_go_next_help(char sort_order[], int i, client entry,
 
 void remove_old_client_entries(time_t current_time, long long int threshold);
 
-int kick_client(uint8_t bssid[], uint8_t client[]);
+int eval_probe_metric(struct client_s client_entry, struct probe_entry_s probe_entry);
+
+struct probe_metric_s
+{
+    int ht_support;
+    int vht_support;
+    int n_ht_support;
+    int n_vht_support;
+    int rssi;
+    int freq;
+};
+
+int kick_client(struct client_s client_entry);
 
 int probe_entry_last = -1;
 int client_entry_last = -1;
 
-int kick_client(uint8_t bssid[], uint8_t client[]) {
+int eval_probe_metric(struct client_s client_entry, struct probe_entry_s probe_entry) {
+
+    struct probe_metric_s metric = {
+            .ht_support = 0,
+            .vht_support = 100,
+            .n_ht_support = 0,
+            .n_ht_support = 0,
+            .rssi = 0,
+            .freq = 0}; // this is for testing
+
+    int score = 0;
+
+    uint8_t client_supports_ht;
+    uint8_t client_supports_vht;
+
+    uint8_t ap_supports_ht;
+    uint8_t ap_supports_vht;
+
+    ap_supports_ht = client_entry.ht_supported;
+    ap_supports_vht = client_entry.vht_supported;
+
+    client_supports_ht = probe_entry.ht_support;
+    client_supports_vht = probe_entry.vht_support;
+
+    printf("Checking if client supports: AP_VHT: %d, CL_VHT: %d\n", ap_supports_vht, client_supports_vht);
+    if(ap_supports_vht && client_supports_vht){
+        printf("AAAHHHHHHHHHHH IDEAL!!!\n");
+    }
+
+    score += (ap_supports_vht && client_supports_vht) ? metric.vht_support : 0;
+    score += (ap_supports_ht && client_supports_ht) ? metric.ht_support : 0;
+
+    score += (!ap_supports_vht && !client_supports_vht) ? metric.n_vht_support : 0;
+    score += (!ap_supports_ht && !client_supports_ht) ? metric.n_ht_support : 0;
+
+    score += (client_entry.freq > 5000) ? metric.freq : 0;
+
+    //score += (client_entry.signal > -60) ? metric.freq : 0;
+
+    printf("SCORE: %d\n",score);
+
+    return score;
+}
+
+//int kick_client(uint8_t bssid[], uint8_t client[]) {
+int kick_client(struct client_s client_entry) {
+
+    print_array();
+
+    int own_score = 0;
+
+    // find first client entry in probe array
     int i;
-    for (i = 0; i <= client_entry_last; i++) {
-        if (mac_is_equal(probe_array[i].client_addr, client)) {
-            // check if bssid is first in list...
-            return (mac_is_equal(bssid, probe_array[i].bssid_addr));
+    for (i = 0; i <= probe_entry_last; i++) {
+        if (mac_is_equal(probe_array[i].client_addr, client_entry.client_addr)) {
+            break;
         }
     }
+    printf("Found probe [i] : %d\n",i);
+
+    // find own probe entry and calculate score
+    int j;
+    for (j = i; j <= probe_entry_last; j++) {
+        printf("[j] : %d\n",j);
+        if (!mac_is_equal(probe_array[j].client_addr, client_entry.client_addr)) {
+            // this shouldn't happen!
+            return 1; // kick client!
+        }
+        if (mac_is_equal(client_entry.bssid_addr, probe_array[j].bssid_addr)){
+            own_score = eval_probe_metric(client_entry, probe_array[j]);
+            break;
+        }
+    }
+
+    int k;
+    for (k = i; k <= probe_entry_last; k++) {
+        printf("[k] : %d\n",k);
+        if (!mac_is_equal(probe_array[k].client_addr, client_entry.client_addr)) {
+            break;
+        }
+        if(!mac_is_equal(client_entry.bssid_addr, probe_array[k].bssid_addr) &&
+                own_score < eval_probe_metric(client_entry, probe_array[k]))
+        {
+            return 1;
+        }
+    }
+
     return 0;
 }
 
@@ -57,12 +148,12 @@ void kick_clients(uint8_t bssid[]) {
         if (!mac_is_equal(client_array[j].bssid_addr, bssid)) {
             break;
         }
-        if (kick_client(bssid, client_array[j].client_addr)) {
+        if (kick_client(client_array[j])) {
             /*
               TODO: KICK ONLY FROM ONE BSSID?
             */
             printf("KICKING CLIENT!!!!!!!!!!!!!\n");
-            //del_client(client_array[j].client_addr, 5, 1, 60000);
+            del_client(client_array[j].client_addr, 5, 1, 60000);
         } else {
             printf("STAAAY CLIENT!!!!!!!!!!!!!\n");
         }
