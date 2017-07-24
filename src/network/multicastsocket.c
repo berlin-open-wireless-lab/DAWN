@@ -13,59 +13,58 @@
 
 static struct ip_mreq command; /* static ?! */
 
-int setup_multicast_socket(const char *_multicast_ip, unsigned short _multicast_port, struct sockaddr_in *addr)
-{
-  int loop = 1;
-  int sock;
+int setup_multicast_socket(const char *_multicast_ip, unsigned short _multicast_port, struct sockaddr_in *addr) {
+    int loop = 1;
+    int sock;
 
-  memset (addr, 0, sizeof (*addr));
-  addr->sin_family = AF_INET;
-  addr->sin_addr.s_addr = htonl (INADDR_ANY);
-  addr->sin_port = htons (_multicast_port);
+    memset(addr, 0, sizeof(*addr));
+    addr->sin_family = AF_INET;
+    addr->sin_addr.s_addr = htonl (INADDR_ANY);
+    addr->sin_port = htons (_multicast_port);
 
-  if ( ( sock = socket(PF_INET, SOCK_DGRAM, 0)) == -1) {
-     perror ("socket()");
-     exit (EXIT_FAILURE);
-  }
+    if ((sock = socket(PF_INET, SOCK_DGRAM, 0)) == -1) {
+        perror("socket()");
+        exit(EXIT_FAILURE);
+    }
 
-  /* Mehr Prozessen erlauben, denselben Port zu nutzen */
-  loop = 1;
-  if (setsockopt ( sock,
+    /* Mehr Prozessen erlauben, denselben Port zu nutzen */
+    loop = 1;
+    if (setsockopt(sock,
                    SOL_SOCKET,
                    SO_REUSEADDR,
-                   &loop, sizeof (loop)) < 0) {
-     perror ("setsockopt:SO_REUSEADDR");
-     exit (EXIT_FAILURE);
-  }
-  if(bind( sock,
-           (struct sockaddr *)addr,
-           sizeof(*addr)) < 0) {
-     perror ("bind");
-     exit (EXIT_FAILURE);
-  }
+                   &loop, sizeof(loop)) < 0) {
+        perror("setsockopt:SO_REUSEADDR");
+        exit(EXIT_FAILURE);
+    }
+    if (bind(sock,
+             (struct sockaddr *) addr,
+             sizeof(*addr)) < 0) {
+        perror("bind");
+        exit(EXIT_FAILURE);
+    }
 
-  /* Broadcast auf dieser Maschine zulassen */
-  loop = 1;
-  if (setsockopt ( sock,
+    /* Broadcast auf dieser Maschine zulassen */
+    loop = 1;
+    if (setsockopt(sock,
                    IPPROTO_IP,
                    IP_MULTICAST_LOOP,
-                   &loop, sizeof (loop)) < 0) {
-     perror ("setsockopt:IP_MULTICAST_LOOP");
-     exit (EXIT_FAILURE);
-  }
+                   &loop, sizeof(loop)) < 0) {
+        perror("setsockopt:IP_MULTICAST_LOOP");
+        exit(EXIT_FAILURE);
+    }
 
-  /* Join the broadcast group: */
-  command.imr_multiaddr.s_addr = inet_addr (_multicast_ip);
-  command.imr_interface.s_addr = htonl (INADDR_ANY);
-  if (command.imr_multiaddr.s_addr == -1) {
-     perror ("224.0.0.1 ist keine Multicast-Adresse\n");
-     exit (EXIT_FAILURE);
-  }
-  if (setsockopt ( sock,
+    /* Join the broadcast group: */
+    command.imr_multiaddr.s_addr = inet_addr(_multicast_ip);
+    command.imr_interface.s_addr = htonl (INADDR_ANY);
+    if (command.imr_multiaddr.s_addr == -1) {
+        perror("224.0.0.1 ist keine Multicast-Adresse\n");
+        exit(EXIT_FAILURE);
+    }
+    if (setsockopt(sock,
                    IPPROTO_IP,
                    IP_ADD_MEMBERSHIP,
-                   &command, sizeof (command)) < 0) {
-    perror ("setsockopt:IP_ADD_MEMBERSHIP");
-  }
-  return sock;
+                   &command, sizeof(command)) < 0) {
+        perror("setsockopt:IP_ADD_MEMBERSHIP");
+    }
+    return sock;
 }
