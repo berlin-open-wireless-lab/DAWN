@@ -78,6 +78,9 @@ int main(int argc, char **argv) {
 
     // free ressources
     pthread_mutex_destroy(&list_mutex);
+    pthread_mutex_destroy(&probe_array_mutex);
+    pthread_mutex_destroy(&client_array_mutex);
+
     free_list(probe_list_head);
 
     return 0;
