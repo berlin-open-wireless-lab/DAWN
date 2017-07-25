@@ -715,9 +715,9 @@ void print_probe_entry(probe_entry entry) {
     sprintf(mac_buf_target, "%x:%x:%x:%x:%x:%x", MAC2STR(entry.target_addr));
 
     printf(
-            "bssid_addr: %s, client_addr: %s, target_addr: %s, signal: %d, freq: "
+            "bssid_addr: %s, client_addr: %s, signal: %d, freq: "
                     "%d, ht: %d, vht: %d, counter: %d\n",
-            mac_buf_ap, mac_buf_client, mac_buf_target, entry.signal, entry.freq, entry.ht_support, entry.vht_support,
+            mac_buf_ap, mac_buf_client, entry.signal, entry.freq, entry.ht_support, entry.vht_support,
             entry.counter);
 }
 
