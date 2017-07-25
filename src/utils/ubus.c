@@ -168,6 +168,13 @@ int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req) {
 static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
                           struct ubus_request_data *req, const char *method,
                           struct blob_attr *msg) {
+
+    // TODO: Only handle probe request and NOT assoc, ...
+
+    if (strncmp(method, "probe", 5) != 0)
+        return 0;
+
+    printf("[WC] Parse Probe Request\n");
     probe_entry prob_req;
     parse_to_probe_req(msg, &prob_req);
     //insert_to_list(prob_req, 1);
@@ -179,6 +186,8 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
     send_string(str);
 
     printf("[WC] Hostapd-Probe: %s : %s\n", method, str);
+    printf("[WC] ParsED Probe Request\n");
+
 
     //print_array();
 
@@ -346,6 +355,8 @@ dump_client_table(struct blob_attr *head, int len, const char *bssid_addr, uint3
 int parse_to_clients(struct blob_attr *msg, int do_kick) {
     struct blob_attr *tb[__CLIENT_TABLE_MAX];
 
+    printf("[CLIENTS] : Parse Clients\n");
+
     blobmsg_parse(client_table_policy, __CLIENT_TABLE_MAX, tb, blob_data(msg), blob_len(msg));
 
     if (tb[CLIENT_TABLE] && tb[CLIENT_TABLE_BSSID] && tb[CLIENT_TABLE_FREQ] && tb[CLIENT_TABLE_HT] &&
@@ -353,7 +364,7 @@ int parse_to_clients(struct blob_attr *msg, int do_kick) {
         dump_client_table(blobmsg_data(tb[CLIENT_TABLE]), blobmsg_data_len(tb[CLIENT_TABLE]),
                           blobmsg_data(tb[CLIENT_TABLE_BSSID]), blobmsg_get_u32(tb[CLIENT_TABLE_FREQ]),
                           blobmsg_get_u8(tb[CLIENT_TABLE_HT]), blobmsg_get_u8(tb[CLIENT_TABLE_VHT]));
-
+        printf("[CLIENTS] : ParseD Clients\n");
         /* BSSID */
         /*
           * here i know my bssid to kick the clients
@@ -362,9 +373,11 @@ int parse_to_clients(struct blob_attr *msg, int do_kick) {
         uint8_t bssid[ETH_ALEN];
         hwaddr_aton(blobmsg_data(tb[CLIENT_TABLE_BSSID]), bssid);
 
-        if(do_kick){
+        /*if(do_kick){
+            printf("[CLIENTS] : Kick Clients\n");
             kick_clients(bssid);
-        }
+            printf("[CLIENTS] : KickED Clients\n");
+        }*/
     }
 
     return 0;
@@ -404,11 +417,34 @@ static int ubus_get_clients() {
 void *update_clients_thread(void *arg) {
     while (1) {
         sleep(TIME_THRESHOLD_CLIENT_UPDATE);
-        printf("[Thread] : Updating clients!\n");
+        printf("[Thread] : Kicking clients!\n");
         ubus_get_clients();
     }
     return 0;
 }
+
+void *kick_clients_thread(void *arg) {
+    while (1) {
+        sleep(TIME_THRESHOLD_CLIENT_KICK);
+        printf("[Thread] : Updating clients!\n");
+        // a4:2b:b0:de:f1:fd
+        // a4:2b:b0:de:f1:fe
+
+        int tmp_int_mac[ETH_ALEN];
+        uint8_t tmp_mac[ETH_ALEN];
+        sscanf("a4:2b:b0:de:f1:fd", "%x:%x:%x:%x:%x:%x", STR2MAC(tmp_int_mac));
+        for(int i = 0; i < ETH_ALEN; ++i )
+            tmp_mac[i] = (uint8_t) tmp_int_mac[i];
+        kick_clients(tmp_mac);
+
+        sscanf("a4:2b:b0:de:f1:fe", "%x:%x:%x:%x:%x:%x", STR2MAC(tmp_int_mac));
+        for(int i = 0; i < ETH_ALEN; ++i )
+            tmp_mac[i] = (uint8_t) tmp_int_mac[i];
+        kick_clients(tmp_mac);
+    }
+    return 0;
+}
+
 
 void del_client(const uint8_t *client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time) {
     /* Problem:

@@ -64,19 +64,26 @@ int eval_probe_metric(struct client_s client_entry, struct probe_entry_s probe_e
     ap_supports_ht = client_entry.ht_supported;
     ap_supports_vht = client_entry.vht_supported;
 
+    printf("AP Supports HT: %d\n", ap_supports_ht);
+    printf("AP Supports VHT: %d\n", ap_supports_vht);
+
     client_supports_ht = probe_entry.ht_support;
     client_supports_vht = probe_entry.vht_support;
+
+    printf("Clients Supports HT: %d\n", client_supports_ht);
+    printf("Clients Supports VHT: %d\n", client_supports_vht);
+
 
     printf("Checking if client supports: AP_VHT: %d, CL_VHT: %d\n", ap_supports_vht, client_supports_vht);
     if(ap_supports_vht && client_supports_vht){
         printf("AAAHHHHHHHHHHH IDEAL!!!\n");
     }
 
-    score += (ap_supports_vht && client_supports_vht) ? metric.vht_support : 0;
-    score += (ap_supports_ht && client_supports_ht) ? metric.ht_support : 0;
+    score += client_supports_vht ? metric.vht_support : metric.n_vht_support;
+    score += client_supports_ht ? metric.ht_support : metric.n_ht_support;
 
-    score += (!ap_supports_vht && !client_supports_vht) ? metric.n_vht_support : 0;
-    score += (!ap_supports_ht && !client_supports_ht) ? metric.n_ht_support : 0;
+    //score += !client_supports_vht ? metric.n_vht_support : 0;
+    //score += !client_supports_ht ? metric.n_ht_support : 0;
 
     score += (client_entry.freq > 5000) ? metric.freq : 0;
 
@@ -109,7 +116,8 @@ int kick_client(struct client_s client_entry) {
         printf("[j] : %d\n",j);
         if (!mac_is_equal(probe_array[j].client_addr, client_entry.client_addr)) {
             // this shouldn't happen!
-            return 1; // kick client!
+            //return 1; // kick client!
+            return 0;
         }
         if (mac_is_equal(client_entry.bssid_addr, probe_array[j].bssid_addr)){
             own_score = eval_probe_metric(client_entry, probe_array[j]);
@@ -134,8 +142,8 @@ int kick_client(struct client_s client_entry) {
 }
 
 void kick_clients(uint8_t bssid[]) {
-    pthread_mutex_lock(&probe_array_mutex);
     pthread_mutex_lock(&client_array_mutex);
+    pthread_mutex_lock(&probe_array_mutex);
 
     // Seach for BSSID
     int i;
@@ -156,7 +164,7 @@ void kick_clients(uint8_t bssid[]) {
               TODO: KICK ONLY FROM ONE BSSID?
             */
             printf("KICKING CLIENT!!!!!!!!!!!!!\n");
-            del_client(client_array[j].client_addr, 5, 1, 60000);
+            //del_client(client_array[j].client_addr, 5, 1, 60000);
         } else {
             printf("STAAAY CLIENT!!!!!!!!!!!!!\n");
         }
@@ -225,13 +233,13 @@ void client_array_insert(client entry) {
         }
     }
     for (int j = client_entry_last; j >= i; j--) {
-        if (j + 1 <= ARRAY_LEN) {
+        if (j + 1 <= ARRAY_CLIENT_LEN) {
             client_array[j + 1] = client_array[j];
         }
     }
     client_array[i] = entry;
 
-    if (client_entry_last < ARRAY_LEN) {
+    if (client_entry_last < ARRAY_CLIENT_LEN) {
         client_entry_last++;
     }
 }

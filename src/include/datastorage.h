@@ -14,7 +14,7 @@
 #endif
 
 #define SORT_NUM 5
-#define TIME_THRESHOLD 600  // every minute
+#define TIME_THRESHOLD 30  // every minute
 
 // Probe entrys
 typedef struct probe_entry_s {
@@ -56,8 +56,10 @@ typedef struct client_s {
 
 // Array
 #define ARRAY_CLIENT_LEN 1000
-#define TIME_THRESHOLD_CLIENT 10
-#define TIME_THRESHOLD_CLIENT_UPDATE 5
+#define TIME_THRESHOLD_CLIENT 30
+#define TIME_THRESHOLD_CLIENT_UPDATE 10
+#define TIME_THRESHOLD_CLIENT_KICK 60
+
 
 struct client_s client_array[ARRAY_CLIENT_LEN];
 pthread_mutex_t client_array_mutex;
