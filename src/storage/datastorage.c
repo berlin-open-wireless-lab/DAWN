@@ -124,7 +124,7 @@ int kick_client(struct client_s client_entry) {
             break;
         }
         if(!mac_is_equal(client_entry.bssid_addr, probe_array[k].bssid_addr) &&
-                own_score < eval_probe_metric(client_entry, probe_array[k]))
+                own_score < eval_probe_metric(client_entry, probe_array[k])) // that's wrong! find client_entry OR write things in probe array struct!
         {
             return 1;
         }
@@ -134,6 +134,9 @@ int kick_client(struct client_s client_entry) {
 }
 
 void kick_clients(uint8_t bssid[]) {
+    pthread_mutex_lock(&probe_array_mutex);
+    pthread_mutex_lock(&client_array_mutex);
+
     // Seach for BSSID
     int i;
     for (i = 0; i <= client_entry_last; i++) {
@@ -158,6 +161,9 @@ void kick_clients(uint8_t bssid[]) {
             printf("STAAAY CLIENT!!!!!!!!!!!!!\n");
         }
     }
+
+    pthread_mutex_unlock(&probe_array_mutex);
+    pthread_mutex_unlock(&client_array_mutex);
 }
 
 int client_array_go_next_help(char sort_order[], int i, client entry,

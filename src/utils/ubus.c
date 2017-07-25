@@ -178,7 +178,7 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
     str = blobmsg_format_json(msg, true);
     send_string(str);
 
-    //printf("[WC] Hostapd-Probe: %s : %s\n", method, str);
+    printf("[WC] Hostapd-Probe: %s : %s\n", method, str);
 
     //print_array();
 
