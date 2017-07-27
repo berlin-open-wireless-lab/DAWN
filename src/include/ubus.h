@@ -4,7 +4,7 @@
 #include <libubox/blobmsg_json.h>
 #include "datastorage.h"
 
-#define MIN_PROBE_REQ 2  // TODO: Parse from config file...
+#define MIN_PROBE_REQ 5  // TODO: Parse from config file...
 
 int dawn_init_ubus(const char *ubus_socket, char *hostapd_dir);
 int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req);

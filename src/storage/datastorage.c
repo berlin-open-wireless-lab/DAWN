@@ -67,8 +67,8 @@ int eval_probe_metric(struct client_s client_entry, struct probe_entry_s probe_e
     printf("AP Supports HT: %d\n", ap_supports_ht);
     printf("AP Supports VHT: %d\n", ap_supports_vht);
 
-    client_supports_ht = probe_entry.ht_support;
-    client_supports_vht = probe_entry.vht_support;
+    client_supports_ht = client_entry.ht;
+    client_supports_vht = client_entry.vht;
 
     printf("Clients Supports HT: %d\n", client_supports_ht);
     printf("Clients Supports VHT: %d\n", client_supports_vht);
@@ -299,20 +299,20 @@ void probe_array_insert(probe_entry entry) {
     }
 }
 
-probe_entry *probe_array_delete(probe_entry entry) {
+probe_entry probe_array_delete(probe_entry entry) {
     int i;
     int found_in_array = 0;
-    probe_entry *tmp = NULL;
+    probe_entry tmp;
 
     if (probe_entry_last == -1) {
-        return NULL;
+        return tmp;
     }
 
     for (i = 0; i <= probe_entry_last; i++) {
         if (mac_is_equal(entry.bssid_addr, probe_array[i].bssid_addr) &&
             mac_is_equal(entry.client_addr, probe_array[i].client_addr)) {
             found_in_array = 1;
-            tmp = &probe_array[i];
+            tmp = probe_array[i];
             break;
         }
     }
@@ -336,24 +336,35 @@ void print_array() {
     printf("------------------\n");
 }
 
-void insert_to_array(probe_entry entry, int inc_counter) {
+probe_entry insert_to_array(probe_entry entry, int inc_counter) {
     pthread_mutex_lock(&probe_array_mutex);
 
     entry.time = time(0);
     entry.counter = 0;
-    probe_entry *tmp = probe_array_delete(entry);
+    probe_entry tmp = probe_array_delete(entry);
 
-    if (tmp != NULL) {
-        entry.counter = tmp->counter;
-    }
+    //if (tmp != NULL) {
+        if(mac_is_equal(entry.bssid_addr,tmp.bssid_addr)
+                && mac_is_equal(entry.client_addr, tmp.client_addr)){
+            entry.counter = tmp.counter;
+            printf("MAC IS EQUAL EUQAL AND CORRECT!\n");
+            printf("TMP ENTRY IS NOT NULL!!!!!!!!!!!!!!!!!!!!!!\nCounter: %d\n", tmp.counter);
+        }
+        //else
+        //    printf("MAC IS NOT EQUAL AND THIS IS INCORRECT!\n");
+        //    printf("TMP ENTRY IS NOT NULL!!!!!!!!!!!!!!!!!!!!!!\nCounter: %d\n", tmp->counter);
+    //}
 
     if (inc_counter) {
         entry.counter++;
+        //entry.counter = 5;
     }
 
     probe_array_insert(entry);
 
     pthread_mutex_unlock(&probe_array_mutex);
+
+    return entry;
 }
 
 void remove_old_client_entries(time_t current_time, long long int threshold) {
@@ -724,9 +735,8 @@ void print_probe_entry(probe_entry entry) {
 
     printf(
             "bssid_addr: %s, client_addr: %s, signal: %d, freq: "
-                    "%d, ht: %d, vht: %d, counter: %d\n",
-            mac_buf_ap, mac_buf_client, entry.signal, entry.freq, entry.ht_support, entry.vht_support,
-            entry.counter);
+                    "%d, counter: %d\n",
+            mac_buf_ap, mac_buf_client, entry.signal, entry.freq, entry.counter);
 }
 
 void print_client_entry(client entry) {

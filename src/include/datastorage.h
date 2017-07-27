@@ -23,8 +23,8 @@ typedef struct probe_entry_s {
     uint8_t target_addr[ETH_ALEN];
     uint32_t signal;
     uint32_t freq;
-    uint8_t ht_support;
-    uint8_t vht_support;
+    //uint8_t ht_support;
+    //uint8_t vht_support;
     time_t time;
     int counter;
 } probe_entry;
@@ -83,11 +83,11 @@ void *remove_client_array_thread(void *arg);
 struct probe_entry_s probe_array[ARRAY_LEN];
 pthread_mutex_t probe_array_mutex;
 
-void insert_to_array(probe_entry entry, int inc_counter);
+probe_entry insert_to_array(probe_entry entry, int inc_counter);
 
 void probe_array_insert(probe_entry entry);
 
-probe_entry *probe_array_delete(probe_entry entry);
+probe_entry probe_array_delete(probe_entry entry);
 
 void print_array();
 

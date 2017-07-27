@@ -14,6 +14,7 @@
 #include "utils.h"
 
 static struct ubus_context *ctx;
+static struct ubus_context *ctx_clients;
 static struct ubus_subscriber hostapd_event;
 static struct blob_buf b;
 
@@ -34,8 +35,8 @@ static const struct blobmsg_policy prob_policy[__PROB_MAX] = {
     [PROB_TARGET_ADDR] = {.name = "target", .type = BLOBMSG_TYPE_STRING},
     [PROB_SIGNAL] = {.name = "signal", .type = BLOBMSG_TYPE_INT32},
     [PROB_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
-    [PROB_HT_SUPPORT] = {.name = "ht_support", .type = BLOBMSG_TYPE_INT8},
-    [PROB_VHT_SUPPORT] = {.name = "vht_support", .type = BLOBMSG_TYPE_INT8},
+    //[PROB_HT_SUPPORT] = {.name = "ht_support", .type = BLOBMSG_TYPE_INT8},
+    //[PROB_VHT_SUPPORT] = {.name = "vht_support", .type = BLOBMSG_TYPE_INT8},
 };
 
 enum {
@@ -110,23 +111,28 @@ blobmsg_add_macaddr(struct blob_buf *buf, const char *name, const uint8_t *addr)
     blobmsg_add_string_buffer(buf);
 }
 
-/*
-static int decide_function(probe_entry *prob_req) {
-  // TODO: Refactor...
-  if (prob_req->counter < MIN_PROBE_REQ) {
-    return 0;
-  }
 
-  int ret =
+static int decide_function(probe_entry *prob_req) {
+    // TODO: Refactor...
+    printf("COUNTER: %d\n", prob_req->counter);
+
+    if (prob_req->counter < MIN_PROBE_REQ) {
+        return 0;
+    }
+
+    /*int ret =
       mac_first_in_probe_list(prob_req->bssid_addr, prob_req->client_addr);
-  if (ret) {
+    if (ret) {
     printf("Mac will be accepted!\n");
-  } else {
+    } else {
     printf("Mac will be declined!\n");
-  }
-  return ret;
+    }
+    return ret;
+    */
+    // allow access
+    return 1;
 }
-*/
+
 static void hostapd_handle_remove(struct ubus_context *ctx,
                                   struct ubus_subscriber *s, uint32_t id) {
     fprintf(stderr, "Object %08x went away\n", id);
@@ -153,7 +159,7 @@ int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req) {
     if (tb[PROB_FREQ]) {
         prob_req->freq = blobmsg_get_u32(tb[PROB_FREQ]);
     }
-
+/*
     if (tb[PROB_HT_SUPPORT]) {
         prob_req->ht_support = blobmsg_get_u8(tb[PROB_HT_SUPPORT]);
     }
@@ -161,24 +167,26 @@ int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req) {
     if (tb[PROB_VHT_SUPPORT]) {
         prob_req->vht_support = blobmsg_get_u8(tb[PROB_VHT_SUPPORT]);
     }
-
+*/
     return 0;
 }
 
 static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
                           struct ubus_request_data *req, const char *method,
                           struct blob_attr *msg) {
+    //return UBUS_STATUS_UNKNOWN_ERROR;
+
 
     // TODO: Only handle probe request and NOT assoc, ...
 
-    if (strncmp(method, "probe", 5) != 0)
-        return 0;
+    //if (strncmp(method, "probe", 5) != 0)
+    //    return 0;
 
     printf("[WC] Parse Probe Request\n");
     probe_entry prob_req;
     parse_to_probe_req(msg, &prob_req);
     //insert_to_list(prob_req, 1);
-    insert_to_array(prob_req, 1);
+    probe_entry tmp_probe = insert_to_array(prob_req, 1);
 
     // send probe via network
     char *str;
@@ -188,15 +196,19 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
     printf("[WC] Hostapd-Probe: %s : %s\n", method, str);
     printf("[WC] ParsED Probe Request\n");
 
+    //print_array();
+
 
     //print_array();
 
     // sleep(2); // sleep for 2s
 
     // deny access
-    //if (!decide_function(&prob_req)) {
-    //  return UBUS_STATUS_UNKNOWN_ERROR;
-    //}
+    if (!decide_function(&tmp_probe)) {
+        printf("MAC WILL BE DECLINED!!!");
+      return UBUS_STATUS_UNKNOWN_ERROR;
+    }
+    printf("MAC WILL BE ACCEPDTED!!!");
 
     // allow access
     return 0;
@@ -259,8 +271,6 @@ int dawn_init_ubus(const char *ubus_socket, char *hostapd_dir) {
     ubus_add_uloop(ctx);
 
     subscribe_to_hostapd_interfaces(hostapd_dir);
-
-    ubus_get_clients();
 
     uloop_run();
 
@@ -404,10 +414,10 @@ static int ubus_get_clients() {
             char hostapd_iface[256];
             uint32_t id;
             sprintf(hostapd_iface, "hostapd.%s", entry->d_name);
-            int ret = ubus_lookup_id(ctx, hostapd_iface, &id);
+            int ret = ubus_lookup_id(ctx_clients, hostapd_iface, &id);
             if (!ret) {
                 int timeout = 1;
-                ubus_invoke(ctx, id, "get_clients", NULL, ubus_get_clients_cb, NULL, timeout * 1000);
+                ubus_invoke(ctx_clients, id, "get_clients", NULL, ubus_get_clients_cb, NULL, timeout * 1000);
             }
         }
     }
@@ -415,6 +425,9 @@ static int ubus_get_clients() {
 }
 
 void *update_clients_thread(void *arg) {
+    const char *ubus_socket = NULL;
+    ctx_clients = ubus_connect(ubus_socket);
+
     while (1) {
         sleep(TIME_THRESHOLD_CLIENT_UPDATE);
         printf("[Thread] : Kicking clients!\n");
@@ -470,10 +483,10 @@ void del_client(const uint8_t *client_addr, uint32_t reason, uint8_t deauth, uin
             char hostapd_iface[256];
             uint32_t id;
             sprintf(hostapd_iface, "hostapd.%s", entry->d_name);
-            int ret = ubus_lookup_id(ctx, hostapd_iface, &id);
+            int ret = ubus_lookup_id(ctx_clients, hostapd_iface, &id);
             if (!ret) {
                 int timeout = 1;
-                ubus_invoke(ctx, id, "del_client", b.head, NULL, NULL, timeout * 1000);
+                ubus_invoke(ctx_clients, id, "del_client", b.head, NULL, NULL, timeout * 1000);
             }
         }
     }

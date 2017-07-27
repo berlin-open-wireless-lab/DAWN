@@ -121,7 +121,7 @@ void *receive_msg(void *args) {
 
 int send_string(char *msg) {
     pthread_mutex_lock(&send_mutex);
-    /*int msglen = strlen(msg);
+    size_t msglen = strlen(msg);
     //printf("Sending string! %s\n", msg);
     if (sendto(sock,
                msg,
@@ -130,8 +130,9 @@ int send_string(char *msg) {
                (struct sockaddr *) &addr,
                sizeof(addr)) < 0) {
         perror("sendto()");
+        pthread_mutex_unlock(&send_mutex);
         exit(EXIT_FAILURE);
-    }*/
+    }
     pthread_mutex_unlock(&send_mutex);
 
 
