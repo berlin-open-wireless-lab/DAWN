@@ -343,21 +343,16 @@ probe_entry insert_to_array(probe_entry entry, int inc_counter) {
     entry.counter = 0;
     probe_entry tmp = probe_array_delete(entry);
 
-    //if (tmp != NULL) {
-        if(mac_is_equal(entry.bssid_addr,tmp.bssid_addr)
+    if(mac_is_equal(entry.bssid_addr,tmp.bssid_addr)
                 && mac_is_equal(entry.client_addr, tmp.client_addr)){
             entry.counter = tmp.counter;
             printf("MAC IS EQUAL EUQAL AND CORRECT!\n");
             printf("TMP ENTRY IS NOT NULL!!!!!!!!!!!!!!!!!!!!!!\nCounter: %d\n", tmp.counter);
-        }
-        //else
-        //    printf("MAC IS NOT EQUAL AND THIS IS INCORRECT!\n");
-        //    printf("TMP ENTRY IS NOT NULL!!!!!!!!!!!!!!!!!!!!!!\nCounter: %d\n", tmp->counter);
-    //}
+    }
 
     if (inc_counter) {
+
         entry.counter++;
-        //entry.counter = 5;
     }
 
     probe_array_insert(entry);
