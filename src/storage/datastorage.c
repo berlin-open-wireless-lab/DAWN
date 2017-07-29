@@ -346,8 +346,6 @@ probe_entry insert_to_array(probe_entry entry, int inc_counter) {
     if(mac_is_equal(entry.bssid_addr,tmp.bssid_addr)
                 && mac_is_equal(entry.client_addr, tmp.client_addr)){
             entry.counter = tmp.counter;
-            printf("MAC IS EQUAL EUQAL AND CORRECT!\n");
-            printf("TMP ENTRY IS NOT NULL!!!!!!!!!!!!!!!!!!!!!!\nCounter: %d\n", tmp.counter);
     }
 
     if (inc_counter) {

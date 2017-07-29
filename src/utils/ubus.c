@@ -194,19 +194,13 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
     send_string(str);
 
     printf("[WC] Hostapd-Probe: %s : %s\n", method, str);
-    printf("[WC] ParsED Probe Request\n");
 
-    //print_array();
-
-
-    //print_array();
-
-    // sleep(2); // sleep for 2s
+    print_array();
 
     // deny access
     if (!decide_function(&tmp_probe)) {
         printf("MAC WILL BE DECLINED!!!");
-      return UBUS_STATUS_UNKNOWN_ERROR;
+        return UBUS_STATUS_UNKNOWN_ERROR;
     }
     printf("MAC WILL BE ACCEPDTED!!!");
 
@@ -394,6 +388,9 @@ int parse_to_clients(struct blob_attr *msg, int do_kick) {
 }
 
 static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_attr *msg) {
+
+    printf("[GET CLIENTS] Peer: %08x \n", req->peer);
+
     if (!msg)
         return;
 
