@@ -66,7 +66,7 @@ pthread_mutex_t client_array_mutex;
 
 void insert_client_to_array(client entry);
 
-void kick_clients(uint8_t bssid[]);
+void kick_clients(uint8_t bssid[], uint32_t id);
 
 void client_array_insert(client entry);
 

@@ -101,7 +101,7 @@ void *receive_msg(void *args) {
         */
 
         if (strstr(str, "clients") != NULL) {
-            parse_to_clients(b.head, 0);
+            parse_to_clients(b.head, 0, 0);
         } else if (strstr(str, "target") != NULL) {
             if (parse_to_probe_req(b.head, &prob_req) == 0) {
                 insert_to_array(prob_req, 0);

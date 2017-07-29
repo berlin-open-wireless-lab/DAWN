@@ -14,7 +14,7 @@
 #include "utils.h"
 
 static struct ubus_context *ctx;
-static struct ubus_context *ctx_clients;
+static struct ubus_context *ctx_clients; /* own ubus conext otherwise strange behavior... */
 static struct ubus_subscriber hostapd_event;
 static struct blob_buf b;
 
@@ -200,7 +200,7 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
     // deny access
     if (!decide_function(&tmp_probe)) {
         printf("MAC WILL BE DECLINED!!!");
-        return UBUS_STATUS_UNKNOWN_ERROR;
+        return UBUS_STATUS_CONNECTION_FAILED;
     }
     printf("MAC WILL BE ACCEPDTED!!!");
 
@@ -356,7 +356,7 @@ dump_client_table(struct blob_attr *head, int len, const char *bssid_addr, uint3
     }
 }
 
-int parse_to_clients(struct blob_attr *msg, int do_kick) {
+int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
     struct blob_attr *tb[__CLIENT_TABLE_MAX];
 
     printf("[CLIENTS] : Parse Clients\n");
@@ -377,11 +377,11 @@ int parse_to_clients(struct blob_attr *msg, int do_kick) {
         uint8_t bssid[ETH_ALEN];
         hwaddr_aton(blobmsg_data(tb[CLIENT_TABLE_BSSID]), bssid);
 
-        /*if(do_kick){
+        if(do_kick){
             printf("[CLIENTS] : Kick Clients\n");
-            kick_clients(bssid);
+            kick_clients(bssid, id);
             printf("[CLIENTS] : KickED Clients\n");
-        }*/
+        }
     }
 
     return 0;
@@ -394,7 +394,7 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     if (!msg)
         return;
 
-    parse_to_clients(msg, 1);
+    parse_to_clients(msg, 1, req->peer);
 
     char *str = blobmsg_format_json(msg, true);
     send_string(str);
@@ -439,24 +439,24 @@ void *kick_clients_thread(void *arg) {
         printf("[Thread] : Updating clients!\n");
         // a4:2b:b0:de:f1:fd
         // a4:2b:b0:de:f1:fe
-
+/*
         int tmp_int_mac[ETH_ALEN];
         uint8_t tmp_mac[ETH_ALEN];
         sscanf("a4:2b:b0:de:f1:fd", "%x:%x:%x:%x:%x:%x", STR2MAC(tmp_int_mac));
         for(int i = 0; i < ETH_ALEN; ++i )
             tmp_mac[i] = (uint8_t) tmp_int_mac[i];
-        kick_clients(tmp_mac);
+        //kick_clients(tmp_mac);
 
         sscanf("a4:2b:b0:de:f1:fe", "%x:%x:%x:%x:%x:%x", STR2MAC(tmp_int_mac));
         for(int i = 0; i < ETH_ALEN; ++i )
-            tmp_mac[i] = (uint8_t) tmp_int_mac[i];
-        kick_clients(tmp_mac);
+            tmp_mac[i] = (uint8_t) tmp_int_mac[i];*/
+        //kick_clients(tmp_mac);
     }
     return 0;
 }
 
 
-void del_client(const uint8_t *client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time) {
+void del_client_all_interfaces(const uint8_t *client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time) {
     /* Problem:
       On which interface is the client?
       First send to all ifaces to ban client... xD
@@ -487,4 +487,16 @@ void del_client(const uint8_t *client_addr, uint32_t reason, uint8_t deauth, uin
             }
         }
     }
+}
+
+void del_client_interface(uint32_t id, const uint8_t *client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time) {
+
+    blob_buf_init(&b, 0);
+    blobmsg_add_macaddr(&b, "addr", client_addr);
+    blobmsg_add_u32(&b, "reason", reason);
+    blobmsg_add_u8(&b, "deauth", deauth);
+    blobmsg_add_u32(&b, "ban_time", ban_time);
+
+    int timeout = 1;
+    ubus_invoke(ctx_clients, id, "del_client", b.head, NULL, NULL, timeout * 1000);
 }

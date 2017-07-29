@@ -47,11 +47,11 @@ int eval_probe_metric(struct client_s client_entry, struct probe_entry_s probe_e
 
     struct probe_metric_s metric = {
             .ht_support = 0,
-            .vht_support = 100,
+            .vht_support = 0,
             .n_ht_support = 0,
             .n_ht_support = 0,
             .rssi = 0,
-            .freq = 0}; // this is for testing
+            .freq = 100}; // this is for testing
 
     int score = 0;
 
@@ -85,7 +85,7 @@ int eval_probe_metric(struct client_s client_entry, struct probe_entry_s probe_e
     //score += !client_supports_vht ? metric.n_vht_support : 0;
     //score += !client_supports_ht ? metric.n_ht_support : 0;
 
-    score += (client_entry.freq > 5000) ? metric.freq : 0;
+    score += (probe_entry.freq > 5000) ? metric.freq : 0;
 
     //score += (client_entry.signal > -60) ? metric.freq : 0;
 
@@ -141,7 +141,7 @@ int kick_client(struct client_s client_entry) {
     return 0;
 }
 
-void kick_clients(uint8_t bssid[]) {
+void kick_clients(uint8_t bssid[], uint32_t id) {
     pthread_mutex_lock(&client_array_mutex);
     pthread_mutex_lock(&probe_array_mutex);
 
@@ -164,7 +164,7 @@ void kick_clients(uint8_t bssid[]) {
               TODO: KICK ONLY FROM ONE BSSID?
             */
             printf("KICKING CLIENT!!!!!!!!!!!!!\n");
-            //del_client(client_array[j].client_addr, 5, 1, 60000);
+            del_client_interface(id, client_array[j].client_addr, 5, 1, 60000);
         } else {
             printf("STAAAY CLIENT!!!!!!!!!!!!!\n");
         }
