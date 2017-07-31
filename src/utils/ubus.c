@@ -238,6 +238,11 @@ static int subscribe_to_hostapd_interfaces(char *hostapd_dir) {
     }
 
     dirp = opendir(hostapd_dir);  // error handling?
+    if(!dirp)
+    {
+        fprintf(stderr, "No hostapd sockets!\n");
+        return -1;
+    }
     while ((entry = readdir(dirp)) != NULL) {
         if (entry->d_type == DT_SOCK) {
             char subscribe_name[256];
