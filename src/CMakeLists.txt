@@ -29,12 +29,13 @@ SET(SOURCES
 
 	utils/runopts.c
 	include/runopts.h
-	)
+
+		utils/dawn_uci.c include/dawn_uci.h)
 
 SET(LIBS
-	ubox ubus json-c blobmsg_json config)
+	ubox ubus json-c blobmsg_json config uci)
 
-ADD_EXECUTABLE(dawn ${SOURCES})
+ADD_EXECUTABLE(dawn ${SOURCES} utils/dawn_uci.c include/dawn_uci.h)
 
 TARGET_LINK_LIBRARIES(dawn ${LIBS})
 

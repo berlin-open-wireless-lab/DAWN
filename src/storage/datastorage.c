@@ -28,16 +28,6 @@ void remove_old_client_entries(time_t current_time, long long int threshold);
 
 int eval_probe_metric(struct client_s client_entry, struct probe_entry_s probe_entry);
 
-struct probe_metric_s
-{
-    int ht_support;
-    int vht_support;
-    int n_ht_support;
-    int n_vht_support;
-    int rssi;
-    int freq;
-};
-
 int kick_client(struct client_s client_entry);
 
 int probe_entry_last = -1;
@@ -45,13 +35,15 @@ int client_entry_last = -1;
 
 int eval_probe_metric(struct client_s client_entry, struct probe_entry_s probe_entry) {
 
-    struct probe_metric_s metric = {
+    /*struct probe_metric_s metric = {
             .ht_support = 0,
             .vht_support = 0,
             .n_ht_support = 0,
             .n_ht_support = 0,
             .rssi = 0,
             .freq = 100}; // this is for testing
+
+     */
 
     int score = 0;
 
@@ -79,13 +71,13 @@ int eval_probe_metric(struct client_s client_entry, struct probe_entry_s probe_e
         printf("AAAHHHHHHHHHHH IDEAL!!!\n");
     }
 
-    score += client_supports_vht ? metric.vht_support : metric.n_vht_support;
-    score += client_supports_ht ? metric.ht_support : metric.n_ht_support;
+    score += client_supports_vht ? dawn_metric.vht_support : dawn_metric.n_vht_support;
+    score += client_supports_ht ? dawn_metric.ht_support : dawn_metric.n_ht_support;
 
     //score += !client_supports_vht ? metric.n_vht_support : 0;
     //score += !client_supports_ht ? metric.n_ht_support : 0;
 
-    score += (probe_entry.freq > 5000) ? metric.freq : 0;
+    score += (probe_entry.freq > 5000) ? dawn_metric.freq : 0;
 
     //score += (client_entry.signal > -60) ? metric.freq : 0;
 

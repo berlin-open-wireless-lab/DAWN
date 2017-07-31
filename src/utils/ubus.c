@@ -12,6 +12,7 @@
 
 #include "networksocket.h"
 #include "utils.h"
+#include "dawn_uci.h"
 
 static struct ubus_context *ctx;
 static struct ubus_context *ctx_clients; /* own ubus conext otherwise strange behavior... */
@@ -227,7 +228,7 @@ static int add_subscriber(char *name) {
     return 0;
 }
 
-static int subscribe_to_hostapd_interfaces(char *hostapd_dir) {
+static int  subscribe_to_hostapd_interfaces(char *hostapd_dir) {
     DIR *dirp;
     struct dirent *entry;
 
@@ -268,6 +269,9 @@ int dawn_init_ubus(const char *ubus_socket, char *hostapd_dir) {
     }
 
     ubus_add_uloop(ctx);
+
+    // set dawn metric
+    dawn_metric = uci_get_dawn_metric();
 
     subscribe_to_hostapd_interfaces(hostapd_dir);
 
@@ -411,6 +415,10 @@ static int ubus_get_clients() {
     struct dirent *entry;
 
     dirp = opendir(hostapd_dir_glob);  // error handling?
+    if(!dirp) {
+        fprintf(stderr, "No hostapd sockets!\n");
+        return -1;
+    }
     while ((entry = readdir(dirp)) != NULL) {
         if (entry->d_type == DT_SOCK) {
             char hostapd_iface[256];
@@ -480,6 +488,11 @@ void del_client_all_interfaces(const uint8_t *client_addr, uint32_t reason, uint
     DIR *dirp;
     struct dirent *entry;
     dirp = opendir(hostapd_dir_glob);  // error handling?
+    if(!dirp)
+    {
+        fprintf(stderr, "No hostapd sockets!\n");
+        return;
+    }
     while ((entry = readdir(dirp)) != NULL) {
         if (entry->d_type == DT_SOCK) {
             char hostapd_iface[256];

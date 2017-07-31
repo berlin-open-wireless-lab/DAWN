@@ -4,6 +4,7 @@
 #include "datastorage.h"
 #include "networksocket.h"
 #include "ubus.h"
+#include "dawn_uci.h"
 
 #define BUFSIZE 17
 #define BUFSIZE_DIR 255

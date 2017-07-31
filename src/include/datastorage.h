@@ -13,6 +13,18 @@
 #define ETH_ALEN 6
 #endif
 
+struct probe_metric_s dawn_metric;
+
+struct probe_metric_s
+{
+    int ht_support;
+    int vht_support;
+    int n_ht_support;
+    int n_vht_support;
+    int rssi;
+    int freq;
+};
+
 #define SORT_NUM 5
 #define TIME_THRESHOLD 30  // every minute
 
