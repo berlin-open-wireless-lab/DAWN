@@ -252,6 +252,7 @@ static int  subscribe_to_hostapd_interfaces(char *hostapd_dir) {
             add_subscriber(subscribe_name);
         }
     }
+    closedir(dirp);
     // free(hostapd_dir); // free string
     return 0;
 }
@@ -431,6 +432,7 @@ static int ubus_get_clients() {
             }
         }
     }
+    closedir(dirp);
     return 0;
 }
 
@@ -505,6 +507,7 @@ void del_client_all_interfaces(const uint8_t *client_addr, uint32_t reason, uint
             }
         }
     }
+    closedir(dirp);
 }
 
 void del_client_interface(uint32_t id, const uint8_t *client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time) {
