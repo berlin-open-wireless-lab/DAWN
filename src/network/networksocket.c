@@ -14,6 +14,7 @@
 #include "broadcastsocket.h"
 #include "multicastsocket.h"
 #include "ubus.h"
+#include "crypto.h"
 
 /* Network Defines */
 #define MAX_RECV_STRING 500
@@ -28,6 +29,7 @@ char recv_string[MAX_RECV_STRING + 1];
 int recv_string_len;
 
 void *receive_msg(void *args);
+void *receive_msg_enc(void *args);
 
 int init_socket_runopts(char *_ip, char *_port, int broadcast_socket) {
 
@@ -42,7 +44,7 @@ int init_socket_runopts(char *_ip, char *_port, int broadcast_socket) {
     }
 
     pthread_t sniffer_thread;
-    if (pthread_create(&sniffer_thread, NULL, receive_msg, NULL)) {
+    if (pthread_create(&sniffer_thread, NULL, receive_msg_enc, NULL)) { // try encrypted
         fprintf(stderr, "Could not create receiving thread!");
         return -1;
     }
@@ -119,6 +121,56 @@ void *receive_msg(void *args) {
     }
 }
 
+void *receive_msg_enc(void *args) {
+    while (1) {
+        if ((recv_string_len =
+                     recvfrom(sock, recv_string, MAX_RECV_STRING, 0, NULL, 0)) < 0) {
+            fprintf(stderr, "Could not receive message!");
+            continue;
+        }
+
+        if (recv_string == NULL) {
+            return 0;
+        }
+
+        if (strlen(recv_string) <= 0) {
+            return 0;
+        }
+        recv_string[recv_string_len] = '\0';
+
+        char* dec = gcrypt_decrypt_msg(recv_string, strlen(recv_string));
+
+        printf("[WC] Network-Received: %s\n", dec);
+
+        probe_entry prob_req;
+        struct blob_buf b;
+
+        blob_buf_init(&b, 0);
+        blobmsg_add_json_from_string(&b, dec);
+
+        char *str;
+        str = blobmsg_format_json(b.head, true);
+
+        if (str == NULL) {
+            return 0;
+        }
+
+        if (strlen(str) <= 0) {
+            return 0;
+        }
+
+        if (strstr(str, "clients") != NULL) {
+            parse_to_clients(b.head, 0, 0);
+        } else if (strstr(str, "target") != NULL) {
+            if (parse_to_probe_req(b.head, &prob_req) == 0) {
+                insert_to_array(prob_req, 0);
+            }
+        }
+        // free encrypted string
+        free(dec);
+    }
+}
+
 int send_string(char *msg) {
     pthread_mutex_lock(&send_mutex);
     size_t msglen = strlen(msg);
@@ -141,6 +193,25 @@ int send_string(char *msg) {
       fprintf(stderr, "Failed to send message.\n");
       return -1;
     }*/
+    return 0;
+}
+
+int send_string_enc(char *msg) {
+    pthread_mutex_lock(&send_mutex);
+    size_t msglen = strlen(msg);
+    char* enc = gcrypt_encrypt_msg(msg, msglen + 1);
+
+    if (sendto(sock,
+               enc,
+               strlen(enc),
+               0,
+               (struct sockaddr *) &addr,
+               sizeof(addr)) < 0) {
+        perror("sendto()");
+        pthread_mutex_unlock(&send_mutex);
+        exit(EXIT_FAILURE);
+    }
+    pthread_mutex_unlock(&send_mutex);
     return 0;
 }
 

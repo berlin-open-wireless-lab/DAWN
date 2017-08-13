@@ -192,7 +192,7 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
     // send probe via network
     char *str;
     str = blobmsg_format_json(msg, true);
-    send_string(str);
+    send_string_enc(str);
 
     printf("[WC] Hostapd-Probe: %s : %s\n", method, str);
 
@@ -407,7 +407,7 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     parse_to_clients(msg, 1, req->peer);
 
     char *str = blobmsg_format_json(msg, true);
-    send_string(str);
+    send_string_enc(str);
     print_client_array();
 }
 

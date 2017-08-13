@@ -7,7 +7,10 @@
 #include "dawn_uci.h"
 
 #define BUFSIZE 17
-#define BUFSIZE_DIR 255
+#define BUFSIZE_DIR 256
+
+
+#include "crypto.h"
 
 int main(int argc, char **argv) {
     const char *ubus_socket = NULL;
@@ -17,7 +20,10 @@ int main(int argc, char **argv) {
     char opt_broadcast_port[BUFSIZE];
     char opt_hostapd_dir[BUFSIZE_DIR];
 
-    while ((ch = getopt(argc, argv, "cs:p:i:b:o:h:")) != -1) {
+    char shared_key[BUFSIZE_DIR];
+    char iv[BUFSIZE_DIR];
+
+    while ((ch = getopt(argc, argv, "cs:p:i:b:o:h:i:k:v:")) != -1) {
         switch (ch) {
             case 's':
                 ubus_socket = optarg;
@@ -33,14 +39,44 @@ int main(int argc, char **argv) {
             case 'o':
                 snprintf(sort_string, SORT_NUM, "%s", optarg);
                 printf("sort string: %s\n", sort_string);
+                break;
             case 'h':
                 snprintf(opt_hostapd_dir, BUFSIZE_DIR, "%s", optarg);
                 printf("hostapd dir: %s\n", opt_hostapd_dir);
                 hostapd_dir_glob = optarg;
+                break;
+            case 'k':
+                snprintf(shared_key, BUFSIZE_DIR, "%s", optarg);
+                printf("Key: %s\n", shared_key);
+                break;
+            case 'v':
+                snprintf(iv, BUFSIZE_DIR, "%s", optarg);
+                printf("IV: %s\n", iv);
+                break;
             default:
                 break;
         }
     }
+
+    /* ----
+     *  Testing encryption
+     * ----
+     */
+
+    char msg[] = "Hallo Lotta!!!!! :D";
+    gcrypt_init();
+    gcrypt_set_key_and_iv(shared_key, iv);
+    printf("Encrypting msg: %s\n", msg);
+    char* enc = gcrypt_encrypt_msg(msg, strlen(msg) + 1);
+    printf("Decrypting msg: %s\n", enc);
+    char* dec = gcrypt_decrypt_msg(enc, strlen(enc));
+    printf("Message decrypted: %s\n", dec);
+    free(enc);
+    free(dec);
+
+    /*
+     * ----
+     */
 
     argc -= optind;
     argv += optind;
