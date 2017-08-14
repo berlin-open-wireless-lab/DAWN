@@ -38,7 +38,7 @@ void gcrypt_set_key_and_iv(char *key, char *iv)
             0);
     if (gcry_error_handle)
     {
-        printf("gcry_cipher_open failed:  %s/%s\n",
+        fprintf(stderr, "gcry_cipher_open failed:  %s/%s\n",
                gcry_strsource(gcry_error_handle),
                gcry_strerror(gcry_error_handle));
         return;
@@ -47,7 +47,7 @@ void gcrypt_set_key_and_iv(char *key, char *iv)
     gcry_error_handle = gcry_cipher_setkey(gcry_cipher_hd, key, keylen);
     if (gcry_error_handle)
     {
-        printf("gcry_cipher_setkey failed:  %s/%s\n",
+        fprintf(stderr, "gcry_cipher_setkey failed:  %s/%s\n",
                gcry_strsource(gcry_error_handle),
                gcry_strerror(gcry_error_handle));
         return;
@@ -56,7 +56,7 @@ void gcrypt_set_key_and_iv(char *key, char *iv)
     gcry_error_handle = gcry_cipher_setiv(gcry_cipher_hd, iv, blklen);
     if (gcry_error_handle)
     {
-        printf("gcry_cipher_setiv failed:  %s/%s\n",
+        fprintf(stderr, "gcry_cipher_setiv failed:  %s/%s\n",
                gcry_strsource(gcry_error_handle),
                gcry_strerror(gcry_error_handle));
         return;
@@ -77,7 +77,6 @@ char* gcrypt_encrypt_msg(char* msg, size_t msg_length)
             msg_length,    // size_t
             msg,    // const void *
             msg_length);   // size_t
-    printf("Message encrypted: %s : %s size: %d\n", msg, out, msg_length);
     if (gcry_error_handle)
     {
         printf("gcry_cipher_encrypt failed:  %s/%s\n",
@@ -106,6 +105,7 @@ char* gcrypt_decrypt_msg(char* msg, size_t msg_length)
         printf("gcry_cipher_encrypt failed:  %s/%s\n",
                gcry_strsource(gcry_error_handle),
                gcry_strerror(gcry_error_handle));
+        free(out_buffer);
         return NULL;
     }
     char* out = malloc(strlen(out_buffer) + 1);

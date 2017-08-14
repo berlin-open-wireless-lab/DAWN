@@ -17,7 +17,7 @@
 #include "crypto.h"
 
 /* Network Defines */
-#define MAX_RECV_STRING 500
+#define MAX_RECV_STRING 5000
 #define NET_CONFIG_PATH "/etc/wlancontroller/networkconfig.conf"
 
 /* Network Attributes */
@@ -71,7 +71,7 @@ void *receive_msg(void *args) {
         }
         recv_string[recv_string_len] = '\0';
 
-        //printf("[WC] Network-Received: %s\n", recv_string);
+        printf("[WC] Network-Received: %s\n", recv_string);
 
         probe_entry prob_req;
         struct blob_buf b;
@@ -138,7 +138,7 @@ void *receive_msg_enc(void *args) {
         }
         recv_string[recv_string_len] = '\0';
 
-        char* dec = gcrypt_decrypt_msg(recv_string, strlen(recv_string));
+        char* dec = gcrypt_decrypt_msg(recv_string, recv_string_len);
 
         printf("[WC] Network-Received: %s\n", dec);
 
@@ -203,7 +203,7 @@ int send_string_enc(char *msg) {
 
     if (sendto(sock,
                enc,
-               strlen(enc),
+               msglen + 1, // very important to use actual length of string because of '\0' in encrypted msg
                0,
                (struct sockaddr *) &addr,
                sizeof(addr)) < 0) {
