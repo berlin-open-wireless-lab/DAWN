@@ -6,8 +6,11 @@
 pthread_mutex_t send_mutex;
 
 int init_socket_runopts(char *_ip, char *_port, int broadcast_socket);
+
 int send_string(char *msg);
+
 int send_string_enc(char *msg);
+
 void close_socket();
 
 #endif

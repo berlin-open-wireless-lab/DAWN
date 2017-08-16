@@ -29,6 +29,7 @@ char recv_string[MAX_RECV_STRING + 1];
 int recv_string_len;
 
 void *receive_msg(void *args);
+
 void *receive_msg_enc(void *args);
 
 int init_socket_runopts(char *_ip, char *_port, int broadcast_socket) {
@@ -136,9 +137,9 @@ void *receive_msg_enc(void *args) {
         if (strlen(recv_string) <= 0) {
             return 0;
         }
-        recv_string[recv_string_len] = '\0';
+        //recv_string[recv_string_len] = '\0';
 
-        char* dec = gcrypt_decrypt_msg(recv_string, recv_string_len);
+        char *dec = gcrypt_decrypt_msg(recv_string, recv_string_len);
 
         printf("[WC] Network-Received: %s\n", dec);
 
@@ -199,7 +200,7 @@ int send_string(char *msg) {
 int send_string_enc(char *msg) {
     pthread_mutex_lock(&send_mutex);
     size_t msglen = strlen(msg);
-    char* enc = gcrypt_encrypt_msg(msg, msglen + 1);
+    char *enc = gcrypt_encrypt_msg(msg, msglen + 1);
 
     if (sendto(sock,
                enc,

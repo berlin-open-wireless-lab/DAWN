@@ -67,7 +67,7 @@ int eval_probe_metric(struct client_s client_entry, struct probe_entry_s probe_e
 
 
     printf("Checking if client supports: AP_VHT: %d, CL_VHT: %d\n", ap_supports_vht, client_supports_vht);
-    if(ap_supports_vht && client_supports_vht){
+    if (ap_supports_vht && client_supports_vht) {
         printf("AAAHHHHHHHHHHH IDEAL!!!\n");
     }
 
@@ -81,7 +81,7 @@ int eval_probe_metric(struct client_s client_entry, struct probe_entry_s probe_e
 
     //score += (client_entry.signal > -60) ? metric.freq : 0;
 
-    printf("SCORE: %d\n",score);
+    printf("SCORE: %d\n", score);
 
     return score;
 }
@@ -100,18 +100,18 @@ int kick_client(struct client_s client_entry) {
             break;
         }
     }
-    printf("Found probe [i] : %d\n",i);
+    printf("Found probe [i] : %d\n", i);
 
     // find own probe entry and calculate score
     int j;
     for (j = i; j <= probe_entry_last; j++) {
-        printf("[j] : %d\n",j);
+        printf("[j] : %d\n", j);
         if (!mac_is_equal(probe_array[j].client_addr, client_entry.client_addr)) {
             // this shouldn't happen!
             //return 1; // kick client!
             return 0;
         }
-        if (mac_is_equal(client_entry.bssid_addr, probe_array[j].bssid_addr)){
+        if (mac_is_equal(client_entry.bssid_addr, probe_array[j].bssid_addr)) {
             own_score = eval_probe_metric(client_entry, probe_array[j]);
             break;
         }
@@ -119,12 +119,13 @@ int kick_client(struct client_s client_entry) {
 
     int k;
     for (k = i; k <= probe_entry_last; k++) {
-        printf("[k] : %d\n",k);
+        printf("[k] : %d\n", k);
         if (!mac_is_equal(probe_array[k].client_addr, client_entry.client_addr)) {
             break;
         }
-        if(!mac_is_equal(client_entry.bssid_addr, probe_array[k].bssid_addr) &&
-                own_score < eval_probe_metric(client_entry, probe_array[k])) // that's wrong! find client_entry OR write things in probe array struct!
+        if (!mac_is_equal(client_entry.bssid_addr, probe_array[k].bssid_addr) &&
+            own_score < eval_probe_metric(client_entry,
+                                          probe_array[k])) // that's wrong! find client_entry OR write things in probe array struct!
         {
             return 1;
         }
@@ -335,9 +336,9 @@ probe_entry insert_to_array(probe_entry entry, int inc_counter) {
     entry.counter = 0;
     probe_entry tmp = probe_array_delete(entry);
 
-    if(mac_is_equal(entry.bssid_addr,tmp.bssid_addr)
-                && mac_is_equal(entry.client_addr, tmp.client_addr)){
-            entry.counter = tmp.counter;
+    if (mac_is_equal(entry.bssid_addr, tmp.bssid_addr)
+        && mac_is_equal(entry.client_addr, tmp.client_addr)) {
+        entry.counter = tmp.counter;
     }
 
     if (inc_counter) {

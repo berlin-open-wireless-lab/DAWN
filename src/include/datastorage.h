@@ -15,8 +15,7 @@
 
 struct probe_metric_s dawn_metric;
 
-struct probe_metric_s
-{
+struct probe_metric_s {
     int ht_support;
     int vht_support;
     int n_ht_support;

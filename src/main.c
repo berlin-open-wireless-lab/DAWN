@@ -67,12 +67,12 @@ int main(int argc, char **argv) {
     gcrypt_init();
     gcrypt_set_key_and_iv(shared_key, iv);
     printf("Encrypting msg: %s\n", msg);
-    char* enc = gcrypt_encrypt_msg(msg, strlen(msg) + 1);
+    char *enc = gcrypt_encrypt_msg(msg, strlen(msg) + 1);
     printf("Decrypting msg: %s\n", enc);
 
     printf("Sizeof: %d, Strlen: %d, Acutal: %d\n", sizeof(enc) * sizeof(char), strlen(enc), strlen(msg) + 1);
 
-    char* dec = gcrypt_decrypt_msg(enc, strlen(msg) + 1);//sizeof(enc));
+    char *dec = gcrypt_decrypt_msg(enc, strlen(msg) + 1);//sizeof(enc));
     printf("Message decrypted: %s\n", dec);
     free(enc);
     free(dec);
