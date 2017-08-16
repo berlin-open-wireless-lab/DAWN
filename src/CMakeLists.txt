@@ -30,7 +30,12 @@ SET(SOURCES
 	utils/runopts.c
 	include/runopts.h
 
-		utils/dawn_uci.c include/dawn_uci.h crypto/crypto.c include/crypto.h)
+	utils/dawn_uci.c
+	include/dawn_uci.h
+
+	crypto/crypto.c
+	include/crypto.h
+		utils/utils.c)
 
 SET(LIBS
 	ubox ubus json-c blobmsg_json config uci gcrypt)

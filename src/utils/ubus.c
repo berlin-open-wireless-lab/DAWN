@@ -31,13 +31,13 @@ enum {
 };
 
 static const struct blobmsg_policy prob_policy[__PROB_MAX] = {
-    [PROB_BSSID_ADDR] = {.name = "bssid", .type = BLOBMSG_TYPE_STRING},
-    [PROB_CLIENT_ADDR] = {.name = "address", .type = BLOBMSG_TYPE_STRING},
-    [PROB_TARGET_ADDR] = {.name = "target", .type = BLOBMSG_TYPE_STRING},
-    [PROB_SIGNAL] = {.name = "signal", .type = BLOBMSG_TYPE_INT32},
-    [PROB_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
-    //[PROB_HT_SUPPORT] = {.name = "ht_support", .type = BLOBMSG_TYPE_INT8},
-    //[PROB_VHT_SUPPORT] = {.name = "vht_support", .type = BLOBMSG_TYPE_INT8},
+        [PROB_BSSID_ADDR] = {.name = "bssid", .type = BLOBMSG_TYPE_STRING},
+        [PROB_CLIENT_ADDR] = {.name = "address", .type = BLOBMSG_TYPE_STRING},
+        [PROB_TARGET_ADDR] = {.name = "target", .type = BLOBMSG_TYPE_STRING},
+        [PROB_SIGNAL] = {.name = "signal", .type = BLOBMSG_TYPE_INT32},
+        [PROB_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
+        //[PROB_HT_SUPPORT] = {.name = "ht_support", .type = BLOBMSG_TYPE_INT8},
+        //[PROB_VHT_SUPPORT] = {.name = "vht_support", .type = BLOBMSG_TYPE_INT8},
 };
 
 enum {
@@ -50,11 +50,11 @@ enum {
 };
 
 static const struct blobmsg_policy client_table_policy[__CLIENT_TABLE_MAX] = {
-    [CLIENT_TABLE] = {.name = "clients", .type = BLOBMSG_TYPE_TABLE},
-    [CLIENT_TABLE_BSSID] = {.name = "bssid", .type = BLOBMSG_TYPE_STRING},
-    [CLIENT_TABLE_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
-    [CLIENT_TABLE_HT] = {.name = "ht_supported", .type = BLOBMSG_TYPE_INT8},
-    [CLIENT_TABLE_VHT] = {.name = "vht_supported", .type = BLOBMSG_TYPE_INT8},
+        [CLIENT_TABLE] = {.name = "clients", .type = BLOBMSG_TYPE_TABLE},
+        [CLIENT_TABLE_BSSID] = {.name = "bssid", .type = BLOBMSG_TYPE_STRING},
+        [CLIENT_TABLE_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
+        [CLIENT_TABLE_HT] = {.name = "ht_supported", .type = BLOBMSG_TYPE_INT8},
+        [CLIENT_TABLE_VHT] = {.name = "vht_supported", .type = BLOBMSG_TYPE_INT8},
 };
 
 enum {
@@ -73,17 +73,17 @@ enum {
 };
 
 static const struct blobmsg_policy client_policy[__CLIENT_MAX] = {
-    [CLIENT_AUTH] = {.name = "auth", .type = BLOBMSG_TYPE_INT8},
-    [CLIENT_ASSOC] = {.name = "assoc", .type = BLOBMSG_TYPE_INT8},
-    [CLIENT_AUTHORIZED] = {.name = "authorized", .type = BLOBMSG_TYPE_INT8},
-    [CLIENT_PREAUTH] = {.name = "preauth", .type = BLOBMSG_TYPE_INT8},
-    [CLIENT_WDS] = {.name = "wds", .type = BLOBMSG_TYPE_INT8},
-    [CLIENT_WMM] = {.name = "wmm", .type = BLOBMSG_TYPE_INT8},
-    [CLIENT_HT] = {.name = "ht", .type = BLOBMSG_TYPE_INT8},
-    [CLIENT_VHT] = {.name = "vht", .type = BLOBMSG_TYPE_INT8},
-    [CLIENT_WPS] = {.name = "wps", .type = BLOBMSG_TYPE_INT8},
-    [CLIENT_MFP] = {.name = "mfp", .type = BLOBMSG_TYPE_INT8},
-    [CLIENT_AID] = {.name = "aid", .type = BLOBMSG_TYPE_INT32},
+        [CLIENT_AUTH] = {.name = "auth", .type = BLOBMSG_TYPE_INT8},
+        [CLIENT_ASSOC] = {.name = "assoc", .type = BLOBMSG_TYPE_INT8},
+        [CLIENT_AUTHORIZED] = {.name = "authorized", .type = BLOBMSG_TYPE_INT8},
+        [CLIENT_PREAUTH] = {.name = "preauth", .type = BLOBMSG_TYPE_INT8},
+        [CLIENT_WDS] = {.name = "wds", .type = BLOBMSG_TYPE_INT8},
+        [CLIENT_WMM] = {.name = "wmm", .type = BLOBMSG_TYPE_INT8},
+        [CLIENT_HT] = {.name = "ht", .type = BLOBMSG_TYPE_INT8},
+        [CLIENT_VHT] = {.name = "vht", .type = BLOBMSG_TYPE_INT8},
+        [CLIENT_WPS] = {.name = "wps", .type = BLOBMSG_TYPE_INT8},
+        [CLIENT_MFP] = {.name = "mfp", .type = BLOBMSG_TYPE_INT8},
+        [CLIENT_AID] = {.name = "aid", .type = BLOBMSG_TYPE_INT32},
 };
 
 /* Function Definitions */
@@ -228,7 +228,7 @@ static int add_subscriber(char *name) {
     return 0;
 }
 
-static int  subscribe_to_hostapd_interfaces(char *hostapd_dir) {
+static int subscribe_to_hostapd_interfaces(char *hostapd_dir) {
     DIR *dirp;
     struct dirent *entry;
 
@@ -239,8 +239,7 @@ static int  subscribe_to_hostapd_interfaces(char *hostapd_dir) {
     }
 
     dirp = opendir(hostapd_dir);  // error handling?
-    if(!dirp)
-    {
+    if (!dirp) {
         fprintf(stderr, "No hostapd sockets!\n");
         return -1;
     }
@@ -387,7 +386,7 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
         uint8_t bssid[ETH_ALEN];
         hwaddr_aton(blobmsg_data(tb[CLIENT_TABLE_BSSID]), bssid);
 
-        if(do_kick){
+        if (do_kick) {
             printf("[CLIENTS] : Kick Clients\n");
             kick_clients(bssid, id);
             printf("[CLIENTS] : KickED Clients\n");
@@ -416,7 +415,7 @@ static int ubus_get_clients() {
     struct dirent *entry;
 
     dirp = opendir(hostapd_dir_glob);  // error handling?
-    if(!dirp) {
+    if (!dirp) {
         fprintf(stderr, "No hostapd sockets!\n");
         return -1;
     }
@@ -490,8 +489,7 @@ void del_client_all_interfaces(const uint8_t *client_addr, uint32_t reason, uint
     DIR *dirp;
     struct dirent *entry;
     dirp = opendir(hostapd_dir_glob);  // error handling?
-    if(!dirp)
-    {
+    if (!dirp) {
         fprintf(stderr, "No hostapd sockets!\n");
         return;
     }

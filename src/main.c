@@ -99,6 +99,9 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    build_decoding_table();
+
+
     init_socket_runopts(opt_broadcast_ip, opt_broadcast_port, 1);
 
     pthread_t tid_probe;
@@ -122,7 +125,8 @@ int main(int argc, char **argv) {
     pthread_mutex_destroy(&probe_array_mutex);
     pthread_mutex_destroy(&client_array_mutex);
 
-    free_list(probe_list_head);
+    //free_list(probe_list_head);
+    base64_cleanup();
 
     return 0;
 }
