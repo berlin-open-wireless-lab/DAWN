@@ -8,6 +8,7 @@
 #include <libconfig.h>
 
 #include <libubox/blobmsg_json.h>
+#include <glib.h>
 
 #include "networksocket.h"
 #include "datastorage.h"
@@ -209,12 +210,14 @@ int send_string_enc(char *msg) {
 
     char *enc = gcrypt_encrypt_msg(msg, msglen + 1);
 
-    size_t base64_msg_len;
-    char* base64_msg_dec = base64_encode((unsigned char*)enc, msglen, &base64_msg_len);
+    char* base64_msg_dec = g_base64_encode(msg, msglen + 1);
+
+    //size_t base64_msg_len;
+    //char* base64_msg_dec = base64_encode((unsigned char*)enc, msglen, &base64_msg_len);
 
     if (sendto(sock,
                base64_msg_dec,
-               base64_msg_len, // very important to use actual length of string because of '\0' in encrypted msg
+               msglen + 1, // very important to use actual length of string because of '\0' in encrypted msg
                0,
                (struct sockaddr *) &addr,
                sizeof(addr)) < 0) {
