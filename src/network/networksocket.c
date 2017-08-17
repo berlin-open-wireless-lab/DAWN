@@ -8,7 +8,7 @@
 #include <libconfig.h>
 
 #include <libubox/blobmsg_json.h>
-#include <glib.h>
+#include <glib-2.0/glib.h>
 
 #include "networksocket.h"
 #include "datastorage.h"
