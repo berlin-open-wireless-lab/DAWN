@@ -38,7 +38,7 @@ SET(SOURCES
 		utils/utils.c)
 
 SET(LIBS
-	ubox ubus json-c blobmsg_json config uci gcrypt)
+	ubox ubus json-c blobmsg_json config uci gcrypt glib)
 
 ADD_EXECUTABLE(dawn ${SOURCES} utils/dawn_uci.c include/dawn_uci.h)
 
