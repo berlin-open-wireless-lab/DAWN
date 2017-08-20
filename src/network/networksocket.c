@@ -140,11 +140,12 @@ void *receive_msg_enc(void *args) {
         }
         //recv_string[recv_string_len] = '\0';
 
-        // first decode base 64
+        char* base64_dec_str = malloc(Base64decode_len(recv_string));
+        int base64_dec_length = Base64decode(base64_dec_str, recv_string);
 
-        size_t base64_msg_len;
-        unsigned char* base64_msg_dec = base64_decode(recv_string, recv_string_len, &base64_msg_len);
-        char *dec = gcrypt_decrypt_msg((char*)base64_msg_dec, base64_msg_len);
+        char *dec = gcrypt_decrypt_msg(base64_dec_str, base64_dec_length);
+
+        free(base64_dec_str);
 
         printf("[WC] Network-Received: %s\n", dec);
 
@@ -207,16 +208,15 @@ int send_string_enc(char *msg) {
     pthread_mutex_lock(&send_mutex);
     size_t msglen = strlen(msg);
 
-    char *enc = gcrypt_encrypt_msg(msg, msglen + 1);
+    int length_enc;
+    char *enc = gcrypt_encrypt_msg(msg, msglen + 1, &length_enc);
 
-    //char* base64_msg_dec = g_base64_encode(msg, msglen + 1);
-
-    size_t base64_msg_len;
-    char* base64_msg_dec = base64_encode((unsigned char*)enc, msglen, &base64_msg_len);
+    char* base64_enc_str = malloc(Base64encode_len(length_enc));
+    size_t base64_enc_length = Base64encode(base64_enc_str, enc, length_enc);
 
     if (sendto(sock,
-               base64_msg_dec,
-               msglen + 1, // very important to use actual length of string because of '\0' in encrypted msg
+               base64_enc_str,
+               base64_enc_length, // very important to use actual length of string because of '\0' in encrypted msg
                0,
                (struct sockaddr *) &addr,
                sizeof(addr)) < 0) {
@@ -224,6 +224,8 @@ int send_string_enc(char *msg) {
         pthread_mutex_unlock(&send_mutex);
         exit(EXIT_FAILURE);
     }
+    free(base64_enc_str);
+    free(enc);
     pthread_mutex_unlock(&send_mutex);
     return 0;
 }
