@@ -8,12 +8,6 @@
 #include <libconfig.h>
 
 #include <libubox/blobmsg_json.h>
-#include <glib-2.0/glib.h>
-
-#include <openssl/bio.h>
-#include <openssl/evp.h>
-
-BIO_METHOD *   BIO_f_base64(void);
 
 #include "networksocket.h"
 #include "datastorage.h"
