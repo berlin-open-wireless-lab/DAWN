@@ -6,6 +6,13 @@
 #include "ubus.h"
 #include "dawn_uci.h"
 
+/* SSL TESTNG */
+
+#include <openssl/bio.h>
+#include <openssl/evp.h>
+
+BIO_METHOD *   BIO_f_base64(void);
+
 #define BUFSIZE 17
 #define BUFSIZE_DIR 256
 
@@ -63,11 +70,23 @@ int main(int argc, char **argv) {
      * ----
      */
 
+    BIO *bio, *b64;
+    char message[] = "Hello World \n";
+
+    b64 = BIO_new(BIO_f_base64());
+    bio = BIO_new_fp(stdout, BIO_NOCLOSE);
+    bio = BIO_push(b64, bio);
+    BIO_write(bio, message, strlen(message));
+    BIO_flush(bio);
+
+    BIO_free_all(bio);
+
     char msg[] = "{\"bssid\":\"a4:2b:b0:de:f1:fd\",\"freq\":5180,\"ht_supported\":true,\"vht_supported\":true,\"clients\":{\"78:02:f8:bc:ac:0b\":{\"auth\":true,\"assoc\":true,\"authorized\":true,\"preauth\":false,\"wds\":false,\"wmm\":true,\"ht\":true,\"vht\":true,\"wps\":false,\"mfp\":false,\"aid\":1}}}";
     gcrypt_init();
     gcrypt_set_key_and_iv(shared_key, iv);
     printf("Encrypting msg: %s\n", msg);
     char *enc = gcrypt_encrypt_msg(msg, strlen(msg) + 1);
+
     printf("Decrypting msg: %s\n", enc);
 
     printf("Sizeof: %d, Strlen: %d, Acutal: %d\n", sizeof(enc) * sizeof(char), strlen(enc), strlen(msg) + 1);

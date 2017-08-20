@@ -10,6 +10,11 @@
 #include <libubox/blobmsg_json.h>
 #include <glib-2.0/glib.h>
 
+#include <openssl/bio.h>
+#include <openssl/evp.h>
+
+BIO_METHOD *   BIO_f_base64(void);
+
 #include "networksocket.h"
 #include "datastorage.h"
 #include "broadcastsocket.h"
@@ -210,10 +215,10 @@ int send_string_enc(char *msg) {
 
     char *enc = gcrypt_encrypt_msg(msg, msglen + 1);
 
-    char* base64_msg_dec = g_base64_encode(msg, msglen + 1);
+    //char* base64_msg_dec = g_base64_encode(msg, msglen + 1);
 
-    //size_t base64_msg_len;
-    //char* base64_msg_dec = base64_encode((unsigned char*)enc, msglen, &base64_msg_len);
+    size_t base64_msg_len;
+    char* base64_msg_dec = base64_encode((unsigned char*)enc, msglen, &base64_msg_len);
 
     if (sendto(sock,
                base64_msg_dec,
