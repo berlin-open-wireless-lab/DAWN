@@ -63,7 +63,6 @@ int main(int argc, char **argv) {
      * ----
      */
 
-    build_decoding_table();
     char msg[] = "{\"bssid\":\"a4:2b:b0:de:f1:fd\",\"freq\":5180,\"ht_supported\":true,\"vht_supported\":true,\"clients\":{\"78:02:f8:bc:ac:0b\":{\"auth\":true,\"assoc\":true,\"authorized\":true,\"preauth\":false,\"wds\":false,\"wmm\":true,\"ht\":true,\"vht\":true,\"wps\":false,\"mfp\":false,\"aid\":1}}}";
     gcrypt_init();
     gcrypt_set_key_and_iv(shared_key, iv);
@@ -119,10 +118,7 @@ int main(int argc, char **argv) {
         printf("\n mutex init failed\n");
         return 1;
     }
-
-    build_decoding_table();
-
-
+    
     init_socket_runopts(opt_broadcast_ip, opt_broadcast_port, 1);
 
     pthread_t tid_probe;
@@ -147,7 +143,6 @@ int main(int argc, char **argv) {
     pthread_mutex_destroy(&client_array_mutex);
 
     //free_list(probe_list_head);
-    base64_cleanup();
 
     return 0;
 }

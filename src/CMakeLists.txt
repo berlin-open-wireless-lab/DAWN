@@ -35,7 +35,11 @@ SET(SOURCES
 
 	crypto/crypto.c
 	include/crypto.h
-		utils/utils.c)
+
+	crypto/base64.c
+	include/base64.h
+
+	utils/utils.c)
 
 SET(LIBS
 	ubox ubus json-c blobmsg_json config uci gcrypt ssl crypto)

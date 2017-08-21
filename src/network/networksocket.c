@@ -15,6 +15,7 @@
 #include "multicastsocket.h"
 #include "ubus.h"
 #include "crypto.h"
+#include "base64.h"
 #include "utils.h"
 
 /* Network Defines */
