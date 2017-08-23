@@ -58,49 +58,6 @@ int main(int argc, char **argv) {
         }
     }
 
-    /* ----
-     *  Testing encryption
-     * ----
-     */
-
-    char msg[] = "{\"bssid\":\"a4:2b:b0:de:f1:fd\",\"freq\":5180,\"ht_supported\":true,\"vht_supported\":true,\"clients\":{\"78:02:f8:bc:ac:0b\":{\"auth\":true,\"assoc\":true,\"authorized\":true,\"preauth\":false,\"wds\":false,\"wmm\":true,\"ht\":true,\"vht\":true,\"wps\":false,\"mfp\":false,\"aid\":1}}}";
-    gcrypt_init();
-    gcrypt_set_key_and_iv(shared_key, iv);
-    printf("Encrypting msg: %s\n", msg);
-
-    int length_str;
-    char *enc = gcrypt_encrypt_msg(msg, strlen(msg) + 1, &length_str);
-
-    //size_t output_length;
-    //char *output = base64_encode((unsigned char*)enc, strlen(msg), &output_length);
-
-    char* output = malloc(Base64encode_len(length_str));
-    int length = Base64encode(output, enc, length_str);
-
-    printf("Decrypting msg: %s\n", output);
-
-    printf("Length: %d, Strlen: %d, Acutal: %d\n", length, strlen(output), strlen(msg) + 1);
-
-    //size_t decode_length;
-    //unsigned char * output_dec = base64_decode(output, strlen(output), &decode_length);
-
-    char* output_dec = malloc(Base64decode_len(output));
-    int decode_length = Base64decode(output_dec, output);
-
-    printf("Output dec: %s Length: %d\n", output_dec, decode_length);
-
-    char *dec = gcrypt_decrypt_msg((char*)output_dec, decode_length);//sizeof(enc));
-    printf("Message decrypted: %s\n", dec);
-    printf("Message size: %d \n", strlen(dec));
-    free(enc);
-    free(dec);
-    free(output);
-    free(output_dec);
-
-    /*
-     * ----
-     */
-
     argc -= optind;
     argv += optind;
 
@@ -118,7 +75,7 @@ int main(int argc, char **argv) {
         printf("\n mutex init failed\n");
         return 1;
     }
-    
+
     init_socket_runopts(opt_broadcast_ip, opt_broadcast_port, 1);
 
     pthread_t tid_probe;
