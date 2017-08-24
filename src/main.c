@@ -61,6 +61,9 @@ int main(int argc, char **argv) {
     argc -= optind;
     argv += optind;
 
+    gcrypt_init();
+    gcrypt_set_key_and_iv(shared_key, iv);
+
     if (pthread_mutex_init(&list_mutex, NULL) != 0) {
         printf("\n mutex init failed\n");
         return 1;
