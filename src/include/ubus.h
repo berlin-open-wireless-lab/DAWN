@@ -22,18 +22,4 @@ void *kick_clients_thread(void *arg);
 
 char *hostapd_dir_glob;
 
-/* Metrik
-
-* RSSI : >= Threshold
-* FREQ : >= 5GHZ
-
-*/
-
-/*
-
-* if(client >=)
-*
-
-*/
-
 #endif

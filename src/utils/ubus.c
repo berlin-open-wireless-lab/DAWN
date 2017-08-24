@@ -36,8 +36,8 @@ static const struct blobmsg_policy prob_policy[__PROB_MAX] = {
         [PROB_TARGET_ADDR] = {.name = "target", .type = BLOBMSG_TYPE_STRING},
         [PROB_SIGNAL] = {.name = "signal", .type = BLOBMSG_TYPE_INT32},
         [PROB_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
-        //[PROB_HT_SUPPORT] = {.name = "ht_support", .type = BLOBMSG_TYPE_INT8},
-        //[PROB_VHT_SUPPORT] = {.name = "vht_support", .type = BLOBMSG_TYPE_INT8},
+        [PROB_HT_SUPPORT] = {.name = "ht_support", .type = BLOBMSG_TYPE_INT8},
+        [PROB_VHT_SUPPORT] = {.name = "vht_support", .type = BLOBMSG_TYPE_INT8},
 };
 
 enum {
@@ -160,7 +160,7 @@ int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req) {
     if (tb[PROB_FREQ]) {
         prob_req->freq = blobmsg_get_u32(tb[PROB_FREQ]);
     }
-/*
+
     if (tb[PROB_HT_SUPPORT]) {
         prob_req->ht_support = blobmsg_get_u8(tb[PROB_HT_SUPPORT]);
     }
@@ -168,7 +168,7 @@ int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req) {
     if (tb[PROB_VHT_SUPPORT]) {
         prob_req->vht_support = blobmsg_get_u8(tb[PROB_VHT_SUPPORT]);
     }
-*/
+
     return 0;
 }
 

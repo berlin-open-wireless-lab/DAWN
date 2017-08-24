@@ -35,33 +35,23 @@ int client_entry_last = -1;
 
 int eval_probe_metric(struct client_s client_entry, struct probe_entry_s probe_entry) {
 
-    /*struct probe_metric_s metric = {
-            .ht_support = 0,
-            .vht_support = 0,
-            .n_ht_support = 0,
-            .n_ht_support = 0,
-            .rssi = 0,
-            .freq = 100}; // this is for testing
-
-     */
-
     int score = 0;
 
     uint8_t client_supports_ht;
     uint8_t client_supports_vht;
-
+    /*
     uint8_t ap_supports_ht;
     uint8_t ap_supports_vht;
 
     ap_supports_ht = client_entry.ht_supported;
     ap_supports_vht = client_entry.vht_supported;
 
-    printf("AP Supports HT: %d\n", ap_supports_ht);
-    printf("AP Supports VHT: %d\n", ap_supports_vht);
-
+    //printf("AP Supports HT: %d\n", ap_supports_ht);
+    //printf("AP Supports VHT: %d\n", ap_supports_vht);
+    */
     client_supports_ht = client_entry.ht;
     client_supports_vht = client_entry.vht;
-
+    /*
     printf("Clients Supports HT: %d\n", client_supports_ht);
     printf("Clients Supports VHT: %d\n", client_supports_vht);
 
@@ -69,7 +59,7 @@ int eval_probe_metric(struct client_s client_entry, struct probe_entry_s probe_e
     printf("Checking if client supports: AP_VHT: %d, CL_VHT: %d\n", ap_supports_vht, client_supports_vht);
     if (ap_supports_vht && client_supports_vht) {
         printf("AAAHHHHHHHHHHH IDEAL!!!\n");
-    }
+    }*/
 
     score += client_supports_vht ? dawn_metric.vht_support : dawn_metric.n_vht_support;
     score += client_supports_ht ? dawn_metric.ht_support : dawn_metric.n_ht_support;
@@ -89,7 +79,7 @@ int eval_probe_metric(struct client_s client_entry, struct probe_entry_s probe_e
 //int kick_client(uint8_t bssid[], uint8_t client[]) {
 int kick_client(struct client_s client_entry) {
 
-    print_array();
+    //print_array();
 
     int own_score = 0;
 

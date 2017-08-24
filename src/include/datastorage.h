@@ -34,8 +34,8 @@ typedef struct probe_entry_s {
     uint8_t target_addr[ETH_ALEN];
     uint32_t signal;
     uint32_t freq;
-    //uint8_t ht_support;
-    //uint8_t vht_support;
+    uint8_t ht_support;
+    uint8_t vht_support;
     time_t time;
     int counter;
 } probe_entry;
