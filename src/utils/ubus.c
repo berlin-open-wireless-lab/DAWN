@@ -46,6 +46,7 @@ enum {
     CLIENT_TABLE_FREQ,
     CLIENT_TABLE_HT,
     CLIENT_TABLE_VHT,
+    CLIENT_TABLE_CHAN_UTIL,
     __CLIENT_TABLE_MAX,
 };
 
@@ -55,6 +56,7 @@ static const struct blobmsg_policy client_table_policy[__CLIENT_TABLE_MAX] = {
         [CLIENT_TABLE_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
         [CLIENT_TABLE_HT] = {.name = "ht_supported", .type = BLOBMSG_TYPE_INT8},
         [CLIENT_TABLE_VHT] = {.name = "vht_supported", .type = BLOBMSG_TYPE_INT8},
+        [CLIENT_TABLE_CHAN_UTIL] = {.name = "channel_utilization", .type = BLOBMSG_TYPE_INT8},
 };
 
 enum {
@@ -385,7 +387,12 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
          */
         uint8_t bssid[ETH_ALEN];
         hwaddr_aton(blobmsg_data(tb[CLIENT_TABLE_BSSID]), bssid);
-
+/*
+        if((tb[CLIENT_TABLE_CHAN_UTIL]))
+        {
+            printf("\n\nCHANNEL UTILIZAITON: %d\n\n", blobmsg_get_u8(tb[CLIENT_TABLE_CHAN_UTIL]));
+        }
+*/
         if (do_kick) {
             printf("[CLIENTS] : Kick Clients\n");
             kick_clients(bssid, id);
