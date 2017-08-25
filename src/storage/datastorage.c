@@ -307,6 +307,7 @@ probe_entry probe_array_delete(probe_entry entry) {
 }
 
 probe_entry probe_array_get_entry(uint8_t bssid_addr[], uint8_t client_addr[]) {
+
     int i;
     probe_entry tmp;
 
@@ -314,6 +315,7 @@ probe_entry probe_array_get_entry(uint8_t bssid_addr[], uint8_t client_addr[]) {
         return tmp;
     }
 
+    pthread_mutex_lock(&probe_array_mutex);
     for (i = 0; i <= probe_entry_last; i++) {
         if (mac_is_equal(bssid_addr, probe_array[i].bssid_addr) &&
             mac_is_equal(client_addr, probe_array[i].client_addr)) {
@@ -321,6 +323,8 @@ probe_entry probe_array_get_entry(uint8_t bssid_addr[], uint8_t client_addr[]) {
             break;
         }
     }
+    pthread_mutex_unlock(&probe_array_mutex);
+
     return tmp;
 }
 
