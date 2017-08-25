@@ -10,10 +10,6 @@ int go_next_help(char sort_order[], int i, probe_entry entry,
 int go_next(char sort_order[], int i, probe_entry entry,
             probe_entry next_entry);
 
-int mac_is_equal(uint8_t addr1[], uint8_t addr2[]);
-
-int mac_is_greater(uint8_t addr1[], uint8_t addr2[]);
-
 void print_probe_entry(probe_entry entry);
 
 void remove_old_probe_entries(time_t current_time, long long int threshold);

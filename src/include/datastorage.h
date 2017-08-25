@@ -86,6 +86,10 @@ typedef struct client_s {
 struct client_s client_array[ARRAY_CLIENT_LEN];
 pthread_mutex_t client_array_mutex;
 
+int mac_is_equal(uint8_t addr1[], uint8_t addr2[]);
+
+int mac_is_greater(uint8_t addr1[], uint8_t addr2[]);
+
 void insert_client_to_array(client entry);
 
 void kick_clients(uint8_t bssid[], uint32_t id);
