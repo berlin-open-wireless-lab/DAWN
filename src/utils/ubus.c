@@ -174,6 +174,14 @@ int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req) {
     return 0;
 }
 
+static int handle_auth_req(struct blob_attr *msg) {
+    return 0;
+}
+
+static int handle_assoc_req(struct blob_attr *msg) {
+    return 0;
+}
+
 static int handle_probe_req(struct blob_attr *msg) {
     printf("[WC] Parse Probe Request\n");
     probe_entry prob_req;
@@ -195,7 +203,7 @@ static int handle_probe_req(struct blob_attr *msg) {
         printf("MAC WILL BE DECLINED!!!\n");
         return UBUS_STATUS_CONNECTION_FAILED;
     }
-    printf("MAC WILL BE ACCEPDTED!!!\\n");
+    printf("MAC WILL BE ACCEPDTED!!!\n");
     return 0;
 }
 
@@ -210,6 +218,12 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
 
     if (strncmp(method, "probe", 5) == 0) {
         return handle_probe_req(msg);
+    }
+    else if (strncmp(method, "auth", 5) == 0) {
+        return handle_auth_req(msg);
+    }
+    else if (strncmp(method, "assoc", 5) == 0) {
+        return handle_assoc_req(msg);
     }
     return 0;
 }
