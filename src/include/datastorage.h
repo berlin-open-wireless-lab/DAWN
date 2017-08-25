@@ -40,6 +40,17 @@ typedef struct probe_entry_s {
     int counter;
 } probe_entry;
 
+typedef struct auth_entry_s {
+    uint8_t bssid_addr[ETH_ALEN];
+    uint8_t client_addr[ETH_ALEN];
+    uint8_t target_addr[ETH_ALEN];
+    uint32_t signal;
+    uint32_t freq;
+} auth_entry;
+
+typedef struct auth_entry_s assoc_entry;
+
+
 typedef struct {
     uint32_t freq;
 } client_request;
@@ -99,6 +110,8 @@ probe_entry insert_to_array(probe_entry entry, int inc_counter);
 void probe_array_insert(probe_entry entry);
 
 probe_entry probe_array_delete(probe_entry entry);
+
+probe_entry probe_array_get_entry(uint8_t bssid_addr[], uint8_t client_addr[]);
 
 void print_array();
 

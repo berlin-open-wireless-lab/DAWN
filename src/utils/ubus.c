@@ -20,6 +20,23 @@ static struct ubus_subscriber hostapd_event;
 static struct blob_buf b;
 
 enum {
+    AUTH_BSSID_ADDR,
+    AUTH_CLIENT_ADDR,
+    AUTH_TARGET_ADDR,
+    AUTH_SIGNAL,
+    AUTH_FREQ,
+    __AUTH_MAX,
+};
+
+static const struct blobmsg_policy auth_policy[__AUTH_MAX] = {
+        [AUTH_BSSID_ADDR] = {.name = "bssid", .type = BLOBMSG_TYPE_STRING},
+        [AUTH_CLIENT_ADDR] = {.name = "address", .type = BLOBMSG_TYPE_STRING},
+        [AUTH_TARGET_ADDR] = {.name = "target", .type = BLOBMSG_TYPE_STRING},
+        [AUTH_SIGNAL] = {.name = "signal", .type = BLOBMSG_TYPE_INT32},
+        [AUTH_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
+};
+
+enum {
     PROB_BSSID_ADDR,
     PROB_CLIENT_ADDR,
     PROB_TARGET_ADDR,
@@ -123,22 +140,41 @@ static int decide_function(probe_entry *prob_req) {
         return 0;
     }
 
-    /*int ret =
-      mac_first_in_probe_list(prob_req->bssid_addr, prob_req->client_addr);
-    if (ret) {
-    printf("Mac will be accepted!\n");
-    } else {
-    printf("Mac will be declined!\n");
-    }
-    return ret;
-    */
-    // allow access
     return 1;
 }
 
 static void hostapd_handle_remove(struct ubus_context *ctx,
                                   struct ubus_subscriber *s, uint32_t id) {
     fprintf(stderr, "Object %08x went away\n", id);
+}
+
+int parse_to_auth_req(struct blob_attr *msg, auth_entry *auth_req) {
+    struct blob_attr *tb[__AUTH_MAX];
+
+    blobmsg_parse(auth_policy, __AUTH_MAX, tb, blob_data(msg), blob_len(msg));
+
+    if (hwaddr_aton(blobmsg_data(tb[AUTH_BSSID_ADDR]), auth_req->bssid_addr))
+        return UBUS_STATUS_INVALID_ARGUMENT;
+
+    if (hwaddr_aton(blobmsg_data(tb[AUTH_CLIENT_ADDR]), auth_req->client_addr))
+        return UBUS_STATUS_INVALID_ARGUMENT;
+
+    if (hwaddr_aton(blobmsg_data(tb[AUTH_TARGET_ADDR]), auth_req->target_addr))
+        return UBUS_STATUS_INVALID_ARGUMENT;
+
+    if (tb[PROB_SIGNAL]) {
+        auth_req->signal = blobmsg_get_u32(tb[AUTH_SIGNAL]);
+    }
+
+    if (tb[PROB_FREQ]) {
+        auth_req->freq = blobmsg_get_u32(tb[AUTH_FREQ]);
+    }
+
+    return 0;
+}
+
+int parse_to_assoc_req(struct blob_attr *msg, assoc_entry *assoc_req) {
+    return (parse_to_auth_req(msg, assoc_req));
 }
 
 int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req) {
@@ -175,10 +211,16 @@ int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req) {
 }
 
 static int handle_auth_req(struct blob_attr *msg) {
+    auth_entry auth_req;
+    parse_to_auth_req(msg, &auth_req);
+
     return 0;
 }
 
 static int handle_assoc_req(struct blob_attr *msg) {
+    assoc_entry assoc_req;
+    parse_to_auth_req(msg, &assoc_req);
+
     return 0;
 }
 

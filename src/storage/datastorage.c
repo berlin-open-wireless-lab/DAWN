@@ -310,6 +310,24 @@ probe_entry probe_array_delete(probe_entry entry) {
     return tmp;
 }
 
+probe_entry probe_array_get_entry(uint8_t bssid_addr[], uint8_t client_addr[]) {
+    int i;
+    probe_entry tmp;
+
+    if (probe_entry_last == -1) {
+        return tmp;
+    }
+
+    for (i = 0; i <= probe_entry_last; i++) {
+        if (mac_is_equal(bssid_addr, probe_array[i].bssid_addr) &&
+            mac_is_equal(client_addr, probe_array[i].client_addr)) {
+            tmp = probe_array[i];
+            break;
+        }
+    }
+    return tmp;
+}
+
 void print_array() {
     printf("------------------\n");
     printf("Probe Entry Last: %d\n", probe_entry_last);
