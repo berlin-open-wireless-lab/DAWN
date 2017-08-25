@@ -214,14 +214,26 @@ static int handle_auth_req(struct blob_attr *msg) {
     auth_entry auth_req;
     parse_to_auth_req(msg, &auth_req);
 
+    probe_entry tmp = probe_array_get_entry(auth_req.bssid_addr, auth_req.bssid_addr);
+
+    // block if entry was not already found in probe database
+    if(!(mac_is_equal(tmp.bssid_addr, auth_req.bssid_addr) && mac_is_equal(tmp.client_addr, auth_req.client_addr)))
+    {
+        return UBUS_STATUS_CONNECTION_FAILED;
+    }
+
+    if (!decide_function(&tmp)) {
+        return UBUS_STATUS_CONNECTION_FAILED;
+    }
+
     return 0;
 }
 
 static int handle_assoc_req(struct blob_attr *msg) {
-    assoc_entry assoc_req;
-    parse_to_auth_req(msg, &assoc_req);
+    //assoc_entry assoc_req;
+    //parse_to_auth_req(msg, &assoc_req);
 
-    return 0;
+    return handle_auth_req(msg);
 }
 
 static int handle_probe_req(struct blob_attr *msg) {
