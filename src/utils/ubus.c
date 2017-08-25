@@ -174,17 +174,7 @@ int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req) {
     return 0;
 }
 
-static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
-                          struct ubus_request_data *req, const char *method,
-                          struct blob_attr *msg) {
-    //return UBUS_STATUS_UNKNOWN_ERROR;
-
-
-    // TODO: Only handle probe request and NOT assoc, ...
-
-    //if (strncmp(method, "probe", 5) != 0)
-    //    return 0;
-
+static int handle_probe_req(struct blob_attr *msg) {
     printf("[WC] Parse Probe Request\n");
     probe_entry prob_req;
     parse_to_probe_req(msg, &prob_req);
@@ -196,18 +186,31 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
     str = blobmsg_format_json(msg, true);
     send_string_enc(str);
 
-    printf("[WC] Hostapd-Probe: %s : %s\n", method, str);
+    printf("[WC] Hostapd-Probe: %s : %s\n", "probe", str);
 
     print_array();
 
     // deny access
     if (!decide_function(&tmp_probe)) {
-        printf("MAC WILL BE DECLINED!!!");
+        printf("MAC WILL BE DECLINED!!!\n");
         return UBUS_STATUS_CONNECTION_FAILED;
     }
-    printf("MAC WILL BE ACCEPDTED!!!");
+    printf("MAC WILL BE ACCEPDTED!!!\\n");
+    return 0;
+}
 
-    // allow access
+static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
+                          struct ubus_request_data *req, const char *method,
+                          struct blob_attr *msg) {
+    //return UBUS_STATUS_UNKNOWN_ERROR;
+
+    printf("METHOD: %s\n",method);
+
+    // TODO: Only handle probe request and NOT assoc, ...
+
+    if (strncmp(method, "probe", 5) == 0) {
+        return handle_probe_req(msg);
+    }
     return 0;
 }
 
