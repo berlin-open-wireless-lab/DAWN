@@ -20,67 +20,37 @@ int client_array_go_next_help(char sort_order[], int i, client entry,
 
 void remove_old_client_entries(time_t current_time, long long int threshold);
 
-int eval_probe_metric(struct client_s client_entry, struct probe_entry_s probe_entry);
+int eval_probe_metric(struct probe_entry_s probe_entry);
 
 int kick_client(struct client_s client_entry);
 
 int probe_entry_last = -1;
 int client_entry_last = -1;
 
-int eval_probe_metric(struct client_s client_entry, struct probe_entry_s probe_entry) {
+int eval_probe_metric(struct probe_entry_s probe_entry) {
 
     int score = 0;
 
-    uint8_t client_supports_ht;
-    uint8_t client_supports_vht;
-    /*
-    uint8_t ap_supports_ht;
-    uint8_t ap_supports_vht;
-
-    ap_supports_ht = client_entry.ht_supported;
-    ap_supports_vht = client_entry.vht_supported;
-
-    //printf("AP Supports HT: %d\n", ap_supports_ht);
-    //printf("AP Supports VHT: %d\n", ap_supports_vht);
-    */
-    client_supports_ht = client_entry.ht;
-    client_supports_vht = client_entry.vht;
-    /*
-    printf("Clients Supports HT: %d\n", client_supports_ht);
-    printf("Clients Supports VHT: %d\n", client_supports_vht);
-
-
-    printf("Checking if client supports: AP_VHT: %d, CL_VHT: %d\n", ap_supports_vht, client_supports_vht);
-    if (ap_supports_vht && client_supports_vht) {
-        printf("AAAHHHHHHHHHHH IDEAL!!!\n");
-    }*/
-
-    score += client_supports_vht ? dawn_metric.vht_support : dawn_metric.n_vht_support;
-    score += client_supports_ht ? dawn_metric.ht_support : dawn_metric.n_ht_support;
-
-    //score += !client_supports_vht ? metric.n_vht_support : 0;
-    //score += !client_supports_ht ? metric.n_ht_support : 0;
-
+    score += probe_entry.ht_support ? dawn_metric.vht_support : dawn_metric.n_vht_support;
+    score += probe_entry.vht_support ? dawn_metric.ht_support : dawn_metric.n_ht_support;
     score += (probe_entry.freq > 5000) ? dawn_metric.freq : 0;
+    score += (probe_entry.signal > -60) ? dawn_metric.rssi : 0;
 
-    //score += (client_entry.signal > -60) ? metric.freq : 0;
+    // TODO: Add minimal rssi threshold
 
     printf("SCORE: %d\n", score);
 
     return score;
 }
 
-//int kick_client(uint8_t bssid[], uint8_t client[]) {
-int kick_client(struct client_s client_entry) {
-
-    //print_array();
-
+int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[])
+{
     int own_score = 0;
 
     // find first client entry in probe array
     int i;
     for (i = 0; i <= probe_entry_last; i++) {
-        if (mac_is_equal(probe_array[i].client_addr, client_entry.client_addr)) {
+        if (mac_is_equal(probe_array[i].client_addr, client_addr)) {
             break;
         }
     }
@@ -90,13 +60,13 @@ int kick_client(struct client_s client_entry) {
     int j;
     for (j = i; j <= probe_entry_last; j++) {
         printf("[j] : %d\n", j);
-        if (!mac_is_equal(probe_array[j].client_addr, client_entry.client_addr)) {
+        if (!mac_is_equal(probe_array[j].client_addr, client_addr)) {
             // this shouldn't happen!
             //return 1; // kick client!
             return 0;
         }
-        if (mac_is_equal(client_entry.bssid_addr, probe_array[j].bssid_addr)) {
-            own_score = eval_probe_metric(client_entry, probe_array[j]);
+        if (mac_is_equal(bssid_addr, probe_array[j].bssid_addr)) {
+            own_score = eval_probe_metric(probe_array[j]);
             break;
         }
     }
@@ -104,18 +74,20 @@ int kick_client(struct client_s client_entry) {
     int k;
     for (k = i; k <= probe_entry_last; k++) {
         printf("[k] : %d\n", k);
-        if (!mac_is_equal(probe_array[k].client_addr, client_entry.client_addr)) {
+        if (!mac_is_equal(probe_array[k].client_addr, client_addr)) {
             break;
         }
-        if (!mac_is_equal(client_entry.bssid_addr, probe_array[k].bssid_addr) &&
-            own_score < eval_probe_metric(client_entry,
-                                          probe_array[k])) // that's wrong! find client_entry OR write things in probe array struct!
+        if (!mac_is_equal(bssid_addr, probe_array[k].bssid_addr) &&
+            own_score < eval_probe_metric(probe_array[k])) // that's wrong! find client_entry OR write things in probe array struct!
         {
             return 1;
         }
     }
-
     return 0;
+}
+
+int kick_client(struct client_s client_entry) {
+    return better_ap_available(client_entry.bssid_addr, client_entry.client_addr);
 }
 
 void kick_clients(uint8_t bssid[], uint32_t id) {

@@ -117,6 +117,8 @@ probe_entry probe_array_delete(probe_entry entry);
 
 probe_entry probe_array_get_entry(uint8_t bssid_addr[], uint8_t client_addr[]);
 
+int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[]);
+
 void print_array();
 
 void print_probe_entry(probe_entry entry);

@@ -140,6 +140,11 @@ static int decide_function(probe_entry *prob_req) {
         return 0;
     }
 
+    if(better_ap_available(prob_req->bssid_addr, prob_req->client_addr))
+    {
+        return 0;
+    }
+
     return 1;
 }
 
