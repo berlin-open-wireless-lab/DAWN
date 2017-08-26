@@ -91,6 +91,7 @@ pthread_mutex_t ap_array_mutex;
 
 ap insert_to_ap_array(ap entry);
 void print_ap_array();
+void *remove_ap_array_thread(void *arg);
 
 // Array
 #define ARRAY_CLIENT_LEN 1000

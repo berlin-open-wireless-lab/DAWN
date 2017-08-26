@@ -28,6 +28,8 @@ void ap_array_insert(ap entry);
 
 ap ap_array_delete(ap entry);
 
+void remove_old_ap_entries(time_t current_time, long long int threshold);
+
 void print_ap_entry(ap entry);
 
 int probe_entry_last = -1;
@@ -425,6 +427,14 @@ void remove_old_probe_entries(time_t current_time, long long int threshold) {
     }
 }
 
+void remove_old_ap_entries(time_t current_time, long long int threshold) {
+    for (int i = 0; i < probe_entry_last; i++) {
+        if (ap_array[i].time < current_time - threshold) {
+            ap_array_delete(ap_array[i]);
+        }
+    }
+}
+
 void *remove_array_thread(void *arg) {
     while (1) {
         sleep(TIME_THRESHOLD);
@@ -447,6 +457,16 @@ void *remove_client_array_thread(void *arg) {
     return 0;
 }
 
+void *remove_ap_array_thread(void *arg) {
+    while (1) {
+        sleep(TIME_THRESHOLD_AP);
+        pthread_mutex_lock(&ap_array_mutex);
+        printf("[Thread] : Removing old ap entries!\n");
+        remove_old_ap_entries(time(0), TIME_THRESHOLD_AP);
+        pthread_mutex_unlock(&ap_array_mutex);
+    }
+    return 0;
+}
 
 void insert_client_to_array(client entry) {
     pthread_mutex_lock(&client_array_mutex);

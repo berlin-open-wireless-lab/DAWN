@@ -98,6 +98,9 @@ int main(int argc, char **argv) {
     pthread_t tid_kick_clients;
     pthread_create(&tid_kick_clients, NULL, &kick_clients_thread, NULL);
 
+    pthread_t tid_ap;
+    pthread_create(&tid_ap, NULL, &remove_ap_array_thread, NULL);
+
     //pthread_create(&tid, NULL, &remove_thread, NULL);
 
     dawn_init_ubus(ubus_socket, opt_hostapd_dir);
