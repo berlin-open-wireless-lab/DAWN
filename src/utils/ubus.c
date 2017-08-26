@@ -211,6 +211,9 @@ int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req) {
 }
 
 static int handle_auth_req(struct blob_attr *msg) {
+
+    printf("HANDLE AUTH!\n");
+
     auth_entry auth_req;
     parse_to_auth_req(msg, &auth_req);
 
@@ -225,6 +228,9 @@ static int handle_auth_req(struct blob_attr *msg) {
     if (!decide_function(&tmp)) {
         return UBUS_STATUS_CONNECTION_FAILED;
     }
+
+
+    printf("ALLOW AUTH!\n");
 
     return 0;
 }
