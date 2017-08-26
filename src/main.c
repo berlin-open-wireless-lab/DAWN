@@ -84,14 +84,14 @@ int main(int argc, char **argv) {
     pthread_t tid_probe;
     pthread_create(&tid_probe, NULL, &remove_array_thread, NULL);
 
-    //pthread_t tid_client;
-    //pthread_create(&tid_client, NULL, &remove_client_array_thread, NULL);
+    pthread_t tid_client;
+    pthread_create(&tid_client, NULL, &remove_client_array_thread, NULL);
 
-    //pthread_t tid_get_client;
-    //pthread_create(&tid_get_client, NULL, &update_clients_thread, NULL);
+    pthread_t tid_get_client;
+    pthread_create(&tid_get_client, NULL, &update_clients_thread, NULL);
 
-    //pthread_t tid_kick_clients;
-    //pthread_create(&tid_kick_clients, NULL, &kick_clients_thread, NULL);
+    pthread_t tid_kick_clients;
+    pthread_create(&tid_kick_clients, NULL, &kick_clients_thread, NULL);
 
     //pthread_create(&tid, NULL, &remove_thread, NULL);
 
