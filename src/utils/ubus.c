@@ -279,7 +279,7 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
     if (strncmp(method, "probe", 5) == 0) {
         return handle_probe_req(msg);
     }
-    else if (strncmp(method, "auth", 5) == 0) {
+    else if (strncmp(method, "auth", 4) == 0) {
         return handle_auth_req(msg);
     }
     else if (strncmp(method, "assoc", 5) == 0) {
