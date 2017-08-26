@@ -212,24 +212,31 @@ int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req) {
 
 static int handle_auth_req(struct blob_attr *msg) {
 
+    print_array();
+
     printf("HANDLE AUTH!\n");
-    return UBUS_STATUS_CONNECTION_FAILED;
     auth_entry auth_req;
     parse_to_auth_req(msg, &auth_req);
 
-    probe_entry tmp = probe_array_get_entry(auth_req.bssid_addr, auth_req.bssid_addr);
+    printf("AUTH Entry: ");
+    print_auth_entry(auth_req);
+
+    probe_entry tmp = probe_array_get_entry(auth_req.bssid_addr, auth_req.client_addr);
+
+    printf("Entry found\n");
+    print_probe_entry(tmp);
 
     // block if entry was not already found in probe database
     if(!(mac_is_equal(tmp.bssid_addr, auth_req.bssid_addr) && mac_is_equal(tmp.client_addr, auth_req.client_addr)))
     {
-        return UBUS_STATUS_CONNECTION_FAILED;
+        printf("Entry not the bla\n");
+        return UBUS_STATUS_UNKNOWN_ERROR;
     }
 
     if (!decide_function(&tmp)) {
-        return UBUS_STATUS_CONNECTION_FAILED;
+        printf("DECIDE FUNCTION: NOOOO\n");
+        return UBUS_STATUS_UNKNOWN_ERROR;
     }
-
-
     printf("ALLOW AUTH!\n");
 
     return 0;
@@ -243,7 +250,7 @@ static int handle_assoc_req(struct blob_attr *msg) {
 }
 
 static int handle_probe_req(struct blob_attr *msg) {
-    printf("[WC] Parse Probe Request\n");
+    //printf("[WC] Parse Probe Request\n");
     probe_entry prob_req;
     parse_to_probe_req(msg, &prob_req);
     //insert_to_list(prob_req, 1);
@@ -254,26 +261,23 @@ static int handle_probe_req(struct blob_attr *msg) {
     str = blobmsg_format_json(msg, true);
     send_string_enc(str);
 
-    printf("[WC] Hostapd-Probe: %s : %s\n", "probe", str);
+    //printf("[WC] Hostapd-Probe: %s : %s\n", "probe", str);
 
-    print_array();
+    //print_array();
 
     // deny access
     if (!decide_function(&tmp_probe)) {
-        printf("MAC WILL BE DECLINED!!!\n");
-        return UBUS_STATUS_CONNECTION_FAILED;
+        //printf("MAC WILL BE DECLINED!!!\n");
+        return UBUS_STATUS_UNKNOWN_ERROR;
     }
-    printf("MAC WILL BE ACCEPDTED!!!\n");
+    //printf("MAC WILL BE ACCEPDTED!!!\n");
     return 0;
 }
 
 static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
                           struct ubus_request_data *req, const char *method,
                           struct blob_attr *msg) {
-    printf("METHOD: %s\n",method);
-    sleep(1);
-    printf("Rjection by Ubus handler: %d\n", UBUS_STATUS_CONNECTION_FAILED);
-    return UBUS_STATUS_CONNECTION_FAILED;
+    printf("METHOD new: %s\n",method);
 
 
     // TODO: Only handle probe request and NOT assoc, ...

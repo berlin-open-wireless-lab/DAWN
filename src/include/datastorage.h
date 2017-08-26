@@ -119,6 +119,10 @@ probe_entry probe_array_get_entry(uint8_t bssid_addr[], uint8_t client_addr[]);
 
 void print_array();
 
+void print_probe_entry(probe_entry entry);
+
+void print_auth_entry(auth_entry entry);
+
 void *remove_array_thread(void *arg);
 
 

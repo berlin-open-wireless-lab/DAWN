@@ -10,8 +10,6 @@ int go_next_help(char sort_order[], int i, probe_entry entry,
 int go_next(char sort_order[], int i, probe_entry entry,
             probe_entry next_entry);
 
-void print_probe_entry(probe_entry entry);
-
 void remove_old_probe_entries(time_t current_time, long long int threshold);
 
 int client_array_go_next(char sort_order[], int i, client entry,
@@ -731,6 +729,21 @@ void print_probe_entry(probe_entry entry) {
             "bssid_addr: %s, client_addr: %s, signal: %d, freq: "
                     "%d, counter: %d\n",
             mac_buf_ap, mac_buf_client, entry.signal, entry.freq, entry.counter);
+}
+
+void print_auth_entry(auth_entry entry) {
+    char mac_buf_ap[20];
+    char mac_buf_client[20];
+    char mac_buf_target[20];
+
+    sprintf(mac_buf_ap, "%x:%x:%x:%x:%x:%x", MAC2STR(entry.bssid_addr));
+    sprintf(mac_buf_client, "%x:%x:%x:%x:%x:%x", MAC2STR(entry.client_addr));
+    sprintf(mac_buf_target, "%x:%x:%x:%x:%x:%x", MAC2STR(entry.target_addr));
+
+    printf(
+            "bssid_addr: %s, client_addr: %s, signal: %d, freq: "
+                    "%d\n",
+            mac_buf_ap, mac_buf_client, entry.signal, entry.freq);
 }
 
 void print_client_entry(client entry) {
