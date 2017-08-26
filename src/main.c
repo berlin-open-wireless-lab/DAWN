@@ -79,6 +79,11 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    if (pthread_mutex_init(&ap_array_mutex, NULL) != 0) {
+        printf("\n mutex init failed\n");
+        return 1;
+    }
+
     init_socket_runopts(opt_broadcast_ip, opt_broadcast_port, 1);
 
     pthread_t tid_probe;
@@ -101,6 +106,8 @@ int main(int argc, char **argv) {
     pthread_mutex_destroy(&list_mutex);
     pthread_mutex_destroy(&probe_array_mutex);
     pthread_mutex_destroy(&client_array_mutex);
+    pthread_mutex_destroy(&ap_array_mutex);
+
 
     //free_list(probe_list_head);
 

@@ -24,15 +24,28 @@ int eval_probe_metric(struct probe_entry_s probe_entry);
 
 int kick_client(struct client_s client_entry);
 
+void ap_array_insert(ap entry);
+
+ap ap_array_delete(ap entry);
+
 int probe_entry_last = -1;
 int client_entry_last = -1;
+int ap_entry_last = -1;
 
 int eval_probe_metric(struct probe_entry_s probe_entry) {
 
     int score = 0;
+/*
+    client ap_entry = client_array_get_ap(probe_entry.bssid_addr);
 
-    score += probe_entry.ht_support ? dawn_metric.vht_support : dawn_metric.n_vht_support;
-    score += probe_entry.vht_support ? dawn_metric.ht_support : dawn_metric.n_ht_support;
+    // check if ap entry is available
+    if(mac_is_equal(ap_entry.bssid_addr, probe_entry.bssid_addr)) {
+        ap_entry.
+    } else {
+        score += probe_entry.ht_support ? dawn_metric.vht_support : dawn_metric.n_vht_support;
+        score += probe_entry.vht_support ? dawn_metric.ht_support : dawn_metric.n_ht_support;
+    }*/
+
     score += (probe_entry.freq > 5000) ? dawn_metric.freq : 0;
     score += (probe_entry.signal > -60) ? dawn_metric.rssi : 0;
 
@@ -329,6 +342,69 @@ probe_entry insert_to_array(probe_entry entry, int inc_counter) {
     pthread_mutex_unlock(&probe_array_mutex);
 
     return entry;
+}
+
+ap insert_to_ap_array(ap entry) {
+    pthread_mutex_lock(&ap_array_mutex);
+
+    entry.time = time(0);
+    ap_array_delete(entry);
+    ap_array_insert(entry);
+    pthread_mutex_unlock(&ap_array_mutex);
+
+    return entry;
+}
+
+void ap_array_insert(ap entry) {
+    if (ap_entry_last == -1) {
+        ap_array[0] = entry;
+        ap_entry_last++;
+        return;
+    }
+
+    int i;
+    for (i = 0; i <= ap_entry_last; i++) {
+        if (!mac_is_greater(entry.bssid_addr,  ap_array[i].bssid_addr)) {
+            break;
+        }
+    }
+    for (int j = ap_entry_last; j >= i; j--) {
+        if (j + 1 <= ARRAY_AP_LEN) {
+            ap_array[j + 1] = ap_array[j];
+        }
+    }
+    ap_array[i] = entry;
+
+    if (ap_entry_last < ARRAY_AP_LEN) {
+        ap_entry_last++;
+    }
+}
+
+ap ap_array_delete(ap entry) {
+    int i;
+    int found_in_array = 0;
+    ap tmp;
+
+    if (ap_entry_last == -1) {
+        return tmp;
+    }
+
+    for (i = 0; i <= ap_entry_last; i++) {
+        if (mac_is_equal(entry.bssid_addr, ap_array[i].bssid_addr)) {
+            found_in_array = 1;
+            tmp = ap_array[i];
+            break;
+        }
+    }
+
+    for (int j = i; j <= ap_entry_last; j++) {
+        ap_array[j] = ap_array[j + 1];
+    }
+
+    if (ap_entry_last > -1 && found_in_array) {
+        ap_entry_last--;
+    }
+    return tmp;
 }
 
 void remove_old_client_entries(time_t current_time, long long int threshold) {

@@ -75,6 +75,21 @@ typedef struct client_s {
     uint32_t aid;
 } client;
 
+typedef struct ap_s {
+    uint8_t bssid_addr[ETH_ALEN];
+    uint32_t freq;
+    uint8_t ht;
+    uint8_t vht;
+    time_t time;
+} ap;
+
+// Array
+#define ARRAY_AP_LEN 50
+#define TIME_THRESHOLD_AP 30
+struct ap_s ap_array[ARRAY_AP_LEN];
+pthread_mutex_t ap_array_mutex;
+
+ap insert_to_ap_array(ap entry);
 
 // Array
 #define ARRAY_CLIENT_LEN 1000

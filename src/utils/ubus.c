@@ -473,8 +473,13 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
           * here i know my bssid to kick the clients
           * seems a good idea ?!
          */
-        uint8_t bssid[ETH_ALEN];
-        hwaddr_aton(blobmsg_data(tb[CLIENT_TABLE_BSSID]), bssid);
+
+        ap ap_entry;
+        hwaddr_aton(blobmsg_data(tb[CLIENT_TABLE_BSSID]), ap_entry.bssid_addr);
+        ap_entry.freq = blobmsg_get_u32(tb[CLIENT_TABLE_FREQ]);
+        ap_entry.ht = blobmsg_get_u8(tb[CLIENT_TABLE_HT]);
+        ap_entry.vht = blobmsg_get_u8(tb[CLIENT_TABLE_VHT]);
+        insert_to_ap_array(ap_entry);
 /*
         if((tb[CLIENT_TABLE_CHAN_UTIL]))
         {
@@ -483,7 +488,7 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
 */
         if (do_kick) {
             printf("[CLIENTS] : Kick Clients\n");
-            kick_clients(bssid, id);
+            kick_clients(ap_entry.bssid_addr, id);
             printf("[CLIENTS] : KickED Clients\n");
         }
     }
