@@ -28,6 +28,8 @@ void ap_array_insert(ap entry);
 
 ap ap_array_delete(ap entry);
 
+void print_ap_entry(ap entry);
+
 int probe_entry_last = -1;
 int client_entry_last = -1;
 int ap_entry_last = -1;
@@ -810,6 +812,22 @@ void print_client_array() {
     printf("Client Entry Last: %d\n", client_entry_last);
     for (int i = 0; i <= client_entry_last; i++) {
         print_client_entry(client_array[i]);
+    }
+    printf("------------------\n");
+}
+
+void print_ap_entry(ap entry) {
+    char mac_buf_ap[20];
+
+    sprintf(mac_buf_ap, "%x:%x:%x:%x:%x:%x", MAC2STR(entry.bssid_addr));
+    printf("bssid_addr: %s, freq: %d, ht: %d, vht: %d\n",
+           mac_buf_ap, entry.freq, entry.ht, entry.vht);
+}
+
+void print_ap_array() {
+    printf("--------APs------\n");
+    for (int i = 0; i <= ap_entry_last; i++) {
+        print_ap_entry(ap_array[i]);
     }
     printf("------------------\n");
 }

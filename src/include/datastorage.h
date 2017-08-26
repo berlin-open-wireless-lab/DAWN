@@ -90,6 +90,7 @@ struct ap_s ap_array[ARRAY_AP_LEN];
 pthread_mutex_t ap_array_mutex;
 
 ap insert_to_ap_array(ap entry);
+void print_ap_array();
 
 // Array
 #define ARRAY_CLIENT_LEN 1000

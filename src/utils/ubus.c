@@ -508,6 +508,7 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     char *str = blobmsg_format_json(msg, true);
     send_string_enc(str);
     print_client_array();
+    print_ap_array();
 }
 
 static int ubus_get_clients() {
