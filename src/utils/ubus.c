@@ -213,7 +213,7 @@ int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req) {
 static int handle_auth_req(struct blob_attr *msg) {
 
     printf("HANDLE AUTH!\n");
-
+    return UBUS_STATUS_CONNECTION_FAILED;
     auth_entry auth_req;
     parse_to_auth_req(msg, &auth_req);
 
@@ -270,9 +270,11 @@ static int handle_probe_req(struct blob_attr *msg) {
 static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
                           struct ubus_request_data *req, const char *method,
                           struct blob_attr *msg) {
-    //return UBUS_STATUS_UNKNOWN_ERROR;
-
     printf("METHOD: %s\n",method);
+    sleep(1);
+    printf("Rjection by Ubus handler: %d\n", UBUS_STATUS_CONNECTION_FAILED);
+    return UBUS_STATUS_CONNECTION_FAILED;
+
 
     // TODO: Only handle probe request and NOT assoc, ...
 
