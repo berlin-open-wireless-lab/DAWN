@@ -467,7 +467,7 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
         dump_client_table(blobmsg_data(tb[CLIENT_TABLE]), blobmsg_data_len(tb[CLIENT_TABLE]),
                           blobmsg_data(tb[CLIENT_TABLE_BSSID]), blobmsg_get_u32(tb[CLIENT_TABLE_FREQ]),
                           blobmsg_get_u8(tb[CLIENT_TABLE_HT]), blobmsg_get_u8(tb[CLIENT_TABLE_VHT]));
-        printf("[CLIENTS] : ParseD Clients\n");
+        //printf("[CLIENTS] : ParseD Clients\n");
         /* BSSID */
         /*
           * here i know my bssid to kick the clients
@@ -487,9 +487,9 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
         }
 */
         if (do_kick) {
-            printf("[CLIENTS] : Kick Clients\n");
+            //printf("[CLIENTS] : Kick Clients\n");
             kick_clients(ap_entry.bssid_addr, id);
-            printf("[CLIENTS] : KickED Clients\n");
+            //printf("[CLIENTS] : KickED Clients\n");
         }
     }
 
@@ -498,7 +498,7 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
 
 static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_attr *msg) {
 
-    printf("[GET CLIENTS] Peer: %08x \n", req->peer);
+    //printf("[GET CLIENTS] Peer: %08x \n", req->peer);
 
     if (!msg)
         return;

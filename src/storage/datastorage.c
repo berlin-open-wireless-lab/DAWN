@@ -76,7 +76,6 @@ int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[])
             break;
         }
     }
-    printf("Found probe [i] : %d\n", i);
 
     // find own probe entry and calculate score
     int j;
@@ -95,7 +94,6 @@ int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[])
 
     int k;
     for (k = i; k <= probe_entry_last; k++) {
-        printf("[k] : %d\n", k);
         if (!mac_is_equal(probe_array[k].client_addr, client_addr)) {
             break;
         }
@@ -131,13 +129,11 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
             break;
         }
         if (kick_client(client_array[j])) {
-            /*
-              TODO: KICK ONLY FROM ONE BSSID?
-            */
+            // TODO: Better debug output
             printf("KICKING CLIENT!!!!!!!!!!!!!\n");
             del_client_interface(id, client_array[j].client_addr, 5, 1, 60000);
         } else {
-            printf("STAAAY CLIENT!!!!!!!!!!!!!\n");
+            //printf("STAAAY CLIENT!!!!!!!!!!!!!\n");
         }
     }
 
