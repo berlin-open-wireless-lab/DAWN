@@ -26,11 +26,15 @@
 #include <dlfcn.h>
 
 static void* (*real_malloc)(size_t)=NULL;
+static void* (*real_free)(void *p)=NULL;
+
 void daemon_shutdown();
 
 void signal_handler(int sig);
 
 struct sigaction newSigAction;
+
+int free_counter = 0;
 
 pthread_t tid_probe;
 pthread_t tid_client;
@@ -54,6 +58,8 @@ void daemon_shutdown()
     pthread_mutex_destroy(&probe_array_mutex);
     pthread_mutex_destroy(&client_array_mutex);
     pthread_mutex_destroy(&ap_array_mutex);
+
+    printf("Free Counter: %d\n", free_counter);
 }
 
 void signal_handler(int sig)
@@ -83,6 +89,10 @@ static void mtrace_init(void)
     if (NULL == real_malloc) {
         fprintf(stderr, "Error in `dlsym`: %s\n", dlerror());
     }
+    real_free = dlsym(RTLD_NEXT, "free");
+    if (NULL == real_free) {
+        fprintf(stderr, "Error in `dlsym`: %s\n", dlerror());
+    }
 }
 
 void *malloc(size_t size)
@@ -96,10 +106,25 @@ void *malloc(size_t size)
     fprintf(stderr, "malloc(%d) = ", size);
     p = real_malloc(size);
     fprintf(stderr, "%p\n", p);
+    free_counter++;
     return p;
 }
 
+void free(void *p)
+{
+    mtrace_init();
+    if(real_free==NULL) {
+        mtrace_init();
+    }
+    p = real_free(p);
+    fprintf(stderr, "free: ");
+    fprintf(stderr, "%p\n", p);
+    free_counter--;
+}
+
 int main(int argc, char **argv) {
+    free_counter = 0;
+
     const char *ubus_socket = NULL;
     int ch;
 
@@ -182,7 +207,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    init_socket_runopts(opt_broadcast_ip, opt_broadcast_port, 1);
+    //init_socket_runopts(opt_broadcast_ip, opt_broadcast_port, 1);
 
     pthread_create(&tid_probe, NULL, &remove_array_thread, NULL);
     pthread_create(&tid_client, NULL, &remove_client_array_thread, NULL);

@@ -146,6 +146,7 @@ void *receive_msg_enc(void *args) {
 
         char *dec = gcrypt_decrypt_msg(base64_dec_str, base64_dec_length);
 
+        printf("Free %s: %p\n","base64_dec_str", base64_dec_str);
         free(base64_dec_str);
 
         printf("[WC] Network-Received: %s\n", dec);
@@ -175,6 +176,7 @@ void *receive_msg_enc(void *args) {
             }
         }
         // free encrypted string
+        printf("Free %s: %p\n","dec", dec);
         free(dec);
     }
 }
@@ -225,7 +227,9 @@ int send_string_enc(char *msg) {
         pthread_mutex_unlock(&send_mutex);
         exit(EXIT_FAILURE);
     }
+    printf("Free %s: %p\n","base64_enc_str", base64_enc_str);
     free(base64_enc_str);
+    printf("Free %s: %p\n","enc", enc);
     free(enc);
     pthread_mutex_unlock(&send_mutex);
     return 0;
