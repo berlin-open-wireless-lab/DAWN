@@ -1,6 +1,15 @@
 #include <libubus.h>
 #include <stdio.h>
 
+#include <stdio.h>
+#include <signal.h>
+#include <syslog.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <string.h>
+
 #include "datastorage.h"
 #include "networksocket.h"
 #include "ubus.h"
@@ -17,6 +26,56 @@
 #include <dlfcn.h>
 
 static void* (*real_malloc)(size_t)=NULL;
+void daemon_shutdown();
+
+void signal_handler(int sig);
+
+struct sigaction newSigAction;
+
+pthread_t tid_probe;
+pthread_t tid_client;
+pthread_t tid_get_client;
+pthread_t tid_kick_clients;
+pthread_t tid_ap;
+
+void daemon_shutdown()
+{
+    // kill threads
+    printf("Cancelling Threads!\n");
+    pthread_cancel(tid_probe);
+    pthread_cancel(tid_client);
+    pthread_cancel(tid_get_client);
+    pthread_cancel(tid_kick_clients);
+    pthread_cancel(tid_ap);
+
+    // free ressources
+    printf("Freeing mutex ressources\n");
+    pthread_mutex_destroy(&list_mutex);
+    pthread_mutex_destroy(&probe_array_mutex);
+    pthread_mutex_destroy(&client_array_mutex);
+    pthread_mutex_destroy(&ap_array_mutex);
+}
+
+void signal_handler(int sig)
+{
+    printf("SOME SIGNAL RECEIVED!\n");
+    switch(sig)
+    {
+        case SIGHUP:
+            //syslog(LOG_WARNING, "Received SIGHUP signal.");
+            break;
+        case SIGINT:
+        case SIGTERM:
+            //syslog(LOG_INFO, "Daemon exiting");
+            //daemonShutdown();
+            daemon_shutdown();
+            exit(EXIT_SUCCESS);
+            break;
+        default:
+            //syslog(LOG_WARNING, "Unhandled signal %s", strsignal(sig));
+            break;
+    }
+}
 
 static void mtrace_init(void)
 {
@@ -89,6 +148,17 @@ int main(int argc, char **argv) {
     argc -= optind;
     argv += optind;
 
+    /* Set up a signal handler */
+    newSigAction.sa_handler = signal_handler;
+    sigemptyset(&newSigAction.sa_mask);
+    newSigAction.sa_flags = 0;
+
+    /* Signals to handle */
+    sigaction(SIGHUP, &newSigAction, NULL);     /* catch hangup signal */
+    sigaction(SIGTERM, &newSigAction, NULL);    /* catch term signal */
+    sigaction(SIGINT, &newSigAction, NULL);     /* catch interrupt signal */
+
+
     gcrypt_init();
     gcrypt_set_key_and_iv(shared_key, iv);
 
@@ -114,32 +184,15 @@ int main(int argc, char **argv) {
 
     init_socket_runopts(opt_broadcast_ip, opt_broadcast_port, 1);
 
-    pthread_t tid_probe;
     pthread_create(&tid_probe, NULL, &remove_array_thread, NULL);
-
-    pthread_t tid_client;
     pthread_create(&tid_client, NULL, &remove_client_array_thread, NULL);
-
-    pthread_t tid_get_client;
     pthread_create(&tid_get_client, NULL, &update_clients_thread, NULL);
-
-    pthread_t tid_kick_clients;
     pthread_create(&tid_kick_clients, NULL, &kick_clients_thread, NULL);
-
-    pthread_t tid_ap;
     pthread_create(&tid_ap, NULL, &remove_ap_array_thread, NULL);
 
     //pthread_create(&tid, NULL, &remove_thread, NULL);
 
     dawn_init_ubus(ubus_socket, opt_hostapd_dir);
-
-    // free ressources
-    pthread_mutex_destroy(&list_mutex);
-    pthread_mutex_destroy(&probe_array_mutex);
-    pthread_mutex_destroy(&client_array_mutex);
-    pthread_mutex_destroy(&ap_array_mutex);
-
-
     //free_list(probe_list_head);
 
     return 0;
