@@ -73,7 +73,7 @@ static const struct blobmsg_policy client_table_policy[__CLIENT_TABLE_MAX] = {
         [CLIENT_TABLE_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
         [CLIENT_TABLE_HT] = {.name = "ht_supported", .type = BLOBMSG_TYPE_INT8},
         [CLIENT_TABLE_VHT] = {.name = "vht_supported", .type = BLOBMSG_TYPE_INT8},
-        [CLIENT_TABLE_CHAN_UTIL] = {.name = "channel_utilization", .type = BLOBMSG_TYPE_INT8},
+        [CLIENT_TABLE_CHAN_UTIL] = {.name = "channel_utilization", .type = BLOBMSG_TYPE_INT32},
 };
 
 enum {
@@ -479,12 +479,12 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
         ap_entry.freq = blobmsg_get_u32(tb[CLIENT_TABLE_FREQ]);
         ap_entry.ht = blobmsg_get_u8(tb[CLIENT_TABLE_HT]);
         ap_entry.vht = blobmsg_get_u8(tb[CLIENT_TABLE_VHT]);
-        ap_entry.channel_utilization = blobmsg_get_u8(tb[CLIENT_TABLE_CHAN_UTIL]);
+        ap_entry.channel_utilization = blobmsg_get_u32(tb[CLIENT_TABLE_CHAN_UTIL]);
         insert_to_ap_array(ap_entry);
 
         if((tb[CLIENT_TABLE_CHAN_UTIL]))
         {
-            printf("CHANNEL UTILIZAITON: %d\n", blobmsg_get_u8(tb[CLIENT_TABLE_CHAN_UTIL]));
+            printf("CHANNEL UTILIZAITON: %d\n", blobmsg_get_u32(tb[CLIENT_TABLE_CHAN_UTIL]));
         }
 
         if (do_kick) {
