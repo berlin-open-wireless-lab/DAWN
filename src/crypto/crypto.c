@@ -97,13 +97,13 @@ char *gcrypt_decrypt_msg(char *msg, size_t msg_length) {
         printf("gcry_cipher_encrypt failed:  %s/%s\n",
                gcry_strsource(gcry_error_handle),
                gcry_strerror(gcry_error_handle));
-        printf("Free %s: %p\n","out_buffer", out_buffer);
+        //printf("Free %s: %p\n","out_buffer", out_buffer);
         free(out_buffer);
         return NULL;
     }
     char *out = malloc(strlen(out_buffer) + 1);
     strcpy(out, out_buffer);
-    printf("Free %s: %p\n","out_buffer", out_buffer);
+    //printf("Free %s: %p\n","out_buffer", out_buffer);
     free(out_buffer);
     return out;
 }

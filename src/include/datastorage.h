@@ -80,6 +80,7 @@ typedef struct ap_s {
     uint32_t freq;
     uint8_t ht;
     uint8_t vht;
+    uint8_t channel_utilization;
     time_t time;
 } ap;
 
