@@ -862,7 +862,7 @@ void print_ap_entry(ap entry) {
     char mac_buf_ap[20];
 
     sprintf(mac_buf_ap, "%x:%x:%x:%x:%x:%x", MAC2STR(entry.bssid_addr));
-    printf("bssid_addr: %s, freq: %d, ht: %d, vht: %d, ch_utilz: %d\n",
+    printf("bssid_addr: %s, freq: %d, ht: %d, vht: %d, chan_utilz: %d\n",
            mac_buf_ap, entry.freq, entry.ht, entry.vht, entry.channel_utilization);
 }
 

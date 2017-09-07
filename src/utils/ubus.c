@@ -484,7 +484,7 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
 
         if((tb[CLIENT_TABLE_CHAN_UTIL]))
         {
-            //printf("\n\nCHANNEL UTILIZAITON: %d\n\n", blobmsg_get_u8(tb[CLIENT_TABLE_CHAN_UTIL]));
+            printf("CHANNEL UTILIZAITON: %d\n", blobmsg_get_u8(tb[CLIENT_TABLE_CHAN_UTIL]));
         }
 
         if (do_kick) {
