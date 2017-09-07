@@ -480,12 +480,12 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
         ap_entry.ht = blobmsg_get_u8(tb[CLIENT_TABLE_HT]);
         ap_entry.vht = blobmsg_get_u8(tb[CLIENT_TABLE_VHT]);
         insert_to_ap_array(ap_entry);
-/*
+
         if((tb[CLIENT_TABLE_CHAN_UTIL]))
         {
             printf("\n\nCHANNEL UTILIZAITON: %d\n\n", blobmsg_get_u8(tb[CLIENT_TABLE_CHAN_UTIL]));
         }
-*/
+
         if (do_kick) {
             //printf("[CLIENTS] : Kick Clients\n");
             kick_clients(ap_entry.bssid_addr, id);
