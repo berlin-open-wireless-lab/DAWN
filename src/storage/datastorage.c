@@ -59,7 +59,8 @@ int eval_probe_metric(struct probe_entry_s probe_entry) {
     score += (probe_entry.signal > -60) ? dawn_metric.rssi : 0;
 
     // TODO: Add minimal rssi threshold
-    //printf("SCORE: %d\n", score);
+    printf("SCORE: %d\n", score);
+    print_probe_entry(probe_entry);
 
     return score;
 }
@@ -817,8 +818,8 @@ void print_probe_entry(probe_entry entry) {
 
     printf(
             "bssid_addr: %s, client_addr: %s, signal: %d, freq: "
-                    "%d, counter: %d\n",
-            mac_buf_ap, mac_buf_client, entry.signal, entry.freq, entry.counter);
+                    "%d, counter: %d, vht: %d\n",
+            mac_buf_ap, mac_buf_client, entry.signal, entry.freq, entry.counter, entry.vht_support);
 }
 
 void print_auth_entry(auth_entry entry) {
