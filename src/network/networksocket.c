@@ -74,7 +74,7 @@ void *receive_msg(void *args) {
         }
         recv_string[recv_string_len] = '\0';
 
-        printf("[WC] Network-Received: %s\n", recv_string);
+        //printf("[WC] Network-Received: %s\n", recv_string);
 
         probe_entry prob_req;
         struct blob_buf b;
@@ -149,7 +149,7 @@ void *receive_msg_enc(void *args) {
         //printf("Free %s: %p\n","base64_dec_str", base64_dec_str);
         free(base64_dec_str);
 
-        printf("[WC] Network-Received: %s\n", dec);
+        //printf("[WC] Network-Received: %s\n", dec);
 
         probe_entry prob_req;
         struct blob_buf b;

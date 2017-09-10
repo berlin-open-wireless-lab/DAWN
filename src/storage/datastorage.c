@@ -59,8 +59,7 @@ int eval_probe_metric(struct probe_entry_s probe_entry) {
     score += (probe_entry.signal > -60) ? dawn_metric.rssi : 0;
 
     // TODO: Add minimal rssi threshold
-
-    printf("SCORE: %d\n", score);
+    //printf("SCORE: %d\n", score);
 
     return score;
 }
@@ -80,7 +79,6 @@ int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[])
     // find own probe entry and calculate score
     int j;
     for (j = i; j <= probe_entry_last; j++) {
-        printf("[j] : %d\n", j);
         if (!mac_is_equal(probe_array[j].client_addr, client_addr)) {
             // this shouldn't happen!
             //return 1; // kick client!

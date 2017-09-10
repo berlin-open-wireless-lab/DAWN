@@ -134,7 +134,7 @@ blobmsg_add_macaddr(struct blob_buf *buf, const char *name, const uint8_t *addr)
 
 static int decide_function(probe_entry *prob_req) {
     // TODO: Refactor...
-    printf("COUNTER: %d\n", prob_req->counter);
+    //printf("COUNTER: %d\n", prob_req->counter);
 
     if (prob_req->counter < MIN_PROBE_REQ) {
         return 0;
@@ -218,11 +218,8 @@ int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req) {
 static int handle_auth_req(struct blob_attr *msg) {
 
     print_array();
-
-    printf("HANDLE AUTH!\n");
     auth_entry auth_req;
     parse_to_auth_req(msg, &auth_req);
-
     printf("AUTH Entry: ");
     print_auth_entry(auth_req);
 
@@ -234,16 +231,16 @@ static int handle_auth_req(struct blob_attr *msg) {
     // block if entry was not already found in probe database
     if(!(mac_is_equal(tmp.bssid_addr, auth_req.bssid_addr) && mac_is_equal(tmp.client_addr, auth_req.client_addr)))
     {
-        printf("Entry not the bla\n");
+        printf("DENY AUTH!\n");
         return UBUS_STATUS_UNKNOWN_ERROR;
     }
 
     if (!decide_function(&tmp)) {
-        printf("DECIDE FUNCTION: NOOOO\n");
+        printf("DENY AUTH\n");
         return UBUS_STATUS_UNKNOWN_ERROR;
     }
-    printf("ALLOW AUTH!\n");
 
+    printf("ALLOW AUTH!\n");
     return 0;
 }
 
@@ -282,7 +279,7 @@ static int handle_probe_req(struct blob_attr *msg) {
 static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
                           struct ubus_request_data *req, const char *method,
                           struct blob_attr *msg) {
-    printf("METHOD new: %s\n",method);
+    //printf("METHOD new: %s\n",method);
 
 
     // TODO: Only handle probe request and NOT assoc, ...
@@ -380,17 +377,8 @@ dump_client(struct blob_attr **tb, uint8_t client_addr[], const char *bssid_addr
     client client_entry;
 
     hwaddr_aton(bssid_addr, client_entry.bssid_addr);
-
     memcpy(client_entry.client_addr, client_addr, ETH_ALEN * sizeof(uint8_t));
-
-    //char mac_buf_client[20];
-    //char mac_buf_ap[20];
-
-    //sprintf(mac_buf_ap, "%x:%x:%x:%x:%x:%x", MAC2STR(client_entry.bssid_addr));
-    //sprintf(mac_buf_client, "%x:%x:%x:%x:%x:%x", MAC2STR(client_entry.client_addr));
-    //printf("Frequency is: %d\n",freq);
     client_entry.freq = freq;
-
     client_entry.ht_supported = ht_supported;
     client_entry.vht_supported = vht_supported;
 
@@ -458,7 +446,7 @@ dump_client_table(struct blob_attr *head, int len, const char *bssid_addr, uint3
 int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
     struct blob_attr *tb[__CLIENT_TABLE_MAX];
 
-    printf("[CLIENTS] : Parse Clients\n");
+    //printf("[CLIENTS] : Parse Clients\n");
 
     blobmsg_parse(client_table_policy, __CLIENT_TABLE_MAX, tb, blob_data(msg), blob_len(msg));
 
@@ -467,13 +455,6 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
         dump_client_table(blobmsg_data(tb[CLIENT_TABLE]), blobmsg_data_len(tb[CLIENT_TABLE]),
                           blobmsg_data(tb[CLIENT_TABLE_BSSID]), blobmsg_get_u32(tb[CLIENT_TABLE_FREQ]),
                           blobmsg_get_u8(tb[CLIENT_TABLE_HT]), blobmsg_get_u8(tb[CLIENT_TABLE_VHT]));
-        //printf("[CLIENTS] : ParseD Clients\n");
-        /* BSSID */
-        /*
-          * here i know my bssid to kick the clients
-          * seems a good idea ?!
-         */
-
         ap ap_entry;
         hwaddr_aton(blobmsg_data(tb[CLIENT_TABLE_BSSID]), ap_entry.bssid_addr);
         ap_entry.freq = blobmsg_get_u32(tb[CLIENT_TABLE_FREQ]);
@@ -482,18 +463,10 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
         ap_entry.channel_utilization = blobmsg_get_u32(tb[CLIENT_TABLE_CHAN_UTIL]);
         insert_to_ap_array(ap_entry);
 
-        if((tb[CLIENT_TABLE_CHAN_UTIL]))
-        {
-            printf("CHANNEL UTILIZAITON: %d\n", blobmsg_get_u32(tb[CLIENT_TABLE_CHAN_UTIL]));
-        }
-
         if (do_kick) {
-            //printf("[CLIENTS] : Kick Clients\n");
             kick_clients(ap_entry.bssid_addr, id);
-            //printf("[CLIENTS] : KickED Clients\n");
         }
     }
-
     return 0;
 }
 
