@@ -44,9 +44,10 @@ int eval_probe_metric(struct probe_entry_s probe_entry) {
 
     // check if ap entry is available
     if(mac_is_equal(ap_entry.bssid_addr, probe_entry.bssid_addr)) {
-        score += probe_entry.ht_support ? dawn_metric.vht_support : 0;
-        score += !probe_entry.ht_support && ap_entry.ht ? dawn_metric.n_ht_support : 0;
-        score += !probe_entry.vht_support && ap_entry.vht ? dawn_metric.n_vht_support : 0;
+        //score += probe_entry.ht_support ? dawn_metric.ht_support : 0;
+        //score += !probe_entry.ht_support && !ap_entry.ht ? dawn_metric.n_ht_support : 0;
+        //score += probe_entry.vht_support ? dawn_metric.vht_support : 0;
+        //score += !probe_entry.vht_support && !ap_entry.vht ? dawn_metric.n_vht_support : 0;
 
     } else {
         // maybe don't score vht and ht if no ap is available
@@ -54,6 +55,10 @@ int eval_probe_metric(struct probe_entry_s probe_entry) {
         //score += probe_entry.ht_support ? dawn_metric.vht_support : dawn_metric.n_vht_support;
         //score += probe_entry.vht_support ? dawn_metric.ht_support : dawn_metric.n_ht_support;
     }
+
+    score += probe_entry.ht_support ? dawn_metric.ht_support : 0;
+    //score += !probe_entry.ht_support && !ap_entry.ht ? dawn_metric.n_ht_support : 0;
+    score += probe_entry.vht_support ? dawn_metric.vht_support : 0;
 
     score += (probe_entry.freq > 5000) ? dawn_metric.freq : 0;
     score += (probe_entry.signal > -60) ? dawn_metric.rssi : 0;
@@ -132,7 +137,7 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
             printf("KICKING CLIENT!!!!!!!!!!!!!\n");
             del_client_interface(id, client_array[j].client_addr, 5, 1, 60000);
         } else {
-            //printf("STAAAY CLIENT!!!!!!!!!!!!!\n");
+            printf("STAAAY CLIENT!!!!!!!!!!!!!\n");
         }
     }
 
