@@ -50,6 +50,13 @@ int eval_probe_metric(struct probe_entry_s probe_entry) {
         //score += !probe_entry.vht_support && !ap_entry.vht ? dawn_metric.n_vht_support : 0;
 
     } else {
+        char mac_buf_probe[20];
+        char mac_buf_ap[20];
+        sprintf(mac_buf_probe, "%x:%x:%x:%x:%x:%x", MAC2STR(probe_entry.bssid_addr));
+        sprintf(mac_buf_ap, "%x:%x:%x:%x:%x:%x", MAC2STR(ap_entry.bssid_addr));
+
+        printf("\nNOOOOOOOOOOOOOOOOOO AP!!! AP: %s, Probe: %s\n", mac_buf_ap, mac_buf_probe);
+        print_probe_entry(probe_entry);
         // maybe don't score vht and ht if no ap is available
 
         //score += probe_entry.ht_support ? dawn_metric.vht_support : dawn_metric.n_vht_support;
@@ -367,15 +374,23 @@ ap insert_to_ap_array(ap entry) {
 ap ap_array_get_ap(uint8_t bssid_addr[]) {
     ap ret;
 
+    char bssid_mac_string[20];
+    sprintf(bssid_mac_string, "%x:%x:%x:%x:%x:%x", MAC2STR(bssid_addr));
+    printf("Try to find: %s\n", bssid_mac_string);
+    printf("in\n");
+    print_ap_array();
+
     if (ap_entry_last == -1) {
         return ret;
     }
+
+
 
     pthread_mutex_lock(&ap_array_mutex);
     int i;
 
     for (i = 0; i <= ap_entry_last; i++) {
-        if (mac_is_equal(bssid_addr,  ap_array[i].bssid_addr) || mac_is_greater(bssid_addr,  ap_array[i].bssid_addr)) {
+        if (mac_is_equal(bssid_addr,  ap_array[i].bssid_addr) || mac_is_greater(bssid_addr, ap_array[i].bssid_addr)) {
             break;
         }
     }
