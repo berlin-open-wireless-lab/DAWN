@@ -48,16 +48,12 @@ int eval_probe_metric(struct probe_entry_s probe_entry) {
         score += !probe_entry.ht_support && !ap_entry.ht ? dawn_metric.no_ht_support : 0;
         score += probe_entry.vht_support ? dawn_metric.vht_support : 0;
         score += !probe_entry.vht_support && !ap_entry.vht ? dawn_metric.no_vht_support : 0;
+        score += ap_entry.channel_utilization <= dawn_metric.max_chan_util ? dawn_metric.chan_util : 0;
     }
 
-    //score += probe_entry.ht_support ? dawn_metric.ht_support : 0;
-    //score += !probe_entry.ht_support && !ap_entry.ht ? dawn_metric.n_ht_support : 0;
-    //score += probe_entry.vht_support ? dawn_metric.vht_support : 0;
-
     score += (probe_entry.freq > 5000) ? dawn_metric.freq : 0;
-    score += (probe_entry.signal > -60) ? dawn_metric.rssi : 0;
+    score += (probe_entry.signal >= dawn_metric.min_rssi) ? dawn_metric.rssi : 0;
 
-    // TODO: Add minimal rssi threshold
     printf("SCORE: %d\n", score);
     print_probe_entry(probe_entry);
 

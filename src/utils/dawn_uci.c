@@ -54,7 +54,7 @@ struct probe_metric_s uci_get_dawn_metric()
     if(ptr.o->type == UCI_TYPE_STRING)
         ret.no_vht_support = atoi(ptr.o->v.string);
 
-    char tmp_rssi[] = "dawn.metric.freq";
+    char tmp_rssi[] = "dawn.metric.rssi";
     if (uci_lookup_ptr (c, &ptr, tmp_rssi, 1) != UCI_OK) {
         uci_perror(c, "uci_get_daw_metric Error");
         return ret;
@@ -77,6 +77,24 @@ struct probe_metric_s uci_get_dawn_metric()
     }
     if(ptr.o->type == UCI_TYPE_STRING)
         ret.chan_util = atoi(ptr.o->v.string);
+
+    char tmp_min_rssi[] = "dawn.metric.min_rssi";
+    if (uci_lookup_ptr (c, &ptr, tmp_min_rssi, 1) != UCI_OK) {
+        uci_perror(c, "uci_get_daw_metric Error");
+        return ret;
+    }
+    if(ptr.o->type == UCI_TYPE_STRING)
+        ret.min_rssi = atoi(ptr.o->v.string);
+
+    char tmp_max_chan_util[] = "dawn.metric.max_chan_util";
+    if (uci_lookup_ptr (c, &ptr, tmp_max_chan_util, 1) != UCI_OK) {
+        uci_perror(c, "uci_get_daw_metric Error");
+        return ret;
+    }
+    if(ptr.o->type == UCI_TYPE_STRING)
+        ret.max_chan_util = atoi(ptr.o->v.string);
+
+    printf("Loaded metric: %d, %d\n", ret.min_rssi, ret.max_chan_util);
 
     uci_free_context (c);
 
