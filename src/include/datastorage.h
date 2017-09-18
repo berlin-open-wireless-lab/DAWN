@@ -22,6 +22,7 @@ struct probe_metric_s {
     int no_vht_support;
     int rssi;
     int freq;
+    int chan_util;
 };
 
 #define SORT_NUM 5

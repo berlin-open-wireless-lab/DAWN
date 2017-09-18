@@ -140,10 +140,10 @@ static int decide_function(probe_entry *prob_req) {
         return 0;
     }
 
-    /*if(better_ap_available(prob_req->bssid_addr, prob_req->client_addr))
+    if(better_ap_available(prob_req->bssid_addr, prob_req->client_addr))
     {
         return 0;
-    }*/
+    }
 
     return 1;
 }
@@ -217,7 +217,7 @@ int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req) {
 
 static int handle_auth_req(struct blob_attr *msg) {
 
-    print_array();
+    //print_array();
     auth_entry auth_req;
     parse_to_auth_req(msg, &auth_req);
     printf("AUTH Entry: ");
@@ -471,8 +471,6 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
 }
 
 static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_attr *msg) {
-
-    //printf("[GET CLIENTS] Peer: %08x \n", req->peer);
 
     if (!msg)
         return;

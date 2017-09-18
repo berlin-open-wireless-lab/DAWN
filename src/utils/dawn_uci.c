@@ -47,7 +47,7 @@ struct probe_metric_s uci_get_dawn_metric()
         ret.no_ht_support = atoi(ptr.o->v.string);
 
     char tmp_no_vht_support[] = "dawn.metric.no_vht_support";
-    if (uci_lookup_ptr (c, &ptr, tmp_vht_support, 1) != UCI_OK) {
+    if (uci_lookup_ptr (c, &ptr, tmp_no_vht_support, 1) != UCI_OK) {
         uci_perror(c, "uci_get_daw_metric Error");
         return ret;
     }
@@ -70,14 +70,13 @@ struct probe_metric_s uci_get_dawn_metric()
     if(ptr.o->type == UCI_TYPE_STRING)
         ret.freq = atoi(ptr.o->v.string);
 
-    char tmp_freq[] = "dawn.metric.chan_util";
-    if (uci_lookup_ptr (c, &ptr, tmp_freq, 1) != UCI_OK) {
+    char tmp_util[] = "dawn.metric.chan_util";
+    if (uci_lookup_ptr (c, &ptr, tmp_util, 1) != UCI_OK) {
         uci_perror(c, "uci_get_daw_metric Error");
         return ret;
     }
     if(ptr.o->type == UCI_TYPE_STRING)
-        ret.freq = atoi(ptr.o->v.string);
-
+        ret.chan_util = atoi(ptr.o->v.string);
 
     uci_free_context (c);
 
