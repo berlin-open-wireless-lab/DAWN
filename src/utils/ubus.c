@@ -217,7 +217,7 @@ int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req) {
 
 static int handle_auth_req(struct blob_attr *msg) {
 
-    //print_array();
+    print_array();
     auth_entry auth_req;
     parse_to_auth_req(msg, &auth_req);
     printf("AUTH Entry: ");
@@ -263,7 +263,7 @@ static int handle_probe_req(struct blob_attr *msg) {
     str = blobmsg_format_json(msg, true);
     send_string_enc(str);
 
-    //printf("[WC] Hostapd-Probe: %s : %s\n", "probe", str);
+    printf("[WC] Hostapd-Probe: %s : %s\n", "probe", str);
 
     //print_array();
 
