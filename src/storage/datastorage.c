@@ -45,21 +45,10 @@ int eval_probe_metric(struct probe_entry_s probe_entry) {
     // check if ap entry is available
     if(mac_is_equal(ap_entry.bssid_addr, probe_entry.bssid_addr)) {
         score += probe_entry.ht_support ? dawn_metric.ht_support : 0;
-        //score += !probe_entry.ht_support && !ap_entry.ht ? dawn_metric.n_ht_support : 0;
+        score += !probe_entry.ht_support && !ap_entry.ht ? dawn_metric.no_ht_support : 0;
         score += probe_entry.vht_support ? dawn_metric.vht_support : 0;
-        //score += !probe_entry.vht_support && !ap_entry.vht ? dawn_metric.n_vht_support : 0;
+        score += !probe_entry.vht_support && !ap_entry.vht ? dawn_metric.no_vht_support : 0;
 
-    } else {
-        char mac_buf_probe[20];
-        char mac_buf_ap[20];
-        sprintf(mac_buf_probe, "%x:%x:%x:%x:%x:%x", MAC2STR(probe_entry.bssid_addr));
-        sprintf(mac_buf_ap, "%x:%x:%x:%x:%x:%x", MAC2STR(ap_entry.bssid_addr));
-        printf("\nNOOOOOOOOOOOOOOOOOO AP!!! AP: %s, Probe: %s\n", mac_buf_ap, mac_buf_probe);
-        print_probe_entry(probe_entry);
-        // maybe don't score vht and ht if no ap is available
-
-        //score += probe_entry.ht_support ? dawn_metric.vht_support : dawn_metric.n_vht_support;
-        //score += probe_entry.vht_support ? dawn_metric.ht_support : dawn_metric.n_ht_support;
     }
 
     //score += probe_entry.ht_support ? dawn_metric.ht_support : 0;
