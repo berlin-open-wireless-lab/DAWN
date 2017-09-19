@@ -14,6 +14,7 @@
 #include "networksocket.h"
 #include "ubus.h"
 #include "dawn_uci.h"
+#include "tcpsocket.h"
 
 #define BUFSIZE 17
 #define BUFSIZE_DIR 256
@@ -169,6 +170,8 @@ int main(int argc, char **argv) {
                 break;
         }
     }
+
+    run_tcp_socket();
 
     argc -= optind;
     argv += optind;
