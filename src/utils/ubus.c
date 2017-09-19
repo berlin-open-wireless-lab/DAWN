@@ -105,6 +105,27 @@ static const struct blobmsg_policy client_policy[__CLIENT_MAX] = {
         [CLIENT_AID] = {.name = "aid", .type = BLOBMSG_TYPE_INT32},
 };
 
+enum {
+    DAWN_UMDNS_TABLE,
+    __DAWN_UMDNS_TABLE_MAX,
+};
+
+static const struct blobmsg_policy dawn_umdns_table_policy[__DAWN_UMDNS_TABLE_MAX] = {
+        [DAWN_UMDNS_TABLE] = {.name = "_dawn._udp", .type = BLOBMSG_TYPE_TABLE},
+};
+
+enum {
+    DAWN_UMDNS_IPV4,
+    DAWN_UMDNS_PORT,
+    __DAWN_UMDNS_MAX,
+};
+
+static const struct blobmsg_policy dawn_umdns_policy[__DAWN_UMDNS_MAX] = {
+        [DAWN_UMDNS_IPV4] = {.name = "ipv4", .type = BLOBMSG_TYPE_STRING},
+        [DAWN_UMDNS_PORT] = {.name = "port", .type = BLOBMSG_TYPE_INT32},
+
+};
+
 /* Function Definitions */
 static void hostapd_handle_remove(struct ubus_context *ctx,
                                   struct ubus_subscriber *s, uint32_t id);
@@ -603,9 +624,39 @@ void del_client_interface(uint32_t id, const uint8_t *client_addr, uint32_t reas
 }
 
 static void ubus_umdns_cb(struct ubus_request *req, int type, struct blob_attr *msg) {
+    struct blob_attr *tb[__DAWN_UMDNS_TABLE_MAX];
 
     if (!msg)
         return;
+
+    blobmsg_parse(dawn_umdns_table_policy, __DAWN_UMDNS_MAX, tb, blob_data(msg), blob_len(msg));
+
+    if (!tb[DAWN_UMDNS_TABLE])
+    {
+        return;
+    }
+
+    struct blob_attr *attr;
+    struct blobmsg_hdr *hdr;
+    int len = blobmsg_data_len(tb[DAWN_UMDNS_TABLE]);
+
+    __blob_for_each_attr(attr, blobmsg_data(tb[DAWN_UMDNS_TABLE]), len)
+    {
+        hdr = blob_data(attr);
+
+        struct blob_attr *tb_dawn[__DAWN_UMDNS_MAX];
+        blobmsg_parse(dawn_umdns_policy, __DAWN_UMDNS_MAX, tb_dawn, blobmsg_data(attr), blobmsg_len(attr));
+        //char* str = blobmsg_format_json_indent(attr, true, -1);
+
+        printf("Hostname: %s\n", hdr->name);
+        if (tb_dawn[DAWN_UMDNS_IPV4]) {
+            printf("IPV4: %s\n", blobmsg_get_string(tb_dawn[DAWN_UMDNS_IPV4]));
+        }
+        if (tb_dawn[DAWN_UMDNS_PORT]) {
+            printf("Port: %d\n", blobmsg_get_u32(tb_dawn[DAWN_UMDNS_PORT]));
+        }
+        //dump_client(tb, tmp_mac, bssid_addr, freq, ht_supported, vht_supported);
+    }
 
     char *str = blobmsg_format_json(msg, true);
     printf("UMDNS:\n%s", str);
