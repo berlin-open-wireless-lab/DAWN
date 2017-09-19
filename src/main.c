@@ -49,7 +49,7 @@ void daemon_shutdown()
     pthread_cancel(tid_probe);
     pthread_cancel(tid_client);
     pthread_cancel(tid_get_client);
-    pthread_cancel(tid_kick_clients);
+    //pthread_cancel(tid_kick_clients);
     pthread_cancel(tid_ap);
 
     // free ressources
