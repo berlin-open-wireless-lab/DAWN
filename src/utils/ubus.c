@@ -362,6 +362,8 @@ int dawn_init_ubus(const char *ubus_socket, char *hostapd_dir) {
 
     subscribe_to_hostapd_interfaces(hostapd_dir);
 
+    ubus_call_umdns();
+
     uloop_run();
 
     close_socket();
@@ -591,4 +593,27 @@ void del_client_interface(uint32_t id, const uint8_t *client_addr, uint32_t reas
 
     int timeout = 1;
     ubus_invoke(ctx_clients, id, "del_client", b.head, NULL, NULL, timeout * 1000);
+}
+
+static void ubus_umdns_cb(struct ubus_request *req, int type, struct blob_attr *msg) {
+
+    if (!msg)
+        return;
+
+    char *str = blobmsg_format_json(msg, true);
+    printf("UMDNS:\n%s", str);
+}
+
+
+int ubus_call_umdns()
+{
+    u_int32_t id;
+    if (ubus_lookup_id(ctx, "umdns", &id)) {
+        fprintf(stderr, "Failed to look up test object for %s\n", "umdns");
+        return -1;
+    }
+
+    int timeout = 1;
+    ubus_invoke(ctx_clients, id, "browse", NULL, ubus_umdns_cb, NULL, timeout * 1000);
+    return 0;
 }

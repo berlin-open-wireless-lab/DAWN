@@ -26,4 +26,6 @@ void *kick_clients_thread(void *arg);
 
 char *hostapd_dir_glob;
 
+int ubus_call_umdns();
+
 #endif
