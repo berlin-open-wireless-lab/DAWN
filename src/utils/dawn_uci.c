@@ -94,7 +94,15 @@ struct probe_metric_s uci_get_dawn_metric()
     if(ptr.o->type == UCI_TYPE_STRING)
         ret.max_chan_util = atoi(ptr.o->v.string);
 
-    printf("Loaded metric: %d, %d\n", ret.min_rssi, ret.max_chan_util);
+    char tmp_min_probe_count[] = "dawn.min_probe_count";
+    if (uci_lookup_ptr (c, &ptr, tmp_min_probe_count, 1) != UCI_OK) {
+        uci_perror(c, "uci_get_daw_metric Error");
+        return ret;
+    }
+    if(ptr.o->type == UCI_TYPE_STRING)
+        ret.min_probe_count = atoi(ptr.o->v.string);
+
+    printf("Loaded metric: %d\n", ret.min_probe_count);
 
     uci_free_context (c);
 

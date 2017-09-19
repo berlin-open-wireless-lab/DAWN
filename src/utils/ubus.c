@@ -136,7 +136,7 @@ static int decide_function(probe_entry *prob_req) {
     // TODO: Refactor...
     //printf("COUNTER: %d\n", prob_req->counter);
 
-    if (prob_req->counter < MIN_PROBE_REQ) {
+    if (prob_req->counter < dawn_metric.min_probe_count) {
         return 0;
     }
 

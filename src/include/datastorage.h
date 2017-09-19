@@ -25,6 +25,7 @@ struct probe_metric_s {
     int chan_util;
     int max_chan_util;
     int min_rssi;
+    int min_probe_count;
 };
 
 #define SORT_NUM 5
