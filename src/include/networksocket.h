@@ -13,4 +13,7 @@ int send_string_enc(char *msg);
 
 void close_socket();
 
+// save connections
+// struct sockaddr_in addr[100];
+
 #endif
