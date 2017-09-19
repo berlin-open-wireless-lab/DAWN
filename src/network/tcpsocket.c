@@ -5,6 +5,7 @@
 // http://www.geeksforgeeks.org/socket-programming-in-cc-handling-multiple-clients-on-server-without-multi-threading/
 
 #include "tcpsocket.h"
+#include "datastorage.h"
 
 //Example code: A simple server side code, which echos back the received message.
 //Handle multiple socket connections with select and fd_set on Linux
@@ -22,9 +23,6 @@
 #define TRUE   1
 #define FALSE  0
 #define PORT 1025
-
-//struct network_con_s connections[100];
-//int tcp_entry_last = -1;
 
 int run_tcp_socket()
 {
@@ -189,8 +187,26 @@ int add_tcp_conncection(char* ipv4, int port){
     serv_addr.sin_addr.s_addr = inet_addr(ipv4);
     serv_addr.sin_port = htons(port);
 
+    if(tcp_array_contains_address(serv_addr))
+        return 0;
+
     if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0)
+    {
         fprintf(stderr,"ERROR connecting");
+        //return 0;
+    }
+
+    struct network_con_s tmp =
+            {
+                    .sock_addr = serv_addr,
+                    .sockfd = sockfd
+            };
+
+    insert_to_tcp_array(tmp);
+
+    printf("NEW TCP CONNECTION!!!");
+
     return 0;
 }
+
 

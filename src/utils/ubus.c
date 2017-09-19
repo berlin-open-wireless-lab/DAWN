@@ -550,6 +550,15 @@ void *update_clients_thread(void *arg) {
     return 0;
 }
 
+void *update_connections_thread(void *arg) {
+    while (1) {
+        sleep(TIME_THRESHOLD_CLIENT_KICK);
+        printf("[Thread] : Updating Connections!\n");
+        ubus_call_umdns();
+    }
+    return 0;
+}
+
 void *kick_clients_thread(void *arg) {
     while (1) {
         sleep(TIME_THRESHOLD_CLIENT_KICK);
@@ -626,6 +635,8 @@ void del_client_interface(uint32_t id, const uint8_t *client_addr, uint32_t reas
 static void ubus_umdns_cb(struct ubus_request *req, int type, struct blob_attr *msg) {
     struct blob_attr *tb[__DAWN_UMDNS_TABLE_MAX];
 
+    printf("PARSING UMDNS!!!\n");
+
     if (!msg)
         return;
 
@@ -649,12 +660,14 @@ static void ubus_umdns_cb(struct ubus_request *req, int type, struct blob_attr *
         //char* str = blobmsg_format_json_indent(attr, true, -1);
 
         printf("Hostname: %s\n", hdr->name);
-        if (tb_dawn[DAWN_UMDNS_IPV4]) {
+        if (tb_dawn[DAWN_UMDNS_IPV4] && tb_dawn[DAWN_UMDNS_PORT]) {
             printf("IPV4: %s\n", blobmsg_get_string(tb_dawn[DAWN_UMDNS_IPV4]));
-        }
-        if (tb_dawn[DAWN_UMDNS_PORT]) {
             printf("Port: %d\n", blobmsg_get_u32(tb_dawn[DAWN_UMDNS_PORT]));
+        }else{
+            return;
         }
+
+        add_tcp_conncection(blobmsg_get_string(tb_dawn[DAWN_UMDNS_IPV4]), blobmsg_get_u32(tb_dawn[DAWN_UMDNS_PORT]));
         //dump_client(tb, tmp_mac, bssid_addr, freq, ht_supported, vht_supported);
     }
 
@@ -672,6 +685,8 @@ int ubus_call_umdns()
     }
 
     int timeout = 1;
+    ubus_invoke(ctx_clients, id, "update", NULL, NULL, NULL, timeout * 1000);
     ubus_invoke(ctx_clients, id, "browse", NULL, ubus_umdns_cb, NULL, timeout * 1000);
+
     return 0;
 }

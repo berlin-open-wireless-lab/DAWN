@@ -42,6 +42,7 @@ pthread_t tid_client;
 pthread_t tid_get_client;
 pthread_t tid_kick_clients;
 pthread_t tid_ap;
+pthread_t tid_connections;
 
 void daemon_shutdown()
 {
@@ -59,6 +60,7 @@ void daemon_shutdown()
     pthread_mutex_destroy(&probe_array_mutex);
     pthread_mutex_destroy(&client_array_mutex);
     pthread_mutex_destroy(&ap_array_mutex);
+    pthread_mutex_destroy(&tcp_array_mutex);
 
     //printf("Free Counter: %d\n", free_counter);
 }
@@ -171,7 +173,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    run_tcp_socket();
+   // run_tcp_socket();
 
     argc -= optind;
     argv += optind;
@@ -208,6 +210,11 @@ int main(int argc, char **argv) {
     }
 
     if (pthread_mutex_init(&ap_array_mutex, NULL) != 0) {
+        printf("\n mutex init failed\n");
+        return 1;
+    }
+
+    if (pthread_mutex_init(&tcp_array_mutex, NULL) != 0) {
         printf("\n mutex init failed\n");
         return 1;
     }
