@@ -131,7 +131,7 @@ blobmsg_add_macaddr(struct blob_buf *buf, const char *name, const uint8_t *addr)
     blobmsg_add_string_buffer(buf);
 }
 
-
+/*
 static int decide_function(probe_entry *prob_req) {
     // TODO: Refactor...
     //printf("COUNTER: %d\n", prob_req->counter);
@@ -147,7 +147,7 @@ static int decide_function(probe_entry *prob_req) {
 
     return 1;
 }
-
+*/
 static void hostapd_handle_remove(struct ubus_context *ctx,
                                   struct ubus_subscriber *s, uint32_t id) {
     fprintf(stderr, "Object %08x went away\n", id);
@@ -228,6 +228,8 @@ static int handle_auth_req(struct blob_attr *msg) {
     printf("Entry found\n");
     print_probe_entry(tmp);
 
+    /*
+
     // block if entry was not already found in probe database
     if(!(mac_is_equal(tmp.bssid_addr, auth_req.bssid_addr) && mac_is_equal(tmp.client_addr, auth_req.client_addr)))
     {
@@ -238,7 +240,7 @@ static int handle_auth_req(struct blob_attr *msg) {
     if (!decide_function(&tmp)) {
         printf("DENY AUTH\n");
         return UBUS_STATUS_UNKNOWN_ERROR;
-    }
+    }*/
 
     printf("ALLOW AUTH!\n");
     return 0;
@@ -256,7 +258,9 @@ static int handle_probe_req(struct blob_attr *msg) {
     probe_entry prob_req;
     parse_to_probe_req(msg, &prob_req);
     //insert_to_list(prob_req, 1);
-    probe_entry tmp_probe = insert_to_array(prob_req, 1);
+    //probe_entry tmp_probe =
+    insert_to_array(prob_req, 1);
+
 
     // send probe via network
     char *str;
@@ -265,13 +269,13 @@ static int handle_probe_req(struct blob_attr *msg) {
 
     printf("[WC] Hostapd-Probe: %s : %s\n", "probe", str);
 
-    //print_array();
-
+    print_array();
+    /*
     // deny access
     if (!decide_function(&tmp_probe)) {
         //printf("MAC WILL BE DECLINED!!!\n");
         return UBUS_STATUS_UNKNOWN_ERROR;
-    }
+    }*/
     //printf("MAC WILL BE ACCEPDTED!!!\n");
     return 0;
 }
@@ -279,7 +283,7 @@ static int handle_probe_req(struct blob_attr *msg) {
 static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
                           struct ubus_request_data *req, const char *method,
                           struct blob_attr *msg) {
-    //printf("METHOD new: %s\n",method);
+    printf("METHOD new: %s\n",method);
 
 
     // TODO: Only handle probe request and NOT assoc, ...
@@ -362,7 +366,7 @@ int dawn_init_ubus(const char *ubus_socket, char *hostapd_dir) {
 
     subscribe_to_hostapd_interfaces(hostapd_dir);
 
-    ubus_call_umdns();
+    //ubus_call_umdns();
 
     uloop_run();
 
