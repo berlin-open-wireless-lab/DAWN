@@ -62,7 +62,7 @@ int eval_probe_metric(struct probe_entry_s probe_entry) {
 
 int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[])
 {
-    int own_score = 0;
+    int own_score = -1;
 
     // find first client entry in probe array
     int i;
@@ -78,12 +78,19 @@ int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[])
         if (!mac_is_equal(probe_array[j].client_addr, client_addr)) {
             // this shouldn't happen!
             //return 1; // kick client!
-            return 0;
+            //return 0;
+            break;
         }
         if (mac_is_equal(bssid_addr, probe_array[j].bssid_addr)) {
             own_score = eval_probe_metric(probe_array[j]);
             break;
         }
+    }
+
+    // no entry for own ap
+    if(own_score == -1)
+    {
+        return -1;
     }
 
     int k;
@@ -122,10 +129,13 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
         if (!mac_is_equal(client_array[j].bssid_addr, bssid)) {
             break;
         }
-        if (kick_client(client_array[j])) {
+        if (kick_client(client_array[j]) > 0) {
             // TODO: Better debug output
             printf("KICKING CLIENT!!!!!!!!!!!!!\n");
             del_client_interface(id, client_array[j].client_addr, 5, 1, 60000);
+        } else if (kick_client(client_array[j]) == -1) {
+            printf("Force client to reconnect!!!!!!!!!!!!!\n");
+            del_client_interface(id, client_array[j].client_addr, 0, 0, 0);
         } else {
             printf("STAAAY CLIENT!!!!!!!!!!!!!\n");
         }
