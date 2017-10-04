@@ -470,33 +470,39 @@ void remove_old_ap_entries(time_t current_time, long long int threshold) {
 }
 
 void *remove_array_thread(void *arg) {
+    printf("Removing thread with time: %lu\n", *(long int*)arg);
+    time_t time_treshold =  *(time_t*)arg;
     while (1) {
-        sleep(TIME_THRESHOLD);
+        sleep(time_treshold);
         pthread_mutex_lock(&probe_array_mutex);
         printf("[Thread] : Removing old entries!\n");
-        remove_old_probe_entries(time(0), TIME_THRESHOLD);
+        remove_old_probe_entries(time(0), time_treshold);
         pthread_mutex_unlock(&probe_array_mutex);
     }
     return 0;
 }
 
 void *remove_client_array_thread(void *arg) {
+    time_t time_treshold_client =  *(time_t*)arg;
+    printf("Removing client thread with time: %lu\n", time_treshold_client);
     while (1) {
-        sleep(TIME_THRESHOLD_CLIENT);
+        sleep(time_treshold_client);
         pthread_mutex_lock(&client_array_mutex);
         printf("[Thread] : Removing old client entries!\n");
-        remove_old_client_entries(time(0), TIME_THRESHOLD_CLIENT);
+        remove_old_client_entries(time(0), time_treshold_client);
         pthread_mutex_unlock(&client_array_mutex);
     }
     return 0;
 }
 
 void *remove_ap_array_thread(void *arg) {
+    time_t time_treshold_ap =  *(time_t*)arg;
+    printf("Removing ap thread with time: %lu\n", time_treshold_ap);
     while (1) {
-        sleep(TIME_THRESHOLD_AP);
+        sleep(time_treshold_ap);
         pthread_mutex_lock(&ap_array_mutex);
         printf("[Thread] : Removing old ap entries!\n");
-        remove_old_ap_entries(time(0), TIME_THRESHOLD_AP);
+        remove_old_ap_entries(time(0), time_treshold_ap);
         pthread_mutex_unlock(&ap_array_mutex);
     }
     return 0;

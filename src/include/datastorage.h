@@ -28,8 +28,14 @@ struct probe_metric_s {
     int min_probe_count;
 };
 
+struct time_config_s {
+    time_t update_client;
+    time_t remove_client;
+    time_t remove_probe;
+};
+
 #define SORT_NUM 5
-#define TIME_THRESHOLD 30  // every minute
+#define TIME_THRESHOLD 120  // every minute
 
 // Probe entrys
 typedef struct probe_entry_s {
