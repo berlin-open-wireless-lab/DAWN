@@ -7,7 +7,7 @@
 
 #include <netinet/in.h>
 
-int run_tcp_socket();
+void *run_tcp_socket(void *arg);
 int add_tcp_conncection(char* ipv4, int port);
 
 struct network_con_s

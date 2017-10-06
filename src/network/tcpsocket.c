@@ -24,7 +24,7 @@
 #define FALSE  0
 #define PORT 1025
 
-int run_tcp_socket()
+void *run_tcp_socket(void *arg)
 {
     int opt = TRUE;
     int master_socket, addrlen, new_socket, client_socket[30],
@@ -172,7 +172,6 @@ int run_tcp_socket()
             }
         }
     }
-    return 0;
 }
 
 int add_tcp_conncection(char* ipv4, int port){

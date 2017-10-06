@@ -42,6 +42,7 @@ pthread_t tid_client;
 pthread_t tid_get_client;
 pthread_t tid_kick_clients;
 pthread_t tid_ap;
+pthread_t tid_tcp_server;
 pthread_t tid_connections;
 
 void daemon_shutdown()
@@ -174,7 +175,7 @@ int main(int argc, char **argv) {
         }
     }
 
-   // run_tcp_socket();
+    pthread_create(&tid_tcp_server, NULL, &run_tcp_socket, NULL);
 
     argc -= optind;
     argv += optind;
