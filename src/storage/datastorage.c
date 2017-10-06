@@ -36,6 +36,8 @@ int tcp_array_contains_address_help(struct sockaddr_in entry);
 
 int tcp_array_insert(struct network_con_s entry);
 
+void print_tcp_entry(struct network_con_s entry);
+
 int probe_entry_last = -1;
 int client_entry_last = -1;
 int ap_entry_last = -1;
@@ -905,6 +907,20 @@ int insert_to_tcp_array(struct network_con_s entry) {
     pthread_mutex_unlock(&tcp_array_mutex);
 
     return ret;
+}
+
+void print_tcp_entry(struct network_con_s entry)
+{
+    printf("Conenctin to Port: %d\n", entry.sock_addr.sin_port);
+}
+
+void print_tcp_array()
+{
+    printf("--------Connections------\n");
+    for (int i = 0; i <= tcp_entry_last; i++) {
+        print_tcp_entry(network_array[i]);
+    }
+    printf("------------------\n");
 }
 
 int tcp_array_insert(struct network_con_s entry) {

@@ -673,6 +673,7 @@ static void ubus_umdns_cb(struct ubus_request *req, int type, struct blob_attr *
 
     char *str = blobmsg_format_json(msg, true);
     printf("UMDNS:\n%s", str);
+    print_tcp_array();
 }
 
 

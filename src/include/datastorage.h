@@ -117,6 +117,8 @@ ap ap_array_get_ap(uint8_t bssid_addr[]);
 struct client_s client_array[ARRAY_CLIENT_LEN];
 pthread_mutex_t client_array_mutex;
 
+void print_tcp_array();
+
 int mac_is_equal(uint8_t addr1[], uint8_t addr2[]);
 
 int mac_is_greater(uint8_t addr1[], uint8_t addr2[]);
