@@ -53,6 +53,7 @@ void daemon_shutdown()
     pthread_cancel(tid_get_client);
     //pthread_cancel(tid_kick_clients);
     //pthread_cancel(tid_ap);
+    pthread_cancel(tid_connections);
 
     // free ressources
     printf("Freeing mutex ressources\n");
@@ -224,6 +225,11 @@ int main(int argc, char **argv) {
     pthread_create(&tid_probe, NULL, &remove_array_thread, (void*)&time_config.remove_probe);
     pthread_create(&tid_client, NULL, &remove_client_array_thread, (void*)&time_config.remove_client);
     pthread_create(&tid_get_client, NULL, &update_clients_thread, (void*)&time_config.update_client);
+
+    pthread_create(&tid_connections, NULL, &update_connections_thread, NULL);
+
+
+
     //pthread_create(&tid_kick_clients, NULL, &kick_clients_thread, NULL);
     //pthread_create(&tid_ap, NULL, &remove_ap_array_thread, NULL);
 
