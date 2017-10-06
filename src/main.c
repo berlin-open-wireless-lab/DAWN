@@ -187,6 +187,8 @@ int main(int argc, char **argv) {
     gcrypt_init();
     gcrypt_set_key_and_iv(shared_key, iv);
 
+    struct time_config_s time_config = uci_get_time_config();
+
     if (pthread_mutex_init(&list_mutex, NULL) != 0) {
         printf("\n mutex init failed\n");
         return 1;
@@ -209,9 +211,9 @@ int main(int argc, char **argv) {
 
     init_socket_runopts(opt_broadcast_ip, opt_broadcast_port, 1);
 
-    pthread_create(&tid_probe, NULL, &remove_array_thread, NULL);
-    //pthread_create(&tid_client, NULL, &remove_client_array_thread, NULL);
-    pthread_create(&tid_get_client, NULL, &update_clients_thread, NULL);
+    pthread_create(&tid_probe, NULL, &remove_array_thread, (void*)&time_config.remove_probe);
+    pthread_create(&tid_client, NULL, &remove_client_array_thread, (void*)&time_config.remove_client);
+    pthread_create(&tid_get_client, NULL, &update_clients_thread, (void*)&time_config.update_client);
     //pthread_create(&tid_kick_clients, NULL, &kick_clients_thread, NULL);
     //pthread_create(&tid_ap, NULL, &remove_ap_array_thread, NULL);
 

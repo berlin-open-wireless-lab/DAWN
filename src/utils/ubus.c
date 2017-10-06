@@ -515,11 +515,14 @@ static int ubus_get_clients() {
 }
 
 void *update_clients_thread(void *arg) {
+    time_t time_update_client =  *(time_t*)arg;
+    printf("Update client thread with time: %lu\n", time_update_client);
+
     const char *ubus_socket = NULL;
     ctx_clients = ubus_connect(ubus_socket);
 
     while (1) {
-        sleep(TIME_THRESHOLD_CLIENT_UPDATE);
+        sleep(time_update_client);
         printf("[Thread] : Kicking clients!\n");
         ubus_get_clients();
     }
