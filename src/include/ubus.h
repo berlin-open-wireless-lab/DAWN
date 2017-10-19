@@ -28,4 +28,6 @@ char *hostapd_dir_glob;
 
 int ubus_call_umdns();
 
+int ubus_send_probe_via_network(struct probe_entry_s probe_entry);
+
 #endif

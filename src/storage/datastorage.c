@@ -1,6 +1,9 @@
 #include "datastorage.h"
 
+#include <limits.h>
+
 #include "ubus.h"
+#include "rssi.h"
 
 #define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
 
@@ -31,6 +34,10 @@ ap ap_array_delete(ap entry);
 void remove_old_ap_entries(time_t current_time, long long int threshold);
 
 void print_ap_entry(ap entry);
+
+int probe_array_update_rssi(uint8_t bssid_addr[], uint8_t client_addr[], uint32_t rssi);
+
+int is_connected(uint8_t bssid_addr[], uint8_t client_addr[]);
 
 int probe_entry_last = -1;
 int client_entry_last = -1;
@@ -129,13 +136,29 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
         if (!mac_is_equal(client_array[j].bssid_addr, bssid)) {
             break;
         }
+
+        // update rssi
+        int rssi = get_rssi_from_iwinfo(client_array[j].client_addr);
+        if(rssi != INT_MIN)
+        {
+            printf("UPDATING RSSI!!!\n");
+            pthread_mutex_unlock(&probe_array_mutex);
+            if(probe_array_update_rssi(client_array[j].bssid_addr, client_array[j].client_addr, rssi))
+            {
+                printf("RSSI UPDATED!!!\n");
+            }
+            pthread_mutex_lock(&probe_array_mutex);
+
+        }
+
         if (kick_client(client_array[j]) > 0) {
             // TODO: Better debug output
             printf("KICKING CLIENT!!!!!!!!!!!!!\n");
             del_client_interface(id, client_array[j].client_addr, 5, 1, 60000);
         } else if (kick_client(client_array[j]) == -1) {
             printf("Force client to reconnect!!!!!!!!!!!!!\n");
-            del_client_interface(id, client_array[j].client_addr, 0, 0, 0);
+            printf("TRY TO READ RSSI!\n");
+            //del_client_interface(id, client_array[j].client_addr, 0, 0, 0);
         } else {
             printf("STAAAY CLIENT!!!!!!!!!!!!!\n");
         }
@@ -143,6 +166,27 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
 
     pthread_mutex_unlock(&probe_array_mutex);
     pthread_mutex_unlock(&client_array_mutex);
+}
+
+int is_connected(uint8_t bssid_addr[], uint8_t client_addr[])
+{
+    int i;
+    int found_in_array = 0;
+
+    if (client_entry_last == -1) {
+        return 0;
+    }
+
+    for (i = 0; i <= client_entry_last; i++) {
+
+        if ( mac_is_equal(bssid_addr, client_array[i].bssid_addr) &&
+                mac_is_equal(client_addr, client_array[i].client_addr))
+        {
+            found_in_array = 1;
+            break;
+        }
+    }
+    return found_in_array;
 }
 
 int client_array_go_next_help(char sort_order[], int i, client entry,
@@ -296,6 +340,33 @@ probe_entry probe_array_delete(probe_entry entry) {
         probe_entry_last--;
     }
     return tmp;
+}
+
+int probe_array_update_rssi(uint8_t bssid_addr[], uint8_t client_addr[], uint32_t rssi) {
+
+    printf("Try to find probe reqeuest...\n");
+
+    int updated = 0;
+
+    if (probe_entry_last == -1) {
+        return 0;
+    }
+
+
+    pthread_mutex_lock(&probe_array_mutex);
+    for (int i = 0; i <= probe_entry_last; i++) {
+        if (mac_is_equal(bssid_addr, probe_array[i].bssid_addr) &&
+            mac_is_equal(client_addr, probe_array[i].client_addr)) {
+            probe_array[i].signal = rssi;
+            updated = 1;
+            // TODO: Send updatet probe to others :'(
+            printf("NOW SENDING TO THE OTHERS!!!\n");
+            ubus_send_probe_via_network(probe_array[i]);
+        }
+    }
+    pthread_mutex_unlock(&probe_array_mutex);
+
+    return updated;
 }
 
 probe_entry probe_array_get_entry(uint8_t bssid_addr[], uint8_t client_addr[]) {
@@ -456,7 +527,8 @@ void remove_old_client_entries(time_t current_time, long long int threshold) {
 void remove_old_probe_entries(time_t current_time, long long int threshold) {
     for (int i = 0; i < probe_entry_last; i++) {
         if (probe_array[i].time < current_time - threshold) {
-            probe_array_delete(probe_array[i]);
+            if(!is_connected(probe_array[i].bssid_addr, probe_array[i].client_addr))
+                probe_array_delete(probe_array[i]);
         }
     }
 }

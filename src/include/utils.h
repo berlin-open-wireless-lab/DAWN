@@ -9,5 +9,6 @@
 
 int hex_to_bin(char ch);
 int hwaddr_aton(const char *txt, uint8_t *addr);
+int convert_mac(char* in, char* out);
 
 #endif
