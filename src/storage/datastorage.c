@@ -142,9 +142,9 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
         if(rssi != INT_MIN)
         {
             pthread_mutex_unlock(&probe_array_mutex);
-            if(probe_array_update_rssi(client_array[j].bssid_addr, client_array[j].client_addr, rssi))
+            if(!probe_array_update_rssi(client_array[j].bssid_addr, client_array[j].client_addr, rssi))
             {
-                printf("RSSI UPDATED!!!\n");
+                printf("Failed to update RSSI!\n");
             }
             pthread_mutex_lock(&probe_array_mutex);
 
@@ -349,8 +349,6 @@ probe_entry probe_array_delete(probe_entry entry) {
 
 int probe_array_update_rssi(uint8_t bssid_addr[], uint8_t client_addr[], uint32_t rssi) {
 
-    printf("Try to find probe reqeuest...\n");
-
     int updated = 0;
 
     if (probe_entry_last == -1) {
@@ -364,8 +362,6 @@ int probe_array_update_rssi(uint8_t bssid_addr[], uint8_t client_addr[], uint32_
             mac_is_equal(client_addr, probe_array[i].client_addr)) {
             probe_array[i].signal = rssi;
             updated = 1;
-            // TODO: Send updatet probe to others :'(
-            printf("NOW SENDING TO THE OTHERS!!!\n");
             ubus_send_probe_via_network(probe_array[i]);
         }
     }
