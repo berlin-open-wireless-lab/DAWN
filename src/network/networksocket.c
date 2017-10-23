@@ -141,7 +141,7 @@ void *receive_msg_enc(void *args) {
         }
         //recv_string[recv_string_len] = '\0';
 
-        char* base64_dec_str = malloc(Base64decode_len(recv_string));
+        char *base64_dec_str = malloc(Base64decode_len(recv_string));
         int base64_dec_length = Base64decode(base64_dec_str, recv_string);
 
         char *dec = gcrypt_decrypt_msg(base64_dec_str, base64_dec_length);
@@ -214,7 +214,7 @@ int send_string_enc(char *msg) {
     int length_enc;
     char *enc = gcrypt_encrypt_msg(msg, msglen + 1, &length_enc);
 
-    char* base64_enc_str = malloc(Base64encode_len(length_enc));
+    char *base64_enc_str = malloc(Base64encode_len(length_enc));
     size_t base64_enc_length = Base64encode(base64_enc_str, enc, length_enc);
 
     if (sendto(sock,

@@ -50,7 +50,7 @@ int eval_probe_metric(struct probe_entry_s probe_entry) {
     ap ap_entry = ap_array_get_ap(probe_entry.bssid_addr);
 
     // check if ap entry is available
-    if(mac_is_equal(ap_entry.bssid_addr, probe_entry.bssid_addr)) {
+    if (mac_is_equal(ap_entry.bssid_addr, probe_entry.bssid_addr)) {
         score += probe_entry.ht_support ? dawn_metric.ht_support : 0;
         score += !probe_entry.ht_support && !ap_entry.ht ? dawn_metric.no_ht_support : 0;
         score += probe_entry.vht_support ? dawn_metric.vht_support : 0;
@@ -67,8 +67,7 @@ int eval_probe_metric(struct probe_entry_s probe_entry) {
     return score;
 }
 
-int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[])
-{
+int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[]) {
     int own_score = -1;
 
     // find first client entry in probe array
@@ -95,8 +94,7 @@ int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[])
     }
 
     // no entry for own ap
-    if(own_score == -1)
-    {
+    if (own_score == -1) {
         return -1;
     }
 
@@ -106,7 +104,8 @@ int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[])
             break;
         }
         if (!mac_is_equal(bssid_addr, probe_array[k].bssid_addr) &&
-            own_score < eval_probe_metric(probe_array[k])) // that's wrong! find client_entry OR write things in probe array struct!
+            own_score <
+            eval_probe_metric(probe_array[k])) // that's wrong! find client_entry OR write things in probe array struct!
         {
             return 1;
         }
@@ -139,11 +138,9 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
 
         // update rssi
         int rssi = get_rssi_from_iwinfo(client_array[j].client_addr);
-        if(rssi != INT_MIN)
-        {
+        if (rssi != INT_MIN) {
             pthread_mutex_unlock(&probe_array_mutex);
-            if(!probe_array_update_rssi(client_array[j].bssid_addr, client_array[j].client_addr, rssi))
-            {
+            if (!probe_array_update_rssi(client_array[j].bssid_addr, client_array[j].client_addr, rssi)) {
                 printf("Failed to update RSSI!\n");
             }
             pthread_mutex_lock(&probe_array_mutex);
@@ -156,13 +153,13 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
             print_client_entry(client_array[j]);
             del_client_interface(id, client_array[j].client_addr, 5, 1, 60000);
 
-        // no entry in probe array for own bssid
+            // no entry in probe array for own bssid
         } else if (kick_client(client_array[j]) == -1) {
             printf("No Information about client. Force reconnect:\n");
             print_client_entry(client_array[j]);
             del_client_interface(id, client_array[j].client_addr, 0, 0, 0);
 
-        // ap is best
+            // ap is best
         } else {
             printf("AP is best. Client will stay:\n");
             print_client_entry(client_array[j]);
@@ -173,8 +170,7 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
     pthread_mutex_unlock(&client_array_mutex);
 }
 
-int is_connected(uint8_t bssid_addr[], uint8_t client_addr[])
-{
+int is_connected(uint8_t bssid_addr[], uint8_t client_addr[]) {
     int i;
     int found_in_array = 0;
 
@@ -184,9 +180,8 @@ int is_connected(uint8_t bssid_addr[], uint8_t client_addr[])
 
     for (i = 0; i <= client_entry_last; i++) {
 
-        if ( mac_is_equal(bssid_addr, client_array[i].bssid_addr) &&
-                mac_is_equal(client_addr, client_array[i].client_addr))
-        {
+        if (mac_is_equal(bssid_addr, client_array[i].bssid_addr) &&
+            mac_is_equal(client_addr, client_array[i].client_addr)) {
             found_in_array = 1;
             break;
         }
@@ -450,12 +445,11 @@ ap ap_array_get_ap(uint8_t bssid_addr[]) {
     }
 
 
-
     pthread_mutex_lock(&ap_array_mutex);
     int i;
 
     for (i = 0; i <= ap_entry_last; i++) {
-        if (mac_is_equal(bssid_addr,  ap_array[i].bssid_addr) || mac_is_greater(ap_array[i].bssid_addr, bssid_addr  )) {
+        if (mac_is_equal(bssid_addr, ap_array[i].bssid_addr) || mac_is_greater(ap_array[i].bssid_addr, bssid_addr)) {
             break;
         }
     }
@@ -474,7 +468,7 @@ void ap_array_insert(ap entry) {
 
     int i;
     for (i = 0; i <= ap_entry_last; i++) {
-        if (!mac_is_greater(entry.bssid_addr,  ap_array[i].bssid_addr)) {
+        if (!mac_is_greater(entry.bssid_addr, ap_array[i].bssid_addr)) {
             break;
         }
     }
@@ -528,7 +522,7 @@ void remove_old_client_entries(time_t current_time, long long int threshold) {
 void remove_old_probe_entries(time_t current_time, long long int threshold) {
     for (int i = 0; i < probe_entry_last; i++) {
         if (probe_array[i].time < current_time - threshold) {
-            if(!is_connected(probe_array[i].bssid_addr, probe_array[i].client_addr))
+            if (!is_connected(probe_array[i].bssid_addr, probe_array[i].client_addr))
                 probe_array_delete(probe_array[i]);
         }
     }
@@ -543,8 +537,8 @@ void remove_old_ap_entries(time_t current_time, long long int threshold) {
 }
 
 void *remove_array_thread(void *arg) {
-    printf("Removing thread with time: %lu\n", *(long int*)arg);
-    time_t time_treshold =  *(time_t*)arg;
+    printf("Removing thread with time: %lu\n", *(long int *) arg);
+    time_t time_treshold = *(time_t *) arg;
     while (1) {
         sleep(time_treshold);
         pthread_mutex_lock(&probe_array_mutex);
@@ -556,7 +550,7 @@ void *remove_array_thread(void *arg) {
 }
 
 void *remove_client_array_thread(void *arg) {
-    time_t time_treshold_client =  *(time_t*)arg;
+    time_t time_treshold_client = *(time_t *) arg;
     printf("Removing client thread with time: %lu\n", time_treshold_client);
     while (1) {
         sleep(time_treshold_client);
@@ -569,7 +563,7 @@ void *remove_client_array_thread(void *arg) {
 }
 
 void *remove_ap_array_thread(void *arg) {
-    time_t time_treshold_ap =  *(time_t*)arg;
+    time_t time_treshold_ap = *(time_t *) arg;
     printf("Removing ap thread with time: %lu\n", time_treshold_ap);
     while (1) {
         sleep(time_treshold_ap);

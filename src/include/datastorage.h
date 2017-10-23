@@ -101,8 +101,11 @@ struct ap_s ap_array[ARRAY_AP_LEN];
 pthread_mutex_t ap_array_mutex;
 
 ap insert_to_ap_array(ap entry);
+
 void print_ap_array();
+
 void *remove_ap_array_thread(void *arg);
+
 ap ap_array_get_ap(uint8_t bssid_addr[]);
 
 // Array

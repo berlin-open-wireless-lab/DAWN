@@ -25,19 +25,19 @@ int hwaddr_aton(const char *txt, uint8_t *addr) {
     return 0;
 }
 
-int convert_mac(char* in, char* out) {
-    int i,j = 0;
+int convert_mac(char *in, char *out) {
+    int i, j = 0;
 
     for (i = 0; i < 6; i++) {
-        if(in[j+1] != ':' && in[j+1] != '\0') {
+        if (in[j + 1] != ':' && in[j + 1] != '\0') {
             out[3 * i] = toupper(in[j]);
             out[(3 * i) + 1] = toupper(in[j + 1]);
             out[(3 * i) + 2] = in[j + 2];
-            j+= 3;
+            j += 3;
         } else {
             out[3 * i] = '0';
             out[(3 * i) + 1] = toupper(in[j]);
-            out[(3 * i) + 2] = toupper(in[j+1]);
+            out[(3 * i) + 2] = toupper(in[j + 1]);
             j += 2;
         }
     }

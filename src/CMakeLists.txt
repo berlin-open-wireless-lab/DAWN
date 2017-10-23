@@ -8,46 +8,46 @@ ADD_DEFINITIONS(-Os -Wall -Werror --std=gnu99 -Wmissing-declarations -Wno-unknow
 SET(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
 
 SET(SOURCES
-	main.c 
+        main.c
 
-	storage/datastorage.c 
-	include/datastorage.h
+        storage/datastorage.c
+        include/datastorage.h
 
-	network/networksocket.c 
-	include/networksocket.h 
+        network/networksocket.c
+        include/networksocket.h
 
-	network/broadcastsocket.c 
-	include/broadcastsocket.h 
+        network/broadcastsocket.c
+        include/broadcastsocket.h
 
-	network/multicastsocket.c 
-	include/multicastsocket.h 
+        network/multicastsocket.c
+        include/multicastsocket.h
 
-	utils/ubus.c 
-	include/ubus.h 
+        utils/ubus.c
+        include/ubus.h
 
-	include/utils.h 
+        include/utils.h
 
-	utils/runopts.c
-	include/runopts.h
+        utils/runopts.c
+        include/runopts.h
 
-	utils/dawn_uci.c
-	include/dawn_uci.h
+        utils/dawn_uci.c
+        include/dawn_uci.h
 
-	crypto/crypto.c
-	include/crypto.h
+        crypto/crypto.c
+        include/crypto.h
 
-	crypto/base64.c
-	include/base64.h
+        crypto/base64.c
+        include/base64.h
 
-	utils/utils.c include/rssi.h utils/rssi.c)
+        utils/utils.c include/rssi.h utils/rssi.c)
 
 SET(LIBS
-	ubox ubus json-c blobmsg_json config uci gcrypt ssl crypto)
+        ubox ubus json-c blobmsg_json config uci gcrypt ssl crypto)
 
 ADD_EXECUTABLE(dawn ${SOURCES} utils/dawn_uci.c include/dawn_uci.h)
 
 TARGET_LINK_LIBRARIES(dawn ${LIBS})
 
 INSTALL(TARGETS dawn
-	RUNTIME DESTINATION /usr/bin/
-)
+        RUNTIME DESTINATION /usr/bin/
+        )

@@ -59,7 +59,7 @@ void gcrypt_set_key_and_iv(char *key, char *iv) {
 }
 
 // free out buffer after using!
-char *gcrypt_encrypt_msg(char *msg, size_t msg_length, int* out_length) {
+char *gcrypt_encrypt_msg(char *msg, size_t msg_length, int *out_length) {
     if (0U != (msg_length & 0xfU))
         msg_length += 0x10U - (msg_length & 0xfU);
 

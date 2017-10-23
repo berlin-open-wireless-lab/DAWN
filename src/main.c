@@ -22,6 +22,7 @@
 #include "crypto.h"
 
 #define _GNU_SOURCE
+
 #include <stdio.h>
 #include <dlfcn.h>
 
@@ -42,8 +43,7 @@ pthread_t tid_get_client;
 pthread_t tid_kick_clients;
 pthread_t tid_ap;
 
-void daemon_shutdown()
-{
+void daemon_shutdown() {
     // kill threads
     printf("Cancelling Threads!\n");
     pthread_cancel(tid_probe);
@@ -62,11 +62,9 @@ void daemon_shutdown()
     //printf("Free Counter: %d\n", free_counter);
 }
 
-void signal_handler(int sig)
-{
+void signal_handler(int sig) {
     printf("SOME SIGNAL RECEIVED!\n");
-    switch(sig)
-    {
+    switch (sig) {
         case SIGHUP:
             //syslog(LOG_WARNING, "Received SIGHUP signal.");
             break;
@@ -82,6 +80,7 @@ void signal_handler(int sig)
             break;
     }
 }
+
 /*
 static void mtrace_init(void)
 {
@@ -211,9 +210,9 @@ int main(int argc, char **argv) {
 
     init_socket_runopts(opt_broadcast_ip, opt_broadcast_port, 1);
 
-    pthread_create(&tid_probe, NULL, &remove_array_thread, (void*)&time_config.remove_probe);
-    pthread_create(&tid_client, NULL, &remove_client_array_thread, (void*)&time_config.remove_client);
-    pthread_create(&tid_get_client, NULL, &update_clients_thread, (void*)&time_config.update_client);
+    pthread_create(&tid_probe, NULL, &remove_array_thread, (void *) &time_config.remove_probe);
+    pthread_create(&tid_client, NULL, &remove_client_array_thread, (void *) &time_config.remove_client);
+    pthread_create(&tid_get_client, NULL, &update_clients_thread, (void *) &time_config.update_client);
     //pthread_create(&tid_kick_clients, NULL, &kick_clients_thread, NULL);
     //pthread_create(&tid_ap, NULL, &remove_ap_array_thread, NULL);
 

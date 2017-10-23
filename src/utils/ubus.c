@@ -283,18 +283,16 @@ static int handle_probe_req(struct blob_attr *msg) {
 static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
                           struct ubus_request_data *req, const char *method,
                           struct blob_attr *msg) {
-    printf("METHOD new: %s\n",method);
+    printf("METHOD new: %s\n", method);
 
 
     // TODO: Only handle probe request and NOT assoc, ...
 
     if (strncmp(method, "probe", 5) == 0) {
         return handle_probe_req(msg);
-    }
-    else if (strncmp(method, "auth", 4) == 0) {
+    } else if (strncmp(method, "auth", 4) == 0) {
         return handle_auth_req(msg);
-    }
-    else if (strncmp(method, "assoc", 5) == 0) {
+    } else if (strncmp(method, "assoc", 5) == 0) {
         return handle_assoc_req(msg);
     }
     return 0;
@@ -515,7 +513,7 @@ static int ubus_get_clients() {
 }
 
 void *update_clients_thread(void *arg) {
-    time_t time_update_client =  *(time_t*)arg;
+    time_t time_update_client = *(time_t *) arg;
     printf("Update client thread with time: %lu\n", time_update_client);
 
     const char *ubus_socket = NULL;
@@ -611,8 +609,7 @@ static void ubus_umdns_cb(struct ubus_request *req, int type, struct blob_attr *
     printf("UMDNS:\n%s", str);
 }
 
-int ubus_call_umdns()
-{
+int ubus_call_umdns() {
     u_int32_t id;
     if (ubus_lookup_id(ctx, "umdns", &id)) {
         fprintf(stderr, "Failed to look up test object for %s\n", "umdns");
@@ -624,8 +621,7 @@ int ubus_call_umdns()
     return 0;
 }
 
-int ubus_send_probe_via_network(struct probe_entry_s probe_entry)
-{
+int ubus_send_probe_via_network(struct probe_entry_s probe_entry) {
     printf("Try to send new probe!!!\n");
 
     static struct blob_buf b;

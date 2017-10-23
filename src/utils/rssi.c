@@ -6,11 +6,11 @@
 
 #define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
 
-int call_iwinfo(char* client_addr);
-int parse_rssi(char* iwinfo_string);
+int call_iwinfo(char *client_addr);
 
-int get_rssi_from_iwinfo(__uint8_t* client_addr)
-{
+int parse_rssi(char *iwinfo_string);
+
+int get_rssi_from_iwinfo(__uint8_t *client_addr) {
     char mac_buf[20];
     sprintf(mac_buf, "%x:%x:%x:%x:%x:%x", MAC2STR(client_addr));
     char mac_buf_conv[20];
@@ -20,8 +20,7 @@ int get_rssi_from_iwinfo(__uint8_t* client_addr)
     return call_iwinfo(mac_buf_conv);
 }
 
-int call_iwinfo(char* client_addr)
-{
+int call_iwinfo(char *client_addr) {
     // TODO: REFACTOR THIS! USE NET LINK... LOOK AT IWINFO
 
     FILE *fp;
@@ -30,7 +29,7 @@ int call_iwinfo(char* client_addr)
     int rssi = INT_MIN;
     int command_length = 68;
     char iwinfo_command[command_length];
-    char* first_command = "(iwinfo wlan0 assoc && iwinfo wlan1 assoc) | grep ";
+    char *first_command = "(iwinfo wlan0 assoc && iwinfo wlan1 assoc) | grep ";
     size_t length_first_command = strlen(first_command);
     memcpy(iwinfo_command, first_command, length_first_command);
     memcpy(iwinfo_command + length_first_command, client_addr, strlen(client_addr));
@@ -39,12 +38,12 @@ int call_iwinfo(char* client_addr)
 
     fp = popen(iwinfo_command, "r");
     if (fp == NULL) {
-        printf("Failed to run command\n" );
+        printf("Failed to run command\n");
         exit(1);
     }
 
     /* Read the output a line at a time - output it. */
-    while (fgets(path, sizeof(path)-1, fp) != NULL) {
+    while (fgets(path, sizeof(path) - 1, fp) != NULL) {
         rssi = parse_rssi(path);
     }
 
@@ -54,15 +53,13 @@ int call_iwinfo(char* client_addr)
     return rssi;
 }
 
-int parse_rssi(char* iwinfo_string)
-{
+int parse_rssi(char *iwinfo_string) {
     char cut_1[] = " ";
     char cut_2[] = "dBm";
     char *p_1 = strstr(iwinfo_string, cut_1);
     char *p_2 = strstr(iwinfo_string, cut_2);
     int rssi = INT_MIN;
-    if(p_1 != NULL && p_2 != NULL)
-    {
+    if (p_1 != NULL && p_2 != NULL) {
         int length = (int) (p_2 - p_1);
         char dest[length + 1];
         memcpy(dest, p_1, (int) (p_2 - p_1));
