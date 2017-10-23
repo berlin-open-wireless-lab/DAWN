@@ -1,7 +1,3 @@
-//
-// Created by nick on 19.10.17.
-//
-
 #ifndef DAWN_RSSI_H
 #define DAWN_RSSI_H
 
