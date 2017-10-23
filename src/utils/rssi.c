@@ -22,12 +22,11 @@ int get_rssi_from_iwinfo(__uint8_t* client_addr)
 
 int call_iwinfo(char* client_addr)
 {
+    // TODO: REFACTOR THIS! USE NET LINK... LOOK AT IWINFO
+
     FILE *fp;
     char path[1035];
 
-    /* Open the command for reading. */
-
-    // TODO: refactor this
     int rssi = INT_MIN;
     int command_length = 68;
     char iwinfo_command[command_length];
@@ -37,7 +36,6 @@ int call_iwinfo(char* client_addr)
     memcpy(iwinfo_command + length_first_command, client_addr, strlen(client_addr));
     iwinfo_command[command_length - 1] = '\0';
     printf("iwinfo command:\n%s\n", iwinfo_command);
-
 
     fp = popen(iwinfo_command, "r");
     if (fp == NULL) {
@@ -65,14 +63,11 @@ int parse_rssi(char* iwinfo_string)
     int rssi = INT_MIN;
     if(p_1 != NULL && p_2 != NULL)
     {
-        printf("Found substring: %s", p_2);
-        printf("Length: %d\n", p_2 - p_1);
         int length = (int) (p_2 - p_1);
         char dest[length + 1];
         memcpy(dest, p_1, (int) (p_2 - p_1));
         dest[length] = '\0';
         rssi = atoi(dest);
-        printf("After cutting:\n%s\nInt:%d\n", dest, rssi);
     }
     return rssi;
 }

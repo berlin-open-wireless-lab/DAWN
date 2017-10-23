@@ -141,7 +141,6 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
         int rssi = get_rssi_from_iwinfo(client_array[j].client_addr);
         if(rssi != INT_MIN)
         {
-            printf("UPDATING RSSI!!!\n");
             pthread_mutex_unlock(&probe_array_mutex);
             if(probe_array_update_rssi(client_array[j].bssid_addr, client_array[j].client_addr, rssi))
             {
@@ -151,16 +150,22 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
 
         }
 
+        // better ap available
         if (kick_client(client_array[j]) > 0) {
-            // TODO: Better debug output
-            printf("KICKING CLIENT!!!!!!!!!!!!!\n");
+            printf("Better AP available. Kicking client:\n");
+            print_client_entry(client_array[j]);
             del_client_interface(id, client_array[j].client_addr, 5, 1, 60000);
+
+        // no entry in probe array for own bssid
         } else if (kick_client(client_array[j]) == -1) {
-            printf("Force client to reconnect!!!!!!!!!!!!!\n");
-            printf("TRY TO READ RSSI!\n");
-            //del_client_interface(id, client_array[j].client_addr, 0, 0, 0);
+            printf("No Information about client. Force reconnect:\n");
+            print_client_entry(client_array[j]);
+            del_client_interface(id, client_array[j].client_addr, 0, 0, 0);
+
+        // ap is best
         } else {
-            printf("STAAAY CLIENT!!!!!!!!!!!!!\n");
+            printf("AP is best. Client will stay:\n");
+            print_client_entry(client_array[j]);
         }
     }
 
