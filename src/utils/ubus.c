@@ -622,7 +622,6 @@ int ubus_call_umdns() {
 }
 
 int ubus_send_probe_via_network(struct probe_entry_s probe_entry) {
-    printf("Try to send new probe!!!\n");
 
     static struct blob_buf b;
 
@@ -639,8 +638,6 @@ int ubus_send_probe_via_network(struct probe_entry_s probe_entry) {
     char *str;
     str = blobmsg_format_json(b.head, 1);
     send_string_enc(str);
-
-    printf("SENDING NEW PROBE!!!: %s\n", str);
 
     return 0;
 }
