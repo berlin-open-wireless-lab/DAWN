@@ -611,7 +611,6 @@ static void ubus_umdns_cb(struct ubus_request *req, int type, struct blob_attr *
     printf("UMDNS:\n%s", str);
 }
 
-
 int ubus_call_umdns()
 {
     u_int32_t id;
@@ -622,5 +621,30 @@ int ubus_call_umdns()
 
     int timeout = 1;
     ubus_invoke(ctx_clients, id, "browse", NULL, ubus_umdns_cb, NULL, timeout * 1000);
+    return 0;
+}
+
+int ubus_send_probe_via_network(struct probe_entry_s probe_entry)
+{
+    printf("Try to send new probe!!!\n");
+
+    static struct blob_buf b;
+
+    blob_buf_init(&b, 0);
+    blobmsg_add_macaddr(&b, "bssid", probe_entry.bssid_addr);
+    blobmsg_add_macaddr(&b, "address", probe_entry.client_addr);
+    blobmsg_add_macaddr(&b, "target", probe_entry.target_addr);
+    blobmsg_add_u32(&b, "signal", probe_entry.signal);
+    blobmsg_add_u32(&b, "freq", probe_entry.freq);
+    blobmsg_add_u8(&b, "ht_support", probe_entry.ht_support);
+    blobmsg_add_u8(&b, "vht_support", probe_entry.vht_support);
+
+    // send probe via network
+    char *str;
+    str = blobmsg_format_json(b.head, 1);
+    send_string_enc(str);
+
+    printf("SENDING NEW PROBE!!!: %s\n", str);
+
     return 0;
 }
