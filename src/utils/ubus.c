@@ -131,7 +131,7 @@ blobmsg_add_macaddr(struct blob_buf *buf, const char *name, const uint8_t *addr)
     blobmsg_add_string_buffer(buf);
 }
 
-/*
+
 static int decide_function(probe_entry *prob_req) {
     // TODO: Refactor...
     //printf("COUNTER: %d\n", prob_req->counter);
@@ -147,7 +147,8 @@ static int decide_function(probe_entry *prob_req) {
 
     return 1;
 }
-*/
+
+
 static void hostapd_handle_remove(struct ubus_context *ctx,
                                   struct ubus_subscriber *s, uint32_t id) {
     fprintf(stderr, "Object %08x went away\n", id);
@@ -228,8 +229,6 @@ static int handle_auth_req(struct blob_attr *msg) {
     printf("Entry found\n");
     print_probe_entry(tmp);
 
-    /*
-
     // block if entry was not already found in probe database
     if(!(mac_is_equal(tmp.bssid_addr, auth_req.bssid_addr) && mac_is_equal(tmp.client_addr, auth_req.client_addr)))
     {
@@ -240,7 +239,7 @@ static int handle_auth_req(struct blob_attr *msg) {
     if (!decide_function(&tmp)) {
         printf("DENY AUTH\n");
         return UBUS_STATUS_UNKNOWN_ERROR;
-    }*/
+    }
 
     printf("ALLOW AUTH!\n");
     return 0;
