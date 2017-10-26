@@ -119,8 +119,6 @@ static int subscribe_to_hostapd_interfaces(char *hostapd_dir);
 
 static int ubus_get_clients();
 
-/* hostapd function */
-#define MACSTR "%02x:%02x:%02x:%02x:%02x:%02x"
 
 static void
 blobmsg_add_macaddr(struct blob_buf *buf, const char *name, const uint8_t *addr) {
@@ -438,7 +436,7 @@ dump_client_table(struct blob_attr *head, int len, const char *bssid_addr, uint3
 
         int tmp_int_mac[ETH_ALEN];
         uint8_t tmp_mac[ETH_ALEN];
-        sscanf((char *) hdr->name, "%x:%x:%x:%x:%x:%x", STR2MAC(tmp_int_mac));
+        sscanf((char *) hdr->name, MACSTR, STR2MAC(tmp_int_mac));
         for (int i = 0; i < ETH_ALEN; ++i)
             tmp_mac[i] = (uint8_t) tmp_int_mac[i];
 
@@ -535,12 +533,12 @@ void *kick_clients_thread(void *arg) {
 /*
         int tmp_int_mac[ETH_ALEN];
         uint8_t tmp_mac[ETH_ALEN];
-        sscanf("a4:2b:b0:de:f1:fd", "%x:%x:%x:%x:%x:%x", STR2MAC(tmp_int_mac));
+        sscanf("a4:2b:b0:de:f1:fd", MACSTR, STR2MAC(tmp_int_mac));
         for(int i = 0; i < ETH_ALEN; ++i )
             tmp_mac[i] = (uint8_t) tmp_int_mac[i];
         //kick_clients(tmp_mac);
 
-        sscanf("a4:2b:b0:de:f1:fe", "%x:%x:%x:%x:%x:%x", STR2MAC(tmp_int_mac));
+        sscanf("a4:2b:b0:de:f1:fe", MACSTR, STR2MAC(tmp_int_mac));
         for(int i = 0; i < ETH_ALEN; ++i )
             tmp_mac[i] = (uint8_t) tmp_int_mac[i];*/
         //kick_clients(tmp_mac);

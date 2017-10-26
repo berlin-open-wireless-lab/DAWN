@@ -12,7 +12,7 @@ int parse_rssi(char *iwinfo_string);
 
 int get_rssi_from_iwinfo(__uint8_t *client_addr) {
     char mac_buf[20];
-    sprintf(mac_buf, "%x:%x:%x:%x:%x:%x", MAC2STR(client_addr));
+    sprintf(mac_buf, MACSTR, MAC2STR(client_addr));
     char mac_buf_conv[20];
 
     convert_mac(mac_buf, mac_buf_conv);
