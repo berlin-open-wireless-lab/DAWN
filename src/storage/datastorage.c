@@ -4,6 +4,7 @@
 
 #include "ubus.h"
 #include "rssi.h"
+#include "utils.h"
 
 #define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
 
@@ -435,7 +436,7 @@ ap ap_array_get_ap(uint8_t bssid_addr[]) {
     ap ret;
 
     char bssid_mac_string[20];
-    sprintf(bssid_mac_string, "%02X:%02X:%02X:%02X:%02X:%02X", MAC2STR(bssid_addr));
+    sprintf(bssid_mac_string, MACSTR, MAC2STR(bssid_addr));
     printf("Try to find: %s\n", bssid_mac_string);
     printf("in\n");
     print_ap_array();
@@ -898,9 +899,9 @@ void print_probe_entry(probe_entry entry) {
     char mac_buf_client[20];
     char mac_buf_target[20];
 
-    sprintf(mac_buf_ap, "%02X:%02X:%02X:%02X:%02X:%02X", MAC2STR(entry.bssid_addr));
-    sprintf(mac_buf_client, "%02X:%02X:%02X:%02X:%02X:%02X", MAC2STR(entry.client_addr));
-    sprintf(mac_buf_target, "%02X:%02X:%02X:%02X:%02X:%02X", MAC2STR(entry.target_addr));
+    sprintf(mac_buf_ap, MACSTR, MAC2STR(entry.bssid_addr));
+    sprintf(mac_buf_client, MACSTR, MAC2STR(entry.client_addr));
+    sprintf(mac_buf_target, MACSTR, MAC2STR(entry.target_addr));
 
     printf(
             "bssid_addr: %s, client_addr: %s, signal: %d, freq: "
@@ -913,9 +914,9 @@ void print_auth_entry(auth_entry entry) {
     char mac_buf_client[20];
     char mac_buf_target[20];
 
-    sprintf(mac_buf_ap, "%02X:%02X:%02X:%02X:%02X:%02X", MAC2STR(entry.bssid_addr));
-    sprintf(mac_buf_client, "%02X:%02X:%02X:%02X:%02X:%02X", MAC2STR(entry.client_addr));
-    sprintf(mac_buf_target, "%02X:%02X:%02X:%02X:%02X:%02X", MAC2STR(entry.target_addr));
+    sprintf(mac_buf_ap, MACSTR, MAC2STR(entry.bssid_addr));
+    sprintf(mac_buf_client, MACSTR, MAC2STR(entry.client_addr));
+    sprintf(mac_buf_target, MACSTR, MAC2STR(entry.target_addr));
 
     printf(
             "bssid_addr: %s, client_addr: %s, signal: %d, freq: "
@@ -927,8 +928,8 @@ void print_client_entry(client entry) {
     char mac_buf_ap[20];
     char mac_buf_client[20];
 
-    sprintf(mac_buf_ap, "%02X:%02X:%02X:%02X:%02X:%02X", MAC2STR(entry.bssid_addr));
-    sprintf(mac_buf_client, "%02X:%02X:%02X:%02X:%02X:%02X", MAC2STR(entry.client_addr));
+    sprintf(mac_buf_ap, MACSTR, MAC2STR(entry.bssid_addr));
+    sprintf(mac_buf_client, MACSTR, MAC2STR(entry.client_addr));
 
     printf("bssid_addr: %s, client_addr: %s, freq: %d, ht_supported: %d, vht_supported: %d, ht: %d, vht: %d\n",
            mac_buf_ap, mac_buf_client, entry.freq, entry.ht_supported, entry.vht_supported, entry.ht, entry.vht);
@@ -946,7 +947,7 @@ void print_client_array() {
 void print_ap_entry(ap entry) {
     char mac_buf_ap[20];
 
-    sprintf(mac_buf_ap, "%02X:%02X:%02X:%02X:%02X:%02X", MAC2STR(entry.bssid_addr));
+    sprintf(mac_buf_ap, MACSTR, MAC2STR(entry.bssid_addr));
     printf("bssid_addr: %s, freq: %d, ht: %d, vht: %d, chan_utilz: %d\n",
            mac_buf_ap, entry.freq, entry.ht, entry.vht, entry.channel_utilization);
 }
