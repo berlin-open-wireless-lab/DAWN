@@ -10,6 +10,37 @@ int call_iwinfo(char *client_addr);
 
 int parse_rssi(char *iwinfo_string);
 
+#define IWINFO_BUFSIZE	24 * 1024
+
+int get_rssi_iwinfo()
+{
+    int i, len;
+    char buf[IWINFO_BUFSIZE];
+    struct iwinfo_assoclist_entry *e;
+
+    const struct iwinfo_ops *iw = NULL;
+    iw = iwinfo_backend("wlan0");
+
+    if (iw->assoclist(ifname, buf, &len))
+    {
+        printf("No information available\n");
+        return;
+    }
+    else if (len <= 0)
+    {
+        printf("No station connected\n");
+        return;
+    }
+
+    for (i = 0; i < len; i += sizeof(struct iwinfo_assoclist_entry))
+    {
+        e = (struct iwinfo_assoclist_entry *) &buf[i];
+
+        printf("iwinfo rssi: %d\n", e->signal);
+    }
+}
+
+
 int get_rssi_from_iwinfo(__uint8_t *client_addr) {
     char mac_buf[20];
     sprintf(mac_buf, MACSTR, MAC2STR(client_addr));

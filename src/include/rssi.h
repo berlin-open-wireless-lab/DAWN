@@ -7,4 +7,6 @@
 
 int get_rssi_from_iwinfo(__uint8_t *client_addr);
 
+int get_rssi_iwinfo();
+
 #endif //DAWN_RSSI_H
