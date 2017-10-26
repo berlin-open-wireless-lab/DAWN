@@ -438,7 +438,7 @@ dump_client_table(struct blob_attr *head, int len, const char *bssid_addr, uint3
 
         int tmp_int_mac[ETH_ALEN];
         uint8_t tmp_mac[ETH_ALEN];
-        sscanf((char *) hdr->name, "%x:%x:%x:%x:%x:%x", STR2MAC(tmp_int_mac));
+        sscanf((char *) hdr->name, "%02X:%02X:%02X:%02X:%02X:%02X", STR2MAC(tmp_int_mac));
         for (int i = 0; i < ETH_ALEN; ++i)
             tmp_mac[i] = (uint8_t) tmp_int_mac[i];
 
@@ -535,12 +535,12 @@ void *kick_clients_thread(void *arg) {
 /*
         int tmp_int_mac[ETH_ALEN];
         uint8_t tmp_mac[ETH_ALEN];
-        sscanf("a4:2b:b0:de:f1:fd", "%x:%x:%x:%x:%x:%x", STR2MAC(tmp_int_mac));
+        sscanf("a4:2b:b0:de:f1:fd", "%02X:%02X:%02X:%02X:%02X:%02X", STR2MAC(tmp_int_mac));
         for(int i = 0; i < ETH_ALEN; ++i )
             tmp_mac[i] = (uint8_t) tmp_int_mac[i];
         //kick_clients(tmp_mac);
 
-        sscanf("a4:2b:b0:de:f1:fe", "%x:%x:%x:%x:%x:%x", STR2MAC(tmp_int_mac));
+        sscanf("a4:2b:b0:de:f1:fe", "%02X:%02X:%02X:%02X:%02X:%02X", STR2MAC(tmp_int_mac));
         for(int i = 0; i < ETH_ALEN; ++i )
             tmp_mac[i] = (uint8_t) tmp_int_mac[i];*/
         //kick_clients(tmp_mac);
