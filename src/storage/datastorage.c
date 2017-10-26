@@ -138,11 +138,13 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
         }
 
         // update rssi
-        int rssi = get_rssi_from_iwinfo(client_array[j].client_addr);
+        int rssi = get_rssi_iwinfo(client_array[j].client_addr);
         if (rssi != INT_MIN) {
             pthread_mutex_unlock(&probe_array_mutex);
             if (!probe_array_update_rssi(client_array[j].bssid_addr, client_array[j].client_addr, rssi)) {
                 printf("Failed to update RSSI!\n");
+            } else {
+                printf("RSSI UPDATED: RSSI: %d\n\n", rssi);
             }
             pthread_mutex_lock(&probe_array_mutex);
 

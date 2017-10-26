@@ -42,7 +42,7 @@ SET(SOURCES
         utils/utils.c include/rssi.h utils/rssi.c)
 
 SET(LIBS
-        ubox ubus json-c blobmsg_json config uci gcrypt ssl crypto)
+        ubox ubus json-c blobmsg_json config uci gcrypt ssl crypto iwinfo)
 
 ADD_EXECUTABLE(dawn ${SOURCES} utils/dawn_uci.c include/dawn_uci.h)
 

@@ -14,6 +14,7 @@
 #include "networksocket.h"
 #include "ubus.h"
 #include "dawn_uci.h"
+#include "rssi.h"
 
 #define BUFSIZE 17
 #define BUFSIZE_DIR 256
@@ -123,8 +124,6 @@ void free(void *p)
 
 int main(int argc, char **argv) {
     //free_counter = 0;
-
-    get_rssi_iwinfo();
 
     const char *ubus_socket = NULL;
     int ch;
