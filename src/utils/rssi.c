@@ -1,8 +1,11 @@
 #include "rssi.h"
 
 #include <limits.h>
+#include <iwinfo.h>
+#include <dirent.h>
 
 #include "utils.h"
+#include "ubus.h"
 
 #define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
 
@@ -10,61 +13,60 @@ int call_iwinfo(char *client_addr);
 
 int parse_rssi(char *iwinfo_string);
 
-int get_rssi_from_iwinfo(__uint8_t *client_addr) {
-    char mac_buf[20];
-    sprintf(mac_buf, MACSTR, MAC2STR(client_addr));
-    char mac_buf_conv[20];
+int get_rssi(const char *ifname, uint8_t *client_addr);
 
-    convert_mac(mac_buf, mac_buf_conv);
+#define IWINFO_BUFSIZE	24 * 1024
 
-    return call_iwinfo(mac_buf_conv);
-}
+int get_rssi_iwinfo(__uint8_t *client_addr) {
 
-int call_iwinfo(char *client_addr) {
-    // TODO: REFACTOR THIS! USE NET LINK... LOOK AT IWINFO
-
-    FILE *fp;
-    char path[1035];
+    DIR *dirp;
+    struct dirent *entry;
+    dirp = opendir(hostapd_dir_glob);  // error handling?
+    if (!dirp) {
+        fprintf(stderr, "No hostapd sockets!\n");
+        return -1;
+    }
 
     int rssi = INT_MIN;
-    int command_length = 68;
-    char iwinfo_command[command_length];
-    char *first_command = "(iwinfo wlan0 assoc && iwinfo wlan1 assoc) | grep ";
-    size_t length_first_command = strlen(first_command);
-    memcpy(iwinfo_command, first_command, length_first_command);
-    memcpy(iwinfo_command + length_first_command, client_addr, strlen(client_addr));
-    iwinfo_command[command_length - 1] = '\0';
-    printf("iwinfo command:\n%s\n", iwinfo_command);
 
-    fp = popen(iwinfo_command, "r");
-    if (fp == NULL) {
-        printf("Failed to run command\n");
-        exit(1);
+    while ((entry = readdir(dirp)) != NULL) {
+        if (entry->d_type == DT_SOCK) {
+            rssi = get_rssi(entry->d_name, client_addr);
+            if(rssi != INT_MIN)
+                break;
+        }
     }
-
-    /* Read the output a line at a time - output it. */
-    while (fgets(path, sizeof(path) - 1, fp) != NULL) {
-        rssi = parse_rssi(path);
-    }
-
-    /* close */
-    pclose(fp);
-
+    closedir(dirp);
     return rssi;
 }
 
-int parse_rssi(char *iwinfo_string) {
-    char cut_1[] = " ";
-    char cut_2[] = "dBm";
-    char *p_1 = strstr(iwinfo_string, cut_1);
-    char *p_2 = strstr(iwinfo_string, cut_2);
-    int rssi = INT_MIN;
-    if (p_1 != NULL && p_2 != NULL) {
-        int length = (int) (p_2 - p_1);
-        char dest[length + 1];
-        memcpy(dest, p_1, (int) (p_2 - p_1));
-        dest[length] = '\0';
-        rssi = atoi(dest);
+int get_rssi(const char *ifname, uint8_t *client_addr){
+
+    int i, len;
+    char buf[IWINFO_BUFSIZE];
+    struct iwinfo_assoclist_entry *e;
+    const struct iwinfo_ops *iw;
+
+    iw = iwinfo_backend(ifname);
+
+    if (iw->assoclist(ifname, buf, &len))
+    {
+        printf("No information available\n");
+        return INT_MIN;
     }
-    return rssi;
+    else if (len <= 0)
+    {
+        printf("No station connected\n");
+        return INT_MIN;
+    }
+
+    for (i = 0; i < len; i += sizeof(struct iwinfo_assoclist_entry))
+    {
+        e = (struct iwinfo_assoclist_entry *) &buf[i];
+
+        if(mac_is_equal(client_addr, e->mac))
+            return  e->signal;
+    }
+
+    return INT_MIN;
 }

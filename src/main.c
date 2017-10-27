@@ -14,6 +14,7 @@
 #include "networksocket.h"
 #include "ubus.h"
 #include "dawn_uci.h"
+#include "rssi.h"
 
 #define BUFSIZE 17
 #define BUFSIZE_DIR 256
