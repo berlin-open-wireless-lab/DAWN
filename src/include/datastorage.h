@@ -13,8 +13,10 @@
 #define ETH_ALEN 6
 #endif
 
-struct probe_metric_s dawn_metric;
 
+/* Metric */
+
+// ---------------- Structs ----------------
 struct probe_metric_s {
     int ht_support;
     int vht_support;
@@ -34,10 +36,13 @@ struct time_config_s {
     time_t remove_probe;
 };
 
-#define SORT_NUM 5
-#define TIME_THRESHOLD 120  // every minute
+// ---------------- Global variables ----------------
+struct probe_metric_s dawn_metric;
 
-// Probe entrys
+
+/* Probe, Auth, Assoc */
+
+// ---------------- Structs ----------------
 typedef struct probe_entry_s {
     uint8_t bssid_addr[ETH_ALEN];
     uint8_t client_addr[ETH_ALEN];
@@ -60,11 +65,33 @@ typedef struct auth_entry_s {
 
 typedef struct auth_entry_s assoc_entry;
 
+// ---------------- Defines ----------------
+#define PROBE_ARRAY_LEN 1000
 
-typedef struct {
-    uint32_t freq;
-} client_request;
+// ---------------- Global variables ----------------
+struct probe_entry_s probe_array[PROBE_ARRAY_LEN];
+pthread_mutex_t probe_array_mutex;
 
+// ---------------- Functions ----------------
+probe_entry insert_to_array(probe_entry entry, int inc_counter);
+
+void probe_array_insert(probe_entry entry);
+
+probe_entry probe_array_delete(probe_entry entry);
+
+probe_entry probe_array_get_entry(uint8_t bssid_addr[], uint8_t client_addr[]);
+
+void print_probe_array();
+
+void print_probe_entry(probe_entry entry);
+
+void print_auth_entry(auth_entry entry);
+
+void *remove_probe_array_thread(void *arg);
+
+/* AP, Client */
+
+// ---------------- Structs ----------------
 typedef struct client_s {
     uint8_t bssid_addr[ETH_ALEN];
     uint8_t client_addr[ETH_ALEN];
@@ -94,34 +121,21 @@ typedef struct ap_s {
     time_t time;
 } ap;
 
-// Array
+// ---------------- Defines ----------------
 #define ARRAY_AP_LEN 50
 #define TIME_THRESHOLD_AP 30
-struct ap_s ap_array[ARRAY_AP_LEN];
-pthread_mutex_t ap_array_mutex;
-
-ap insert_to_ap_array(ap entry);
-
-void print_ap_array();
-
-void *remove_ap_array_thread(void *arg);
-
-ap ap_array_get_ap(uint8_t bssid_addr[]);
-
-// Array
 #define ARRAY_CLIENT_LEN 1000
 #define TIME_THRESHOLD_CLIENT 30
 #define TIME_THRESHOLD_CLIENT_UPDATE 10
 #define TIME_THRESHOLD_CLIENT_KICK 60
 
-
+// ---------------- Global variables ----------------
 struct client_s client_array[ARRAY_CLIENT_LEN];
 pthread_mutex_t client_array_mutex;
+struct ap_s ap_array[ARRAY_AP_LEN];
+pthread_mutex_t ap_array_mutex;
 
-int mac_is_equal(uint8_t addr1[], uint8_t addr2[]);
-
-int mac_is_greater(uint8_t addr1[], uint8_t addr2[]);
-
+// ---------------- Functions ----------------
 void insert_client_to_array(client entry);
 
 void kick_clients(uint8_t bssid[], uint32_t id);
@@ -136,31 +150,33 @@ void print_client_entry(client entry);
 
 void *remove_client_array_thread(void *arg);
 
-#define ARRAY_LEN 1000
+ap insert_to_ap_array(ap entry);
 
-struct probe_entry_s probe_array[ARRAY_LEN];
-pthread_mutex_t probe_array_mutex;
+void print_ap_array();
 
-probe_entry insert_to_array(probe_entry entry, int inc_counter);
+void *remove_ap_array_thread(void *arg);
 
-void probe_array_insert(probe_entry entry);
+ap ap_array_get_ap(uint8_t bssid_addr[]);
 
-probe_entry probe_array_delete(probe_entry entry);
+/* Utils */
 
-probe_entry probe_array_get_entry(uint8_t bssid_addr[], uint8_t client_addr[]);
+// ---------------- Defines -------------------
+#define SORT_NUM 5
+#define TIME_THRESHOLD 120  // every minute
+
+// ---------------- Global variables ----------------
+char sort_string[SORT_NUM];
+
+// ---------------- Functions -------------------
+int mac_is_equal(uint8_t addr1[], uint8_t addr2[]);
+
+int mac_is_greater(uint8_t addr1[], uint8_t addr2[]);
 
 int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[]);
 
-void print_array();
 
-void print_probe_entry(probe_entry entry);
+/* List stuff */
 
-void print_auth_entry(auth_entry entry);
-
-void *remove_array_thread(void *arg);
-
-
-// List
 typedef struct node {
     probe_entry data;
     struct node *ptr;
@@ -180,6 +196,6 @@ void *remove_thread(void *arg);
 
 pthread_mutex_t list_mutex;
 node *probe_list_head;
-char sort_string[SORT_NUM];
+
 
 #endif

@@ -306,13 +306,13 @@ void probe_array_insert(probe_entry entry) {
         }
     }
     for (int j = probe_entry_last; j >= i; j--) {
-        if (j + 1 <= ARRAY_LEN) {
+        if (j + 1 <= PROBE_ARRAY_LEN) {
             probe_array[j + 1] = probe_array[j];
         }
     }
     probe_array[i] = entry;
 
-    if (probe_entry_last < ARRAY_LEN) {
+    if (probe_entry_last < PROBE_ARRAY_LEN) {
         probe_entry_last++;
     }
 }
@@ -390,7 +390,7 @@ probe_entry probe_array_get_entry(uint8_t bssid_addr[], uint8_t client_addr[]) {
     return tmp;
 }
 
-void print_array() {
+void print_probe_array() {
     printf("------------------\n");
     printf("Probe Entry Last: %d\n", probe_entry_last);
     for (int i = 0; i <= probe_entry_last; i++) {
@@ -539,7 +539,7 @@ void remove_old_ap_entries(time_t current_time, long long int threshold) {
     }
 }
 
-void *remove_array_thread(void *arg) {
+void *remove_probe_array_thread(void *arg) {
     printf("Removing thread with time: %lu\n", *(long int *) arg);
     time_t time_treshold = *(time_t *) arg;
     while (1) {
