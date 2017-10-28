@@ -216,7 +216,7 @@ int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req) {
 
 static int handle_auth_req(struct blob_attr *msg) {
 
-    print_array();
+    print_probe_array();
     auth_entry auth_req;
     parse_to_auth_req(msg, &auth_req);
     printf("AUTH Entry: ");
@@ -266,7 +266,7 @@ static int handle_probe_req(struct blob_attr *msg) {
 
     printf("[WC] Hostapd-Probe: %s : %s\n", "probe", str);
 
-    print_array();
+    print_probe_array();
     /*
     // deny access
     if (!decide_function(&tmp_probe)) {
