@@ -22,8 +22,6 @@ void del_client_all_interfaces(const uint8_t *client_addr, uint32_t reason, uint
 
 void *update_clients_thread(void *arg);
 
-void *kick_clients_thread(void *arg);
-
 char *hostapd_dir_glob;
 
 int ubus_call_umdns();

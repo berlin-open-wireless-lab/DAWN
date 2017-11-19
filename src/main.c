@@ -36,8 +36,6 @@ void signal_handler(int sig);
 
 struct sigaction newSigAction;
 
-//int free_counter = 0;
-
 pthread_t tid_probe;
 pthread_t tid_client;
 pthread_t tid_get_client;
@@ -46,13 +44,13 @@ pthread_t tid_kick_clients;
 pthread_t tid_ap;
 
 void daemon_shutdown() {
+
     // kill threads
     printf("Cancelling Threads!\n");
     pthread_cancel(tid_probe);
-    //pthread_cancel(tid_client);
+    pthread_cancel(tid_client);
     pthread_cancel(tid_get_client);
-    //pthread_cancel(tid_kick_clients);
-    //pthread_cancel(tid_ap);
+    pthread_cancel(tid_update_hostapd_socks);
 
     // free ressources
     printf("Freeing mutex ressources\n");
@@ -82,46 +80,6 @@ void signal_handler(int sig) {
             break;
     }
 }
-
-/*
-static void mtrace_init(void)
-{
-    real_malloc = dlsym(RTLD_NEXT, "malloc");
-    if (NULL == real_malloc) {
-        fprintf(stderr, "Error in `dlsym`: %s\n", dlerror());
-    }
-    real_free = dlsym(RTLD_NEXT, "free");
-    if (NULL == real_free) {
-        fprintf(stderr, "Error in `dlsym`: %s\n", dlerror());
-    }
-}
-
-void *malloc(size_t size)
-{
-    mtrace_init();
-    if(real_malloc==NULL) {
-        mtrace_init();
-    }
-
-    void *p = NULL;
-    fprintf(stderr, "malloc(%d) = ", size);
-    p = real_malloc(size);
-    fprintf(stderr, "%p\n", p);
-    free_counter++;
-    return p;
-}
-
-void free(void *p)
-{
-    mtrace_init();
-    if(real_free==NULL) {
-        mtrace_init();
-    }
-    p = real_free(p);
-    fprintf(stderr, "free: ");
-    fprintf(stderr, "%p\n", p);
-    free_counter--;
-}*/
 
 int main(int argc, char **argv) {
     //free_counter = 0;
@@ -217,14 +175,7 @@ int main(int argc, char **argv) {
     pthread_create(&tid_get_client, NULL, &update_clients_thread, (void *) &time_config.update_client);
     pthread_create(&tid_update_hostapd_socks, NULL, &update_hostapd_sockets, &time_config.update_hostapd);
 
-
-    //pthread_create(&tid_kick_clients, NULL, &kick_clients_thread, NULL);
-    //pthread_create(&tid_ap, NULL, &remove_ap_array_thread, NULL);
-
-    //pthread_create(&tid, NULL, &remove_thread, NULL);
-
     dawn_init_ubus(ubus_socket, opt_hostapd_dir);
-    //free_list(probe_list_head);
 
     return 0;
 }

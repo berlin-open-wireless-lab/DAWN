@@ -534,8 +534,6 @@ dump_client_table(struct blob_attr *head, int len, const char *bssid_addr, uint3
 int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
     struct blob_attr *tb[__CLIENT_TABLE_MAX];
 
-    //printf("[CLIENTS] : Parse Clients\n");
-
     blobmsg_parse(client_table_policy, __CLIENT_TABLE_MAX, tb, blob_data(msg), blob_len(msg));
 
     if (tb[CLIENT_TABLE] && tb[CLIENT_TABLE_BSSID] && tb[CLIENT_TABLE_FREQ] && tb[CLIENT_TABLE_HT] &&
@@ -591,28 +589,6 @@ void *update_clients_thread(void *arg) {
         sleep(time_update_client);
         printf("[Thread] : Kicking clients!\n");
         ubus_get_clients();
-    }
-    return 0;
-}
-
-void *kick_clients_thread(void *arg) {
-    while (1) {
-        sleep(TIME_THRESHOLD_CLIENT_KICK);
-        printf("[Thread] : Updating clients!\n");
-        // a4:2b:b0:de:f1:fd
-        // a4:2b:b0:de:f1:fe
-/*
-        int tmp_int_mac[ETH_ALEN];
-        uint8_t tmp_mac[ETH_ALEN];
-        sscanf("a4:2b:b0:de:f1:fd", MACSTR, STR2MAC(tmp_int_mac));
-        for(int i = 0; i < ETH_ALEN; ++i )
-            tmp_mac[i] = (uint8_t) tmp_int_mac[i];
-        //kick_clients(tmp_mac);
-
-        sscanf("a4:2b:b0:de:f1:fe", MACSTR, STR2MAC(tmp_int_mac));
-        for(int i = 0; i < ETH_ALEN; ++i )
-            tmp_mac[i] = (uint8_t) tmp_int_mac[i];*/
-        //kick_clients(tmp_mac);
     }
     return 0;
 }
