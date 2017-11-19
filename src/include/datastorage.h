@@ -34,6 +34,7 @@ struct time_config_s {
     time_t update_client;
     time_t remove_client;
     time_t remove_probe;
+    time_t update_hostapd;
 };
 
 // ---------------- Global variables ----------------
