@@ -1,6 +1,7 @@
 #include <ctype.h>
 #include <dirent.h>
 #include <libubox/blobmsg_json.h>
+#include <libubox/uloop.h>
 #include <libubus.h>
 #include <sys/types.h>
 
@@ -16,10 +17,14 @@
 
 static struct ubus_context *ctx = NULL;
 static struct ubus_context *ctx_clients; /* own ubus conext otherwise strange behavior... */
-static struct ubus_context *ctx_hostapd;
+//static struct ubus_context *ctx_hostapd;
 
 static struct ubus_subscriber hostapd_event;
 static struct blob_buf b;
+
+struct uloop_timeout hostapd_timer = {
+        .cb = update_hostapd_sockets
+};
 
 #define MAX_HOSTAPD_SOCKETS 10
 uint32_t hostapd_sock_arr[MAX_HOSTAPD_SOCKETS];
@@ -194,7 +199,7 @@ blobmsg_add_macaddr(struct blob_buf *buf, const char *name, const uint8_t *addr)
 
 static int decide_function(probe_entry *prob_req) {
     // TODO: Refactor...
-    //printf("COUNTER: %d\n", prob_req->counter);
+    printf("COUNTER: %d\n", prob_req->counter);
 
     if (prob_req->counter < dawn_metric.min_probe_count) {
         return 0;
@@ -212,7 +217,7 @@ static int decide_function(probe_entry *prob_req) {
 static void hostapd_handle_remove(struct ubus_context *ctx,
                                   struct ubus_subscriber *s, uint32_t id) {
     fprintf(stderr, "Object %08x went away\n", id);
-    //ubus_unsubscribe(ctx, &hostapd_event, id);
+    ubus_unsubscribe(ctx, s, id);
     hostapd_array_delete(id);
 }
 
@@ -330,7 +335,7 @@ static int handle_probe_req(struct blob_attr *msg) {
 
     printf("[WC] Hostapd-Probe: %s : %s\n", "probe", str);
 
-    print_probe_array();
+    //print_probe_array();
     /*
     // deny access
     if (!decide_function(&tmp_probe)) {
@@ -362,17 +367,19 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
 static int add_subscriber(char *name) {
     uint32_t id = 0;
 
-    if (ubus_lookup_id(ctx_hostapd, name, &id)) {
+    printf("DOING LOOKUP!\n");
+    if (ubus_lookup_id(ctx, name, &id)) {
         fprintf(stderr, "Failed to look up test object for %s\n", name);
         return -1;
     }
+    printf("Lookup success!\n");
 
     if(hostapd_array_check_id(id))
     {
         return 0;
     }
 
-    int ret = ubus_subscribe(ctx_hostapd, &hostapd_event, id);
+    int ret = ubus_subscribe(ctx, &hostapd_event, id);
     hostapd_array_insert(id);
     fprintf(stderr, "Watching object %08x: %s\n", id, ubus_strerror(ret));
 
@@ -383,7 +390,7 @@ static int subscribe_to_hostapd_interfaces(char *hostapd_dir) {
     DIR *dirp;
     struct dirent *entry;
 
-    if(ctx_hostapd == NULL)
+    if(ctx == NULL)
     {
         return 0;
     }
@@ -406,13 +413,13 @@ static int subscribe_to_hostapd_interfaces(char *hostapd_dir) {
 
 static int subscribe_to_hostapd(char *hostapd_dir) {
 
-    if(ctx_hostapd == NULL)
+    if(ctx == NULL)
     {
         return 0;
     }
 
     printf("Registering ubus event subscriber!\n");
-    int ret = ubus_register_subscriber(ctx_hostapd, &hostapd_event);
+    int ret = ubus_register_subscriber(ctx, &hostapd_event);
     if (ret) {
         fprintf(stderr, "Failed to add watch handler: %s\n", ubus_strerror(ret));
         return -1;
@@ -446,7 +453,9 @@ int dawn_init_ubus(const char *ubus_socket, char *hostapd_dir) {
     // set dawn metric
     dawn_metric = uci_get_dawn_metric();
 
-    //subscribe_to_hostapd(hostapd_dir);
+    subscribe_to_hostapd(hostapd_dir);
+
+    uloop_timeout_add(&hostapd_timer);
 
     //ubus_call_umdns();
 
@@ -593,18 +602,21 @@ void *update_clients_thread(void *arg) {
     return 0;
 }
 
-void *update_hostapd_sockets(void *arg) {
-    time_t time_update_hostapd = *(time_t *) arg;
+void update_hostapd_sockets(struct uloop_timeout *t) {
+    //uloop_init();
+    //time_t time_update_hostapd = *(time_t *) arg;
 
-    printf("Update hostapd thread with time: %lu\n", time_update_hostapd);
-    const char *ubus_socket = NULL;
-    ctx_hostapd = ubus_connect(ubus_socket);
+    //printf("Update hostapd thread with time: %lu\n", time_update_hostapd);
+    //const char *ubus_socket = NULL;
+    //ctx_hostapd = ubus_connect(ubus_socket);
+    //ubus_add_uloop(ctx_hostapd);
+    //uloop_run();
+    uloop_timeout_set(&hostapd_timer, 1000);
 
-    subscribe_to_hostapd(hostapd_dir_glob);
-    while (1) {
+//    while (1) {
         subscribe_to_hostapd_interfaces(hostapd_dir_glob);
-        sleep(time_update_hostapd);
-    }
+//        sleep(time_update_hostapd);
+//    }
 }
 
 void del_client_all_interfaces(const uint8_t *client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time) {

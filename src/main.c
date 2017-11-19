@@ -39,7 +39,7 @@ struct sigaction newSigAction;
 pthread_t tid_probe;
 pthread_t tid_client;
 pthread_t tid_get_client;
-pthread_t tid_update_hostapd_socks;
+//pthread_t tid_update_hostapd_socks;
 pthread_t tid_kick_clients;
 pthread_t tid_ap;
 
@@ -50,7 +50,7 @@ void daemon_shutdown() {
     pthread_cancel(tid_probe);
     pthread_cancel(tid_client);
     pthread_cancel(tid_get_client);
-    pthread_cancel(tid_update_hostapd_socks);
+    //pthread_cancel(tid_update_hostapd_socks);
 
     // free ressources
     printf("Freeing mutex ressources\n");
@@ -173,7 +173,7 @@ int main(int argc, char **argv) {
     pthread_create(&tid_probe, NULL, &remove_probe_array_thread, (void *) &time_config.remove_probe);
     pthread_create(&tid_client, NULL, &remove_client_array_thread, (void *) &time_config.remove_client);
     pthread_create(&tid_get_client, NULL, &update_clients_thread, (void *) &time_config.update_client);
-    pthread_create(&tid_update_hostapd_socks, NULL, &update_hostapd_sockets, &time_config.update_hostapd);
+    //pthread_create(&tid_update_hostapd_socks, NULL, &update_hostapd_sockets, &time_config.update_hostapd);
 
     dawn_init_ubus(ubus_socket, opt_hostapd_dir);
 
