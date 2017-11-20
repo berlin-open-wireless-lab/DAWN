@@ -374,13 +374,11 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
 static int add_subscriber(char *name) {
     uint32_t id = 0;
 
-    printf("DOING LOOKUP!\n");
     if (ubus_lookup_id(ctx, name, &id)) {
         fprintf(stderr, "Failed to look up test object for %s\n", name);
         return -1;
     }
-    printf("Lookup success!\n");
-
+    
     if(hostapd_array_check_id(id))
     {
         return 0;
