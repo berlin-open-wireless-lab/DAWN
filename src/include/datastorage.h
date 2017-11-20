@@ -8,7 +8,6 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include <libubox/uloop.h>
 
 #ifndef ETH_ALEN
 #define ETH_ALEN 6
@@ -92,8 +91,6 @@ void print_probe_entry(probe_entry entry);
 
 void print_auth_entry(auth_entry entry);
 
-void *remove_probe_array_thread(void *arg);
-
 void uloop_add_data_cbs();
 
 /* AP, Client */
@@ -155,13 +152,9 @@ void print_client_array();
 
 void print_client_entry(client entry);
 
-void *remove_client_array_thread(void *arg);
-
 ap insert_to_ap_array(ap entry);
 
 void print_ap_array();
-
-void *remove_ap_array_thread(void *arg);
 
 ap ap_array_get_ap(uint8_t bssid_addr[]);
 

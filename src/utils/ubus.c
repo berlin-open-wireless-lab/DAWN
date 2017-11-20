@@ -18,7 +18,6 @@
 
 static struct ubus_context *ctx = NULL;
 static struct ubus_context *ctx_clients; /* own ubus conext otherwise strange behavior... */
-//static struct ubus_context *ctx_hostapd;
 
 static struct ubus_subscriber hostapd_event;
 static struct blob_buf b;
@@ -464,7 +463,6 @@ int dawn_init_ubus(const char *ubus_socket, char *hostapd_dir) {
     uloop_timeout_add(&hostapd_timer);
 
     // remove probe
-    //uloop_timeout_add(&probe_timeout);
     uloop_add_data_cbs();
 
     // get clients
