@@ -147,6 +147,7 @@ int main(int argc, char **argv) {
     gcrypt_set_key_and_iv(shared_key, iv);
 
     struct time_config_s time_config = uci_get_time_config();
+    timeout_config = time_config; // TODO: Refactor...
 
     if (pthread_mutex_init(&list_mutex, NULL) != 0) {
         printf("\n mutex init failed\n");

@@ -603,20 +603,8 @@ void *update_clients_thread(void *arg) {
 }
 
 void update_hostapd_sockets(struct uloop_timeout *t) {
-    //uloop_init();
-    //time_t time_update_hostapd = *(time_t *) arg;
-
-    //printf("Update hostapd thread with time: %lu\n", time_update_hostapd);
-    //const char *ubus_socket = NULL;
-    //ctx_hostapd = ubus_connect(ubus_socket);
-    //ubus_add_uloop(ctx_hostapd);
-    //uloop_run();
-    uloop_timeout_set(&hostapd_timer, 1000);
-
-//    while (1) {
-        subscribe_to_hostapd_interfaces(hostapd_dir_glob);
-//        sleep(time_update_hostapd);
-//    }
+    uloop_timeout_set(&hostapd_timer, timeout_config.update_hostapd);
+    subscribe_to_hostapd_interfaces(hostapd_dir_glob);
 }
 
 void del_client_all_interfaces(const uint8_t *client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time) {
