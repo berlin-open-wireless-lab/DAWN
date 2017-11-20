@@ -37,6 +37,8 @@ struct time_config_s {
     time_t update_hostapd;
 };
 
+struct time_config_s timeout_config;
+
 // ---------------- Global variables ----------------
 struct probe_metric_s dawn_metric;
 

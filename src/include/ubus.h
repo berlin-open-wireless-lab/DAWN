@@ -2,6 +2,8 @@
 #define __DAWN_UBUS_H
 
 #include <libubox/blobmsg_json.h>
+#include <libubox/uloop.h>
+
 #include "datastorage.h"
 
 #define MIN_PROBE_REQ 2  // TODO: Parse from config file...
@@ -28,6 +30,6 @@ int ubus_call_umdns();
 
 int ubus_send_probe_via_network(struct probe_entry_s probe_entry);
 
-void *update_hostapd_sockets(void *arg);
+void update_hostapd_sockets(struct uloop_timeout *t);
 
 #endif
