@@ -8,6 +8,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <libubox/uloop.h>
 
 #ifndef ETH_ALEN
 #define ETH_ALEN 6
@@ -34,6 +35,7 @@ struct time_config_s {
     time_t update_client;
     time_t remove_client;
     time_t remove_probe;
+    time_t remove_ap;
     time_t update_hostapd;
 };
 
@@ -91,6 +93,8 @@ void print_probe_entry(probe_entry entry);
 void print_auth_entry(auth_entry entry);
 
 void *remove_probe_array_thread(void *arg);
+
+void uloop_add_data_cbs();
 
 /* AP, Client */
 

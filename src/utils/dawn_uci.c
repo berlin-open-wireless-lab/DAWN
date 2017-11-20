@@ -63,6 +63,13 @@ struct time_config_s uci_get_time_config() {
     if (ptr.o->type == UCI_TYPE_STRING)
         ret.update_hostapd = atoi(ptr.o->v.string);
 
+    char tmp_remove_ap[] = "dawn.times.remove_ap";
+    if (uci_lookup_ptr(c, &ptr, tmp_remove_ap, 1) != UCI_OK) {
+        uci_perror(c, "uci_get_daw_metric Error");
+        return ret;
+    }
+    if (ptr.o->type == UCI_TYPE_STRING)
+        ret.remove_ap = atoi(ptr.o->v.string);
 
     printf("Times: %lu, %lu, %lu %lu\n", ret.update_client, ret.remove_client, ret.remove_probe, ret.update_hostapd);
 
