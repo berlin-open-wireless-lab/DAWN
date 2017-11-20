@@ -1,31 +1,17 @@
 #include <libubus.h>
 #include <stdio.h>
-
-#include <stdio.h>
 #include <signal.h>
-#include <syslog.h>
-#include <errno.h>
 #include <stdlib.h>
-#include <fcntl.h>
 #include <unistd.h>
-#include <string.h>
 
 #include "datastorage.h"
 #include "networksocket.h"
 #include "ubus.h"
 #include "dawn_uci.h"
-#include "rssi.h"
+#include "crypto.h"
 
 #define BUFSIZE 17
 #define BUFSIZE_DIR 256
-
-
-#include "crypto.h"
-
-#define _GNU_SOURCE
-
-#include <stdio.h>
-#include <dlfcn.h>s
 
 void daemon_shutdown();
 
@@ -34,7 +20,6 @@ void signal_handler(int sig);
 struct sigaction newSigAction;
 
 void daemon_shutdown() {
-
     // kill threads
     printf("Cancelling Threads!\n");
     uloop_cancelled = true;

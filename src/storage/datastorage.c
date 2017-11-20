@@ -565,38 +565,12 @@ void uloop_add_data_cbs()
     uloop_timeout_add(&ap_timeout);
 }
 
-void *remove_probe_array_thread(void *arg) {
-    printf("Removing thread with time: %lu\n", *(long int *) arg);
-    time_t time_treshold = *(time_t *) arg;
-    while (1) {
-        sleep(time_treshold);
-        pthread_mutex_lock(&probe_array_mutex);
-        printf("[Thread] : Removing old entries!\n");
-        remove_old_probe_entries(time(0), time_treshold);
-        pthread_mutex_unlock(&probe_array_mutex);
-    }
-    return 0;
-}
-
 void remove_probe_array_cb(struct uloop_timeout *t) {
     pthread_mutex_lock(&probe_array_mutex);
     printf("[Thread] : Removing old entries!\n");
     remove_old_probe_entries(time(0), timeout_config.remove_probe);
     pthread_mutex_unlock(&probe_array_mutex);
     uloop_timeout_set(&probe_timeout, timeout_config.remove_probe * 1000);
-}
-
-void *remove_client_array_thread(void *arg) {
-    time_t time_treshold_client = *(time_t *) arg;
-    printf("Removing client thread with time: %lu\n", time_treshold_client);
-    while (1) {
-        sleep(time_treshold_client);
-        pthread_mutex_lock(&client_array_mutex);
-        printf("[Thread] : Removing old client entries!\n");
-        remove_old_client_entries(time(0), time_treshold_client);
-        pthread_mutex_unlock(&client_array_mutex);
-    }
-    return 0;
 }
 
 void remove_client_array_cb(struct uloop_timeout *t)
@@ -606,19 +580,6 @@ void remove_client_array_cb(struct uloop_timeout *t)
     remove_old_client_entries(time(0), timeout_config.update_client);
     pthread_mutex_unlock(&client_array_mutex);
     uloop_timeout_set(&client_timeout, timeout_config.update_client * 1000);
-}
-
-void *remove_ap_array_thread(void *arg) {
-    time_t time_treshold_ap = *(time_t *) arg;
-    printf("Removing ap thread with time: %lu\n", time_treshold_ap);
-    while (1) {
-        sleep(time_treshold_ap);
-        pthread_mutex_lock(&ap_array_mutex);
-        printf("[Thread] : Removing old ap entries!\n");
-        remove_old_ap_entries(time(0), time_treshold_ap);
-        pthread_mutex_unlock(&ap_array_mutex);
-    }
-    return 0;
 }
 
 void remove_ap_array_cb(struct uloop_timeout *t) {
