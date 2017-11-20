@@ -25,10 +25,7 @@
 #define _GNU_SOURCE
 
 #include <stdio.h>
-#include <dlfcn.h>
-
-//static void* (*real_malloc)(size_t)=NULL;
-//static void* (*real_free)(void *p)=NULL;
+#include <dlfcn.h>s
 
 void daemon_shutdown();
 
@@ -36,21 +33,11 @@ void signal_handler(int sig);
 
 struct sigaction newSigAction;
 
-pthread_t tid_probe;
-pthread_t tid_client;
-//pthread_t tid_get_client;
-//pthread_t tid_update_hostapd_socks;
-pthread_t tid_kick_clients;
-pthread_t tid_ap;
-
 void daemon_shutdown() {
 
     // kill threads
     printf("Cancelling Threads!\n");
-   // pthread_cancel(tid_probe);
-   // pthread_cancel(tid_client);
-    //pthread_cancel(tid_get_client);
-    //pthread_cancel(tid_update_hostapd_socks);
+    uloop_cancelled = true;
 
     // free ressources
     printf("Freeing mutex ressources\n");
@@ -58,25 +45,19 @@ void daemon_shutdown() {
     pthread_mutex_destroy(&probe_array_mutex);
     pthread_mutex_destroy(&client_array_mutex);
     pthread_mutex_destroy(&ap_array_mutex);
-
-    //printf("Free Counter: %d\n", free_counter);
 }
 
 void signal_handler(int sig) {
     printf("SOME SIGNAL RECEIVED!\n");
     switch (sig) {
         case SIGHUP:
-            //syslog(LOG_WARNING, "Received SIGHUP signal.");
             break;
         case SIGINT:
         case SIGTERM:
-            //syslog(LOG_INFO, "Daemon exiting");
-            //daemonShutdown();
             daemon_shutdown();
             exit(EXIT_SUCCESS);
             break;
         default:
-            //syslog(LOG_WARNING, "Unhandled signal %s", strsignal(sig));
             break;
     }
 }
@@ -170,11 +151,6 @@ int main(int argc, char **argv) {
     }
 
     init_socket_runopts(opt_broadcast_ip, opt_broadcast_port, 1);
-
-    //pthread_create(&tid_probe, NULL, &remove_probe_array_thread, (void *) &time_config.remove_probe);
-    //pthread_create(&tid_client, NULL, &remove_client_array_thread, (void *) &time_config.remove_client);
-    //pthread_create(&tid_get_client, NULL, &update_clients_thread, (void *) &time_config.update_client);
-    //pthread_create(&tid_update_hostapd_socks, NULL, &update_hostapd_sockets, &time_config.update_hostapd);
 
     dawn_init_ubus(ubus_socket, opt_hostapd_dir);
 
