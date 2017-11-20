@@ -1,6 +1,7 @@
 #include "datastorage.h"
 
 #include <limits.h>
+#include <libubox/uloop.h>
 
 #include "ubus.h"
 #include "rssi.h"
@@ -43,6 +44,24 @@ int is_connected(uint8_t bssid_addr[], uint8_t client_addr[]);
 int probe_entry_last = -1;
 int client_entry_last = -1;
 int ap_entry_last = -1;
+
+void remove_probe_array_cb(struct uloop_timeout *t);
+
+struct uloop_timeout probe_timeout = {
+        .cb = remove_probe_array_cb
+};
+
+void remove_client_array_cb(struct uloop_timeout *t);
+
+struct uloop_timeout client_timeout = {
+        .cb = remove_client_array_cb
+};
+
+void remove_ap_array_cb(struct uloop_timeout *t);
+
+struct uloop_timeout ap_timeout = {
+        .cb = remove_ap_array_cb
+};
 
 int eval_probe_metric(struct probe_entry_s probe_entry) {
 
@@ -539,6 +558,13 @@ void remove_old_ap_entries(time_t current_time, long long int threshold) {
     }
 }
 
+void uloop_add_data_cbs()
+{
+    uloop_timeout_add(&probe_timeout);
+    uloop_timeout_add(&client_timeout);
+    uloop_timeout_add(&ap_timeout);
+}
+
 void *remove_probe_array_thread(void *arg) {
     printf("Removing thread with time: %lu\n", *(long int *) arg);
     time_t time_treshold = *(time_t *) arg;
@@ -550,6 +576,14 @@ void *remove_probe_array_thread(void *arg) {
         pthread_mutex_unlock(&probe_array_mutex);
     }
     return 0;
+}
+
+void remove_probe_array_cb(struct uloop_timeout *t) {
+    pthread_mutex_lock(&probe_array_mutex);
+    printf("[Thread] : Removing old entries!\n");
+    remove_old_probe_entries(time(0), timeout_config.remove_probe);
+    pthread_mutex_unlock(&probe_array_mutex);
+    uloop_timeout_set(&probe_timeout, timeout_config.remove_probe * 1000);
 }
 
 void *remove_client_array_thread(void *arg) {
@@ -565,6 +599,15 @@ void *remove_client_array_thread(void *arg) {
     return 0;
 }
 
+void remove_client_array_cb(struct uloop_timeout *t)
+{
+    pthread_mutex_lock(&client_array_mutex);
+    printf("[Thread] : Removing old client entries!\n");
+    remove_old_client_entries(time(0), timeout_config.update_client);
+    pthread_mutex_unlock(&client_array_mutex);
+    uloop_timeout_set(&client_timeout, timeout_config.update_client * 1000);
+}
+
 void *remove_ap_array_thread(void *arg) {
     time_t time_treshold_ap = *(time_t *) arg;
     printf("Removing ap thread with time: %lu\n", time_treshold_ap);
@@ -576,6 +619,14 @@ void *remove_ap_array_thread(void *arg) {
         pthread_mutex_unlock(&ap_array_mutex);
     }
     return 0;
+}
+
+void remove_ap_array_cb(struct uloop_timeout *t) {
+    pthread_mutex_lock(&ap_array_mutex);
+    printf("[ULOOP] : Removing old ap entries!\n");
+    remove_old_ap_entries(time(0), timeout_config.remove_ap);
+    pthread_mutex_unlock(&ap_array_mutex);
+    uloop_timeout_set(&ap_timeout, timeout_config.remove_ap * 1000);
 }
 
 void insert_client_to_array(client entry) {

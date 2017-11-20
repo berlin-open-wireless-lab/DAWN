@@ -14,6 +14,7 @@
 #include "networksocket.h"
 #include "utils.h"
 #include "dawn_uci.h"
+#include "datastorage.h"
 
 static struct ubus_context *ctx = NULL;
 static struct ubus_context *ctx_clients; /* own ubus conext otherwise strange behavior... */
@@ -22,8 +23,14 @@ static struct ubus_context *ctx_clients; /* own ubus conext otherwise strange be
 static struct ubus_subscriber hostapd_event;
 static struct blob_buf b;
 
+void update_clients(struct uloop_timeout *t);
+
 struct uloop_timeout hostapd_timer = {
         .cb = update_hostapd_sockets
+};
+
+struct uloop_timeout client_timer = {
+        .cb = update_clients
 };
 
 #define MAX_HOSTAPD_SOCKETS 10
@@ -455,7 +462,18 @@ int dawn_init_ubus(const char *ubus_socket, char *hostapd_dir) {
 
     subscribe_to_hostapd(hostapd_dir);
 
+    // update hostapd
     uloop_timeout_add(&hostapd_timer);
+
+    // remove probe
+    //uloop_timeout_add(&probe_timeout);
+    uloop_add_data_cbs();
+
+    // get clients
+    const char *ubus_socket_clients = NULL;
+    ctx_clients = ubus_connect(ubus_socket_clients);
+    uloop_timeout_add(&client_timer);
+
 
     //ubus_call_umdns();
 
@@ -587,24 +605,14 @@ static int ubus_get_clients() {
     return 0;
 }
 
-void *update_clients_thread(void *arg) {
-    time_t time_update_client = *(time_t *) arg;
-    printf("Update client thread with time: %lu\n", time_update_client);
-
-    const char *ubus_socket = NULL;
-    ctx_clients = ubus_connect(ubus_socket);
-
-    while (1) {
-        sleep(time_update_client);
-        printf("[Thread] : Kicking clients!\n");
-        ubus_get_clients();
-    }
-    return 0;
+void update_clients(struct uloop_timeout *t) {
+    ubus_get_clients();
+    uloop_timeout_set(&client_timer, timeout_config.update_client * 1000);
 }
 
 void update_hostapd_sockets(struct uloop_timeout *t) {
-    uloop_timeout_set(&hostapd_timer, timeout_config.update_hostapd);
     subscribe_to_hostapd_interfaces(hostapd_dir_glob);
+    uloop_timeout_set(&hostapd_timer, timeout_config.update_hostapd * 1000);
 }
 
 void del_client_all_interfaces(const uint8_t *client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time) {
