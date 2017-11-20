@@ -377,7 +377,7 @@ static int add_subscriber(char *name) {
         fprintf(stderr, "Failed to look up test object for %s\n", name);
         return -1;
     }
-    
+
     if(hostapd_array_check_id(id))
     {
         return 0;
