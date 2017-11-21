@@ -108,7 +108,6 @@ int main(int argc, char **argv) {
     sigaction(SIGTERM, &newSigAction, NULL);    /* catch term signal */
     sigaction(SIGINT, &newSigAction, NULL);     /* catch interrupt signal */
 
-
     gcrypt_init();
     gcrypt_set_key_and_iv(shared_key, iv);
 

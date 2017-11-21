@@ -13,8 +13,21 @@
 #define ETH_ALEN 6
 #endif
 
+/* Mac */
+
+// ---------------- Defines -------------------
+#define MAC_LIST_LENGTH 100
+
+// ---------------- Structs ----------------
+uint8_t mac_list[MAC_LIST_LENGTH][ETH_ALEN];
+
+// ---------------- Functions ----------
+void insert_macs_from_file();
+
 
 /* Metric */
+
+struct probe_metric_s dawn_metric;
 
 // ---------------- Structs ----------------
 struct probe_metric_s {

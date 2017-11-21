@@ -41,9 +41,12 @@ int probe_array_update_rssi(uint8_t bssid_addr[], uint8_t client_addr[], uint32_
 
 int is_connected(uint8_t bssid_addr[], uint8_t client_addr[]);
 
+int mac_in_maclist(uint8_t mac[]);
+
 int probe_entry_last = -1;
 int client_entry_last = -1;
 int ap_entry_last = -1;
+int mac_list_entry_last = -1;
 
 void remove_probe_array_cb(struct uloop_timeout *t);
 
@@ -134,7 +137,7 @@ int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[]) {
 }
 
 int kick_client(struct client_s client_entry) {
-    return better_ap_available(client_entry.bssid_addr, client_entry.client_addr);
+    return !mac_in_maclist(client_entry.client_addr) && better_ap_available(client_entry.bssid_addr, client_entry.client_addr);
 }
 
 void kick_clients(uint8_t bssid[], uint32_t id) {
@@ -599,6 +602,64 @@ void insert_client_to_array(client entry) {
 
     pthread_mutex_unlock(&client_array_mutex);
 }
+
+void insert_macs_from_file()
+{
+    FILE * fp;
+    char * line = NULL;
+    size_t len = 0;
+    ssize_t read;
+
+    fp = fopen("/etc/config/dawn", "r");
+    if (fp == NULL)
+        exit(EXIT_FAILURE);
+
+    while ((read = getline(&line, &len, fp)) != -1) {
+        printf("Retrieved line of length %zu :\n", read);
+        printf("%s", line);
+
+        int tmp_int_mac[ETH_ALEN];
+        sscanf(line, MACSTR, STR2MAC(tmp_int_mac));
+
+        for (int i = 0; i < ETH_ALEN; ++i) {
+            mac_list[mac_list_entry_last][i] = (uint8_t) tmp_int_mac[i];
+        }
+    }
+
+    printf("Printing MAC List:\n");
+    for(int i = 0; i <= mac_list_entry_last; i++)
+    {
+        char mac_buf_target[20];
+        sprintf(mac_buf_target, MACSTR, MAC2STR(mac_list[0]));
+        printf("%d: %s\n", i, mac_buf_target);
+    }
+
+    fclose(fp);
+    if (line)
+        free(line);
+    exit(EXIT_SUCCESS);
+}
+
+int mac_in_maclist(uint8_t mac[])
+{
+    for(int i = 0; i <= mac_list_entry_last; i++)
+    {
+        if(mac_is_equal(mac, mac_list[i]))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+
+
+
+
+
+
+
+
 
 
 node *delete_probe_req(node **ret_remove, node *head, uint8_t bssid_addr[],
