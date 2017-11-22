@@ -136,6 +136,8 @@ int main(int argc, char **argv) {
 
     init_socket_runopts(opt_broadcast_ip, opt_broadcast_port, 1);
 
+    insert_macs_from_file();
+
     dawn_init_ubus(ubus_socket, opt_hostapd_dir);
 
     return 0;

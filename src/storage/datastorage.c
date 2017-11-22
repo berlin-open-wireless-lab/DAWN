@@ -610,7 +610,7 @@ void insert_macs_from_file()
     size_t len = 0;
     ssize_t read;
 
-    fp = fopen("/etc/config/dawn", "r");
+    fp = fopen("/etc/dawn/mac_list", "r");
     if (fp == NULL)
         exit(EXIT_FAILURE);
 
@@ -621,6 +621,7 @@ void insert_macs_from_file()
         int tmp_int_mac[ETH_ALEN];
         sscanf(line, MACSTR, STR2MAC(tmp_int_mac));
 
+        mac_list_entry_last++;
         for (int i = 0; i < ETH_ALEN; ++i) {
             mac_list[mac_list_entry_last][i] = (uint8_t) tmp_int_mac[i];
         }
@@ -630,7 +631,7 @@ void insert_macs_from_file()
     for(int i = 0; i <= mac_list_entry_last; i++)
     {
         char mac_buf_target[20];
-        sprintf(mac_buf_target, MACSTR, MAC2STR(mac_list[0]));
+        sprintf(mac_buf_target, MACSTR, MAC2STR(mac_list[i]));
         printf("%d: %s\n", i, mac_buf_target);
     }
 
