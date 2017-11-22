@@ -607,6 +607,7 @@ void update_clients(struct uloop_timeout *t) {
 }
 
 void update_hostapd_sockets(struct uloop_timeout *t) {
+    printf("Updating hostapd sockets!\n");
     subscribe_to_hostapd_interfaces(hostapd_dir_glob);
     uloop_timeout_set(&hostapd_timer, timeout_config.update_hostapd * 1000);
 }
