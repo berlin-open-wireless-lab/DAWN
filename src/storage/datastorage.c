@@ -638,8 +638,23 @@ void insert_macs_from_file()
     fclose(fp);
     if (line)
         free(line);
-    exit(EXIT_SUCCESS);
+    //exit(EXIT_SUCCESS);
 }
+
+int insert_to_maclist(uint8_t mac[])
+{
+    if(mac_in_maclist(mac))
+    {
+        return 0;
+    }
+
+    mac_list_entry_last++;
+    for (int i = 0; i < ETH_ALEN; ++i) {
+        mac_list[mac_list_entry_last][i] = mac[i];
+    }
+    return 0;
+}
+
 
 int mac_in_maclist(uint8_t mac[])
 {

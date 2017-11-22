@@ -23,6 +23,7 @@ uint8_t mac_list[MAC_LIST_LENGTH][ETH_ALEN];
 
 // ---------------- Functions ----------
 void insert_macs_from_file();
+int insert_to_maclist(uint8_t mac[]);
 
 
 /* Metric */

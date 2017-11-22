@@ -136,9 +136,15 @@ static int subscribe_to_hostapd_interfaces(char *hostapd_dir);
 
 static int ubus_get_clients();
 
+static int
+add_mac(struct ubus_context *ctx, struct ubus_object *obj,
+        struct ubus_request_data *req, const char *method,
+        struct blob_attr *msg);
+
 int hostapd_array_check_id(uint32_t id);
 void hostapd_array_insert(uint32_t id);
 void hostapd_array_delete(uint32_t id);
+static void ubus_add_oject();
 
 int hostapd_array_check_id(uint32_t id)
 {
@@ -700,11 +706,11 @@ static const struct blobmsg_policy add_del_policy[__ADD_DEL_MAC_MAX] = {
 };
 
 static const struct ubus_method dawn_methods[] = {
-        UBUS_METHOD("hello", test_hello, add_del_policy),
+        UBUS_METHOD("add_mac", add_mac, add_del_policy),
 };
 
 static struct ubus_object_type dawn_object_type =
-        UBUS_OBJECT_TYPE("test", dawn_methods);
+        UBUS_OBJECT_TYPE("dawn", dawn_methods);
 
 static struct ubus_object dawn_object = {
         .name = "dawn",
@@ -729,10 +735,13 @@ add_mac(struct ubus_context *ctx, struct ubus_object *obj,
     if (hwaddr_aton(blobmsg_data(tb[MAC_ADDR]), addr))
         return UBUS_STATUS_INVALID_ARGUMENT;
 
-    printf("ADDED SOME MAC!\n");
+    insert_to_maclist(addr);
+    write_mac_to_file("/etc/dawn/mac_list", addr);
+
+    return 0;
 }
 
-static void ubus_add_oject(void)
+static void ubus_add_oject()
 {
     int ret;
 
