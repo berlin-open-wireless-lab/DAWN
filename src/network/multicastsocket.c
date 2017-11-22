@@ -19,7 +19,7 @@ int setup_multicast_socket(const char *_multicast_ip, unsigned short _multicast_
 
     memset(addr, 0, sizeof(*addr));
     addr->sin_family = AF_INET;
-    addr->sin_addr.s_addr = htonl (INADDR_ANY);
+    addr->sin_addr.s_addr = inet_addr(_multicast_ip);   
     addr->sin_port = htons (_multicast_port);
 
     if ((sock = socket(PF_INET, SOCK_DGRAM, 0)) == -1) {

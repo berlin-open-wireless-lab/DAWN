@@ -135,7 +135,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    init_socket_runopts(opt_broadcast_ip, opt_broadcast_port, 1);
+    init_socket_runopts(opt_broadcast_ip, opt_broadcast_port, 0);
 
     dawn_init_ubus(ubus_socket, opt_hostapd_dir);
 
