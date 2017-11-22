@@ -473,6 +473,8 @@ int dawn_init_ubus(const char *ubus_socket, char *hostapd_dir) {
 
     //ubus_call_umdns();
 
+    ubus_add_oject();
+
     uloop_run();
 
     close_socket();
@@ -686,4 +688,60 @@ int ubus_send_probe_via_network(struct probe_entry_s probe_entry) {
     send_string_enc(str);
 
     return 0;
+}
+
+enum {
+    MAC_ADDR,
+    __ADD_DEL_MAC_MAX
+};
+
+static const struct blobmsg_policy add_del_policy[__ADD_DEL_MAC_MAX] = {
+        [MAC_ADDR] = { "addr", BLOBMSG_TYPE_STRING },
+};
+
+static const struct ubus_method dawn_methods[] = {
+        UBUS_METHOD("hello", test_hello, add_del_policy),
+};
+
+static struct ubus_object_type dawn_object_type =
+        UBUS_OBJECT_TYPE("test", dawn_methods);
+
+static struct ubus_object dawn_object = {
+        .name = "dawn",
+        .type = &dawn_object_type,
+        .methods = dawn_methods,
+        .n_methods = ARRAY_SIZE(dawn_methods),
+};
+
+static int
+add_mac(struct ubus_context *ctx, struct ubus_object *obj,
+                       struct ubus_request_data *req, const char *method,
+                       struct blob_attr *msg) {
+
+    struct blob_attr *tb[__ADD_DEL_MAC_MAX];
+    uint8_t addr[ETH_ALEN];
+
+    blobmsg_parse(add_del_policy, __ADD_DEL_MAC_MAX, tb, blob_data(msg), blob_len(msg));
+
+    if (!tb[MAC_ADDR])
+        return UBUS_STATUS_INVALID_ARGUMENT;
+
+    if (hwaddr_aton(blobmsg_data(tb[MAC_ADDR]), addr))
+        return UBUS_STATUS_INVALID_ARGUMENT;
+
+    printf("ADDED SOME MAC!\n");
+}
+
+static void ubus_add_oject(void)
+{
+    int ret;
+
+    ret = ubus_add_object(ctx, &dawn_object);
+    if (ret)
+        fprintf(stderr, "Failed to add object: %s\n", ubus_strerror(ret));
+
+    /*ret = ubus_register_subscriber(ctx, &test_event);
+    if (ret)
+        fprintf(stderr, "Failed to add watch handler: %s\n", ubus_strerror(ret));
+    */
 }
