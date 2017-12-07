@@ -28,6 +28,8 @@ start_service()
 	config_get sort_order ordering sort_order
 	config_get hostapd_dir hostapd hostapd_dir
 
+	config_get multicast network multicast
+
 	procd_open_instance
 	echo "$PROG -p $broadcast_port -i $broadcast_ip -o $sort_order"
 	procd_set_param command "$PROG"
@@ -37,6 +39,10 @@ start_service()
 	procd_append_param command -h "${hostapd_dir}"
     procd_append_param command -k "${shared_key}"
     procd_append_param command -v "${iv}"
+
+    if [ "${multicast}" -gt 0 ]; then
+         procd_append_param command -m
+    fi
 
 	procd_set_param stdout 1
 	procd_set_param stderr 1

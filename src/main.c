@@ -59,6 +59,7 @@ int main(int argc, char **argv) {
 
     char shared_key[BUFSIZE_DIR];
     char iv[BUFSIZE_DIR];
+    int multicast = 0;
 
     while ((ch = getopt(argc, argv, "cs:p:i:b:o:h:i:k:v:")) != -1) {
         switch (ch) {
@@ -90,6 +91,8 @@ int main(int argc, char **argv) {
                 snprintf(iv, BUFSIZE_DIR, "%s", optarg);
                 printf("IV: %s\n", iv);
                 break;
+            case 'm':
+                multicast = 1;
             default:
                 break;
         }
@@ -135,7 +138,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    init_socket_runopts(opt_broadcast_ip, opt_broadcast_port, 0);
+    init_socket_runopts(opt_broadcast_ip, opt_broadcast_port, multicast);
 
     dawn_init_ubus(ubus_socket, opt_hostapd_dir);
 
