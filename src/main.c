@@ -21,6 +21,7 @@ struct sigaction newSigAction;
 
 void daemon_shutdown() {
     // kill threads
+    close_socket();
     printf("Cancelling Threads!\n");
     uloop_cancelled = true;
 
