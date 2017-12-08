@@ -433,7 +433,7 @@ static int subscribe_to_hostapd(char *hostapd_dir) {
     hostapd_event.remove_cb = hostapd_handle_remove;
     hostapd_event.cb = hostapd_notify;
 
-    //subscribe_to_hostapd_interfaces(hostapd_dir);
+    subscribe_to_hostapd_interfaces(hostapd_dir);
 
 
     // free(hostapd_dir); // free string
