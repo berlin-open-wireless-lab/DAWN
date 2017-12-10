@@ -174,6 +174,7 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
             printf("Better AP available. Kicking client:\n");
             print_client_entry(client_array[j]);
             del_client_interface(id, client_array[j].client_addr, 5, 1, 60000);
+            client_array_delete(client_array[j]);
 
             // no entry in probe array for own bssid
         } else if (kick_client(client_array[j]) == -1) {
