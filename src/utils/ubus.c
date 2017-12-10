@@ -24,12 +24,11 @@ static struct blob_buf b;
 
 void update_clients(struct uloop_timeout *t);
 
-struct uloop_timeout hostapd_timer = {
-        .cb = update_hostapd_sockets
-};
-
 struct uloop_timeout client_timer = {
         .cb = update_clients
+};
+struct uloop_timeout hostapd_timer = {
+        .cb = update_hostapd_sockets
 };
 
 #define MAX_HOSTAPD_SOCKETS 10
@@ -139,6 +138,11 @@ static int ubus_get_clients();
 int hostapd_array_check_id(uint32_t id);
 void hostapd_array_insert(uint32_t id);
 void hostapd_array_delete(uint32_t id);
+
+void add_client_update_timer(time_t time)
+{
+    uloop_timeout_set(&client_timer, time);
+}
 
 int hostapd_array_check_id(uint32_t id)
 {

@@ -32,4 +32,6 @@ int ubus_send_probe_via_network(struct probe_entry_s probe_entry);
 
 void update_hostapd_sockets(struct uloop_timeout *t);
 
+void add_client_update_timer(time_t time);
+
 #endif
