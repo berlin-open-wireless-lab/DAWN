@@ -31,7 +31,6 @@ int get_bandwidth_iwinfo(__uint8_t *client_addr, float *rx_rate, float *tx_rate)
 
     int sucess = 0;
 
-    int count = 0;
     while ((entry = readdir(dirp)) != NULL) {
         if (entry->d_type == DT_SOCK) {
             if(get_bandwith(entry->d_name, client_addr, rx_rate, tx_rate))
