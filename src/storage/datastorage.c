@@ -190,7 +190,7 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
             }
             printf("Client is probably NOT in active transmisison. KICK! RxRate is: %f\n", rx_rate);
 
-            del_client_interface(id, client_array[j].client_addr, 5, 1, 60000);
+            del_client_interface(id, client_array[j].client_addr, 5, 1, 1000);
             client_array_delete(client_array[j]);
 
             // don't delete clients in a row. use update function again...
