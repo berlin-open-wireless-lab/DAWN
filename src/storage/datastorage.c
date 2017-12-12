@@ -175,6 +175,9 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
             print_client_entry(client_array[j]);
             del_client_interface(id, client_array[j].client_addr, 5, 1, 60000);
             client_array_delete(client_array[j]);
+
+            // don't delete clients in a row. use update function again...
+            // -> chan_util update, ...
             add_client_update_timer(timeout_config.update_client * 1000 / 4);
             break;
 
