@@ -30,6 +30,7 @@ struct probe_metric_s {
     int rssi_val;
     int low_rssi_val;
     int min_probe_count;
+    int bandwith_threshold;
 };
 
 struct time_config_s {

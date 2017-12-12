@@ -4,7 +4,7 @@
 #include <libubox/uloop.h>
 
 #include "ubus.h"
-#include "rssi.h"
+#include "dawn_iwinfo.h"
 #include "utils.h"
 
 #define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
@@ -174,6 +174,21 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
         if (kick_client(client_array[j]) > 0) {
             printf("Better AP available. Kicking client:\n");
             print_client_entry(client_array[j]);
+            printf("Check if client is active receiving!\n");
+
+            float rx_rate, tx_rate;
+            if(get_bandwidth_iwinfo(client_array[j].client_addr, &rx_rate, &tx_rate))
+            {
+                // only use rx_rate for indicating if transmission is going on
+                // <= 6MBits <- probably no transmission
+                // tx_rate has always some weird value so don't use ist
+                if(rx_rate > dawn_metric.bandwith_threshold){
+                    printf("Client is probably in active transmisison. Don't kick! RxRate is: %f\n", rx_rate);
+                    continue;
+                }
+            }
+            printf("Client is probably NOT in active transmisison. KICK! RxRate is: %f\n", rx_rate);
+
             del_client_interface(id, client_array[j].client_addr, 5, 1, 60000);
             client_array_delete(client_array[j]);
 
