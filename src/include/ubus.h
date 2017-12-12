@@ -18,6 +18,8 @@ int parse_to_assoc_req(struct blob_attr *msg, assoc_entry *assoc_req);
 
 int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id);
 
+int parse_to_hostapd_notify(struct blob_attr *msg, hostapd_notify_entry *notify_req);
+
 void del_client_interface(uint32_t id, const uint8_t *client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time);
 
 void del_client_all_interfaces(const uint8_t *client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time);

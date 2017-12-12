@@ -36,6 +36,17 @@ uint32_t hostapd_sock_arr[MAX_HOSTAPD_SOCKETS];
 int hostapd_sock_last = -1;
 
 enum {
+    HOSTAPD_NOTIFY_BSSID_ADDR,
+    HOSTAPD_NOTIFY_CLIENT_ADDR,
+    __HOSTAPD_NOTIFY_MAX,
+};
+
+static const struct blobmsg_policy hostapd_notify_policy[__HOSTAPD_NOTIFY_MAX] = {
+        [HOSTAPD_NOTIFY_BSSID_ADDR] = {.name = "bssid", .type = BLOBMSG_TYPE_STRING},
+        [HOSTAPD_NOTIFY_CLIENT_ADDR] = {.name = "address", .type = BLOBMSG_TYPE_STRING},
+};
+
+enum {
     AUTH_BSSID_ADDR,
     AUTH_CLIENT_ADDR,
     AUTH_TARGET_ADDR,
@@ -231,6 +242,20 @@ static void hostapd_handle_remove(struct ubus_context *ctx,
     hostapd_array_delete(id);
 }
 
+int parse_to_hostapd_notify(struct blob_attr *msg, hostapd_notify_entry *notify_req) {
+    struct blob_attr *tb[__HOSTAPD_NOTIFY_MAX];
+
+    blobmsg_parse(hostapd_notify_policy, __HOSTAPD_NOTIFY_MAX, tb, blob_data(msg), blob_len(msg));
+
+    if (hwaddr_aton(blobmsg_data(tb[HOSTAPD_NOTIFY_BSSID_ADDR]), notify_req->bssid_addr))
+        return UBUS_STATUS_INVALID_ARGUMENT;
+
+    if (hwaddr_aton(blobmsg_data(tb[HOSTAPD_NOTIFY_CLIENT_ADDR]), notify_req->client_addr))
+        return UBUS_STATUS_INVALID_ARGUMENT;
+
+    return 0;
+}
+
 int parse_to_auth_req(struct blob_attr *msg, auth_entry *auth_req) {
     struct blob_attr *tb[__AUTH_MAX];
 
@@ -357,7 +382,29 @@ static int handle_probe_req(struct blob_attr *msg) {
 }
 
 static int handle_deauth_req(struct blob_attr *msg) {
-    printf("RECEIVED DEAUTH REQUEST!\n");
+
+    hostapd_notify_entry notify_req;
+    parse_to_hostapd_notify(msg, &notify_req);
+
+    client client_entry;
+    memcpy(client_entry.bssid_addr, client_entry.bssid_addr, sizeof(uint8_t) * ETH_ALEN );
+    memcpy(client_entry.client_addr, client_entry.client_addr, sizeof(uint8_t) * ETH_ALEN );
+
+    pthread_mutex_lock(&client_array_mutex);
+    client_array_delete(client_entry);
+    pthread_mutex_unlock(&client_array_mutex);
+
+    blob_buf_init(&b, 0);
+    blobmsg_add_blob(&b, msg);
+    blobmsg_add_string(&b, "test", "test_attr");
+
+
+    char *str;
+    str = blobmsg_format_json(b.head, true);
+    send_string_enc(str);
+
+    printf("[WC] Hostapd-Probe: %s : %s\n", "deauth", str);
+
     return 0;
 }
 
