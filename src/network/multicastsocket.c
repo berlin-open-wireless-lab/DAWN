@@ -55,7 +55,6 @@ int setup_multicast_socket(const char *_multicast_ip, unsigned short _multicast_
 
     /* Join the broadcast group: */
     command.imr_multiaddr.s_addr = inet_addr(_multicast_ip);
-    command.imr_interface.s_addr = htonl (INADDR_ANY);
     if (command.imr_multiaddr.s_addr == -1) {
         perror("Wrong multicast address!\n");
         exit(EXIT_FAILURE);
