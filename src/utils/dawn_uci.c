@@ -184,6 +184,14 @@ struct probe_metric_s uci_get_dawn_metric() {
     if (ptr.o->type == UCI_TYPE_STRING)
         ret.low_rssi_val = atoi(ptr.o->v.string);
 
+    char tmp_bandwith_threshold[] = "dawn.metric.bandwith_threshold";
+    if (uci_lookup_ptr(c, &ptr, tmp_bandwith_threshold, 1) != UCI_OK) {
+        uci_perror(c, "uci_get_daw_metric Error");
+        return ret;
+    }
+    if (ptr.o->type == UCI_TYPE_STRING)
+        ret.bandwith_threshold = atoi(ptr.o->v.string);
+
     printf("Loaded metric: %d\n", ret.min_probe_count);
 
     uci_free_context(c);
