@@ -79,7 +79,8 @@ int eval_probe_metric(struct probe_entry_s probe_entry) {
     }
 
     score += (probe_entry.freq > 5000) ? dawn_metric.freq : 0;
-    score += (probe_entry.signal >= dawn_metric.min_rssi) ? dawn_metric.rssi : 0;
+    score += (probe_entry.signal >= dawn_metric.rssi_val) ? dawn_metric.rssi : 0;
+    score += (probe_entry.signal <= dawn_metric.low_rssi_val) ? dawn_metric.low_rssi : 0;
 
     printf("SCORE: %d\n", score);
     print_probe_entry(probe_entry);
