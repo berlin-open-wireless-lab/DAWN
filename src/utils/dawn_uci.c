@@ -142,13 +142,13 @@ struct probe_metric_s uci_get_dawn_metric() {
     if (ptr.o->type == UCI_TYPE_STRING)
         ret.chan_util = atoi(ptr.o->v.string);
 
-    char tmp_min_rssi[] = "dawn.metric.min_rssi";
-    if (uci_lookup_ptr(c, &ptr, tmp_min_rssi, 1) != UCI_OK) {
+    char tmp_rssi_val[] = "dawn.metric.rssi_val";
+    if (uci_lookup_ptr(c, &ptr, tmp_rssi_val, 1) != UCI_OK) {
         uci_perror(c, "uci_get_daw_metric Error");
         return ret;
     }
     if (ptr.o->type == UCI_TYPE_STRING)
-        ret.min_rssi = atoi(ptr.o->v.string);
+        ret.rssi_val = atoi(ptr.o->v.string);
 
     char tmp_max_chan_util[] = "dawn.metric.max_chan_util";
     if (uci_lookup_ptr(c, &ptr, tmp_max_chan_util, 1) != UCI_OK) {
@@ -167,6 +167,22 @@ struct probe_metric_s uci_get_dawn_metric() {
     }
     if (ptr.o->type == UCI_TYPE_STRING)
         ret.min_probe_count = atoi(ptr.o->v.string);
+
+    char tmp_low_rssi[] = "dawn.metric.low_rssi";
+    if (uci_lookup_ptr(c, &ptr, tmp_low_rssi, 1) != UCI_OK) {
+        uci_perror(c, "uci_get_daw_metric Error");
+        return ret;
+    }
+    if (ptr.o->type == UCI_TYPE_STRING)
+        ret.low_rssi = atoi(ptr.o->v.string);
+
+    char tmp_low_rssi_val[] = "dawn.metric.low_rssi_val";
+    if (uci_lookup_ptr(c, &ptr, tmp_low_rssi_val, 1) != UCI_OK) {
+        uci_perror(c, "uci_get_daw_metric Error");
+        return ret;
+    }
+    if (ptr.o->type == UCI_TYPE_STRING)
+        ret.low_rssi_val = atoi(ptr.o->v.string);
 
     printf("Loaded metric: %d\n", ret.min_probe_count);
 

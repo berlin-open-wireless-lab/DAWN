@@ -23,10 +23,12 @@ struct probe_metric_s {
     int no_ht_support;
     int no_vht_support;
     int rssi;
+    int low_rssi;
     int freq;
     int chan_util;
     int max_chan_util;
-    int min_rssi;
+    int rssi_val;
+    int low_rssi_val;
     int min_probe_count;
 };
 
