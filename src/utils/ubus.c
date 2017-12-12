@@ -356,10 +356,17 @@ static int handle_probe_req(struct blob_attr *msg) {
     return 0;
 }
 
+static int handle_deauth_req(struct blob_attr *msg) {
+    printf("RECEIVED DEAUTH REQUEST!\n");
+    return 0;
+}
+
 static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
                           struct ubus_request_data *req, const char *method,
                           struct blob_attr *msg) {
-    printf("METHOD new: %s\n", method);
+    char *str;
+    str = blobmsg_format_json(msg, true);
+    printf("METHOD new: %s : %s\n", method, str);
 
 
     // TODO: Only handle probe request and NOT assoc, ...
@@ -370,6 +377,8 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
         return handle_auth_req(msg);
     } else if (strncmp(method, "assoc", 5) == 0) {
         return handle_assoc_req(msg);
+    } else if (strncmp(method, "deauth", 6) == 0) {
+        return handle_deauth_req(msg);
     }
     return 0;
 }
