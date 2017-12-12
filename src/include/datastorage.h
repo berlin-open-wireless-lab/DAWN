@@ -29,6 +29,8 @@ struct probe_metric_s {
     int max_chan_util;
     int rssi_val;
     int low_rssi_val;
+    int chan_util_val;
+    int max_chan_util_val;
     int min_probe_count;
     int bandwith_threshold;
 };

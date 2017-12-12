@@ -158,6 +158,23 @@ struct probe_metric_s uci_get_dawn_metric() {
     if (ptr.o->type == UCI_TYPE_STRING)
         ret.max_chan_util = atoi(ptr.o->v.string);
 
+    char tmp_chan_util_val[] = "dawn.metric.chan_util_val";
+    if (uci_lookup_ptr(c, &ptr, tmp_chan_util_val, 1) != UCI_OK) {
+        uci_perror(c, "uci_get_daw_metric Error");
+        return ret;
+    }
+    if (ptr.o->type == UCI_TYPE_STRING)
+        ret.chan_util_val = atoi(ptr.o->v.string);
+
+
+    char tmp_max_chan_util_val[] = "dawn.metric.max_chan_util_val";
+    if (uci_lookup_ptr(c, &ptr, tmp_max_chan_util_val, 1) != UCI_OK) {
+        uci_perror(c, "uci_get_daw_metric Error");
+        return ret;
+    }
+    if (ptr.o->type == UCI_TYPE_STRING)
+        ret.max_chan_util_val = atoi(ptr.o->v.string);
+
 
     printf("Try to load min_probe_count\n");
     char tmp_min_probe_count[] = "dawn.metric.min_probe_count";

@@ -75,7 +75,8 @@ int eval_probe_metric(struct probe_entry_s probe_entry) {
         score += !probe_entry.ht_support && !ap_entry.ht ? dawn_metric.no_ht_support : 0;
         score += probe_entry.vht_support && ap_entry.vht ? dawn_metric.vht_support : 0;
         score += !probe_entry.vht_support && !ap_entry.vht ? dawn_metric.no_vht_support : 0;
-        score += ap_entry.channel_utilization <= dawn_metric.max_chan_util ? dawn_metric.chan_util : 0;
+        score += ap_entry.channel_utilization <= dawn_metric.chan_util_val ? dawn_metric.chan_util : 0;
+        score += ap_entry.channel_utilization > dawn_metric.max_chan_util_val ? dawn_metric.max_chan_util : 0;
     }
 
     score += (probe_entry.freq > 5000) ? dawn_metric.freq : 0;
@@ -189,7 +190,7 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
             }
             printf("Client is probably NOT in active transmisison. KICK! RxRate is: %f\n", rx_rate);
 
-            del_client_interface(id, client_array[j].client_addr, 5, 1, 60000);
+            del_client_interface(id, client_array[j].client_addr, 5, 1, 1000);
             client_array_delete(client_array[j]);
 
             // don't delete clients in a row. use update function again...
