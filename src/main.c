@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
     char iv[BUFSIZE_DIR];
     int multicast = 0;
 
-    while ((ch = getopt(argc, argv, "cs:p:i:b:o:h:i:k:v:")) != -1) {
+    while ((ch = getopt(argc, argv, "cs:p:i:b:o:h:i:k:v:m")) != -1) {
         switch (ch) {
             case 's':
                 ubus_socket = optarg;
@@ -94,6 +94,7 @@ int main(int argc, char **argv) {
                 break;
             case 'm':
                 multicast = 1;
+                break;
             default:
                 break;
         }
