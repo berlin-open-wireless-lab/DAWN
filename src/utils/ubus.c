@@ -374,12 +374,13 @@ static int handle_assoc_req(struct blob_attr *msg) {
 static int handle_probe_req(struct blob_attr *msg) {
     //printf("[WC] Parse Probe Request\n");
     probe_entry prob_req;
-    parse_to_probe_req(msg, &prob_req);
+    if(parse_to_probe_req(msg, &prob_req) == 0)
+    {
+        insert_to_array(prob_req, 1);
+        send_blob_attr_via_network(msg, "probe");
+    }
     //insert_to_list(prob_req, 1);
     //probe_entry tmp_probe =
-    insert_to_array(prob_req, 1);
-
-    send_blob_attr_via_network(msg, "probe");
 
     // send probe via network
     /*char *str;
@@ -525,7 +526,9 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
     char *str;
     str = blobmsg_format_json(msg, true);
     printf("METHOD new: %s : %s\n", method, str);
-    free(str);
+
+    //TODO CHECK IF FREE IS CORREECT!
+    //free(str);
 
 
     // TODO: Only handle probe request and NOT assoc, ...
