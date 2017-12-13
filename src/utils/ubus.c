@@ -377,6 +377,7 @@ static int handle_probe_req(struct blob_attr *msg) {
     if(parse_to_probe_req(msg, &prob_req) == 0)
     {
         insert_to_array(prob_req, 1);
+        print_probe_array();
         send_blob_attr_via_network(msg, "probe");
     }
     //insert_to_list(prob_req, 1);
@@ -469,7 +470,7 @@ int handle_network_msg(char* msg)
         probe_entry entry;
         if(parse_to_probe_req(data_buf.head, &entry) == 0)
         {
-            probe_array_insert(entry);
+            insert_to_array(entry, 0);
             print_probe_array();
         }
     } else if (strncmp(method, "clients", 5) == 0) {
