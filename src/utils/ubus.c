@@ -502,6 +502,7 @@ int handle_network_msg(char* msg)
 
 int send_blob_attr_via_network(struct blob_attr *msg, char* method)
 {
+    struct blob_buf b_send_network;
     char *data_str;
     char *str;
     printf("TO JSON\n");
@@ -509,15 +510,15 @@ int send_blob_attr_via_network(struct blob_attr *msg, char* method)
     printf("JSON FINISHED\n");
 
     printf("ADD STRINGS!\n");
-    blob_buf_init(&b, 0);
-    blobmsg_add_string(&b, "method", method);
-    blobmsg_add_string(&b, "data", data_str);
+    blob_buf_init(&b_send_network, 0);
+    blobmsg_add_string(&b_send_network, "method", method);
+    blobmsg_add_string(&b_send_network, "data", data_str);
     printf("ADD FINISHED!\n");
 
 
     //blobmsg_add_blob(&b, msg);
     printf("TO JSON AGAIN\n");
-    str = blobmsg_format_json(b.head, true);
+    str = blobmsg_format_json(b_send_network.head, true);
     printf("TO JSON AGAIN FINISHED\n");
     printf("SENDING\n");
     send_string_enc(str);
