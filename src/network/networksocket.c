@@ -146,7 +146,10 @@ void *receive_msg_enc(void *args) {
         char *base64_dec_str = malloc(Base64decode_len(recv_string));
         int base64_dec_length = Base64decode(base64_dec_str, recv_string);
 
+
         char *dec = gcrypt_decrypt_msg(base64_dec_str, base64_dec_length);
+
+        printf("NETRWORK RECEIVED: %s\n", dec);
 
         free(base64_dec_str);
         handle_network_msg(dec);
@@ -182,6 +185,10 @@ int send_string(char *msg) {
 
 int send_string_enc(char *msg) {
     pthread_mutex_lock(&send_mutex);
+
+    printf("Sending string: %s\n", msg);
+
+
     size_t msglen = strlen(msg);
 
     int length_enc;
