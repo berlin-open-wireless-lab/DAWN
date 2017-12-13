@@ -504,7 +504,7 @@ int send_blob_attr_via_network(struct blob_attr *msg, char* method)
 {
     if(!msg)
     {
-        return;
+        return -1;
     }
 
     struct blob_buf b_send_network;
