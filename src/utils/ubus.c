@@ -886,7 +886,7 @@ int ubus_send_probe_via_network(struct probe_entry_s probe_entry) {
     blobmsg_add_u8(&b, "ht_support", probe_entry.ht_support);
     blobmsg_add_u8(&b, "vht_support", probe_entry.vht_support);
 
-    send_blob_attr_via_network(b.head, "probe");
+    //send_blob_attr_via_network(b.head, "probe");
 
     return 0;
 }
