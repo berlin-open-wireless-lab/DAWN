@@ -134,8 +134,6 @@ void *receive_msg_enc(void *args) {
             continue;
         }
 
-        return 0;
-
         if (recv_string == NULL) {
             return 0;
         }
