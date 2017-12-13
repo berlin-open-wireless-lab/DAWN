@@ -491,7 +491,7 @@ int handle_network_msg(char* msg)
         //parse_to_clients(data_buf.head, 0, 0);
     } else if (strncmp(method, "deauth", 5) == 0) {
         printf("METHOD DEAUTH\n");
-        hostapd_notify_entry entry;
+        /*hostapd_notify_entry entry;
         parse_to_hostapd_notify(data_buf.head, &entry);
 
         client client_entry;
@@ -500,10 +500,10 @@ int handle_network_msg(char* msg)
 
         pthread_mutex_lock(&client_array_mutex);
         client_array_delete(client_entry);
-        pthread_mutex_unlock(&client_array_mutex);
+        pthread_mutex_unlock(&client_array_mutex);*/
     }
-    free(method);
-    free(data);
+    //free(method);
+    //free(data);
     printf("HANDLING FINISHED NETWORK MSG!\n");
     return 0;
 }
