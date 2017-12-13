@@ -375,7 +375,7 @@ static int handle_probe_req(struct blob_attr *msg) {
     //probe_entry tmp_probe =
     insert_to_array(prob_req, 1);
 
-    send_blob_attr_via_network(msg, "probe");
+    //send_blob_attr_via_network(msg, "probe");
 
     // send probe via network
     /*char *str;
