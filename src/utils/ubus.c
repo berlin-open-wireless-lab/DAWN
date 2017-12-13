@@ -502,6 +502,7 @@ int handle_network_msg(char* msg)
 
 int send_blob_attr_via_network(struct blob_attr *msg, char* method)
 {
+    return 0;
     struct blob_buf b_send_network;
     char *data_str;
     char *str;
