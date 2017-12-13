@@ -21,6 +21,8 @@ static struct ubus_context *ctx_clients; /* own ubus conext otherwise strange be
 
 static struct ubus_subscriber hostapd_event;
 static struct blob_buf b;
+static struct blob_buf b_send_network;
+
 
 
 
@@ -507,7 +509,6 @@ int send_blob_attr_via_network(struct blob_attr *msg, char* method)
         return -1;
     }
 
-    struct blob_buf b_send_network;
     char *data_str;
     char *str;
     printf("TO JSON\n");
