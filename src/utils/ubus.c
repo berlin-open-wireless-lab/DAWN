@@ -420,7 +420,7 @@ static int handle_deauth_req(struct blob_attr *msg) {
 
 int handle_network_msg(char* msg)
 {
-    printf("HANDLING NETWORK MSG: %s\n");
+    printf("HANDLING NETWORK MSG: %s\n", msg);
     struct blob_attr *tb[__NETWORK_MAX];
     char *method;
     char *data;
