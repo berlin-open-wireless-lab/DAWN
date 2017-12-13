@@ -375,7 +375,7 @@ static int handle_probe_req(struct blob_attr *msg) {
     //probe_entry tmp_probe =
     insert_to_array(prob_req, 1);
 
-    //send_blob_attr_via_network(msg, "probe");
+    send_blob_attr_via_network(msg, "probe");
 
     // send probe via network
     /*char *str;
@@ -502,11 +502,17 @@ int handle_network_msg(char* msg)
 
 int send_blob_attr_via_network(struct blob_attr *msg, char* method)
 {
+    if(!msg)
+    {
+        return;
+    }
+
     struct blob_buf b_send_network;
     char *data_str;
     char *str;
     printf("TO JSON\n");
     data_str = blobmsg_format_json(msg, true);
+    printf("DATA STRING: %s", data_str);
     printf("JSON FINISHED\n");
 
     printf("ADD STRINGS!\n");
