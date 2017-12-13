@@ -482,7 +482,7 @@ int handle_network_msg(char* msg)
 
     if (strncmp(method, "probe", 5) == 0) {
         printf("METHOD PROBE\n");
-        probe_entry entry;
+        //probe_entry entry;
         //parse_to_probe_req(data_buf.head, &entry);
         //probe_array_insert(entry);
     } else if (strncmp(method, "clients", 5) == 0) {
