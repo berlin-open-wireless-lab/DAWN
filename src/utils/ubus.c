@@ -420,45 +420,28 @@ static int handle_deauth_req(struct blob_attr *msg) {
 
 int handle_network_msg(char* msg)
 {
-    printf("HANDLING NETWORK MSG!\n");
+    printf("HANDLING NETWORK MSG: %s\n");
     struct blob_attr *tb[__NETWORK_MAX];
     char *method;
     char *data;
 
-    printf("TO JSON NETWORK MSG!\n");
     blob_buf_init(&network_buf, 0);
     blobmsg_add_json_from_string(&network_buf, msg);
 
-
-    printf("TO JSON AGAIN PARSING: %s\n",blobmsg_format_json(network_buf.head, true));
-
-    printf("PARSING NETWORK MSG!\n");
     blobmsg_parse(network_policy, __NETWORK_MAX, tb, blob_data(network_buf.head), blob_len(network_buf.head));
-    printf("PARSING FINISHED NETWORK MSG!\n");
-
-
 
     if(!tb[NETWORK_METHOD] ||!tb[NETWORK_DATA] )
     {
         return -1;
     }
-    printf("GET STRING NETWORK MSG!\n");
     //method = blobmsg_get_string(tb[NETWORK_METHOD]);
     //data = blobmsg_get_string(tb[NETWORK_DATA]);
 
     method = blobmsg_data(tb[NETWORK_METHOD]);
     data = blobmsg_data(tb[NETWORK_DATA]);
 
-    printf("METHOD! : %s\n", method);
-    printf("DATA: %s\n", data);
-
-
-
-    printf("GET STRING FINISHED NETWORK MSG!\n");
-
     blob_buf_init(&data_buf, 0);
     blobmsg_add_json_from_string(&data_buf, data);
-    printf("JSON PARSING AGAIN FINISHED NETWORK MSG!\n");
 
 
     printf("DO STRINGCOMPARE: %s : %s!\n", method, data);
@@ -483,14 +466,18 @@ int handle_network_msg(char* msg)
     if (strncmp(method, "probe", 5) == 0) {
         printf("METHOD PROBE\n");
         probe_entry entry;
-        parse_to_probe_req(data_buf.head, &entry);
-        probe_array_insert(entry);
+        if(parse_to_probe_req(data_buf.head, &entry) == 0)
+        {
+            probe_array_insert(entry);
+            print_probe_array();
+        }
     } else if (strncmp(method, "clients", 5) == 0) {
         printf("METHOD CLIENTS\n");
         printf("PARSING CLIENTS NETWORK MSG!\n");
         parse_to_clients(data_buf.head, 0, 0);
     } else if (strncmp(method, "deauth", 5) == 0) {
         printf("METHOD DEAUTH\n");
+        /*
         hostapd_notify_entry entry;
         parse_to_hostapd_notify(data_buf.head, &entry);
 
@@ -500,7 +487,7 @@ int handle_network_msg(char* msg)
 
         pthread_mutex_lock(&client_array_mutex);
         client_array_delete(client_entry);
-        pthread_mutex_unlock(&client_array_mutex);
+        pthread_mutex_unlock(&client_array_mutex);*/
     }
     //free(method);
     //free(data);
@@ -518,25 +505,15 @@ int send_blob_attr_via_network(struct blob_attr *msg, char* method)
 
     char *data_str;
     char *str;
-    printf("TO JSON\n");
     data_str = blobmsg_format_json(msg, true);
-    printf("DATA STRING: %s\n", data_str);
-    printf("JSON FINISHED\n");
-
-    printf("ADD STRINGS!\n");
     blob_buf_init(&b_send_network, 0);
     blobmsg_add_string(&b_send_network, "method", method);
     blobmsg_add_string(&b_send_network, "data", data_str);
-    printf("ADD FINISHED!\n");
 
 
     //blobmsg_add_blob(&b, msg);
-    printf("TO JSON AGAIN\n");
     str = blobmsg_format_json(b_send_network.head, true);
-    printf("TO JSON AGAIN FINISHED\n");
-    printf("SENDING\n");
     send_string_enc(str);
-    printf("SENDING FINISHED!\n");
     //free(str);
     //free(data_str);
     return 0;
@@ -797,13 +774,8 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     if (!msg)
         return;
 
-    printf("PARSE TO CLIENTS!\n");
     parse_to_clients(msg, 1, req->peer);
-
-    printf("SENDING CLIENTS VIA NETWORK\n");
     send_blob_attr_via_network(msg, "clients");
-    printf("SEND CLIENTS FINISHED!\n");
-
 
     print_client_array();
     print_ap_array();
