@@ -480,6 +480,8 @@ int handle_network_msg(char* msg)
         return -1;
     }
 
+    return -1;
+
     if (strncmp(method, "probe", 5) == 0) {
         printf("METHOD PROBE\n");
         probe_entry entry;
