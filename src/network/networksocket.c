@@ -152,7 +152,7 @@ void *receive_msg_enc(void *args) {
         printf("NETRWORK RECEIVED: %s\n", dec);
 
         free(base64_dec_str);
-        //handle_network_msg(dec);
+        handle_network_msg(dec);
         free(dec);
     }
 }

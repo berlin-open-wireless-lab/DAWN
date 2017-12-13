@@ -420,8 +420,6 @@ static int handle_deauth_req(struct blob_attr *msg) {
 
 int handle_network_msg(char* msg)
 {
-
-
     printf("HANDLING NETWORK MSG!\n");
     struct blob_attr *tb[__NETWORK_MAX];
     char *method;
@@ -430,6 +428,8 @@ int handle_network_msg(char* msg)
     printf("TO JSON NETWORK MSG!\n");
     blob_buf_init(&network_buf, 0);
     blobmsg_add_json_from_string(&network_buf, msg);
+
+    return -1;
 
     printf("TO JSON AGAIN PARSING: %s\n",blobmsg_format_json(network_buf.head, true));
 
