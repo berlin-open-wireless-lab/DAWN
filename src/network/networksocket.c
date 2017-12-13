@@ -149,7 +149,7 @@ void *receive_msg_enc(void *args) {
 
         char *dec = gcrypt_decrypt_msg(base64_dec_str, base64_dec_length);
 
-        printf("NETRWORK RECEIVED: %s\n", dec);
+        //printf("NETRWORK RECEIVED: %s\n", dec);
 
         free(base64_dec_str);
         handle_network_msg(dec);

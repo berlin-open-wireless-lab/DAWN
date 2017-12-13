@@ -447,27 +447,27 @@ int handle_network_msg(char* msg)
     blobmsg_add_json_from_string(&data_buf, data);
 
 
-    printf("DO STRINGCOMPARE: %s : %s!\n", method, data);
+    //printf("DO STRINGCOMPARE: %s : %s!\n", method, data);
     if(!data_buf.head)
     {
-        printf("NULL?!\n");
+        //printf("NULL?!\n");
         return -1;
     }
 
     if(blob_len(data_buf.head) <= 0)
     {
-        printf("NULL?!\n");
+        //printf("NULL?!\n");
         return -1;
     }
 
     if(strlen(method) < 5)
     {
-        printf("STRING IS LESS THAN 5!\n");
+        //printf("STRING IS LESS THAN 5!\n");
         return -1;
     }
 
     if (strncmp(method, "probe", 5) == 0) {
-        printf("METHOD PROBE\n");
+        //printf("METHOD PROBE\n");
         probe_entry entry;
         if(parse_to_probe_req(data_buf.head, &entry) == 0)
         {
@@ -475,8 +475,8 @@ int handle_network_msg(char* msg)
             print_probe_array();
         }
     } else if (strncmp(method, "clients", 5) == 0) {
-        printf("METHOD CLIENTS\n");
-        printf("PARSING CLIENTS NETWORK MSG!\n");
+        //printf("METHOD CLIENTS\n");
+        //printf("PARSING CLIENTS NETWORK MSG!\n");
         parse_to_clients(data_buf.head, 0, 0);
     } else if (strncmp(method, "deauth", 5) == 0) {
         printf("METHOD DEAUTH\n");
@@ -494,7 +494,7 @@ int handle_network_msg(char* msg)
     }
     //free(method);
     //free(data);
-    printf("HANDLING FINISHED NETWORK MSG!\n");
+    //printf("HANDLING FINISHED NETWORK MSG!\n");
     return 0;
 }
 
