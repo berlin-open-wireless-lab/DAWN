@@ -22,6 +22,8 @@ static struct ubus_context *ctx_clients; /* own ubus conext otherwise strange be
 static struct ubus_subscriber hostapd_event;
 static struct blob_buf b;
 
+
+
 void update_clients(struct uloop_timeout *t);
 
 struct uloop_timeout client_timer = {
@@ -416,6 +418,7 @@ int handle_network_msg(char* msg)
 {
     static struct blob_buf network_buf;
     static struct blob_buf data_buf;
+
     printf("HANDLING NETWORK MSG!\n");
     struct blob_attr *tb[__NETWORK_MAX];
     char *method;
