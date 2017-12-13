@@ -22,6 +22,8 @@ static struct ubus_context *ctx_clients; /* own ubus conext otherwise strange be
 static struct ubus_subscriber hostapd_event;
 static struct blob_buf b;
 static struct blob_buf b_send_network;
+static struct blob_buf network_buf;
+static struct blob_buf data_buf;
 
 
 
@@ -418,8 +420,7 @@ static int handle_deauth_req(struct blob_attr *msg) {
 
 int handle_network_msg(char* msg)
 {
-    static struct blob_buf network_buf;
-    static struct blob_buf data_buf;
+
 
     printf("HANDLING NETWORK MSG!\n");
     struct blob_attr *tb[__NETWORK_MAX];
