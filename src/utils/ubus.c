@@ -24,6 +24,7 @@ static struct blob_buf b;
 static struct blob_buf b_send_network;
 static struct blob_buf network_buf;
 static struct blob_buf data_buf;
+static struct blob_buf b_probe;
 
 
 
@@ -529,7 +530,7 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
     printf("METHOD new: %s : %s\n", method, str);
 
     //TODO CHECK IF FREE IS CORREECT!
-    //free(str);
+    free(str);
 
 
     // TODO: Only handle probe request and NOT assoc, ...
@@ -740,14 +741,11 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
 
     if(!blob_data(msg))
     {
-        printf("DATA IS NULL!!!\n");
         return -1;
     }
 
-    printf("BLOB LEN: %d\n", blob_len(msg));
     if(blob_len(msg) <= 0)
     {
-        printf("DATA IS NULL!!!\n");
         return -1;
     }
 
@@ -800,7 +798,6 @@ void update_clients(struct uloop_timeout *t) {
 }
 
 void update_hostapd_sockets(struct uloop_timeout *t) {
-    printf("Updating hostapd sockets!\n");
     subscribe_to_hostapd_interfaces(hostapd_dir_glob);
     uloop_timeout_set(&hostapd_timer, timeout_config.update_hostapd * 1000);
 }
@@ -865,18 +862,16 @@ int ubus_send_probe_via_network(struct probe_entry_s probe_entry) {
 
     printf("SENDING PROBE VIA NETWORK!\n");
 
-    static struct blob_buf b;
+    blob_buf_init(&b_probe, 0);
+    blobmsg_add_macaddr(&b_probe, "bssid", probe_entry.bssid_addr);
+    blobmsg_add_macaddr(&b_probe, "address", probe_entry.client_addr);
+    blobmsg_add_macaddr(&b_probe, "target", probe_entry.target_addr);
+    blobmsg_add_u32(&b_probe, "signal", probe_entry.signal);
+    blobmsg_add_u32(&b_probe, "freq", probe_entry.freq);
+    blobmsg_add_u8(&b_probe, "ht_support", probe_entry.ht_support);
+    blobmsg_add_u8(&b_probe, "vht_support", probe_entry.vht_support);
 
-    blob_buf_init(&b, 0);
-    blobmsg_add_macaddr(&b, "bssid", probe_entry.bssid_addr);
-    blobmsg_add_macaddr(&b, "address", probe_entry.client_addr);
-    blobmsg_add_macaddr(&b, "target", probe_entry.target_addr);
-    blobmsg_add_u32(&b, "signal", probe_entry.signal);
-    blobmsg_add_u32(&b, "freq", probe_entry.freq);
-    blobmsg_add_u8(&b, "ht_support", probe_entry.ht_support);
-    blobmsg_add_u8(&b, "vht_support", probe_entry.vht_support);
-
-    send_blob_attr_via_network(b.head, "probe");
+    send_blob_attr_via_network(b_probe.head, "probe");
 
     return 0;
 }
