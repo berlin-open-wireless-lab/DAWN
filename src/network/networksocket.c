@@ -186,7 +186,7 @@ int send_string(char *msg) {
 int send_string_enc(char *msg) {
     pthread_mutex_lock(&send_mutex);
 
-    printf("Sending string: %s\n", msg);
+    //printf("Sending string: %s\n", msg);
 
 
     size_t msglen = strlen(msg);
