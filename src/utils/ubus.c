@@ -423,6 +423,8 @@ int handle_network_msg(char* msg)
     blob_buf_init(&b, 0);
     blobmsg_add_json_from_string(&b, msg);
 
+    printf("TO JSON AGAIN PARSING: %s\n",blobmsg_format_json(b.head, true));
+
     printf("PARSING NETWORK MSG!\n");
     blobmsg_parse(network_policy, __NETWORK_MAX, tb, blob_data(b.head), blob_len(b.head));
     printf("PARSING FINISHED NETWORK MSG!\n");
