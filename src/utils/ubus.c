@@ -446,18 +446,19 @@ int handle_network_msg(char* msg)
 
     printf("GET STRING FINISHED NETWORK MSG!\n");
 
-    blob_buf_init(&b, 0);
-    blobmsg_add_json_from_string(&b, data);
+    static struct blob_buf data_buf;
+    blob_buf_init(&data_buf, 0);
+    blobmsg_add_json_from_string(&data_buf, data);
     printf("JSON PARSING AGAIN FINISHED NETWORK MSG!\n");
 
     printf("DO STRINGCOMPARE: %s : %s!\n", method, data);
-    if(!blob_len(b.head))
+    if(!blob_len(data_buf.head))
     {
         printf("NULL?!\n");
         return -1;
     }
 
-    if(blob_len(b.head) <= 0)
+    if(blob_len(data_buf.head) <= 0)
     {
         printf("NULL?!\n");
         return -1;
@@ -471,14 +472,14 @@ int handle_network_msg(char* msg)
 
     if (strncmp(method, "probe", 5) == 0) {
         probe_entry entry;
-        parse_to_probe_req(b.head, &entry);
+        parse_to_probe_req(data_buf.head, &entry);
         probe_array_insert(entry);
     } else if (strncmp(method, "clients", 5) == 0) {
         printf("PARSING CLIENTS NETWORK MSG!\n");
-        parse_to_clients(b.head, 0, 0);
+        parse_to_clients(data_buf.head, 0, 0);
     } else if (strncmp(method, "deauth", 5) == 0) {
         hostapd_notify_entry entry;
-        parse_to_hostapd_notify(b.head, &entry);
+        parse_to_hostapd_notify(data_buf.head, &entry);
 
         client client_entry;
         memcpy(client_entry.bssid_addr, client_entry.bssid_addr, sizeof(uint8_t) * ETH_ALEN );
