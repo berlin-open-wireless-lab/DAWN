@@ -83,7 +83,7 @@ int eval_probe_metric(struct probe_entry_s probe_entry) {
     score += (probe_entry.signal >= dawn_metric.rssi_val) ? dawn_metric.rssi : 0;
     score += (probe_entry.signal <= dawn_metric.low_rssi_val) ? dawn_metric.low_rssi : 0;
 
-    printf("SCORE: %d\n", score);
+    printf("SCORE: %d of:\n", score);
     print_probe_entry(probe_entry);
 
     return score;
@@ -481,9 +481,6 @@ ap ap_array_get_ap(uint8_t bssid_addr[]) {
 
     char bssid_mac_string[20];
     sprintf(bssid_mac_string, MACSTR, MAC2STR(bssid_addr));
-    printf("Try to find: %s\n", bssid_mac_string);
-    printf("in\n");
-    print_ap_array();
 
     if (ap_entry_last == -1) {
         return ret;
