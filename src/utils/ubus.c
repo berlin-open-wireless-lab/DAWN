@@ -882,6 +882,7 @@ int ubus_call_umdns() {
 int ubus_send_probe_via_network(struct probe_entry_s probe_entry) {
 
     printf("SENDING PROBE VIA NETWORK!\n");
+    return 0;
 
     static struct blob_buf b;
 
