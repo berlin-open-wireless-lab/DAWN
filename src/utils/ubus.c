@@ -432,8 +432,13 @@ int handle_network_msg(char* msg)
         return -1;
     }
     printf("GET STRING NETWORK MSG!\n");
-    method = blobmsg_get_string(tb[NETWORK_METHOD]);
-    data = blobmsg_get_string(tb[NETWORK_DATA]);
+    //method = blobmsg_get_string(tb[NETWORK_METHOD]);
+    //data = blobmsg_get_string(tb[NETWORK_DATA]);
+
+    method = blobmsg_data(tb[NETWORK_METHOD]);
+    data = blobmsg_data(tb[NETWORK_DATA]);
+
+
     printf("GET STRING FINISHED NETWORK MSG!\n");
 
     blob_buf_init(&b, 0);
