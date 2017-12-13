@@ -414,19 +414,21 @@ static int handle_deauth_req(struct blob_attr *msg) {
 
 int handle_network_msg(char* msg)
 {
+    static struct blob_buf network_buf;
+    static struct blob_buf data_buf;
     printf("HANDLING NETWORK MSG!\n");
     struct blob_attr *tb[__NETWORK_MAX];
     char *method;
     char *data;
 
     printf("TO JSON NETWORK MSG!\n");
-    blob_buf_init(&b, 0);
-    blobmsg_add_json_from_string(&b, msg);
+    blob_buf_init(&network_buf, 0);
+    blobmsg_add_json_from_string(&network_buf, msg);
 
-    printf("TO JSON AGAIN PARSING: %s\n",blobmsg_format_json(b.head, true));
+    printf("TO JSON AGAIN PARSING: %s\n",blobmsg_format_json(network_buf.head, true));
 
     printf("PARSING NETWORK MSG!\n");
-    blobmsg_parse(network_policy, __NETWORK_MAX, tb, blob_data(b.head), blob_len(b.head));
+    blobmsg_parse(network_policy, __NETWORK_MAX, tb, blob_data(network_buf.head), blob_len(network_buf.head));
     printf("PARSING FINISHED NETWORK MSG!\n");
 
     if(!tb[NETWORK_METHOD] ||!tb[NETWORK_DATA] )
@@ -446,7 +448,6 @@ int handle_network_msg(char* msg)
 
     printf("GET STRING FINISHED NETWORK MSG!\n");
 
-    static struct blob_buf data_buf;
     blob_buf_init(&data_buf, 0);
     blobmsg_add_json_from_string(&data_buf, data);
     printf("JSON PARSING AGAIN FINISHED NETWORK MSG!\n");
