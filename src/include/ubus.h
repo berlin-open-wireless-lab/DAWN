@@ -36,4 +36,8 @@ void update_hostapd_sockets(struct uloop_timeout *t);
 
 void add_client_update_timer(time_t time);
 
+int handle_network_msg(char* msg);
+
+int send_blob_attr_via_network(struct blob_attr *msg, char* method);
+
 #endif
