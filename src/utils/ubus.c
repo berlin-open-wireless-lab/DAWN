@@ -379,7 +379,7 @@ static int handle_probe_req(struct blob_attr *msg) {
     //probe_entry tmp_probe =
     insert_to_array(prob_req, 1);
 
-    //send_blob_attr_via_network(msg, "probe");
+    send_blob_attr_via_network(msg, "probe");
 
     // send probe via network
     /*char *str;
@@ -888,7 +888,6 @@ int ubus_call_umdns() {
 int ubus_send_probe_via_network(struct probe_entry_s probe_entry) {
 
     printf("SENDING PROBE VIA NETWORK!\n");
-    return 0;
 
     static struct blob_buf b;
 
