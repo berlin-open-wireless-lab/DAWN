@@ -379,7 +379,7 @@ static int handle_probe_req(struct blob_attr *msg) {
     //probe_entry tmp_probe =
     insert_to_array(prob_req, 1);
 
-    send_blob_attr_via_network(msg, "probe");
+    //send_blob_attr_via_network(msg, "probe");
 
     // send probe via network
     /*char *str;
@@ -795,7 +795,7 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     parse_to_clients(msg, 1, req->peer);
 
     printf("SENDING CLIENTS VIA NETWORK\n");
-    //send_blob_attr_via_network(msg, "clients");
+    send_blob_attr_via_network(msg, "clients");
     printf("SEND CLIENTS FINISHED!\n");
 
 
