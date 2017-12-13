@@ -429,13 +429,14 @@ int handle_network_msg(char* msg)
     blob_buf_init(&network_buf, 0);
     blobmsg_add_json_from_string(&network_buf, msg);
 
-    return -1;
-
     printf("TO JSON AGAIN PARSING: %s\n",blobmsg_format_json(network_buf.head, true));
 
     printf("PARSING NETWORK MSG!\n");
     blobmsg_parse(network_policy, __NETWORK_MAX, tb, blob_data(network_buf.head), blob_len(network_buf.head));
     printf("PARSING FINISHED NETWORK MSG!\n");
+
+    return -1;
+
 
     if(!tb[NETWORK_METHOD] ||!tb[NETWORK_DATA] )
     {
