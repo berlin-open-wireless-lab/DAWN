@@ -441,6 +441,7 @@ int handle_network_msg(char* msg)
     data = blobmsg_data(tb[NETWORK_DATA]);
 
     printf("METHOD! : %s\n", method);
+    printf("DATA: %s\n", data);
 
 
     printf("GET STRING FINISHED NETWORK MSG!\n");
