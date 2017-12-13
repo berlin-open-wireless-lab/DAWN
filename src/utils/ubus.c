@@ -512,7 +512,7 @@ int send_blob_attr_via_network(struct blob_attr *msg, char* method)
     char *str;
     printf("TO JSON\n");
     data_str = blobmsg_format_json(msg, true);
-    printf("DATA STRING: %s", data_str);
+    printf("DATA STRING: %s\n", data_str);
     printf("JSON FINISHED\n");
 
     printf("ADD STRINGS!\n");
@@ -529,8 +529,8 @@ int send_blob_attr_via_network(struct blob_attr *msg, char* method)
     printf("SENDING\n");
     send_string_enc(str);
     printf("SENDING FINISHED!\n");
-    free(str);
-    free(data_str);
+    //free(str);
+    //free(data_str);
     return 0;
 }
 
