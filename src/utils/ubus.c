@@ -527,7 +527,7 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
                           struct blob_attr *msg) {
     char *str;
     str = blobmsg_format_json(msg, true);
-    //printf("METHOD new: %s : %s\n", method, str);
+    printf("METHOD new: %s : %s\n", method, str);
 
     //TODO CHECK IF FREE IS CORREECT!
     free(str);
