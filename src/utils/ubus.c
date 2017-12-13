@@ -452,7 +452,6 @@ int handle_network_msg(char* msg)
     printf("METHOD! : %s\n", method);
     printf("DATA: %s\n", data);
 
-    return -1;
 
 
     printf("GET STRING FINISHED NETWORK MSG!\n");
@@ -460,6 +459,9 @@ int handle_network_msg(char* msg)
     blob_buf_init(&data_buf, 0);
     blobmsg_add_json_from_string(&data_buf, data);
     printf("JSON PARSING AGAIN FINISHED NETWORK MSG!\n");
+
+    return -1;
+
 
     printf("DO STRINGCOMPARE: %s : %s!\n", method, data);
     if(!blob_len(data_buf.head))
