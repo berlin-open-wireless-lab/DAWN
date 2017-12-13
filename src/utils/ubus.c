@@ -345,7 +345,7 @@ static int handle_probe_req(struct blob_attr *msg) {
 
     printf("[WC] Hostapd-Probe: %s : %s\n", "probe", str);
 
-    //print_probe_array();
+    print_probe_array();
     /*
     // deny access
     if (!decide_function(&tmp_probe)) {
