@@ -483,15 +483,15 @@ int handle_network_msg(char* msg)
     if (strncmp(method, "probe", 5) == 0) {
         printf("METHOD PROBE\n");
         probe_entry entry;
-        parse_to_probe_req(data_buf.head, &entry);
-        probe_array_insert(entry);
+        //parse_to_probe_req(data_buf.head, &entry);
+        //probe_array_insert(entry);
     } else if (strncmp(method, "clients", 5) == 0) {
         printf("METHOD CLIENTS\n");
         printf("PARSING CLIENTS NETWORK MSG!\n");
-        parse_to_clients(data_buf.head, 0, 0);
+        //parse_to_clients(data_buf.head, 0, 0);
     } else if (strncmp(method, "deauth", 5) == 0) {
         printf("METHOD DEAUTH\n");
-        /*hostapd_notify_entry entry;
+        hostapd_notify_entry entry;
         parse_to_hostapd_notify(data_buf.head, &entry);
 
         client client_entry;
@@ -500,7 +500,7 @@ int handle_network_msg(char* msg)
 
         pthread_mutex_lock(&client_array_mutex);
         client_array_delete(client_entry);
-        pthread_mutex_unlock(&client_array_mutex);*/
+        pthread_mutex_unlock(&client_array_mutex);
     }
     free(method);
     free(data);
