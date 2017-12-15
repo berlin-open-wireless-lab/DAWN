@@ -80,6 +80,7 @@ enum {
     CLIENT_TABLE_HT,
     CLIENT_TABLE_VHT,
     CLIENT_TABLE_CHAN_UTIL,
+    CLIENT_TABLE_NUM_STA,
     __CLIENT_TABLE_MAX,
 };
 
@@ -90,6 +91,7 @@ static const struct blobmsg_policy client_table_policy[__CLIENT_TABLE_MAX] = {
         [CLIENT_TABLE_HT] = {.name = "ht_supported", .type = BLOBMSG_TYPE_INT8},
         [CLIENT_TABLE_VHT] = {.name = "vht_supported", .type = BLOBMSG_TYPE_INT8},
         [CLIENT_TABLE_CHAN_UTIL] = {.name = "channel_utilization", .type = BLOBMSG_TYPE_INT32},
+        [CLIENT_TABLE_NUM_STA] = {.name = "num_sta", .type = BLOBMSG_TYPE_INT32},
 };
 
 enum {
@@ -215,7 +217,7 @@ static int decide_function(probe_entry *prob_req) {
         return 0;
     }
 
-    if(better_ap_available(prob_req->bssid_addr, prob_req->client_addr))
+    if(better_ap_available(prob_req->bssid_addr, prob_req->client_addr, 0))
     {
         return 0;
     }
@@ -345,7 +347,7 @@ static int handle_probe_req(struct blob_attr *msg) {
 
     printf("[WC] Hostapd-Probe: %s : %s\n", "probe", str);
 
-    print_probe_array();
+    //print_probe_array();
     /*
     // deny access
     if (!decide_function(&tmp_probe)) {
@@ -574,6 +576,15 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
         ap_entry.ht = blobmsg_get_u8(tb[CLIENT_TABLE_HT]);
         ap_entry.vht = blobmsg_get_u8(tb[CLIENT_TABLE_VHT]);
         ap_entry.channel_utilization = blobmsg_get_u32(tb[CLIENT_TABLE_CHAN_UTIL]);
+
+        if(tb[CLIENT_TABLE_NUM_STA])
+        {
+            ap_entry.station_count = blobmsg_get_u32(tb[CLIENT_TABLE_NUM_STA]);
+        } else
+        {
+            ap_entry.station_count = 0;
+        }
+
         insert_to_ap_array(ap_entry);
 
         if (do_kick) {

@@ -128,6 +128,7 @@ typedef struct ap_s {
     uint8_t vht;
     uint32_t channel_utilization;
     time_t time;
+    uint32_t station_count;
 } ap;
 
 // ---------------- Defines ----------------
@@ -177,7 +178,7 @@ int mac_is_equal(uint8_t addr1[], uint8_t addr2[]);
 
 int mac_is_greater(uint8_t addr1[], uint8_t addr2[]);
 
-int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[]);
+int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], int automatic_kick);
 
 
 /* List stuff */
