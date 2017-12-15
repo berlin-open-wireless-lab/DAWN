@@ -33,6 +33,7 @@ struct probe_metric_s {
     int max_chan_util_val;
     int min_probe_count;
     int bandwith_threshold;
+    int use_station_count;
 };
 
 struct time_config_s {

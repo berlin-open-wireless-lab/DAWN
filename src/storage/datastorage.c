@@ -154,7 +154,7 @@ int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], int automat
         {
             return 1;
         }
-        if (!mac_is_equal(bssid_addr, probe_array[k].bssid_addr) &&
+        if ( dawn_metric.use_station_count && !mac_is_equal(bssid_addr, probe_array[k].bssid_addr) &&
                 own_score == eval_probe_metric(probe_array[k]))
         {
             // if ap have same value but station count is different...
