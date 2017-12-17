@@ -599,10 +599,11 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     if (!msg)
         return;
 
-    parse_to_clients(msg, 1, req->peer);
-
     char *str = blobmsg_format_json(msg, true);
     send_string_enc(str);
+
+    parse_to_clients(msg, 1, req->peer);
+
     print_client_array();
     print_ap_array();
 }
