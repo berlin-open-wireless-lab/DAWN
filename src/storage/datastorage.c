@@ -41,6 +41,8 @@ int probe_array_update_rssi(uint8_t bssid_addr[], uint8_t client_addr[], uint32_
 
 int is_connected(uint8_t bssid_addr[], uint8_t client_addr[]);
 
+int compare_station_count(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compare, int automatic_kick);
+
 int probe_entry_last = -1;
 int client_entry_last = -1;
 int ap_entry_last = -1;
@@ -89,7 +91,28 @@ int eval_probe_metric(struct probe_entry_s probe_entry) {
     return score;
 }
 
-int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[]) {
+int compare_station_count(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compare, int automatic_kick) {
+
+    ap ap_entry_own = ap_array_get_ap(bssid_addr_own);
+    ap ap_entry_to_compre = ap_array_get_ap(bssid_addr_to_compare);
+
+    // check if ap entry is available
+    if (mac_is_equal(ap_entry_own.bssid_addr, bssid_addr_own)
+            && mac_is_equal(ap_entry_to_compre.bssid_addr, bssid_addr_to_compare)
+            ) {
+        printf("Comparing own %d to %d\n", ap_entry_own.station_count, ap_entry_to_compre.station_count);
+        if(automatic_kick){
+            return (ap_entry_own.station_count - 1) > ap_entry_to_compre.station_count;
+        } else {
+            return ap_entry_own.station_count > ap_entry_to_compre.station_count;
+        }
+    }
+
+    return 0;
+}
+
+
+int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], int automatic_kick) {
     int own_score = -1;
 
     // find first client entry in probe array
@@ -131,12 +154,18 @@ int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[]) {
         {
             return 1;
         }
+        if ( dawn_metric.use_station_count && !mac_is_equal(bssid_addr, probe_array[k].bssid_addr) &&
+                own_score == eval_probe_metric(probe_array[k]))
+        {
+            // if ap have same value but station count is different...
+            return compare_station_count(bssid_addr, probe_array[k].bssid_addr, automatic_kick);
+        }
     }
     return 0;
 }
 
 int kick_client(struct client_s client_entry) {
-    return better_ap_available(client_entry.bssid_addr, client_entry.client_addr);
+    return better_ap_available(client_entry.bssid_addr, client_entry.client_addr, 1);
 }
 
 void kick_clients(uint8_t bssid[], uint32_t id) {

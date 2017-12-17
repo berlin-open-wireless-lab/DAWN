@@ -209,6 +209,14 @@ struct probe_metric_s uci_get_dawn_metric() {
     if (ptr.o->type == UCI_TYPE_STRING)
         ret.bandwith_threshold = atoi(ptr.o->v.string);
 
+    char tmp_use_station_count[] = "dawn.metric.use_station_count";
+    if (uci_lookup_ptr(c, &ptr, tmp_use_station_count, 1) != UCI_OK) {
+        uci_perror(c, "uci_get_daw_metric Error");
+        return ret;
+    }
+    if (ptr.o->type == UCI_TYPE_STRING)
+        ret.use_station_count = atoi(ptr.o->v.string);
+
     printf("Loaded metric: %d\n", ret.min_probe_count);
 
     uci_free_context(c);
