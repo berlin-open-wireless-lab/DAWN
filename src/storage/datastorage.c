@@ -508,11 +508,11 @@ ap insert_to_ap_array(ap entry) {
 ap ap_array_get_ap(uint8_t bssid_addr[]) {
     ap ret;
 
-    char bssid_mac_string[20];
-    sprintf(bssid_mac_string, MACSTR, MAC2STR(bssid_addr));
-    printf("Try to find: %s\n", bssid_mac_string);
-    printf("in\n");
-    print_ap_array();
+    //char bssid_mac_string[20];
+    //sprintf(bssid_mac_string, MACSTR, MAC2STR(bssid_addr));
+    //printf("Try to find: %s\n", bssid_mac_string);
+    //printf("in\n");
+    //print_ap_array();
 
     if (ap_entry_last == -1) {
         return ret;
