@@ -217,6 +217,14 @@ struct probe_metric_s uci_get_dawn_metric() {
     if (ptr.o->type == UCI_TYPE_STRING)
         ret.use_station_count = atoi(ptr.o->v.string);
 
+    char tmp_eval_probe_req[] = "dawn.metric.eval_probe_req";
+    if (uci_lookup_ptr(c, &ptr, tmp_eval_probe_req, 1) != UCI_OK) {
+        uci_perror(c, "uci_get_daw_metric Error");
+        return ret;
+    }
+    if (ptr.o->type == UCI_TYPE_STRING)
+        ret.eval_probe_req = atoi(ptr.o->v.string);
+
     printf("Loaded metric: %d\n", ret.min_probe_count);
 
     uci_free_context(c);

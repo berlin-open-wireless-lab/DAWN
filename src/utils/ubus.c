@@ -350,6 +350,12 @@ static int handle_probe_req(struct blob_attr *msg) {
     //print_probe_array();
 
     // deny access
+
+    if(!dawn_metric.eval_probe_req)
+    {
+        return 0;
+    }
+
     if (!decide_function(&tmp_prob_req)) {
         //printf("MAC WILL BE DECLINED!!!\n");
         return UBUS_STATUS_UNKNOWN_ERROR;
