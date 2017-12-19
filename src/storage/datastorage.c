@@ -171,6 +171,10 @@ int kick_client(struct client_s client_entry) {
 void kick_clients(uint8_t bssid[], uint32_t id) {
     pthread_mutex_lock(&client_array_mutex);
     pthread_mutex_lock(&probe_array_mutex);
+    printf("-------- KICKING CLIENS!!!---------\n");
+    char mac_buf_ap[20];
+    sprintf(mac_buf_ap, MACSTR, MAC2STR(bssid));
+    printf("EVAL %s\n", mac_buf_ap);
 
     // Seach for BSSID
     int i;
@@ -239,6 +243,8 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
             print_client_entry(client_array[j]);
         }
     }
+
+    printf("---------------------------\n");
 
     pthread_mutex_unlock(&probe_array_mutex);
     pthread_mutex_unlock(&client_array_mutex);

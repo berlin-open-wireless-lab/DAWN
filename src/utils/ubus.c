@@ -619,6 +619,7 @@ static int ubus_get_clients() {
 
 void update_clients(struct uloop_timeout *t) {
     ubus_get_clients();
+    // maybe to much?! don't set timer again...
     uloop_timeout_set(&client_timer, timeout_config.update_client * 1000);
 }
 
