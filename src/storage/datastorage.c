@@ -133,6 +133,7 @@ int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], int automat
             break;
         }
         if (mac_is_equal(bssid_addr, probe_array[j].bssid_addr)) {
+            printf("Calculating own score!\n");
             own_score = eval_probe_metric(probe_array[j]);
             break;
         }
@@ -145,17 +146,28 @@ int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], int automat
 
     int k;
     for (k = i; k <= probe_entry_last; k++) {
-        if (!mac_is_equal(probe_array[k].client_addr, client_addr)) {
+        int score_to_compare;
+
+        if (!mac_is_equal(probe_array[k].client_addr, client_addr))
+        {
             break;
         }
-        if (!mac_is_equal(bssid_addr, probe_array[k].bssid_addr) &&
-            own_score <
-            eval_probe_metric(probe_array[k])) // that's wrong! find client_entry OR write things in probe array struct!
+
+        if(mac_is_equal(bssid_addr, probe_array[k].bssid_addr))
+        {
+            printf("Own Score! Skipping!\n");
+            print_probe_entry(probe_array[k]);
+            continue;
+        }
+        
+        printf("Calculating score to compare!\n");
+        score_to_compare = eval_probe_metric(probe_array[k]);
+
+        if(own_score < score_to_compare)
         {
             return 1;
         }
-        if ( dawn_metric.use_station_count && !mac_is_equal(bssid_addr, probe_array[k].bssid_addr) &&
-                own_score == eval_probe_metric(probe_array[k]))
+        if (dawn_metric.use_station_count && own_score == score_to_compare)
         {
             // if ap have same value but station count is different...
             return compare_station_count(bssid_addr, probe_array[k].bssid_addr, automatic_kick);
@@ -204,8 +216,10 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
 
         }
 
+        int do_kick = kick_client(client_array[j]);
+
         // better ap available
-        if (kick_client(client_array[j]) > 0) {
+        if (do_kick > 0) {
             printf("Better AP available. Kicking client:\n");
             print_client_entry(client_array[j]);
             printf("Check if client is active receiving!\n");
@@ -232,7 +246,7 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
             break;
 
             // no entry in probe array for own bssid
-        } else if (kick_client(client_array[j]) == -1) {
+        } else if (do_kick == -1) {
             printf("No Information about client. Force reconnect:\n");
             print_client_entry(client_array[j]);
             del_client_interface(id, client_array[j].client_addr, 0, 0, 0);
