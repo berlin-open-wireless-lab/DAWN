@@ -85,8 +85,8 @@ int eval_probe_metric(struct probe_entry_s probe_entry) {
     score += (probe_entry.signal >= dawn_metric.rssi_val) ? dawn_metric.rssi : 0;
     score += (probe_entry.signal <= dawn_metric.low_rssi_val) ? dawn_metric.low_rssi : 0;
 
-    printf("SCORE: %d\n", score);
-    print_probe_entry(probe_entry);
+    //printf("SCORE: %d\n", score);
+    //print_probe_entry(probe_entry);
 
     return score;
 }
@@ -100,7 +100,7 @@ int compare_station_count(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compar
     if (mac_is_equal(ap_entry_own.bssid_addr, bssid_addr_own)
             && mac_is_equal(ap_entry_to_compre.bssid_addr, bssid_addr_to_compare)
             ) {
-        printf("Comparing own %d to %d\n", ap_entry_own.station_count, ap_entry_to_compre.station_count);
+        //printf("Comparing own %d to %d\n", ap_entry_own.station_count, ap_entry_to_compre.station_count);
         if(automatic_kick){
             return (ap_entry_own.station_count - 1) > ap_entry_to_compre.station_count;
         } else {
