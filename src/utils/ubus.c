@@ -337,7 +337,7 @@ static int handle_probe_req(struct blob_attr *msg) {
     parse_to_probe_req(msg, &prob_req);
     //insert_to_list(prob_req, 1);
     //probe_entry tmp_probe =
-    insert_to_array(prob_req, 1);
+    probe_entry tmp_prob_req = insert_to_array(prob_req, 1);
 
 
     // send probe via network
@@ -348,12 +348,18 @@ static int handle_probe_req(struct blob_attr *msg) {
     printf("[WC] Hostapd-Probe: %s : %s\n", "probe", str);
 
     //print_probe_array();
-    /*
+
     // deny access
-    if (!decide_function(&tmp_probe)) {
+
+    if(!dawn_metric.eval_probe_req)
+    {
+        return 0;
+    }
+
+    if (!decide_function(&tmp_prob_req)) {
         //printf("MAC WILL BE DECLINED!!!\n");
         return UBUS_STATUS_UNKNOWN_ERROR;
-    }*/
+    }
     //printf("MAC WILL BE ACCEPDTED!!!\n");
     return 0;
 }
