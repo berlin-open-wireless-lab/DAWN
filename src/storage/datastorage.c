@@ -170,7 +170,10 @@ int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], int automat
         if (dawn_metric.use_station_count && own_score == score_to_compare)
         {
             // if ap have same value but station count is different...
-            return compare_station_count(bssid_addr, probe_array[k].bssid_addr, automatic_kick);
+            if(compare_station_count(bssid_addr, probe_array[k].bssid_addr, automatic_kick))
+            {
+                return 1;
+            }
         }
     }
     return 0;
