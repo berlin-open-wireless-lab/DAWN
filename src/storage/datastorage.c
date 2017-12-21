@@ -98,10 +98,10 @@ int compare_station_count(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compar
 
     // check if ap entry is available
     if (mac_is_equal(ap_entry_own.bssid_addr, bssid_addr_own)
-            && mac_is_equal(ap_entry_to_compre.bssid_addr, bssid_addr_to_compare)
+        && mac_is_equal(ap_entry_to_compre.bssid_addr, bssid_addr_to_compare)
             ) {
         printf("Comparing own %d to %d\n", ap_entry_own.station_count, ap_entry_to_compre.station_count);
-        if(automatic_kick){
+        if (automatic_kick) {
             return (ap_entry_own.station_count - 1) > ap_entry_to_compre.station_count;
         } else {
             return ap_entry_own.station_count > ap_entry_to_compre.station_count;
@@ -148,30 +148,25 @@ int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], int automat
     for (k = i; k <= probe_entry_last; k++) {
         int score_to_compare;
 
-        if (!mac_is_equal(probe_array[k].client_addr, client_addr))
-        {
+        if (!mac_is_equal(probe_array[k].client_addr, client_addr)) {
             break;
         }
 
-        if(mac_is_equal(bssid_addr, probe_array[k].bssid_addr))
-        {
+        if (mac_is_equal(bssid_addr, probe_array[k].bssid_addr)) {
             printf("Own Score! Skipping!\n");
             print_probe_entry(probe_array[k]);
             continue;
         }
-        
+
         printf("Calculating score to compare!\n");
         score_to_compare = eval_probe_metric(probe_array[k]);
 
-        if(own_score < score_to_compare)
-        {
+        if (own_score < score_to_compare) {
             return 1;
         }
-        if (dawn_metric.use_station_count && own_score == score_to_compare)
-        {
+        if (dawn_metric.use_station_count && own_score == score_to_compare) {
             // if ap have same value but station count is different...
-            if(compare_station_count(bssid_addr, probe_array[k].bssid_addr, automatic_kick))
-            {
+            if (compare_station_count(bssid_addr, probe_array[k].bssid_addr, automatic_kick)) {
                 return 1;
             }
         }
@@ -228,12 +223,11 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
             printf("Check if client is active receiving!\n");
 
             float rx_rate, tx_rate;
-            if(get_bandwidth_iwinfo(client_array[j].client_addr, &rx_rate, &tx_rate))
-            {
+            if (get_bandwidth_iwinfo(client_array[j].client_addr, &rx_rate, &tx_rate)) {
                 // only use rx_rate for indicating if transmission is going on
                 // <= 6MBits <- probably no transmission
                 // tx_rate has always some weird value so don't use ist
-                if(rx_rate > dawn_metric.bandwith_threshold){
+                if (rx_rate > dawn_metric.bandwith_threshold) {
                     printf("Client is probably in active transmisison. Don't kick! RxRate is: %f\n", rx_rate);
                     continue;
                 }
@@ -633,8 +627,7 @@ void remove_old_ap_entries(time_t current_time, long long int threshold) {
     }
 }
 
-void uloop_add_data_cbs()
-{
+void uloop_add_data_cbs() {
     uloop_timeout_add(&probe_timeout);
     uloop_timeout_add(&client_timeout);
     uloop_timeout_add(&ap_timeout);
@@ -648,8 +641,7 @@ void remove_probe_array_cb(struct uloop_timeout *t) {
     uloop_timeout_set(&probe_timeout, timeout_config.remove_probe * 1000);
 }
 
-void remove_client_array_cb(struct uloop_timeout *t)
-{
+void remove_client_array_cb(struct uloop_timeout *t) {
     pthread_mutex_lock(&client_array_mutex);
     printf("[Thread] : Removing old client entries!\n");
     remove_old_client_entries(time(0), timeout_config.update_client);

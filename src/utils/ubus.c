@@ -138,20 +138,18 @@ static int subscribe_to_hostapd_interfaces(char *hostapd_dir);
 static int ubus_get_clients();
 
 int hostapd_array_check_id(uint32_t id);
+
 void hostapd_array_insert(uint32_t id);
+
 void hostapd_array_delete(uint32_t id);
 
-void add_client_update_timer(time_t time)
-{
+void add_client_update_timer(time_t time) {
     uloop_timeout_set(&client_timer, time);
 }
 
-int hostapd_array_check_id(uint32_t id)
-{
-    for(int i = 0; i <= hostapd_sock_last; i++)
-    {
-        if(hostapd_sock_arr[i] == id)
-        {
+int hostapd_array_check_id(uint32_t id) {
+    for (int i = 0; i <= hostapd_sock_last; i++) {
+        if (hostapd_sock_arr[i] == id) {
             return 1;
         }
     }
@@ -159,21 +157,18 @@ int hostapd_array_check_id(uint32_t id)
 }
 
 
-void hostapd_array_insert(uint32_t id)
-{
-    if(hostapd_sock_last < MAX_HOSTAPD_SOCKETS) {
+void hostapd_array_insert(uint32_t id) {
+    if (hostapd_sock_last < MAX_HOSTAPD_SOCKETS) {
         hostapd_sock_last++;
         hostapd_sock_arr[hostapd_sock_last] = id;
     }
 
-    for(int i = 0; i <= hostapd_sock_last; i++)
-    {
-        printf("%d: %d\n",i,hostapd_sock_arr[i]);
+    for (int i = 0; i <= hostapd_sock_last; i++) {
+        printf("%d: %d\n", i, hostapd_sock_arr[i]);
     }
 }
 
-void hostapd_array_delete(uint32_t id)
-{
+void hostapd_array_delete(uint32_t id) {
     int i = 0;
     int found_in_array = 0;
 
@@ -181,9 +176,8 @@ void hostapd_array_delete(uint32_t id)
         return;
     }
 
-    for(i = 0; i <= hostapd_sock_last; i++)
-    {
-        if(hostapd_sock_arr[i] == id) {
+    for (i = 0; i <= hostapd_sock_last; i++) {
+        if (hostapd_sock_arr[i] == id) {
             found_in_array = 1;
             break;
         }
@@ -217,8 +211,7 @@ static int decide_function(probe_entry *prob_req) {
         return 0;
     }
 
-    if(better_ap_available(prob_req->bssid_addr, prob_req->client_addr, 0))
-    {
+    if (better_ap_available(prob_req->bssid_addr, prob_req->client_addr, 0)) {
         return 0;
     }
 
@@ -309,8 +302,7 @@ static int handle_auth_req(struct blob_attr *msg) {
     print_probe_entry(tmp);
 
     // block if entry was not already found in probe database
-    if(!(mac_is_equal(tmp.bssid_addr, auth_req.bssid_addr) && mac_is_equal(tmp.client_addr, auth_req.client_addr)))
-    {
+    if (!(mac_is_equal(tmp.bssid_addr, auth_req.bssid_addr) && mac_is_equal(tmp.client_addr, auth_req.client_addr))) {
         printf("DENY AUTH!\n");
         return UBUS_STATUS_UNKNOWN_ERROR;
     }
@@ -351,8 +343,7 @@ static int handle_probe_req(struct blob_attr *msg) {
 
     // deny access
 
-    if(!dawn_metric.eval_probe_req)
-    {
+    if (!dawn_metric.eval_probe_req) {
         return 0;
     }
 
@@ -390,8 +381,7 @@ static int add_subscriber(char *name) {
         return -1;
     }
 
-    if(hostapd_array_check_id(id))
-    {
+    if (hostapd_array_check_id(id)) {
         return 0;
     }
 
@@ -406,8 +396,7 @@ static int subscribe_to_hostapd_interfaces(char *hostapd_dir) {
     DIR *dirp;
     struct dirent *entry;
 
-    if(ctx == NULL)
-    {
+    if (ctx == NULL) {
         return 0;
     }
 
@@ -429,8 +418,7 @@ static int subscribe_to_hostapd_interfaces(char *hostapd_dir) {
 
 static int subscribe_to_hostapd(char *hostapd_dir) {
 
-    if(ctx == NULL)
-    {
+    if (ctx == NULL) {
         return 0;
     }
 
@@ -583,11 +571,9 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
         ap_entry.vht = blobmsg_get_u8(tb[CLIENT_TABLE_VHT]);
         ap_entry.channel_utilization = blobmsg_get_u32(tb[CLIENT_TABLE_CHAN_UTIL]);
 
-        if(tb[CLIENT_TABLE_NUM_STA])
-        {
+        if (tb[CLIENT_TABLE_NUM_STA]) {
             ap_entry.station_count = blobmsg_get_u32(tb[CLIENT_TABLE_NUM_STA]);
-        } else
-        {
+        } else {
             ap_entry.station_count = 0;
         }
 
@@ -615,8 +601,7 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
 }
 
 static int ubus_get_clients() {
-    for(int i = 0; i <= hostapd_sock_last; i++)
-    {
+    for (int i = 0; i <= hostapd_sock_last; i++) {
         int timeout = 1;
         ubus_invoke(ctx_clients, hostapd_sock_arr[i], "get_clients", NULL, ubus_get_clients_cb, NULL, timeout * 1000);
     }
@@ -651,8 +636,7 @@ void del_client_all_interfaces(const uint8_t *client_addr, uint32_t reason, uint
     blobmsg_add_u8(&b, "deauth", deauth);
     blobmsg_add_u32(&b, "ban_time", ban_time);
 
-    for(int i = 0; i <= hostapd_sock_last; i++)
-    {
+    for (int i = 0; i <= hostapd_sock_last; i++) {
         int timeout = 1;
         ubus_invoke(ctx_clients, hostapd_sock_arr[i], "del_client", b.head, NULL, NULL, timeout * 1000);
     }

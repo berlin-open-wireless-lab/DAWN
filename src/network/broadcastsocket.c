@@ -33,7 +33,7 @@ int setup_broadcast_socket(const char *_broadcast_ip, unsigned short _broadcast_
     addr->sin_port = htons(_broadcast_port);
 
     while (bind(sock, (struct sockaddr *) addr, sizeof(*addr)) <
-        0) {
+           0) {
         fprintf(stderr, "Binding socket failed!\n");
         sleep(1);
     }

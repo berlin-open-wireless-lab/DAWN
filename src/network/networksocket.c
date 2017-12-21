@@ -238,7 +238,7 @@ int send_string_enc(char *msg) {
 }
 
 void close_socket() {
-    if(multicast_socket){
+    if (multicast_socket) {
         remove_multicast_socket(sock);
     }
     close(sock);
