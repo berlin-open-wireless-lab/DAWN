@@ -193,6 +193,8 @@ ap ap_array_get_ap(uint8_t bssid_addr[]);
 
 int build_hearing_map_sort_client(struct blob_buf *b);
 
+int build_network_overview(struct blob_buf *b);
+
 /* Utils */
 
 // ---------------- Defines -------------------

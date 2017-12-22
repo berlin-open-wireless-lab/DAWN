@@ -114,6 +114,39 @@ int build_hearing_map_sort_client(struct blob_buf *b)
     return 0;
 }
 
+int build_network_overview(struct blob_buf *b)
+{
+    pthread_mutex_lock(&probe_array_mutex);
+
+    void *client_list, *ap_list;
+    char ap_mac_buf[20];
+    char client_mac_buf[20];
+
+    blob_buf_init(b, 0);
+    int i;
+    for (i = 0; i <= client_entry_last; i++) {
+        int k;
+        sprintf(ap_mac_buf, MACSTR, MAC2STR(client_array[i].bssid_addr));
+        ap_list = blobmsg_open_table(b, ap_mac_buf);
+        for (k = i; i <= client_entry_last; k++){
+            if(!mac_is_equal(client_array[k].bssid_addr, client_array[i].bssid_addr))
+            {
+                i = k - 1;
+                break;
+            }
+            sprintf(client_mac_buf, MACSTR, MAC2STR(client_array[k].client_addr));
+            client_list = blobmsg_open_table(b, client_mac_buf);
+            blobmsg_add_u32(b, "freq", client_array[k].freq);
+            blobmsg_add_u32(b, "ht", client_array[k].ht);
+            blobmsg_add_u32(b, "vht", client_array[k].vht);
+            blobmsg_close_table(b, client_list);
+        }
+        blobmsg_close_table(b, ap_list);
+    }
+    pthread_mutex_unlock(&probe_array_mutex);
+    return 0;
+}
+
 int eval_probe_metric(struct probe_entry_s probe_entry) {
 
     int score = 0;

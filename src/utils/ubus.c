@@ -146,7 +146,11 @@ static int get_hearing_map(struct ubus_context *ctx, struct ubus_object *obj,
                            struct ubus_request_data *req, const char *method,
                            struct blob_attr *msg);
 
-        int hostapd_array_check_id(uint32_t id);
+static int get_network(struct ubus_context *ctx, struct ubus_object *obj,
+                       struct ubus_request_data *req, const char *method,
+                       struct blob_attr *msg);
+
+int hostapd_array_check_id(uint32_t id);
 
 void hostapd_array_insert(uint32_t id);
 
@@ -719,7 +723,8 @@ static const struct blobmsg_policy add_del_policy[__ADD_DEL_MAC_MAX] = {
 
 static const struct ubus_method dawn_methods[] = {
         UBUS_METHOD("add_mac", add_mac, add_del_policy),
-        UBUS_METHOD_NOARG("get_hearing_map", get_hearing_map)
+        UBUS_METHOD_NOARG("get_hearing_map", get_hearing_map),
+        UBUS_METHOD_NOARG("get_network", get_network)
         //UBUS_METHOD_NOARG("get_aps");
         //UBUS_METHOD_NOARG("get_clients");
 };
@@ -762,6 +767,16 @@ static int get_hearing_map(struct ubus_context *ctx, struct ubus_object *obj,
                    struct blob_attr *msg) {
 
     build_hearing_map_sort_client(&b);
+    ubus_send_reply(ctx, req, b.head);
+    return 0;
+}
+
+
+static int get_network(struct ubus_context *ctx, struct ubus_object *obj,
+                           struct ubus_request_data *req, const char *method,
+                           struct blob_attr *msg) {
+
+    build_network_overview(&b);
     ubus_send_reply(ctx, req, b.head);
     return 0;
 }
