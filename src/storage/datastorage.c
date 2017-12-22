@@ -336,28 +336,10 @@ int client_array_go_next_help(char sort_order[], int i, client entry,
         case 'b':
             return mac_is_greater(entry.bssid_addr, next_entry.bssid_addr) &&
                    mac_is_equal(entry.client_addr, next_entry.client_addr);
-            break;
-
             // client-mac
         case 'c':
-            return mac_is_greater(entry.client_addr, next_entry.client_addr);
-            break;
-
-            // frequency
-            // mac is 5 ghz or 2.4 ghz?
-            // case 'f':
-            //  return //entry.freq < next_entry.freq &&
-            //    entry.freq < 5000 &&
-            //    next_entry.freq >= 5000 &&
-            //    //entry.freq < 5 &&
-            //    mac_is_equal(entry.client_addr, next_entry.client_addr);
-            //  break;
-
-            // signal strength (RSSI)
-            //case 's':
-            //  return entry.signal < next_entry.signal &&
-            //         mac_is_equal(entry.client_addr, next_entry.client_addr);
-            //  break;
+            return mac_is_greater(entry.client_addr, next_entry.client_addr) &&
+                mac_is_greater(entry.bssid_addr, next_entry.bssid_addr);
 
         default:
             return 0;
