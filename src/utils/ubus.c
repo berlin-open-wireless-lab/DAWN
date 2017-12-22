@@ -21,6 +21,13 @@ static struct ubus_context *ctx_clients; /* own ubus conext otherwise strange be
 
 static struct ubus_subscriber hostapd_event;
 static struct blob_buf b;
+static struct blob_buf b_send_network;
+static struct blob_buf network_buf;
+static struct blob_buf data_buf;
+static struct blob_buf b_probe;
+
+
+
 
 void update_clients(struct uloop_timeout *t);
 
@@ -34,6 +41,28 @@ struct uloop_timeout hostapd_timer = {
 #define MAX_HOSTAPD_SOCKETS 10
 uint32_t hostapd_sock_arr[MAX_HOSTAPD_SOCKETS];
 int hostapd_sock_last = -1;
+
+enum {
+    NETWORK_METHOD,
+    NETWORK_DATA,
+    __NETWORK_MAX,
+};
+
+static const struct blobmsg_policy network_policy[__NETWORK_MAX] = {
+        [NETWORK_METHOD] = {.name = "method", .type = BLOBMSG_TYPE_STRING},
+        [NETWORK_DATA] = {.name = "data", .type = BLOBMSG_TYPE_STRING},
+};
+
+enum {
+    HOSTAPD_NOTIFY_BSSID_ADDR,
+    HOSTAPD_NOTIFY_CLIENT_ADDR,
+    __HOSTAPD_NOTIFY_MAX,
+};
+
+static const struct blobmsg_policy hostapd_notify_policy[__HOSTAPD_NOTIFY_MAX] = {
+        [HOSTAPD_NOTIFY_BSSID_ADDR] = {.name = "bssid", .type = BLOBMSG_TYPE_STRING},
+        [HOSTAPD_NOTIFY_CLIENT_ADDR] = {.name = "address", .type = BLOBMSG_TYPE_STRING},
+};
 
 enum {
     AUTH_BSSID_ADDR,
@@ -239,6 +268,20 @@ static void hostapd_handle_remove(struct ubus_context *ctx,
     hostapd_array_delete(id);
 }
 
+int parse_to_hostapd_notify(struct blob_attr *msg, hostapd_notify_entry *notify_req) {
+    struct blob_attr *tb[__HOSTAPD_NOTIFY_MAX];
+
+    blobmsg_parse(hostapd_notify_policy, __HOSTAPD_NOTIFY_MAX, tb, blob_data(msg), blob_len(msg));
+
+    if (hwaddr_aton(blobmsg_data(tb[HOSTAPD_NOTIFY_BSSID_ADDR]), notify_req->bssid_addr))
+        return UBUS_STATUS_INVALID_ARGUMENT;
+
+    if (hwaddr_aton(blobmsg_data(tb[HOSTAPD_NOTIFY_CLIENT_ADDR]), notify_req->client_addr))
+        return UBUS_STATUS_INVALID_ARGUMENT;
+
+    return 0;
+}
+
 int parse_to_auth_req(struct blob_attr *msg, auth_entry *auth_req) {
     struct blob_attr *tb[__AUTH_MAX];
 
@@ -339,18 +382,23 @@ static int handle_assoc_req(struct blob_attr *msg) {
 static int handle_probe_req(struct blob_attr *msg) {
     //printf("[WC] Parse Probe Request\n");
     probe_entry prob_req;
-    parse_to_probe_req(msg, &prob_req);
+    if(parse_to_probe_req(msg, &prob_req) == 0)
+    {
+        insert_to_array(prob_req, 1);
+        //print_probe_array();
+        send_blob_attr_via_network(msg, "probe");
+    }
     //insert_to_list(prob_req, 1);
     //probe_entry tmp_probe =
     probe_entry tmp_prob_req = insert_to_array(prob_req, 1);
 
-
     // send probe via network
-    char *str;
+    /*char *str;
     str = blobmsg_format_json(msg, true);
     send_string_enc(str);
 
-    printf("[WC] Hostapd-Probe: %s : %s\n", "probe", str);
+    printf("[WC] Hostapd-Probe: %s : %s\n", "probe", str);*/
+
 
     //print_probe_array();
 
@@ -368,10 +416,135 @@ static int handle_probe_req(struct blob_attr *msg) {
     return 0;
 }
 
+static int handle_deauth_req(struct blob_attr *msg) {
+
+    hostapd_notify_entry notify_req;
+    parse_to_hostapd_notify(msg, &notify_req);
+
+    client client_entry;
+    memcpy(client_entry.bssid_addr, client_entry.bssid_addr, sizeof(uint8_t) * ETH_ALEN );
+    memcpy(client_entry.client_addr, client_entry.client_addr, sizeof(uint8_t) * ETH_ALEN );
+
+    pthread_mutex_lock(&client_array_mutex);
+    client_array_delete(client_entry);
+    pthread_mutex_unlock(&client_array_mutex);
+
+    printf("[WC] Deauth: %s\n", "deauth");
+
+    return 0;
+}
+
+int handle_network_msg(char* msg)
+{
+    //printf("HANDLING NETWORK MSG: %s\n", msg);
+    struct blob_attr *tb[__NETWORK_MAX];
+    char *method;
+    char *data;
+
+    blob_buf_init(&network_buf, 0);
+    blobmsg_add_json_from_string(&network_buf, msg);
+
+    blobmsg_parse(network_policy, __NETWORK_MAX, tb, blob_data(network_buf.head), blob_len(network_buf.head));
+
+    if(!tb[NETWORK_METHOD] ||!tb[NETWORK_DATA] )
+    {
+        return -1;
+    }
+    //method = blobmsg_get_string(tb[NETWORK_METHOD]);
+    //data = blobmsg_get_string(tb[NETWORK_DATA]);
+
+    method = blobmsg_data(tb[NETWORK_METHOD]);
+    data = blobmsg_data(tb[NETWORK_DATA]);
+
+    blob_buf_init(&data_buf, 0);
+    blobmsg_add_json_from_string(&data_buf, data);
+
+
+    //printf("DO STRINGCOMPARE: %s : %s!\n", method, data);
+    if(!data_buf.head)
+    {
+        //printf("NULL?!\n");
+        return -1;
+    }
+
+    if(blob_len(data_buf.head) <= 0)
+    {
+        //printf("NULL?!\n");
+        return -1;
+    }
+
+    if(strlen(method) < 5)
+    {
+        //printf("STRING IS LESS THAN 5!\n");
+        return -1;
+    }
+
+    if (strncmp(method, "probe", 5) == 0) {
+        //printf("METHOD PROBE\n");
+        probe_entry entry;
+        if(parse_to_probe_req(data_buf.head, &entry) == 0)
+        {
+            insert_to_array(entry, 0);
+            //print_probe_array();
+        }
+    } else if (strncmp(method, "clients", 5) == 0) {
+        //printf("METHOD CLIENTS\n");
+        //printf("PARSING CLIENTS NETWORK MSG!\n");
+        parse_to_clients(data_buf.head, 0, 0);
+    } else if (strncmp(method, "deauth", 5) == 0) {
+        printf("METHOD DEAUTH\n");
+        handle_deauth_req(data_buf.head);
+        /*
+        hostapd_notify_entry entry;
+        parse_to_hostapd_notify(data_buf.head, &entry);
+
+        client client_entry;
+        memcpy(client_entry.bssid_addr, client_entry.bssid_addr, sizeof(uint8_t) * ETH_ALEN );
+        memcpy(client_entry.client_addr, client_entry.client_addr, sizeof(uint8_t) * ETH_ALEN );
+
+        pthread_mutex_lock(&client_array_mutex);
+        client_array_delete(client_entry);
+        pthread_mutex_unlock(&client_array_mutex);*/
+    }
+    //free(method);
+    //free(data);
+    //printf("HANDLING FINISHED NETWORK MSG!\n");
+    return 0;
+}
+
+
+int send_blob_attr_via_network(struct blob_attr *msg, char* method)
+{
+    if(!msg)
+    {
+        return -1;
+    }
+
+    char *data_str;
+    char *str;
+    data_str = blobmsg_format_json(msg, true);
+    blob_buf_init(&b_send_network, 0);
+    blobmsg_add_string(&b_send_network, "method", method);
+    blobmsg_add_string(&b_send_network, "data", data_str);
+
+
+    //blobmsg_add_blob(&b, msg);
+    str = blobmsg_format_json(b_send_network.head, true);
+    send_string_enc(str);
+    //free(str);
+    //free(data_str);
+    return 0;
+}
+
 static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
                           struct ubus_request_data *req, const char *method,
                           struct blob_attr *msg) {
-    printf("METHOD new: %s\n", method);
+    char *str;
+    str = blobmsg_format_json(msg, true);
+    printf("METHOD new: %s : %s\n", method, str);
+
+    //TODO CHECK IF FREE IS CORREECT!
+    free(str);
 
 
     // TODO: Only handle probe request and NOT assoc, ...
@@ -382,6 +555,9 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
         return handle_auth_req(msg);
     } else if (strncmp(method, "assoc", 5) == 0) {
         return handle_assoc_req(msg);
+    } else if (strncmp(method, "deauth", 6) == 0) {
+        send_blob_attr_via_network(msg, "deauth");
+        return handle_deauth_req(msg);
     }
     return 0;
 }
@@ -573,6 +749,21 @@ dump_client_table(struct blob_attr *head, int len, const char *bssid_addr, uint3
 int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
     struct blob_attr *tb[__CLIENT_TABLE_MAX];
 
+    if(!msg)
+    {
+        return -1;
+    }
+
+    if(!blob_data(msg))
+    {
+        return -1;
+    }
+
+    if(blob_len(msg) <= 0)
+    {
+        return -1;
+    }
+
     blobmsg_parse(client_table_policy, __CLIENT_TABLE_MAX, tb, blob_data(msg), blob_len(msg));
 
     if (tb[CLIENT_TABLE] && tb[CLIENT_TABLE_BSSID] && tb[CLIENT_TABLE_FREQ] && tb[CLIENT_TABLE_HT] &&
@@ -607,9 +798,7 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     if (!msg)
         return;
 
-    char *str = blobmsg_format_json(msg, true);
-    send_string_enc(str);
-
+    send_blob_attr_via_network(msg, "clients");
     parse_to_clients(msg, 1, req->peer);
 
     print_client_array();
@@ -631,7 +820,6 @@ void update_clients(struct uloop_timeout *t) {
 }
 
 void update_hostapd_sockets(struct uloop_timeout *t) {
-    printf("Updating hostapd sockets!\n");
     subscribe_to_hostapd_interfaces(hostapd_dir_glob);
     uloop_timeout_set(&hostapd_timer, timeout_config.update_hostapd * 1000);
 }
@@ -693,21 +881,18 @@ int ubus_call_umdns() {
 
 int ubus_send_probe_via_network(struct probe_entry_s probe_entry) {
 
-    static struct blob_buf b;
+    printf("SENDING PROBE VIA NETWORK!\n");
 
-    blob_buf_init(&b, 0);
-    blobmsg_add_macaddr(&b, "bssid", probe_entry.bssid_addr);
-    blobmsg_add_macaddr(&b, "address", probe_entry.client_addr);
-    blobmsg_add_macaddr(&b, "target", probe_entry.target_addr);
-    blobmsg_add_u32(&b, "signal", probe_entry.signal);
-    blobmsg_add_u32(&b, "freq", probe_entry.freq);
-    blobmsg_add_u8(&b, "ht_support", probe_entry.ht_support);
-    blobmsg_add_u8(&b, "vht_support", probe_entry.vht_support);
+    blob_buf_init(&b_probe, 0);
+    blobmsg_add_macaddr(&b_probe, "bssid", probe_entry.bssid_addr);
+    blobmsg_add_macaddr(&b_probe, "address", probe_entry.client_addr);
+    blobmsg_add_macaddr(&b_probe, "target", probe_entry.target_addr);
+    blobmsg_add_u32(&b_probe, "signal", probe_entry.signal);
+    blobmsg_add_u32(&b_probe, "freq", probe_entry.freq);
+    blobmsg_add_u8(&b_probe, "ht_support", probe_entry.ht_support);
+    blobmsg_add_u8(&b_probe, "vht_support", probe_entry.vht_support);
 
-    // send probe via network
-    char *str;
-    str = blobmsg_format_json(b.head, 1);
-    send_string_enc(str);
+    send_blob_attr_via_network(b_probe.head, "probe");
 
     return 0;
 }

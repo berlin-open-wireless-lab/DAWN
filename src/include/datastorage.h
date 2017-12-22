@@ -99,6 +99,11 @@ typedef struct auth_entry_s {
     uint32_t freq;
 } auth_entry;
 
+typedef struct hostapd_notify_entry_s {
+    uint8_t bssid_addr[ETH_ALEN];
+    uint8_t client_addr[ETH_ALEN];
+} hostapd_notify_entry;
+
 typedef struct auth_entry_s assoc_entry;
 
 // ---------------- Defines ----------------

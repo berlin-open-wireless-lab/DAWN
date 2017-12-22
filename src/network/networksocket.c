@@ -146,39 +146,13 @@ void *receive_msg_enc(void *args) {
         char *base64_dec_str = malloc(Base64decode_len(recv_string));
         int base64_dec_length = Base64decode(base64_dec_str, recv_string);
 
+
         char *dec = gcrypt_decrypt_msg(base64_dec_str, base64_dec_length);
 
-        //printf("Free %s: %p\n","base64_dec_str", base64_dec_str);
+        //printf("NETRWORK RECEIVED: %s\n", dec);
+
         free(base64_dec_str);
-
-        //printf("[WC] Network-Received: %s\n", dec);
-
-        probe_entry prob_req;
-        struct blob_buf b;
-
-        blob_buf_init(&b, 0);
-        blobmsg_add_json_from_string(&b, dec);
-
-        char *str;
-        str = blobmsg_format_json(b.head, true);
-
-        if (str == NULL) {
-            return 0;
-        }
-
-        if (strlen(str) <= 0) {
-            return 0;
-        }
-
-        if (strstr(str, "clients") != NULL) {
-            parse_to_clients(b.head, 0, 0);
-        } else if (strstr(str, "target") != NULL) {
-            if (parse_to_probe_req(b.head, &prob_req) == 0) {
-                insert_to_array(prob_req, 0);
-            }
-        }
-        // free encrypted string
-        //printf("Free %s: %p\n","dec", dec);
+        handle_network_msg(dec);
         free(dec);
     }
 }
@@ -211,6 +185,10 @@ int send_string(char *msg) {
 
 int send_string_enc(char *msg) {
     pthread_mutex_lock(&send_mutex);
+
+    //printf("Sending string: %s\n", msg);
+
+
     size_t msglen = strlen(msg);
 
     int length_enc;
