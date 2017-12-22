@@ -45,6 +45,15 @@ struct time_config_s {
     time_t update_hostapd;
 };
 
+struct network_config_s {
+    const char* broadcast_ip;
+    int broadcast_port;
+    const char* multicast;
+    const char* shared_key;
+    const char* iv;
+    int bool_multicast;
+};
+
 struct time_config_s timeout_config;
 
 // ---------------- Global variables ----------------
@@ -173,7 +182,7 @@ ap ap_array_get_ap(uint8_t bssid_addr[]);
 #define TIME_THRESHOLD 120  // every minute
 
 // ---------------- Global variables ----------------
-char sort_string[SORT_NUM];
+char* sort_string;
 
 // ---------------- Functions -------------------
 int mac_is_equal(uint8_t addr1[], uint8_t addr2[]);

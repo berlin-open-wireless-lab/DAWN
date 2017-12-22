@@ -133,7 +133,7 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
 
 static int add_subscriber(char *name);
 
-static int subscribe_to_hostapd_interfaces(char *hostapd_dir);
+static int subscribe_to_hostapd_interfaces(const char *hostapd_dir);
 
 static int ubus_get_clients();
 
@@ -392,7 +392,7 @@ static int add_subscriber(char *name) {
     return 0;
 }
 
-static int subscribe_to_hostapd_interfaces(char *hostapd_dir) {
+static int subscribe_to_hostapd_interfaces(const char *hostapd_dir) {
     DIR *dirp;
     struct dirent *entry;
 
@@ -416,7 +416,7 @@ static int subscribe_to_hostapd_interfaces(char *hostapd_dir) {
     return 0;
 }
 
-static int subscribe_to_hostapd(char *hostapd_dir) {
+static int subscribe_to_hostapd(const char *hostapd_dir) {
 
     if (ctx == NULL) {
         return 0;
@@ -440,7 +440,7 @@ static int subscribe_to_hostapd(char *hostapd_dir) {
     return 0;
 }
 
-int dawn_init_ubus(const char *ubus_socket, char *hostapd_dir) {
+int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
     uloop_init();
     signal(SIGPIPE, SIG_IGN);
 

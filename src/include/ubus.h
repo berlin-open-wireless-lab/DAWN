@@ -8,7 +8,7 @@
 
 #define MIN_PROBE_REQ 2  // TODO: Parse from config file...
 
-int dawn_init_ubus(const char *ubus_socket, char *hostapd_dir);
+int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir);
 
 int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req);
 
@@ -24,7 +24,7 @@ void del_client_all_interfaces(const uint8_t *client_addr, uint32_t reason, uint
 
 void *update_clients_thread(void *arg);
 
-char *hostapd_dir_glob;
+const char *hostapd_dir_glob;
 
 int ubus_call_umdns();
 
