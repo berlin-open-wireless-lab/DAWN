@@ -493,6 +493,7 @@ int handle_network_msg(char* msg)
         parse_to_clients(data_buf.head, 0, 0);
     } else if (strncmp(method, "deauth", 5) == 0) {
         printf("METHOD DEAUTH\n");
+        handle_deauth_req(data_buf.head);
         /*
         hostapd_notify_entry entry;
         parse_to_hostapd_notify(data_buf.head, &entry);
@@ -555,6 +556,7 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
     } else if (strncmp(method, "assoc", 5) == 0) {
         return handle_assoc_req(msg);
     } else if (strncmp(method, "deauth", 6) == 0) {
+        send_blob_attr_via_network(msg, "deauth");
         return handle_deauth_req(msg);
     }
     return 0;
