@@ -8,4 +8,6 @@
 
 int get_rssi_iwinfo(__uint8_t *client_addr);
 
+int get_bandwidth_iwinfo(__uint8_t *client_addr, float *rx_rate, float *tx_rate);
+
 #endif //DAWN_RSSI_H

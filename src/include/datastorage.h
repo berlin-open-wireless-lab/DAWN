@@ -37,11 +37,18 @@ struct probe_metric_s {
     int no_ht_support;
     int no_vht_support;
     int rssi;
+    int low_rssi;
     int freq;
     int chan_util;
     int max_chan_util;
-    int min_rssi;
+    int rssi_val;
+    int low_rssi_val;
+    int chan_util_val;
+    int max_chan_util_val;
     int min_probe_count;
+    int bandwith_threshold;
+    int use_station_count;
+    int eval_probe_req;
 };
 
 struct time_config_s {
@@ -50,6 +57,15 @@ struct time_config_s {
     time_t remove_probe;
     time_t remove_ap;
     time_t update_hostapd;
+};
+
+struct network_config_s {
+    const char* broadcast_ip;
+    int broadcast_port;
+    const char* multicast;
+    const char* shared_key;
+    const char* iv;
+    int bool_multicast;
 };
 
 struct time_config_s timeout_config;
@@ -137,6 +153,7 @@ typedef struct ap_s {
     uint8_t vht;
     uint32_t channel_utilization;
     time_t time;
+    uint32_t station_count;
 } ap;
 
 // ---------------- Defines ----------------
@@ -179,14 +196,14 @@ ap ap_array_get_ap(uint8_t bssid_addr[]);
 #define TIME_THRESHOLD 120  // every minute
 
 // ---------------- Global variables ----------------
-char sort_string[SORT_NUM];
+char* sort_string;
 
 // ---------------- Functions -------------------
 int mac_is_equal(uint8_t addr1[], uint8_t addr2[]);
 
 int mac_is_greater(uint8_t addr1[], uint8_t addr2[]);
 
-int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[]);
+int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], int automatic_kick);
 
 
 /* List stuff */

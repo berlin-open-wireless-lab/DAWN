@@ -39,10 +39,10 @@ SET(SOURCES
         crypto/base64.c
         include/base64.h
 
-        utils/utils.c include/rssi.h utils/rssi.c)
+        utils/utils.c include/dawn_iwinfo.h utils/dawn_iwinfo.c)
 
 SET(LIBS
-        ubox ubus json-c blobmsg_json config uci gcrypt ssl crypto iwinfo)
+        ubox ubus json-c blobmsg_json config uci gcrypt iwinfo)
 
 ADD_EXECUTABLE(dawn ${SOURCES} utils/dawn_uci.c include/dawn_uci.h)
 

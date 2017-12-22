@@ -11,7 +11,7 @@
 
 #include "multicastsocket.h"
 
-static struct ip_mreq command; /* static ?! */
+static struct ip_mreq command;
 
 int setup_multicast_socket(const char *_multicast_ip, unsigned short _multicast_port, struct sockaddr_in *addr) {
     int loop = 1;
@@ -19,7 +19,7 @@ int setup_multicast_socket(const char *_multicast_ip, unsigned short _multicast_
 
     memset(addr, 0, sizeof(*addr));
     addr->sin_family = AF_INET;
-    addr->sin_addr.s_addr = htonl (INADDR_ANY);
+    addr->sin_addr.s_addr = inet_addr(_multicast_ip);
     addr->sin_port = htons (_multicast_port);
 
     if ((sock = socket(PF_INET, SOCK_DGRAM, 0)) == -1) {
@@ -57,7 +57,7 @@ int setup_multicast_socket(const char *_multicast_ip, unsigned short _multicast_
     command.imr_multiaddr.s_addr = inet_addr(_multicast_ip);
     command.imr_interface.s_addr = htonl (INADDR_ANY);
     if (command.imr_multiaddr.s_addr == -1) {
-        perror("224.0.0.1 ist keine Multicast-Adresse\n");
+        perror("Wrong multicast address!\n");
         exit(EXIT_FAILURE);
     }
     if (setsockopt(sock,
@@ -67,4 +67,15 @@ int setup_multicast_socket(const char *_multicast_ip, unsigned short _multicast_
         perror("setsockopt:IP_ADD_MEMBERSHIP");
     }
     return sock;
+}
+
+int remove_multicast_socket(int socket) {
+    if (setsockopt(socket,
+                   IPPROTO_IP,
+                   IP_DROP_MEMBERSHIP,
+                   &command, sizeof(command)) < 0) {
+        perror("setsockopt:IP_DROP_MEMBERSHIP");
+        return -1;
+    }
+    return 0;
 }

@@ -29,21 +29,23 @@ const char *ip;
 unsigned short port;
 char recv_string[MAX_RECV_STRING + 1];
 int recv_string_len;
+int multicast_socket;
 
 void *receive_msg(void *args);
 
 void *receive_msg_enc(void *args);
 
-int init_socket_runopts(char *_ip, char *_port, int broadcast_socket) {
+int init_socket_runopts(const char *_ip, int _port, int _multicast_socket) {
 
-    port = atoi(_port);
+    port = _port;
     ip = _ip;
+    multicast_socket = _multicast_socket;
 
-    if (broadcast_socket) {
-        sock = setup_broadcast_socket(ip, port, &addr);
-    } else {
+    if (multicast_socket) {
         printf("Settingup multicastsocket!\n");
         sock = setup_multicast_socket(ip, port, &addr);
+    } else {
+        sock = setup_broadcast_socket(ip, port, &addr);
     }
 
     pthread_t sniffer_thread;
@@ -235,4 +237,9 @@ int send_string_enc(char *msg) {
     return 0;
 }
 
-void close_socket() { close(sock); }
+void close_socket() {
+    if (multicast_socket) {
+        remove_multicast_socket(sock);
+    }
+    close(sock);
+}
