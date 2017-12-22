@@ -334,17 +334,15 @@ int client_array_go_next_help(char sort_order[], int i, client entry,
     switch (sort_order[i]) {
         // bssid-mac
         case 'b':
-            return mac_is_greater(entry.bssid_addr, next_entry.bssid_addr) &&
-                   mac_is_equal(entry.client_addr, next_entry.client_addr);
+            return mac_is_greater(entry.bssid_addr, next_entry.bssid_addr);
             // client-mac
         case 'c':
             return mac_is_greater(entry.client_addr, next_entry.client_addr) &&
-                mac_is_greater(entry.bssid_addr, next_entry.bssid_addr);
-
+                mac_is_equal(entry.bssid_addr, next_entry.bssid_addr);
         default:
-            return 0;
             break;
     }
+    return 0;
 }
 
 int client_array_go_next(char sort_order[], int i, client entry,
