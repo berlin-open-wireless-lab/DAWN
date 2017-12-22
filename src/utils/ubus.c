@@ -749,8 +749,10 @@ static int add_mac(struct ubus_context *ctx, struct ubus_object *obj,
     if (hwaddr_aton(blobmsg_data(tb[MAC_ADDR]), addr))
         return UBUS_STATUS_INVALID_ARGUMENT;
 
-    insert_to_maclist(addr);
-    write_mac_to_file("/etc/dawn/mac_list", addr);
+    if(insert_to_maclist(addr) == 0)
+    {
+        write_mac_to_file("/etc/dawn/mac_list", addr);
+    }
 
     return 0;
 }

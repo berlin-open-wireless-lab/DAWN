@@ -94,6 +94,17 @@ int build_hearing_map_sort_client(struct blob_buf *b)
             blobmsg_add_u32(b, "freq", probe_array[k].freq);
             blobmsg_add_u8(b, "ht_support", probe_array[k].ht_support);
             blobmsg_add_u8(b, "vht_support", probe_array[k].vht_support);
+
+            ap ap_entry = ap_array_get_ap(probe_array[k].bssid_addr);
+
+            // check if ap entry is available
+            if (mac_is_equal(ap_entry.bssid_addr, probe_array[k].bssid_addr)) {
+                blobmsg_add_u32(b, "channel_utilization", ap_entry.channel_utilization);
+                blobmsg_add_u32(b, "num_sta", ap_entry.station_count);
+                blobmsg_add_u32(b, "ht", ap_entry.ht);
+                blobmsg_add_u32(b, "vht", ap_entry.vht);
+            }
+
             blobmsg_add_u32(b, "score", eval_probe_metric(probe_array[k]));
             blobmsg_close_table(b, ap_list);
         }
@@ -747,13 +758,14 @@ int insert_to_maclist(uint8_t mac[])
 {
     if(mac_in_maclist(mac))
     {
-        return 0;
+        return -1;
     }
 
     mac_list_entry_last++;
     for (int i = 0; i < ETH_ALEN; ++i) {
         mac_list[mac_list_entry_last][i] = mac[i];
     }
+
     return 0;
 }
 
