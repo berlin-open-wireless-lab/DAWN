@@ -8,13 +8,29 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <libubox/blobmsg_json.h>
+
 
 #ifndef ETH_ALEN
 #define ETH_ALEN 6
 #endif
 
+/* Mac */
+
+// ---------------- Defines -------------------
+#define MAC_LIST_LENGTH 100
+
+// ---------------- Structs ----------------
+uint8_t mac_list[MAC_LIST_LENGTH][ETH_ALEN];
+
+// ---------------- Functions ----------
+void insert_macs_from_file();
+int insert_to_maclist(uint8_t mac[]);
+
 
 /* Metric */
+
+struct probe_metric_s dawn_metric;
 
 // ---------------- Structs ----------------
 struct probe_metric_s {
@@ -174,6 +190,8 @@ ap insert_to_ap_array(ap entry);
 void print_ap_array();
 
 ap ap_array_get_ap(uint8_t bssid_addr[]);
+
+int build_hearing_map_sort_client(struct blob_buf *b);
 
 /* Utils */
 

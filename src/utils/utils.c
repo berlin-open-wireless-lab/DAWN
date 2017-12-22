@@ -44,3 +44,19 @@ int convert_mac(char *in, char *out) {
     return 0;
 }
 
+void write_mac_to_file(char* path, uint8_t addr[])
+{
+    FILE *f = fopen(path, "a");
+    if (f == NULL)
+    {
+        printf("Error opening file!\n");
+        exit(1);
+    }
+
+    char mac_buf[20];
+    sprintf(mac_buf, MACSTR, MAC2STR(addr));
+
+    fprintf(f, "%s\n", mac_buf);
+
+    fclose(f);
+}

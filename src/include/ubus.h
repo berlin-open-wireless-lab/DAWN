@@ -6,8 +6,6 @@
 
 #include "datastorage.h"
 
-#define MIN_PROBE_REQ 2  // TODO: Parse from config file...
-
 int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir);
 
 int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req);
@@ -33,5 +31,7 @@ int ubus_send_probe_via_network(struct probe_entry_s probe_entry);
 void update_hostapd_sockets(struct uloop_timeout *t);
 
 void add_client_update_timer(time_t time);
+
+void blobmsg_add_macaddr(struct blob_buf *buf, const char *name, const uint8_t *addr);
 
 #endif

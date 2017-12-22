@@ -41,11 +41,14 @@ int probe_array_update_rssi(uint8_t bssid_addr[], uint8_t client_addr[], uint32_
 
 int is_connected(uint8_t bssid_addr[], uint8_t client_addr[]);
 
+int mac_in_maclist(uint8_t mac[]);
+
 int compare_station_count(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compare, int automatic_kick);
 
 int probe_entry_last = -1;
 int client_entry_last = -1;
 int ap_entry_last = -1;
+int mac_list_entry_last = -1;
 
 void remove_probe_array_cb(struct uloop_timeout *t);
 
@@ -64,6 +67,52 @@ void remove_ap_array_cb(struct uloop_timeout *t);
 struct uloop_timeout ap_timeout = {
         .cb = remove_ap_array_cb
 };
+
+int build_hearing_map_sort_client(struct blob_buf *b)
+{
+    pthread_mutex_lock(&probe_array_mutex);
+
+    void *client_list, *ap_list;
+    char ap_mac_buf[20];
+    char client_mac_buf[20];
+
+    blob_buf_init(b, 0);
+    int i;
+    for (i = 0; i <= probe_entry_last; i++) {
+        int k;
+        sprintf(client_mac_buf, MACSTR, MAC2STR(probe_array[i].client_addr));
+        client_list = blobmsg_open_table(b, client_mac_buf);
+        for (k = i; i <= probe_entry_last; k++){
+            if(!mac_is_equal(probe_array[k].client_addr, probe_array[i].client_addr))
+            {
+                i = k - 1;
+                break;
+            }
+            sprintf(ap_mac_buf, MACSTR, MAC2STR(probe_array[k].bssid_addr));
+            ap_list = blobmsg_open_table(b, ap_mac_buf);
+            blobmsg_add_u32(b, "signal", probe_array[k].signal);
+            blobmsg_add_u32(b, "freq", probe_array[k].freq);
+            blobmsg_add_u8(b, "ht_support", probe_array[k].ht_support);
+            blobmsg_add_u8(b, "vht_support", probe_array[k].vht_support);
+
+            ap ap_entry = ap_array_get_ap(probe_array[k].bssid_addr);
+
+            // check if ap entry is available
+            if (mac_is_equal(ap_entry.bssid_addr, probe_array[k].bssid_addr)) {
+                blobmsg_add_u32(b, "channel_utilization", ap_entry.channel_utilization);
+                blobmsg_add_u32(b, "num_sta", ap_entry.station_count);
+                blobmsg_add_u32(b, "ht", ap_entry.ht);
+                blobmsg_add_u32(b, "vht", ap_entry.vht);
+            }
+
+            blobmsg_add_u32(b, "score", eval_probe_metric(probe_array[k]));
+            blobmsg_close_table(b, ap_list);
+        }
+        blobmsg_close_table(b, client_list);
+    }
+    pthread_mutex_unlock(&probe_array_mutex);
+    return 0;
+}
 
 int eval_probe_metric(struct probe_entry_s probe_entry) {
 
@@ -175,7 +224,7 @@ int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], int automat
 }
 
 int kick_client(struct client_s client_entry) {
-    return better_ap_available(client_entry.bssid_addr, client_entry.client_addr, 1);
+    return !mac_in_maclist(client_entry.client_addr) && better_ap_available(client_entry.bssid_addr, client_entry.client_addr, 1);
 }
 
 void kick_clients(uint8_t bssid[], uint32_t id) {
@@ -666,6 +715,81 @@ void insert_client_to_array(client entry) {
 
     pthread_mutex_unlock(&client_array_mutex);
 }
+
+void insert_macs_from_file()
+{
+    FILE * fp;
+    char * line = NULL;
+    size_t len = 0;
+    ssize_t read;
+
+    fp = fopen("/etc/dawn/mac_list", "r");
+    if (fp == NULL)
+        exit(EXIT_FAILURE);
+
+    while ((read = getline(&line, &len, fp)) != -1) {
+        printf("Retrieved line of length %zu :\n", read);
+        printf("%s", line);
+
+        int tmp_int_mac[ETH_ALEN];
+        sscanf(line, MACSTR, STR2MAC(tmp_int_mac));
+
+        mac_list_entry_last++;
+        for (int i = 0; i < ETH_ALEN; ++i) {
+            mac_list[mac_list_entry_last][i] = (uint8_t) tmp_int_mac[i];
+        }
+    }
+
+    printf("Printing MAC List:\n");
+    for(int i = 0; i <= mac_list_entry_last; i++)
+    {
+        char mac_buf_target[20];
+        sprintf(mac_buf_target, MACSTR, MAC2STR(mac_list[i]));
+        printf("%d: %s\n", i, mac_buf_target);
+    }
+
+    fclose(fp);
+    if (line)
+        free(line);
+    //exit(EXIT_SUCCESS);
+}
+
+int insert_to_maclist(uint8_t mac[])
+{
+    if(mac_in_maclist(mac))
+    {
+        return -1;
+    }
+
+    mac_list_entry_last++;
+    for (int i = 0; i < ETH_ALEN; ++i) {
+        mac_list[mac_list_entry_last][i] = mac[i];
+    }
+
+    return 0;
+}
+
+
+int mac_in_maclist(uint8_t mac[])
+{
+    for(int i = 0; i <= mac_list_entry_last; i++)
+    {
+        if(mac_is_equal(mac, mac_list[i]))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+
+
+
+
+
+
+
+
 
 
 node *delete_probe_req(node **ret_remove, node *head, uint8_t bssid_addr[],
