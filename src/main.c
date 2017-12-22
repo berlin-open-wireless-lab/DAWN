@@ -102,7 +102,7 @@ int main(int argc, char **argv) {
 
     init_socket_runopts(net_config.broadcast_ip, net_config.broadcast_port, net_config.bool_multicast);
 
-    insert_macs_from_file();
+    //insert_macs_from_file();
     dawn_init_ubus(ubus_socket, hostapd_dir_glob);
 
     return 0;

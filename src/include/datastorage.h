@@ -8,6 +8,8 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <libubox/blobmsg_json.h>
+
 
 #ifndef ETH_ALEN
 #define ETH_ALEN 6
@@ -188,6 +190,8 @@ ap insert_to_ap_array(ap entry);
 void print_ap_array();
 
 ap ap_array_get_ap(uint8_t bssid_addr[]);
+
+int build_hearing_map_sort_client(struct blob_buf *b);
 
 /* Utils */
 

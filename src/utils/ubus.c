@@ -142,7 +142,11 @@ add_mac(struct ubus_context *ctx, struct ubus_object *obj,
         struct ubus_request_data *req, const char *method,
         struct blob_attr *msg);
 
-int hostapd_array_check_id(uint32_t id);
+static int get_hearing_map(struct ubus_context *ctx, struct ubus_object *obj,
+                           struct ubus_request_data *req, const char *method,
+                           struct blob_attr *msg);
+
+        int hostapd_array_check_id(uint32_t id);
 
 void hostapd_array_insert(uint32_t id);
 
@@ -199,8 +203,7 @@ void hostapd_array_delete(uint32_t id) {
 
 }
 
-static void
-blobmsg_add_macaddr(struct blob_buf *buf, const char *name, const uint8_t *addr) {
+void blobmsg_add_macaddr(struct blob_buf *buf, const char *name, const uint8_t *addr) {
     char *s;
 
     s = blobmsg_alloc_string_buffer(buf, name, 20);
@@ -483,6 +486,7 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
 
     uloop_run();
 
+
     close_socket();
 
     ubus_free(ctx);
@@ -715,6 +719,9 @@ static const struct blobmsg_policy add_del_policy[__ADD_DEL_MAC_MAX] = {
 
 static const struct ubus_method dawn_methods[] = {
         UBUS_METHOD("add_mac", add_mac, add_del_policy),
+        UBUS_METHOD_NOARG("get_hearing_map", get_hearing_map)
+        //UBUS_METHOD_NOARG("get_aps");
+        //UBUS_METHOD_NOARG("get_clients");
 };
 
 static struct ubus_object_type dawn_object_type =
@@ -727,8 +734,7 @@ static struct ubus_object dawn_object = {
         .n_methods = ARRAY_SIZE(dawn_methods),
 };
 
-static int
-add_mac(struct ubus_context *ctx, struct ubus_object *obj,
+static int add_mac(struct ubus_context *ctx, struct ubus_object *obj,
                        struct ubus_request_data *req, const char *method,
                        struct blob_attr *msg) {
 
@@ -749,6 +755,15 @@ add_mac(struct ubus_context *ctx, struct ubus_object *obj,
     return 0;
 }
 
+static int get_hearing_map(struct ubus_context *ctx, struct ubus_object *obj,
+                   struct ubus_request_data *req, const char *method,
+                   struct blob_attr *msg) {
+
+    build_hearing_map_sort_client(&b);
+    ubus_send_reply(ctx, req, b.head);
+    return 0;
+}
+
 static void ubus_add_oject()
 {
     int ret;
@@ -756,6 +771,7 @@ static void ubus_add_oject()
     ret = ubus_add_object(ctx, &dawn_object);
     if (ret)
         fprintf(stderr, "Failed to add object: %s\n", ubus_strerror(ret));
+    printf("ADDED UBUS OBJECT!!!\n");
 
     /*ret = ubus_register_subscriber(ctx, &test_event);
     if (ret)

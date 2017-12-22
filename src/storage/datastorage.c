@@ -68,6 +68,41 @@ struct uloop_timeout ap_timeout = {
         .cb = remove_ap_array_cb
 };
 
+int build_hearing_map_sort_client(struct blob_buf *b)
+{
+    pthread_mutex_lock(&probe_array_mutex);
+
+    void *client_list, *ap_list;
+    char ap_mac_buf[20];
+    char client_mac_buf[20];
+
+    blob_buf_init(b, 0);
+    int i;
+    for (i = 0; i <= probe_entry_last; i++) {
+        int k;
+        sprintf(client_mac_buf, MACSTR, MAC2STR(probe_array[i].client_addr));
+        client_list = blobmsg_open_table(b, client_mac_buf);
+        for (k = i; i <= probe_entry_last; k++){
+            if(!mac_is_equal(probe_array[k].client_addr, probe_array[i].client_addr))
+            {
+                i = k - 1;
+                break;
+            }
+            sprintf(ap_mac_buf, MACSTR, MAC2STR(probe_array[k].bssid_addr));
+            ap_list = blobmsg_open_table(b, ap_mac_buf);
+            blobmsg_add_u32(b, "signal", probe_array[k].signal);
+            blobmsg_add_u32(b, "freq", probe_array[k].freq);
+            blobmsg_add_u8(b, "ht_support", probe_array[k].ht_support);
+            blobmsg_add_u8(b, "vht_support", probe_array[k].vht_support);
+            blobmsg_add_u32(b, "score", eval_probe_metric(probe_array[k]));
+            blobmsg_close_table(b, ap_list);
+        }
+        blobmsg_close_table(b, client_list);
+    }
+    pthread_mutex_unlock(&probe_array_mutex);
+    return 0;
+}
+
 int eval_probe_metric(struct probe_entry_s probe_entry) {
 
     int score = 0;
