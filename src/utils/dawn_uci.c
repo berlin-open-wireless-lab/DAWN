@@ -4,76 +4,38 @@
 
 #include "dawn_uci.h"
 
-/*
 
-dawn.metric.ht_support
-dawn.metric.vht_support'
-dawn.metric.rssi
-dawn.metric.freq
+static struct uci_context *uci_ctx;
+static struct uci_package *uci_pkg;
 
- */
-
-/*
-    config settings times
-	option update_client    '50'
-	option remove_client    '120'
-	option remove_probe     '120'
- */
+// why is this not included in uci lib...?!
+// fund here: https://github.com/br101/pingcheck/blob/master/uci.c
+static int uci_lookup_option_int(struct uci_context *uci, struct uci_section *s,
+                                 const char *name)
+{
+    const char* str = uci_lookup_option_string(uci, s, name);
+    return str == NULL ? -1 : atoi(str);
+}
 
 struct time_config_s uci_get_time_config() {
     struct time_config_s ret;
 
-    struct uci_context *c;
-    struct uci_ptr ptr;
+    printf("Loading Times!");
 
-    c = uci_alloc_context();
+    struct uci_element *e;
+    uci_foreach_element(&uci_pkg->sections, e) {
+        struct uci_section *s = uci_to_section(e);
 
-    printf("Loading TImes!");
-
-
-    char tmp_update_client[] = "dawn.times.update_client";
-    if (uci_lookup_ptr(c, &ptr, tmp_update_client, 1) != UCI_OK) {
-        uci_perror(c, "uci_get_daw_metric Error");
-        return ret;
+        if (strcmp(s->type, "times") == 0)
+        {
+            ret.update_client = uci_lookup_option_int(uci_ctx, s, "update_client");
+            ret.remove_client = uci_lookup_option_int(uci_ctx, s, "remove_client");
+            ret.remove_probe = uci_lookup_option_int(uci_ctx, s, "remove_probe");
+            ret.update_hostapd = uci_lookup_option_int(uci_ctx, s, "update_hostapd");
+            ret.remove_ap = uci_lookup_option_int(uci_ctx, s, "remove_ap");
+            return ret;
+        }
     }
-    if (ptr.o->type == UCI_TYPE_STRING)
-        ret.update_client = atoi(ptr.o->v.string);
-
-    char tmp_remove_client[] = "dawn.times.remove_client";
-    if (uci_lookup_ptr(c, &ptr, tmp_remove_client, 1) != UCI_OK) {
-        uci_perror(c, "uci_get_daw_metric Error");
-        return ret;
-    }
-    if (ptr.o->type == UCI_TYPE_STRING)
-        ret.remove_client = atoi(ptr.o->v.string);
-
-    char tmp_remove_probe[] = "dawn.times.remove_probe";
-    if (uci_lookup_ptr(c, &ptr, tmp_remove_probe, 1) != UCI_OK) {
-        uci_perror(c, "uci_get_daw_metric Error");
-        return ret;
-    }
-    if (ptr.o->type == UCI_TYPE_STRING)
-        ret.remove_probe = atoi(ptr.o->v.string);
-
-    char tmp_update_hostapd[] = "dawn.times.update_hostapd";
-    if (uci_lookup_ptr(c, &ptr, tmp_update_hostapd, 1) != UCI_OK) {
-        uci_perror(c, "uci_get_daw_metric Error");
-        return ret;
-    }
-    if (ptr.o->type == UCI_TYPE_STRING)
-        ret.update_hostapd = atoi(ptr.o->v.string);
-
-    char tmp_remove_ap[] = "dawn.times.remove_ap";
-    if (uci_lookup_ptr(c, &ptr, tmp_remove_ap, 1) != UCI_OK) {
-        uci_perror(c, "uci_get_daw_metric Error");
-        return ret;
-    }
-    if (ptr.o->type == UCI_TYPE_STRING)
-        ret.remove_ap = atoi(ptr.o->v.string);
-
-    printf("Times: %lu, %lu, %lu %lu\n", ret.update_client, ret.remove_client, ret.remove_probe, ret.update_hostapd);
-
-    uci_free_context(c);
 
     return ret;
 }
@@ -81,153 +43,116 @@ struct time_config_s uci_get_time_config() {
 struct probe_metric_s uci_get_dawn_metric() {
     struct probe_metric_s ret;
 
-    struct uci_context *c;
-    struct uci_ptr ptr;
+    struct uci_element *e;
+    uci_foreach_element(&uci_pkg->sections, e) {
+        struct uci_section *s = uci_to_section(e);
 
-    c = uci_alloc_context();
-
-    char tmp_ht_support[] = "dawn.metric.ht_support";
-    if (uci_lookup_ptr(c, &ptr, tmp_ht_support, 1) != UCI_OK) {
-        uci_perror(c, "uci_get_daw_metric Error");
-        return ret;
+        if (strcmp(s->type, "metric") == 0)
+        {
+            ret.ht_support = uci_lookup_option_int(uci_ctx, s, "ht_support");
+            ret.vht_support = uci_lookup_option_int(uci_ctx, s, "vht_support");
+            ret.no_ht_support = uci_lookup_option_int(uci_ctx, s, "no_ht_support");
+            ret.no_vht_support = uci_lookup_option_int(uci_ctx, s, "no_vht_support");
+            ret.rssi = uci_lookup_option_int(uci_ctx, s, "rssi");
+            ret.freq = uci_lookup_option_int(uci_ctx, s, "freq");
+            ret.rssi_val = uci_lookup_option_int(uci_ctx, s, "rssi_val");
+            ret.chan_util = uci_lookup_option_int(uci_ctx, s, "chan_util");
+            ret.max_chan_util = uci_lookup_option_int(uci_ctx, s, "max_chan_util");
+            ret.chan_util_val = uci_lookup_option_int(uci_ctx, s, "chan_util_val");
+            ret.max_chan_util_val = uci_lookup_option_int(uci_ctx, s, "max_chan_util_val");
+            ret.min_probe_count = uci_lookup_option_int(uci_ctx, s, "min_probe_count");
+            ret.low_rssi = uci_lookup_option_int(uci_ctx, s, "low_rssi");
+            ret.low_rssi_val = uci_lookup_option_int(uci_ctx, s, "low_rssi_val");
+            ret.bandwith_threshold = uci_lookup_option_int(uci_ctx, s, "bandwith_threshold");
+            ret.use_station_count = uci_lookup_option_int(uci_ctx, s, "use_station_count");
+            ret.eval_probe_req = uci_lookup_option_int(uci_ctx, s, "eval_probe_req");
+            return ret;
+        }
     }
-    if (ptr.o->type == UCI_TYPE_STRING)
-        ret.ht_support = atoi(ptr.o->v.string);
-
-    char tmp_vht_support[] = "dawn.metric.vht_support";
-    if (uci_lookup_ptr(c, &ptr, tmp_vht_support, 1) != UCI_OK) {
-        uci_perror(c, "uci_get_daw_metric Error");
-        return ret;
-    }
-    if (ptr.o->type == UCI_TYPE_STRING)
-        ret.vht_support = atoi(ptr.o->v.string);
-
-    char tmp_no_ht_support[] = "dawn.metric.no_ht_support";
-    if (uci_lookup_ptr(c, &ptr, tmp_no_ht_support, 1) != UCI_OK) {
-        uci_perror(c, "uci_get_daw_metric Error");
-        return ret;
-    }
-    if (ptr.o->type == UCI_TYPE_STRING)
-        ret.no_ht_support = atoi(ptr.o->v.string);
-
-    char tmp_no_vht_support[] = "dawn.metric.no_vht_support";
-    if (uci_lookup_ptr(c, &ptr, tmp_no_vht_support, 1) != UCI_OK) {
-        uci_perror(c, "uci_get_daw_metric Error");
-        return ret;
-    }
-    if (ptr.o->type == UCI_TYPE_STRING)
-        ret.no_vht_support = atoi(ptr.o->v.string);
-
-    char tmp_rssi[] = "dawn.metric.rssi";
-    if (uci_lookup_ptr(c, &ptr, tmp_rssi, 1) != UCI_OK) {
-        uci_perror(c, "uci_get_daw_metric Error");
-        return ret;
-    }
-    if (ptr.o->type == UCI_TYPE_STRING)
-        ret.rssi = atoi(ptr.o->v.string);
-
-    char tmp_freq[] = "dawn.metric.freq";
-    if (uci_lookup_ptr(c, &ptr, tmp_freq, 1) != UCI_OK) {
-        uci_perror(c, "uci_get_daw_metric Error");
-        return ret;
-    }
-    if (ptr.o->type == UCI_TYPE_STRING)
-        ret.freq = atoi(ptr.o->v.string);
-
-    char tmp_util[] = "dawn.metric.chan_util";
-    if (uci_lookup_ptr(c, &ptr, tmp_util, 1) != UCI_OK) {
-        uci_perror(c, "uci_get_daw_metric Error");
-        return ret;
-    }
-    if (ptr.o->type == UCI_TYPE_STRING)
-        ret.chan_util = atoi(ptr.o->v.string);
-
-    char tmp_rssi_val[] = "dawn.metric.rssi_val";
-    if (uci_lookup_ptr(c, &ptr, tmp_rssi_val, 1) != UCI_OK) {
-        uci_perror(c, "uci_get_daw_metric Error");
-        return ret;
-    }
-    if (ptr.o->type == UCI_TYPE_STRING)
-        ret.rssi_val = atoi(ptr.o->v.string);
-
-    char tmp_max_chan_util[] = "dawn.metric.max_chan_util";
-    if (uci_lookup_ptr(c, &ptr, tmp_max_chan_util, 1) != UCI_OK) {
-        uci_perror(c, "uci_get_daw_metric Error");
-        return ret;
-    }
-    if (ptr.o->type == UCI_TYPE_STRING)
-        ret.max_chan_util = atoi(ptr.o->v.string);
-
-    char tmp_chan_util_val[] = "dawn.metric.chan_util_val";
-    if (uci_lookup_ptr(c, &ptr, tmp_chan_util_val, 1) != UCI_OK) {
-        uci_perror(c, "uci_get_daw_metric Error");
-        return ret;
-    }
-    if (ptr.o->type == UCI_TYPE_STRING)
-        ret.chan_util_val = atoi(ptr.o->v.string);
-
-
-    char tmp_max_chan_util_val[] = "dawn.metric.max_chan_util_val";
-    if (uci_lookup_ptr(c, &ptr, tmp_max_chan_util_val, 1) != UCI_OK) {
-        uci_perror(c, "uci_get_daw_metric Error");
-        return ret;
-    }
-    if (ptr.o->type == UCI_TYPE_STRING)
-        ret.max_chan_util_val = atoi(ptr.o->v.string);
-
-
-    printf("Try to load min_probe_count\n");
-    char tmp_min_probe_count[] = "dawn.metric.min_probe_count";
-    if (uci_lookup_ptr(c, &ptr, tmp_min_probe_count, 1) != UCI_OK) {
-        uci_perror(c, "uci_get_daw_metric Error");
-        return ret;
-    }
-    if (ptr.o->type == UCI_TYPE_STRING)
-        ret.min_probe_count = atoi(ptr.o->v.string);
-
-    char tmp_low_rssi[] = "dawn.metric.low_rssi";
-    if (uci_lookup_ptr(c, &ptr, tmp_low_rssi, 1) != UCI_OK) {
-        uci_perror(c, "uci_get_daw_metric Error");
-        return ret;
-    }
-    if (ptr.o->type == UCI_TYPE_STRING)
-        ret.low_rssi = atoi(ptr.o->v.string);
-
-    char tmp_low_rssi_val[] = "dawn.metric.low_rssi_val";
-    if (uci_lookup_ptr(c, &ptr, tmp_low_rssi_val, 1) != UCI_OK) {
-        uci_perror(c, "uci_get_daw_metric Error");
-        return ret;
-    }
-    if (ptr.o->type == UCI_TYPE_STRING)
-        ret.low_rssi_val = atoi(ptr.o->v.string);
-
-    char tmp_bandwith_threshold[] = "dawn.metric.bandwith_threshold";
-    if (uci_lookup_ptr(c, &ptr, tmp_bandwith_threshold, 1) != UCI_OK) {
-        uci_perror(c, "uci_get_daw_metric Error");
-        return ret;
-    }
-    if (ptr.o->type == UCI_TYPE_STRING)
-        ret.bandwith_threshold = atoi(ptr.o->v.string);
-
-    char tmp_use_station_count[] = "dawn.metric.use_station_count";
-    if (uci_lookup_ptr(c, &ptr, tmp_use_station_count, 1) != UCI_OK) {
-        uci_perror(c, "uci_get_daw_metric Error");
-        return ret;
-    }
-    if (ptr.o->type == UCI_TYPE_STRING)
-        ret.use_station_count = atoi(ptr.o->v.string);
-
-    char tmp_eval_probe_req[] = "dawn.metric.eval_probe_req";
-    if (uci_lookup_ptr(c, &ptr, tmp_eval_probe_req, 1) != UCI_OK) {
-        uci_perror(c, "uci_get_daw_metric Error");
-        return ret;
-    }
-    if (ptr.o->type == UCI_TYPE_STRING)
-        ret.eval_probe_req = atoi(ptr.o->v.string);
-
-    printf("Loaded metric: %d\n", ret.min_probe_count);
-
-    uci_free_context(c);
 
     return ret;
+}
+
+struct network_config_s uci_get_dawn_network() {
+    struct network_config_s ret;
+
+    struct uci_element *e;
+    uci_foreach_element(&uci_pkg->sections, e) {
+        struct uci_section *s = uci_to_section(e);
+
+        if (strcmp(s->type, "network") == 0)
+        {
+            printf("Fronund network entry!\n");
+            ret.broadcast_ip = uci_lookup_option_string(uci_ctx, s, "broadcast_ip");
+            printf("BROADCAST: %s\n", ret.broadcast_ip);
+            ret.broadcast_port = uci_lookup_option_int(uci_ctx, s, "broadcast_port");
+            ret.bool_multicast = uci_lookup_option_int(uci_ctx, s, "multicast");
+            printf("multicast: %s\n", ret.broadcast_ip);
+            ret.shared_key = uci_lookup_option_string(uci_ctx, s, "shared_key");
+            ret.iv = uci_lookup_option_string(uci_ctx, s, "iv");
+            return ret;
+        }
+    }
+
+    return ret;
+}
+const char* uci_get_dawn_hostapd_dir() {
+    struct uci_element *e;
+    uci_foreach_element(&uci_pkg->sections, e)
+    {
+        struct uci_section *s = uci_to_section(e);
+
+        if (strcmp(s->type, "hostapd") == 0) {
+            return uci_lookup_option_string(uci_ctx, s, "hostapd_dir");
+        }
+    }
+    return NULL;
+}
+
+const char* uci_get_dawn_sort_order() {
+    struct uci_element *e;
+    uci_foreach_element(&uci_pkg->sections, e) {
+        struct uci_section *s = uci_to_section(e);
+
+        if (strcmp(s->type, "ordering") == 0)
+        {
+            return uci_lookup_option_string(uci_ctx, s, "sort_order");
+        }
+    }
+    return NULL;
+}
+
+int uci_init()
+{
+    struct uci_context *ctx = uci_ctx;
+
+    if (!ctx) {
+        ctx = uci_alloc_context();
+        uci_ctx = ctx;
+
+        ctx->flags &= ~UCI_FLAG_STRICT;
+    } else {
+        // shouldn't happen?
+        uci_pkg = uci_lookup_package(ctx, "dawn");
+        if (uci_pkg)
+            uci_unload(ctx, uci_pkg);
+    }
+
+    if (uci_load(ctx, "dawn", &uci_pkg))
+        return -1;
+
+    return 1;
+}
+
+int uci_clear()
+{
+    if(uci_pkg != NULL)
+    {
+        uci_unload(uci_ctx, uci_pkg);
+    }
+    if(uci_ctx != NULL)
+    {
+        uci_free_context(uci_ctx);
+    }
+    return 1;
 }
