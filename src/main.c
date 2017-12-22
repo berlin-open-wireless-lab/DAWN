@@ -10,18 +10,19 @@
 #include "dawn_uci.h"
 #include "crypto.h"
 
-#define BUFSIZE 17
-#define BUFSIZE_DIR 256
-
 void daemon_shutdown();
 
 void signal_handler(int sig);
 
-struct sigaction newSigAction;
+int init_mutex();
+
+struct sigaction signal_action;
 
 void daemon_shutdown() {
+
     // kill threads
     close_socket();
+    uci_clear();
     printf("Cancelling Threads!\n");
     uloop_cancelled = true;
 
@@ -34,92 +35,24 @@ void daemon_shutdown() {
 }
 
 void signal_handler(int sig) {
-    printf("SOME SIGNAL RECEIVED!\n");
     switch (sig) {
         case SIGHUP:
+            daemon_shutdown();
             break;
         case SIGINT:
+            daemon_shutdown();
+            break;
         case SIGTERM:
             daemon_shutdown();
             exit(EXIT_SUCCESS);
-            break;
         default:
+            daemon_shutdown();
             break;
     }
 }
 
-int main(int argc, char **argv) {
-    //free_counter = 0;
-
-    const char *ubus_socket = NULL;
-    int ch;
-
-    char opt_broadcast_ip[BUFSIZE];
-    char opt_broadcast_port[BUFSIZE];
-    char opt_hostapd_dir[BUFSIZE_DIR];
-
-    char shared_key[BUFSIZE_DIR];
-    char iv[BUFSIZE_DIR];
-    int multicast = 0;
-
-    while ((ch = getopt(argc, argv, "cs:p:i:b:o:h:i:k:v:m")) != -1) {
-        switch (ch) {
-            case 's':
-                ubus_socket = optarg;
-                break;
-            case 'p':
-                snprintf(opt_broadcast_port, BUFSIZE, "%s", optarg);
-                printf("broadcast port: %s\n", opt_broadcast_port);
-                break;
-            case 'i':
-                snprintf(opt_broadcast_ip, BUFSIZE, "%s", optarg);
-                printf("broadcast ip: %s\n", opt_broadcast_ip);
-                break;
-            case 'o':
-                snprintf(sort_string, SORT_NUM, "%s", optarg);
-                printf("sort string: %s\n", sort_string);
-                break;
-            case 'h':
-                snprintf(opt_hostapd_dir, BUFSIZE_DIR, "%s", optarg);
-                printf("hostapd dir: %s\n", opt_hostapd_dir);
-                hostapd_dir_glob = optarg;
-                break;
-            case 'k':
-                snprintf(shared_key, BUFSIZE_DIR, "%s", optarg);
-                printf("Key: %s\n", shared_key);
-                break;
-            case 'v':
-                snprintf(iv, BUFSIZE_DIR, "%s", optarg);
-                printf("IV: %s\n", iv);
-                break;
-            case 'm':
-                multicast = 1;
-                break;
-            default:
-                break;
-        }
-    }
-
-    argc -= optind;
-    argv += optind;
-
-    /* Set up a signal handler */
-    newSigAction.sa_handler = signal_handler;
-    sigemptyset(&newSigAction.sa_mask);
-    newSigAction.sa_flags = 0;
-
-    /* Signals to handle */
-    sigaction(SIGHUP, &newSigAction, NULL);     /* catch hangup signal */
-    sigaction(SIGTERM, &newSigAction, NULL);    /* catch term signal */
-    sigaction(SIGINT, &newSigAction, NULL);     /* catch interrupt signal */
-
-
-    gcrypt_init();
-    gcrypt_set_key_and_iv(shared_key, iv);
-
-    struct time_config_s time_config = uci_get_time_config();
-    timeout_config = time_config; // TODO: Refactor...
-
+int init_mutex()
+{
     if (pthread_mutex_init(&list_mutex, NULL) != 0) {
         printf("\n mutex init failed\n");
         return 1;
@@ -139,10 +72,43 @@ int main(int argc, char **argv) {
         printf("\n mutex init failed\n");
         return 1;
     }
+    return 0;
+}
 
-    init_socket_runopts(opt_broadcast_ip, opt_broadcast_port, multicast);
+int main(int argc, char **argv) {
 
-    dawn_init_ubus(ubus_socket, opt_hostapd_dir);
+    const char *ubus_socket = NULL;
+
+    argc -= optind;
+    argv += optind;
+
+    // connect signals
+    signal_action.sa_handler = signal_handler;
+    sigemptyset(&signal_action.sa_mask);
+    signal_action.sa_flags = 0;
+    sigaction(SIGHUP, &signal_action, NULL);
+    sigaction(SIGTERM, &signal_action, NULL);
+    sigaction(SIGINT, &signal_action, NULL);
+
+    uci_init();
+    struct network_config_s net_config = uci_get_dawn_network();
+    printf("Broadcst bla: %s\n", net_config.broadcast_ip);
+
+    gcrypt_init();
+    gcrypt_set_key_and_iv(net_config.shared_key, net_config.iv);
+
+    struct time_config_s time_config = uci_get_time_config();
+    timeout_config = time_config; // TODO: Refactor...
+
+    hostapd_dir_glob = uci_get_dawn_hostapd_dir();
+    sort_string = (char*) uci_get_dawn_sort_order();
+
+    init_mutex();
+
+    init_socket_runopts(net_config.broadcast_ip, net_config.broadcast_port, net_config.bool_multicast);
+
+    insert_macs_from_file();
+    dawn_init_ubus(ubus_socket, hostapd_dir_glob);
 
     return 0;
 }

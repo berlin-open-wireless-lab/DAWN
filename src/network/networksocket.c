@@ -35,9 +35,9 @@ void *receive_msg(void *args);
 
 void *receive_msg_enc(void *args);
 
-int init_socket_runopts(char *_ip, char *_port, int _multicast_socket) {
+int init_socket_runopts(const char *_ip, int _port, int _multicast_socket) {
 
-    port = atoi(_port);
+    port = _port;
     ip = _ip;
     multicast_socket = _multicast_socket;
 
@@ -216,7 +216,7 @@ int send_string_enc(char *msg) {
 }
 
 void close_socket() {
-    if(multicast_socket){
+    if (multicast_socket) {
         remove_multicast_socket(sock);
     }
     close(sock);

@@ -8,13 +8,29 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <libubox/blobmsg_json.h>
+
 
 #ifndef ETH_ALEN
 #define ETH_ALEN 6
 #endif
 
+/* Mac */
+
+// ---------------- Defines -------------------
+#define MAC_LIST_LENGTH 100
+
+// ---------------- Structs ----------------
+uint8_t mac_list[MAC_LIST_LENGTH][ETH_ALEN];
+
+// ---------------- Functions ----------
+void insert_macs_from_file();
+int insert_to_maclist(uint8_t mac[]);
+
 
 /* Metric */
+
+struct probe_metric_s dawn_metric;
 
 // ---------------- Structs ----------------
 struct probe_metric_s {
@@ -33,6 +49,8 @@ struct probe_metric_s {
     int max_chan_util_val;
     int min_probe_count;
     int bandwith_threshold;
+    int use_station_count;
+    int eval_probe_req;
 };
 
 struct time_config_s {
@@ -41,6 +59,15 @@ struct time_config_s {
     time_t remove_probe;
     time_t remove_ap;
     time_t update_hostapd;
+};
+
+struct network_config_s {
+    const char* broadcast_ip;
+    int broadcast_port;
+    const char* multicast;
+    const char* shared_key;
+    const char* iv;
+    int bool_multicast;
 };
 
 struct time_config_s timeout_config;
@@ -133,6 +160,7 @@ typedef struct ap_s {
     uint8_t vht;
     uint32_t channel_utilization;
     time_t time;
+    uint32_t station_count;
 } ap;
 
 // ---------------- Defines ----------------
@@ -168,6 +196,10 @@ void print_ap_array();
 
 ap ap_array_get_ap(uint8_t bssid_addr[]);
 
+int build_hearing_map_sort_client(struct blob_buf *b);
+
+int build_network_overview(struct blob_buf *b);
+
 /* Utils */
 
 // ---------------- Defines -------------------
@@ -175,14 +207,14 @@ ap ap_array_get_ap(uint8_t bssid_addr[]);
 #define TIME_THRESHOLD 120  // every minute
 
 // ---------------- Global variables ----------------
-char sort_string[SORT_NUM];
+char* sort_string;
 
 // ---------------- Functions -------------------
 int mac_is_equal(uint8_t addr1[], uint8_t addr2[]);
 
 int mac_is_greater(uint8_t addr1[], uint8_t addr2[]);
 
-int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[]);
+int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], int automatic_kick);
 
 
 /* List stuff */

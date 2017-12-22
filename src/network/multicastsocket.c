@@ -69,13 +69,12 @@ int setup_multicast_socket(const char *_multicast_ip, unsigned short _multicast_
     return sock;
 }
 
-int remove_multicast_socket(int socket)
-{
-    if (setsockopt ( socket,
-                     IPPROTO_IP,
-                     IP_DROP_MEMBERSHIP,
-                     &command, sizeof (command)) < 0 ) {
-        perror ("setsockopt:IP_DROP_MEMBERSHIP");
+int remove_multicast_socket(int socket) {
+    if (setsockopt(socket,
+                   IPPROTO_IP,
+                   IP_DROP_MEMBERSHIP,
+                   &command, sizeof(command)) < 0) {
+        perror("setsockopt:IP_DROP_MEMBERSHIP");
         return -1;
     }
     return 0;

@@ -15,4 +15,6 @@ int hwaddr_aton(const char *txt, uint8_t *addr);
 
 int convert_mac(char *in, char *out);
 
+void write_mac_to_file(char* path, uint8_t addr[]);
+
 #endif
