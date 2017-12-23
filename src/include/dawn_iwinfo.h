@@ -10,6 +10,6 @@ int get_rssi_iwinfo(__uint8_t *client_addr);
 
 int get_bandwidth_iwinfo(__uint8_t *client_addr, float *rx_rate, float *tx_rate);
 
-int get_essid(const char *ifname, uint8_t *bssid_addr);
+int compare_essid(__uint8_t *bssid_addr, __uint8_t *bssid_addr_to_compare);
 
 #endif //DAWN_RSSI_H

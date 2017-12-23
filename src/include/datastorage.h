@@ -161,6 +161,7 @@ typedef struct ap_s {
     uint32_t channel_utilization;
     time_t time;
     uint32_t station_count;
+    // essid
 } ap;
 
 // ---------------- Defines ----------------

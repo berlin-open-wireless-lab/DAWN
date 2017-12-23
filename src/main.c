@@ -98,8 +98,6 @@ int main(int argc, char **argv) {
     gcrypt_init();
     gcrypt_set_key_and_iv(net_config.shared_key, net_config.iv);
 
-    get_essid("wlan0", NULL);
-
     struct time_config_s time_config = uci_get_time_config();
     timeout_config = time_config; // TODO: Refactor...
 

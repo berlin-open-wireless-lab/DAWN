@@ -21,29 +21,66 @@ int get_bandwidth(const char *ifname, uint8_t *client_addr, float *rx_rate, floa
 
 #define IWINFO_ESSID_MAX_SIZE	32
 
-int get_essid(const char *ifname, uint8_t *bssid_addr)
+
+int compare_essid(__uint8_t *bssid_addr, __uint8_t *bssid_addr_to_compare)
 {
-    //struct iwinfo_assoclist_entry *e;
     const struct iwinfo_ops *iw;
 
-    iw = iwinfo_backend(ifname);
+    char mac_buf[20];
+    char mac_buf_to_compare[20];
+    sprintf(mac_buf, MACSTR, MAC2STR(bssid_addr));
+    sprintf(mac_buf_to_compare, MACSTR, MAC2STR(bssid_addr_to_compare));
 
-    char buf[IWINFO_ESSID_MAX_SIZE+1] = { 0 };
+    DIR *dirp;
+    struct dirent *entry;
+    dirp = opendir(hostapd_dir_glob);  // error handling?
+    if (!dirp) {
+        fprintf(stderr, "No hostapd sockets!\n");
+        return 0;
+    }
 
-    if (iw->ssid(ifname, buf))
-        memset(buf, 0, sizeof(buf));
+    char* essid = NULL;
+    char* essid_to_compare = NULL;
 
-    static char buf_bssid[18] = { 0 };
-    if (iw->bssid(ifname, buf_bssid))
-        snprintf(buf, sizeof(buf), "00:00:00:00:00:00");
+    char buf_essid[IWINFO_ESSID_MAX_SIZE+1] = { 0 };
+    char buf_essid_to_compare[IWINFO_ESSID_MAX_SIZE+1] = { 0 };
 
-    printf("ESSID is: %s\n", buf);
-    printf("BSSID is: %s\n", buf_bssid);
-    
-    return 0;
+    while ((entry = readdir(dirp)) != NULL) {
+        if (entry->d_type == DT_SOCK) {
+
+            iw = iwinfo_backend(entry->d_name);
+
+            static char buf_bssid[18] = { 0 };
+            if (iw->bssid(entry->d_name, buf_bssid))
+                snprintf(buf_bssid, sizeof(buf_bssid), "00:00:00:00:00:00");
+
+            if(strcmp(mac_buf, buf_bssid))
+            {
+
+                if (iw->ssid(entry->d_type, buf_essid))
+                    memset(buf_essid, 0, sizeof(buf_essid));
+                essid = buf_essid;
+            }
+
+            if(strcmp(mac_buf_to_compare, buf_bssid))
+            {
+                if (iw->ssid(entry->d_type, buf_essid_to_compare))
+                    memset(buf_essid_to_compare, 0, sizeof(buf_essid_to_compare));
+                essid_to_compare = buf_essid_to_compare;
+            }
+        }
+    }
+    closedir(dirp);
+
+    printf("Comparing: %s with %s\n", essid, essid_to_compare);
+
+    if(strcmp(essid, essid_to_compare))
+    {
+        return 0;
+    }
+
+    return -1;
 }
-
-
 
 int get_bandwidth_iwinfo(__uint8_t *client_addr, float *rx_rate, float *tx_rate) {
 

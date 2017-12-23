@@ -255,6 +255,17 @@ int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], int automat
             continue;
         }
 
+        // check if same essid!!!
+        if(compare_essid(bssid_addr, probe_array[k].bssid_addr) != 0)
+        {
+            printf("ESSID ARE NOT THE SAME!\n");
+            continue;
+        } else
+        {
+            printf("ESSID ARE THE SAME!\n");
+        }
+
+
         printf("Calculating score to compare!\n");
         score_to_compare = eval_probe_metric(probe_array[k]);
 
