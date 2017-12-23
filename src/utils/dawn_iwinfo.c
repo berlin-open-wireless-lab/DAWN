@@ -33,7 +33,13 @@ int get_essid(const char *ifname, uint8_t *bssid_addr)
     if (iw->ssid(ifname, buf))
         memset(buf, 0, sizeof(buf));
 
+    static char buf_bssid[18] = { 0 };
+    if (iw->bssid(ifname, buf_bssid))
+        snprintf(buf, sizeof(buf), "00:00:00:00:00:00");
+
     printf("ESSID is: %s\n", buf);
+    printf("BSSID is: %s\n", buf_bssid);
+    
     return 0;
 }
 
