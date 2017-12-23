@@ -54,7 +54,7 @@ int compare_essid(__uint8_t *bssid_addr, __uint8_t *bssid_addr_to_compare)
             if (iw->bssid(entry->d_name, buf_bssid))
                 snprintf(buf_bssid, sizeof(buf_bssid), "00:00:00:00:00:00");
 
-            if(strcmp(mac_buf, buf_bssid))
+            if(strcmp(mac_buf, buf_bssid) == 0)
             {
 
                 if (iw->ssid(entry->d_name, buf_essid))
@@ -62,7 +62,7 @@ int compare_essid(__uint8_t *bssid_addr, __uint8_t *bssid_addr_to_compare)
                 essid = buf_essid;
             }
 
-            if(strcmp(mac_buf_to_compare, buf_bssid))
+            if(strcmp(mac_buf_to_compare, buf_bssid) == 0)
             {
                 if (iw->ssid(entry->d_name, buf_essid_to_compare))
                     memset(buf_essid_to_compare, 0, sizeof(buf_essid_to_compare));
@@ -79,7 +79,7 @@ int compare_essid(__uint8_t *bssid_addr, __uint8_t *bssid_addr_to_compare)
         return -1;
     }
 
-    if(strcmp(essid, essid_to_compare))
+    if(strcmp(essid, essid_to_compare) == 0)
     {
         return 0;
     }
