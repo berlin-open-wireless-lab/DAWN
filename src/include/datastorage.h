@@ -109,6 +109,8 @@ typedef struct auth_entry_s assoc_entry;
 // ---------------- Defines ----------------
 #define PROBE_ARRAY_LEN 1000
 
+#define SSID_MAX_LEN 32
+
 // ---------------- Global variables ----------------
 struct probe_entry_s probe_array[PROBE_ARRAY_LEN];
 pthread_mutex_t probe_array_mutex;
@@ -161,7 +163,7 @@ typedef struct ap_s {
     uint32_t channel_utilization;
     time_t time;
     uint32_t station_count;
-    // essid
+    uint8_t ssid[SSID_MAX_LEN];
 } ap;
 
 // ---------------- Defines ----------------

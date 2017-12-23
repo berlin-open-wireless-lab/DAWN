@@ -105,6 +105,7 @@ static const struct blobmsg_policy prob_policy[__PROB_MAX] = {
 enum {
     CLIENT_TABLE,
     CLIENT_TABLE_BSSID,
+    CLIENT_TABLE_SSID,
     CLIENT_TABLE_FREQ,
     CLIENT_TABLE_HT,
     CLIENT_TABLE_VHT,
@@ -116,6 +117,7 @@ enum {
 static const struct blobmsg_policy client_table_policy[__CLIENT_TABLE_MAX] = {
         [CLIENT_TABLE] = {.name = "clients", .type = BLOBMSG_TYPE_TABLE},
         [CLIENT_TABLE_BSSID] = {.name = "bssid", .type = BLOBMSG_TYPE_STRING},
+        [CLIENT_TABLE_SSID] = {.name = "ssid", .type = BLOBMSG_TYPE_STRING},
         [CLIENT_TABLE_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
         [CLIENT_TABLE_HT] = {.name = "ht_supported", .type = BLOBMSG_TYPE_INT8},
         [CLIENT_TABLE_VHT] = {.name = "vht_supported", .type = BLOBMSG_TYPE_INT8},
@@ -766,6 +768,7 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
         ap_entry.ht = blobmsg_get_u8(tb[CLIENT_TABLE_HT]);
         ap_entry.vht = blobmsg_get_u8(tb[CLIENT_TABLE_VHT]);
         ap_entry.channel_utilization = blobmsg_get_u32(tb[CLIENT_TABLE_CHAN_UTIL]);
+        strcpy((char*)ap_entry.ssid, blobmsg_get_string(tb[CLIENT_TABLE_SSID]));
 
         if (tb[CLIENT_TABLE_NUM_STA]) {
             ap_entry.station_count = blobmsg_get_u32(tb[CLIENT_TABLE_NUM_STA]);
