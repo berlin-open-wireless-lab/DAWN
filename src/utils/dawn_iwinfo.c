@@ -23,7 +23,7 @@ int get_bandwidth(const char *ifname, uint8_t *client_addr, float *rx_rate, floa
 
 int get_essid(const char *ifname, uint8_t *bssid_addr)
 {
-    struct iwinfo_assoclist_entry *e;
+    //struct iwinfo_assoclist_entry *e;
     const struct iwinfo_ops *iw;
 
     iw = iwinfo_backend(ifname);
