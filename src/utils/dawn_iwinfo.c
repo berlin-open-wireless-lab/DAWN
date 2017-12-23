@@ -34,6 +34,7 @@ int get_essid(const char *ifname, uint8_t *bssid_addr)
         memset(buf, 0, sizeof(buf));
 
     printf("ESSID is: %s\n", buf);
+    return 0;
 }
 
 
