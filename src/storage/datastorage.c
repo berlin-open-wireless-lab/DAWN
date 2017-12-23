@@ -43,7 +43,8 @@ int is_connected(uint8_t bssid_addr[], uint8_t client_addr[]);
 
 int mac_in_maclist(uint8_t mac[]);
 
-int compare_station_count(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compare, int automatic_kick);
+int compare_station_count(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compare, uint8_t *client_addr,
+                          int automatic_kick);
 
 int probe_entry_last = -1;
 int client_entry_last = -1;
@@ -173,7 +174,8 @@ int eval_probe_metric(struct probe_entry_s probe_entry) {
     return score;
 }
 
-int compare_station_count(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compare, int automatic_kick) {
+int compare_station_count(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compare, uint8_t *client_addr,
+                          int automatic_kick) {
 
     ap ap_entry_own = ap_array_get_ap(bssid_addr_own);
     ap ap_entry_to_compre = ap_array_get_ap(bssid_addr_to_compare);
@@ -188,6 +190,19 @@ int compare_station_count(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compar
         } else {
             return ap_entry_own.station_count > ap_entry_to_compre.station_count;
         }
+
+        /*
+        int own_count = ap_entry_own.station_count;
+        if(automatic_kick)
+        {
+            own_count--;
+        }
+        if (is_connected(bssid_addr_to_compare, client_addr))
+        {
+            own_count--;
+        }
+
+        return own_count > ap_entry_to_compre.station_count;*/
     }
 
     return 0;
@@ -247,10 +262,13 @@ int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], int automat
             return 1;
         }
         if (dawn_metric.use_station_count && own_score == score_to_compare) {
+
             // if ap have same value but station count is different...
-            if (compare_station_count(bssid_addr, probe_array[k].bssid_addr, automatic_kick)) {
+            if (compare_station_count(bssid_addr, probe_array[k].bssid_addr, NULL, automatic_kick)) {
                 return 1;
             }
+
+
         }
     }
     return 0;

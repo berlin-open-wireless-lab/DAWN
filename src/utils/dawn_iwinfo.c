@@ -15,9 +15,28 @@ int parse_rssi(char *iwinfo_string);
 
 int get_rssi(const char *ifname, uint8_t *client_addr);
 
-int get_bandwith(const char *ifname, uint8_t *client_addr, float *rx_rate, float *tx_rate);
+int get_bandwidth(const char *ifname, uint8_t *client_addr, float *rx_rate, float *tx_rate);
 
 #define IWINFO_BUFSIZE    24 * 1024
+
+#define IWINFO_ESSID_MAX_SIZE	32
+
+int get_essid(const char *ifname, uint8_t *bssid_addr)
+{
+    struct iwinfo_assoclist_entry *e;
+    const struct iwinfo_ops *iw;
+
+    iw = iwinfo_backend(ifname);
+
+    char buf[IWINFO_ESSID_MAX_SIZE+1] = { 0 };
+
+    if (iw->ssid(ifname, buf))
+        memset(buf, 0, sizeof(buf));
+
+    printf("ESSID is: %s\n", buf);
+}
+
+
 
 int get_bandwidth_iwinfo(__uint8_t *client_addr, float *rx_rate, float *tx_rate) {
 
@@ -33,7 +52,7 @@ int get_bandwidth_iwinfo(__uint8_t *client_addr, float *rx_rate, float *tx_rate)
 
     while ((entry = readdir(dirp)) != NULL) {
         if (entry->d_type == DT_SOCK) {
-            if (get_bandwith(entry->d_name, client_addr, rx_rate, tx_rate)) {
+            if (get_bandwidth(entry->d_name, client_addr, rx_rate, tx_rate)) {
                 sucess = 1;
                 break;
             }
@@ -43,7 +62,7 @@ int get_bandwidth_iwinfo(__uint8_t *client_addr, float *rx_rate, float *tx_rate)
     return sucess;
 }
 
-int get_bandwith(const char *ifname, uint8_t *client_addr, float *rx_rate, float *tx_rate) {
+int get_bandwidth(const char *ifname, uint8_t *client_addr, float *rx_rate, float *tx_rate) {
 
     int i, len;
     char buf[IWINFO_BUFSIZE];
