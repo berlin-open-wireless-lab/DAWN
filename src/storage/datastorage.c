@@ -46,6 +46,8 @@ int mac_in_maclist(uint8_t mac[]);
 int compare_station_count(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compare, uint8_t *client_addr,
                           int automatic_kick);
 
+int compare_ssid(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compare);
+
 int probe_entry_last = -1;
 int client_entry_last = -1;
 int ap_entry_last = -1;
@@ -73,43 +75,62 @@ int build_hearing_map_sort_client(struct blob_buf *b)
 {
     pthread_mutex_lock(&probe_array_mutex);
 
-    void *client_list, *ap_list;
+    void *client_list, *ap_list, *ssid_list;
     char ap_mac_buf[20];
     char client_mac_buf[20];
 
     blob_buf_init(b, 0);
-    int i;
-    for (i = 0; i <= probe_entry_last; i++) {
-        int k;
-        sprintf(client_mac_buf, MACSTR, MAC2STR(probe_array[i].client_addr));
-        client_list = blobmsg_open_table(b, client_mac_buf);
-        for (k = i; i <= probe_entry_last; k++){
-            if(!mac_is_equal(probe_array[k].client_addr, probe_array[i].client_addr))
+    int m;
+    for (m = 0; m <= ap_entry_last; m++) {
+        printf("COMPARING!\n");
+        if(m > 0)
+        {
+            if(strcmp((char*)ap_array[m].ssid, (char*)ap_array[m-1].ssid) == 0)
             {
-                i = k - 1;
-                break;
+                continue;
             }
-            sprintf(ap_mac_buf, MACSTR, MAC2STR(probe_array[k].bssid_addr));
-            ap_list = blobmsg_open_table(b, ap_mac_buf);
-            blobmsg_add_u32(b, "signal", probe_array[k].signal);
-            blobmsg_add_u32(b, "freq", probe_array[k].freq);
-            blobmsg_add_u8(b, "ht_support", probe_array[k].ht_support);
-            blobmsg_add_u8(b, "vht_support", probe_array[k].vht_support);
-
-            ap ap_entry = ap_array_get_ap(probe_array[k].bssid_addr);
-
-            // check if ap entry is available
-            if (mac_is_equal(ap_entry.bssid_addr, probe_array[k].bssid_addr)) {
-                blobmsg_add_u32(b, "channel_utilization", ap_entry.channel_utilization);
-                blobmsg_add_u32(b, "num_sta", ap_entry.station_count);
-                blobmsg_add_u32(b, "ht", ap_entry.ht);
-                blobmsg_add_u32(b, "vht", ap_entry.vht);
-            }
-
-            blobmsg_add_u32(b, "score", eval_probe_metric(probe_array[k]));
-            blobmsg_close_table(b, ap_list);
         }
-        blobmsg_close_table(b, client_list);
+        printf("OPEN TABLE!!!\n");
+        ssid_list = blobmsg_open_table(b, (char*)ap_array[m].ssid);
+
+        int i;
+        for (i = 0; i <= probe_entry_last; i++) {
+            if(!mac_is_equal(ap_array[m].bssid_addr, probe_array[i].bssid_addr))
+            {
+                continue;
+            }
+
+            int k;
+            sprintf(client_mac_buf, MACSTR, MAC2STR(probe_array[i].client_addr));
+            client_list = blobmsg_open_table(b, client_mac_buf);
+            for (k = i; i <= probe_entry_last; k++) {
+                if (!mac_is_equal(probe_array[k].client_addr, probe_array[i].client_addr)) {
+                    i = k - 1;
+                    break;
+                }
+                sprintf(ap_mac_buf, MACSTR, MAC2STR(probe_array[k].bssid_addr));
+                ap_list = blobmsg_open_table(b, ap_mac_buf);
+                blobmsg_add_u32(b, "signal", probe_array[k].signal);
+                blobmsg_add_u32(b, "freq", probe_array[k].freq);
+                blobmsg_add_u8(b, "ht_support", probe_array[k].ht_support);
+                blobmsg_add_u8(b, "vht_support", probe_array[k].vht_support);
+
+                ap ap_entry = ap_array_get_ap(probe_array[k].bssid_addr);
+
+                // check if ap entry is available
+                if (mac_is_equal(ap_entry.bssid_addr, probe_array[k].bssid_addr)) {
+                    blobmsg_add_u32(b, "channel_utilization", ap_entry.channel_utilization);
+                    blobmsg_add_u32(b, "num_sta", ap_entry.station_count);
+                    blobmsg_add_u32(b, "ht", ap_entry.ht);
+                    blobmsg_add_u32(b, "vht", ap_entry.vht);
+                }
+
+                blobmsg_add_u32(b, "score", eval_probe_metric(probe_array[k]));
+                blobmsg_close_table(b, ap_list);
+            }
+            blobmsg_close_table(b, client_list);
+        }
+        blobmsg_close_table(b, ssid_list);
     }
     pthread_mutex_unlock(&probe_array_mutex);
     return 0;
@@ -172,6 +193,18 @@ int eval_probe_metric(struct probe_entry_s probe_entry) {
     print_probe_entry(probe_entry);
 
     return score;
+}
+
+int compare_ssid(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compare) {
+    ap ap_entry_own = ap_array_get_ap(bssid_addr_own);
+    ap ap_entry_to_compre = ap_array_get_ap(bssid_addr_to_compare);
+
+    if (mac_is_equal(ap_entry_own.bssid_addr, bssid_addr_own) &&
+            mac_is_equal(ap_entry_to_compre.bssid_addr, bssid_addr_to_compare))
+    {
+        return (strcmp((char*)ap_entry_own.ssid, (char*)ap_entry_to_compre.ssid) == 0);
+    }
+    return 0;
 }
 
 int compare_station_count(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compare, uint8_t *client_addr,
@@ -255,14 +288,10 @@ int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], int automat
             continue;
         }
 
-        // check if same essid!!!
-        if(compare_essid(bssid_addr, probe_array[k].bssid_addr) != 0)
+        // check if same ssid!
+        if(!compare_ssid(bssid_addr, probe_array[k].bssid_addr))
         {
-            printf("ESSID ARE NOT THE SAME!\n");
             continue;
-        } else
-        {
-            printf("ESSID ARE THE SAME!\n");
         }
 
 
@@ -620,12 +649,12 @@ ap ap_array_get_ap(uint8_t bssid_addr[]) {
         return ret;
     }
 
-
     pthread_mutex_lock(&ap_array_mutex);
     int i;
 
     for (i = 0; i <= ap_entry_last; i++) {
-        if (mac_is_equal(bssid_addr, ap_array[i].bssid_addr) || mac_is_greater(ap_array[i].bssid_addr, bssid_addr)) {
+        if (mac_is_equal(bssid_addr, ap_array[i].bssid_addr)){
+                    //|| mac_is_greater(ap_array[i].bssid_addr, bssid_addr)) {
             break;
         }
     }
@@ -644,9 +673,15 @@ void ap_array_insert(ap entry) {
 
     int i;
     for (i = 0; i <= ap_entry_last; i++) {
-        if (!mac_is_greater(entry.bssid_addr, ap_array[i].bssid_addr)) {
+        if (mac_is_greater(entry.bssid_addr, ap_array[i].bssid_addr) &&
+            strcmp((char*)entry.ssid, (char*)ap_array[i].ssid) == 0) {
+            continue;
+        }
+
+        if(!string_is_greater(entry.ssid, ap_array[i].ssid)){
             break;
         }
+
     }
     for (int j = ap_entry_last; j >= i; j--) {
         if (j + 1 <= ARRAY_AP_LEN) {

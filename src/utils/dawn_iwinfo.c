@@ -22,7 +22,7 @@ int get_bandwidth(const char *ifname, uint8_t *client_addr, float *rx_rate, floa
 #define IWINFO_ESSID_MAX_SIZE	32
 
 
-int compare_essid(__uint8_t *bssid_addr, __uint8_t *bssid_addr_to_compare)
+int compare_essid_iwinfo(__uint8_t *bssid_addr, __uint8_t *bssid_addr_to_compare)
 {
     const struct iwinfo_ops *iw;
 
