@@ -45,7 +45,7 @@ int compare_essid(__uint8_t *bssid_addr, __uint8_t *bssid_addr_to_compare)
     char buf_essid[IWINFO_ESSID_MAX_SIZE+1] = { 0 };
     char buf_essid_to_compare[IWINFO_ESSID_MAX_SIZE+1] = { 0 };
 
-    while ((entry = readdir(dirp)) != NULL) {
+    while ((entry = readdir(dirp)) != NULL && (essid == NULL || essid_to_compare == NULL)) {
         if (entry->d_type == DT_SOCK) {
 
             iw = iwinfo_backend(entry->d_name);
@@ -57,14 +57,14 @@ int compare_essid(__uint8_t *bssid_addr, __uint8_t *bssid_addr_to_compare)
             if(strcmp(mac_buf, buf_bssid))
             {
 
-                if (iw->ssid(entry->d_type, buf_essid))
+                if (iw->ssid(entry->d_name, buf_essid))
                     memset(buf_essid, 0, sizeof(buf_essid));
                 essid = buf_essid;
             }
 
             if(strcmp(mac_buf_to_compare, buf_bssid))
             {
-                if (iw->ssid(entry->d_type, buf_essid_to_compare))
+                if (iw->ssid(entry->d_name, buf_essid_to_compare))
                     memset(buf_essid_to_compare, 0, sizeof(buf_essid_to_compare));
                 essid_to_compare = buf_essid_to_compare;
             }
@@ -73,6 +73,11 @@ int compare_essid(__uint8_t *bssid_addr, __uint8_t *bssid_addr_to_compare)
     closedir(dirp);
 
     printf("Comparing: %s with %s\n", essid, essid_to_compare);
+
+    if(essid == NULL || essid_to_compare == NULL)
+    {
+        return -1;
+    }
 
     if(strcmp(essid, essid_to_compare))
     {
