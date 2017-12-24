@@ -240,9 +240,9 @@ int compare_station_count(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compar
             ) {
         printf("Comparing own %d to %d\n", ap_entry_own.station_count, ap_entry_to_compre.station_count);
         if (automatic_kick) {
-            return (ap_entry_own.station_count - 1) > ap_entry_to_compre.station_count;
+            return ((int)ap_entry_own.station_count - 1) > (int)ap_entry_to_compre.station_count;
         } else {
-            return ap_entry_own.station_count > ap_entry_to_compre.station_count;
+            return (int)ap_entry_own.station_count > (int)ap_entry_to_compre.station_count;
         }
 
         /*
