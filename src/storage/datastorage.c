@@ -97,7 +97,18 @@ int build_hearing_map_sort_client(struct blob_buf *b)
 
         int i;
         for (i = 0; i <= probe_entry_last; i++) {
-            if(!mac_is_equal(ap_array[m].bssid_addr, probe_array[i].bssid_addr))
+            /*if(!mac_is_equal(ap_array[m].bssid_addr, probe_array[i].bssid_addr))
+            {
+                continue;
+            }*/
+
+            ap ap_entry_i = ap_array_get_ap(probe_array[i].bssid_addr);
+
+            if (!mac_is_equal(ap_entry_i.bssid_addr, probe_array[i].bssid_addr)) {
+                continue;
+            }
+
+            if(strcmp((char*)ap_entry_i.ssid, (char*)ap_array[m].ssid) != 0)
             {
                 continue;
             }
@@ -106,6 +117,17 @@ int build_hearing_map_sort_client(struct blob_buf *b)
             sprintf(client_mac_buf, MACSTR, MAC2STR(probe_array[i].client_addr));
             client_list = blobmsg_open_table(b, client_mac_buf);
             for (k = i; i <= probe_entry_last; k++) {
+                ap ap_entry = ap_array_get_ap(probe_array[k].bssid_addr);
+
+                if (!mac_is_equal(ap_entry.bssid_addr, probe_array[k].bssid_addr)) {
+                    continue;
+                }
+
+                if(strcmp((char*)ap_entry.ssid, (char*)ap_array[m].ssid) != 0)
+                {
+                    continue;
+                }
+                
                 if (!mac_is_equal(probe_array[k].client_addr, probe_array[i].client_addr)) {
                     i = k - 1;
                     break;
@@ -117,15 +139,12 @@ int build_hearing_map_sort_client(struct blob_buf *b)
                 blobmsg_add_u8(b, "ht_support", probe_array[k].ht_support);
                 blobmsg_add_u8(b, "vht_support", probe_array[k].vht_support);
 
-                ap ap_entry = ap_array_get_ap(probe_array[k].bssid_addr);
 
                 // check if ap entry is available
-                if (mac_is_equal(ap_entry.bssid_addr, probe_array[k].bssid_addr)) {
-                    blobmsg_add_u32(b, "channel_utilization", ap_entry.channel_utilization);
-                    blobmsg_add_u32(b, "num_sta", ap_entry.station_count);
-                    blobmsg_add_u32(b, "ht", ap_entry.ht);
-                    blobmsg_add_u32(b, "vht", ap_entry.vht);
-                }
+                blobmsg_add_u32(b, "channel_utilization", ap_entry.channel_utilization);
+                blobmsg_add_u32(b, "num_sta", ap_entry.station_count);
+                blobmsg_add_u32(b, "ht", ap_entry.ht);
+                blobmsg_add_u32(b, "vht", ap_entry.vht);
 
                 blobmsg_add_u32(b, "score", eval_probe_metric(probe_array[k]));
                 blobmsg_close_table(b, ap_list);
