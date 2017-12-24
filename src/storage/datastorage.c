@@ -127,7 +127,7 @@ int build_hearing_map_sort_client(struct blob_buf *b)
                 {
                     continue;
                 }
-                
+
                 if (!mac_is_equal(probe_array[k].client_addr, probe_array[i].client_addr)) {
                     i = k - 1;
                     break;
