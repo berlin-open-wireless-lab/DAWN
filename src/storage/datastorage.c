@@ -73,6 +73,8 @@ struct uloop_timeout ap_timeout = {
 
 int build_hearing_map_sort_client(struct blob_buf *b)
 {
+    print_probe_array();
+
     pthread_mutex_lock(&probe_array_mutex);
 
     void *client_list, *ap_list, *ssid_list;
