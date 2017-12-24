@@ -744,7 +744,7 @@ ap ap_array_delete(ap entry) {
 }
 
 void remove_old_client_entries(time_t current_time, long long int threshold) {
-    for (int i = 0; i < probe_entry_last; i++) {
+    for (int i = 0; i < client_entry_last; i++) {
         if (client_array[i].time < current_time - threshold) {
             client_array_delete(client_array[i]);
         }
@@ -761,7 +761,7 @@ void remove_old_probe_entries(time_t current_time, long long int threshold) {
 }
 
 void remove_old_ap_entries(time_t current_time, long long int threshold) {
-    for (int i = 0; i < probe_entry_last; i++) {
+    for (int i = 0; i < ap_entry_last; i++) {
         if (ap_array[i].time < current_time - threshold) {
             ap_array_delete(ap_array[i]);
         }
