@@ -15,9 +15,77 @@ int parse_rssi(char *iwinfo_string);
 
 int get_rssi(const char *ifname, uint8_t *client_addr);
 
-int get_bandwith(const char *ifname, uint8_t *client_addr, float *rx_rate, float *tx_rate);
+int get_bandwidth(const char *ifname, uint8_t *client_addr, float *rx_rate, float *tx_rate);
 
 #define IWINFO_BUFSIZE    24 * 1024
+
+#define IWINFO_ESSID_MAX_SIZE	32
+
+
+int compare_essid_iwinfo(__uint8_t *bssid_addr, __uint8_t *bssid_addr_to_compare)
+{
+    const struct iwinfo_ops *iw;
+
+    char mac_buf[20];
+    char mac_buf_to_compare[20];
+    sprintf(mac_buf, MACSTR, MAC2STR(bssid_addr));
+    sprintf(mac_buf_to_compare, MACSTR, MAC2STR(bssid_addr_to_compare));
+
+    DIR *dirp;
+    struct dirent *entry;
+    dirp = opendir(hostapd_dir_glob);  // error handling?
+    if (!dirp) {
+        fprintf(stderr, "No hostapd sockets!\n");
+        return 0;
+    }
+
+    char* essid = NULL;
+    char* essid_to_compare = NULL;
+
+    char buf_essid[IWINFO_ESSID_MAX_SIZE+1] = { 0 };
+    char buf_essid_to_compare[IWINFO_ESSID_MAX_SIZE+1] = { 0 };
+
+    while ((entry = readdir(dirp)) != NULL && (essid == NULL || essid_to_compare == NULL)) {
+        if (entry->d_type == DT_SOCK) {
+
+            iw = iwinfo_backend(entry->d_name);
+
+            static char buf_bssid[18] = { 0 };
+            if (iw->bssid(entry->d_name, buf_bssid))
+                snprintf(buf_bssid, sizeof(buf_bssid), "00:00:00:00:00:00");
+
+            if(strcmp(mac_buf, buf_bssid) == 0)
+            {
+
+                if (iw->ssid(entry->d_name, buf_essid))
+                    memset(buf_essid, 0, sizeof(buf_essid));
+                essid = buf_essid;
+            }
+
+            if(strcmp(mac_buf_to_compare, buf_bssid) == 0)
+            {
+                if (iw->ssid(entry->d_name, buf_essid_to_compare))
+                    memset(buf_essid_to_compare, 0, sizeof(buf_essid_to_compare));
+                essid_to_compare = buf_essid_to_compare;
+            }
+        }
+    }
+    closedir(dirp);
+
+    printf("Comparing: %s with %s\n", essid, essid_to_compare);
+
+    if(essid == NULL || essid_to_compare == NULL)
+    {
+        return -1;
+    }
+
+    if(strcmp(essid, essid_to_compare) == 0)
+    {
+        return 0;
+    }
+
+    return -1;
+}
 
 int get_bandwidth_iwinfo(__uint8_t *client_addr, float *rx_rate, float *tx_rate) {
 
@@ -33,7 +101,7 @@ int get_bandwidth_iwinfo(__uint8_t *client_addr, float *rx_rate, float *tx_rate)
 
     while ((entry = readdir(dirp)) != NULL) {
         if (entry->d_type == DT_SOCK) {
-            if (get_bandwith(entry->d_name, client_addr, rx_rate, tx_rate)) {
+            if (get_bandwidth(entry->d_name, client_addr, rx_rate, tx_rate)) {
                 sucess = 1;
                 break;
             }
@@ -43,7 +111,7 @@ int get_bandwidth_iwinfo(__uint8_t *client_addr, float *rx_rate, float *tx_rate)
     return sucess;
 }
 
-int get_bandwith(const char *ifname, uint8_t *client_addr, float *rx_rate, float *tx_rate) {
+int get_bandwidth(const char *ifname, uint8_t *client_addr, float *rx_rate, float *tx_rate) {
 
     int i, len;
     char buf[IWINFO_BUFSIZE];

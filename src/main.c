@@ -9,6 +9,7 @@
 #include "ubus.h"
 #include "dawn_uci.h"
 #include "crypto.h"
+#include "dawn_iwinfo.h"
 
 void daemon_shutdown();
 

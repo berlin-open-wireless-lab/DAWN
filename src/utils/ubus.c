@@ -105,6 +105,7 @@ static const struct blobmsg_policy prob_policy[__PROB_MAX] = {
 enum {
     CLIENT_TABLE,
     CLIENT_TABLE_BSSID,
+    CLIENT_TABLE_SSID,
     CLIENT_TABLE_FREQ,
     CLIENT_TABLE_HT,
     CLIENT_TABLE_VHT,
@@ -116,6 +117,7 @@ enum {
 static const struct blobmsg_policy client_table_policy[__CLIENT_TABLE_MAX] = {
         [CLIENT_TABLE] = {.name = "clients", .type = BLOBMSG_TYPE_TABLE},
         [CLIENT_TABLE_BSSID] = {.name = "bssid", .type = BLOBMSG_TYPE_STRING},
+        [CLIENT_TABLE_SSID] = {.name = "ssid", .type = BLOBMSG_TYPE_STRING},
         [CLIENT_TABLE_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
         [CLIENT_TABLE_HT] = {.name = "ht_supported", .type = BLOBMSG_TYPE_INT8},
         [CLIENT_TABLE_VHT] = {.name = "vht_supported", .type = BLOBMSG_TYPE_INT8},
@@ -246,11 +248,15 @@ void blobmsg_add_macaddr(struct blob_buf *buf, const char *name, const uint8_t *
 
 
 static int decide_function(probe_entry *prob_req) {
-    // TODO: Refactor...
     printf("COUNTER: %d\n", prob_req->counter);
 
     if (prob_req->counter < dawn_metric.min_probe_count) {
         return 0;
+    }
+
+    if(!dawn_metric.eval_probe_req)
+    {
+        return 1;
     }
 
     if (better_ap_available(prob_req->bssid_addr, prob_req->client_addr, 0)) {
@@ -368,6 +374,9 @@ static int handle_auth_req(struct blob_attr *msg) {
         return UBUS_STATUS_UNKNOWN_ERROR;
     }
 
+    // maybe add here if a client is already connected...
+    // delay problems...
+
     printf("ALLOW AUTH!\n");
     return 0;
 }
@@ -382,30 +391,12 @@ static int handle_assoc_req(struct blob_attr *msg) {
 static int handle_probe_req(struct blob_attr *msg) {
     //printf("[WC] Parse Probe Request\n");
     probe_entry prob_req;
+    probe_entry tmp_prob_req;
     if(parse_to_probe_req(msg, &prob_req) == 0)
     {
-        insert_to_array(prob_req, 1);
+        tmp_prob_req = insert_to_array(prob_req, 1);
         //print_probe_array();
         send_blob_attr_via_network(msg, "probe");
-    }
-    //insert_to_list(prob_req, 1);
-    //probe_entry tmp_probe =
-    probe_entry tmp_prob_req = insert_to_array(prob_req, 1);
-
-    // send probe via network
-    /*char *str;
-    str = blobmsg_format_json(msg, true);
-    send_string_enc(str);
-
-    printf("[WC] Hostapd-Probe: %s : %s\n", "probe", str);*/
-
-
-    //print_probe_array();
-
-    // deny access
-
-    if (!dawn_metric.eval_probe_req) {
-        return 0;
     }
 
     if (!decide_function(&tmp_prob_req)) {
@@ -777,6 +768,7 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
         ap_entry.ht = blobmsg_get_u8(tb[CLIENT_TABLE_HT]);
         ap_entry.vht = blobmsg_get_u8(tb[CLIENT_TABLE_VHT]);
         ap_entry.channel_utilization = blobmsg_get_u32(tb[CLIENT_TABLE_CHAN_UTIL]);
+        strcpy((char*)ap_entry.ssid, blobmsg_get_string(tb[CLIENT_TABLE_SSID]));
 
         if (tb[CLIENT_TABLE_NUM_STA]) {
             ap_entry.station_count = blobmsg_get_u32(tb[CLIENT_TABLE_NUM_STA]);

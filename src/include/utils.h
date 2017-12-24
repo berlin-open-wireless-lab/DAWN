@@ -17,4 +17,6 @@ int convert_mac(char *in, char *out);
 
 void write_mac_to_file(char* path, uint8_t addr[]);
 
+int string_is_greater(uint8_t* str, uint8_t* str_2);
+
 #endif

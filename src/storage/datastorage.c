@@ -43,7 +43,10 @@ int is_connected(uint8_t bssid_addr[], uint8_t client_addr[]);
 
 int mac_in_maclist(uint8_t mac[]);
 
-int compare_station_count(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compare, int automatic_kick);
+int compare_station_count(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compare, uint8_t *client_addr,
+                          int automatic_kick);
+
+int compare_ssid(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compare);
 
 int probe_entry_last = -1;
 int client_entry_last = -1;
@@ -70,45 +73,85 @@ struct uloop_timeout ap_timeout = {
 
 int build_hearing_map_sort_client(struct blob_buf *b)
 {
+    print_probe_array();
+
     pthread_mutex_lock(&probe_array_mutex);
 
-    void *client_list, *ap_list;
+    void *client_list, *ap_list, *ssid_list;
     char ap_mac_buf[20];
     char client_mac_buf[20];
 
     blob_buf_init(b, 0);
-    int i;
-    for (i = 0; i <= probe_entry_last; i++) {
-        int k;
-        sprintf(client_mac_buf, MACSTR, MAC2STR(probe_array[i].client_addr));
-        client_list = blobmsg_open_table(b, client_mac_buf);
-        for (k = i; i <= probe_entry_last; k++){
-            if(!mac_is_equal(probe_array[k].client_addr, probe_array[i].client_addr))
+    int m;
+    for (m = 0; m <= ap_entry_last; m++) {
+        printf("COMPARING!\n");
+        if(m > 0)
+        {
+            if(strcmp((char*)ap_array[m].ssid, (char*)ap_array[m-1].ssid) == 0)
             {
-                i = k - 1;
-                break;
+                continue;
             }
-            sprintf(ap_mac_buf, MACSTR, MAC2STR(probe_array[k].bssid_addr));
-            ap_list = blobmsg_open_table(b, ap_mac_buf);
-            blobmsg_add_u32(b, "signal", probe_array[k].signal);
-            blobmsg_add_u32(b, "freq", probe_array[k].freq);
-            blobmsg_add_u8(b, "ht_support", probe_array[k].ht_support);
-            blobmsg_add_u8(b, "vht_support", probe_array[k].vht_support);
+        }
+        printf("OPEN TABLE!!!\n");
+        ssid_list = blobmsg_open_table(b, (char*)ap_array[m].ssid);
 
-            ap ap_entry = ap_array_get_ap(probe_array[k].bssid_addr);
+        int i;
+        for (i = 0; i <= probe_entry_last; i++) {
+            /*if(!mac_is_equal(ap_array[m].bssid_addr, probe_array[i].bssid_addr))
+            {
+                continue;
+            }*/
 
-            // check if ap entry is available
-            if (mac_is_equal(ap_entry.bssid_addr, probe_array[k].bssid_addr)) {
+            ap ap_entry_i = ap_array_get_ap(probe_array[i].bssid_addr);
+
+            if (!mac_is_equal(ap_entry_i.bssid_addr, probe_array[i].bssid_addr)) {
+                continue;
+            }
+
+            if(strcmp((char*)ap_entry_i.ssid, (char*)ap_array[m].ssid) != 0)
+            {
+                continue;
+            }
+
+            int k;
+            sprintf(client_mac_buf, MACSTR, MAC2STR(probe_array[i].client_addr));
+            client_list = blobmsg_open_table(b, client_mac_buf);
+            for (k = i; i <= probe_entry_last; k++) {
+                ap ap_entry = ap_array_get_ap(probe_array[k].bssid_addr);
+
+                if (!mac_is_equal(ap_entry.bssid_addr, probe_array[k].bssid_addr)) {
+                    continue;
+                }
+
+                if(strcmp((char*)ap_entry.ssid, (char*)ap_array[m].ssid) != 0)
+                {
+                    continue;
+                }
+
+                if (!mac_is_equal(probe_array[k].client_addr, probe_array[i].client_addr)) {
+                    i = k - 1;
+                    break;
+                }
+                sprintf(ap_mac_buf, MACSTR, MAC2STR(probe_array[k].bssid_addr));
+                ap_list = blobmsg_open_table(b, ap_mac_buf);
+                blobmsg_add_u32(b, "signal", probe_array[k].signal);
+                blobmsg_add_u32(b, "freq", probe_array[k].freq);
+                blobmsg_add_u8(b, "ht_support", probe_array[k].ht_support);
+                blobmsg_add_u8(b, "vht_support", probe_array[k].vht_support);
+
+
+                // check if ap entry is available
                 blobmsg_add_u32(b, "channel_utilization", ap_entry.channel_utilization);
                 blobmsg_add_u32(b, "num_sta", ap_entry.station_count);
                 blobmsg_add_u32(b, "ht", ap_entry.ht);
                 blobmsg_add_u32(b, "vht", ap_entry.vht);
-            }
 
-            blobmsg_add_u32(b, "score", eval_probe_metric(probe_array[k]));
-            blobmsg_close_table(b, ap_list);
+                blobmsg_add_u32(b, "score", eval_probe_metric(probe_array[k]));
+                blobmsg_close_table(b, ap_list);
+            }
+            blobmsg_close_table(b, client_list);
         }
-        blobmsg_close_table(b, client_list);
+        blobmsg_close_table(b, ssid_list);
     }
     pthread_mutex_unlock(&probe_array_mutex);
     return 0;
@@ -173,7 +216,20 @@ int eval_probe_metric(struct probe_entry_s probe_entry) {
     return score;
 }
 
-int compare_station_count(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compare, int automatic_kick) {
+int compare_ssid(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compare) {
+    ap ap_entry_own = ap_array_get_ap(bssid_addr_own);
+    ap ap_entry_to_compre = ap_array_get_ap(bssid_addr_to_compare);
+
+    if (mac_is_equal(ap_entry_own.bssid_addr, bssid_addr_own) &&
+            mac_is_equal(ap_entry_to_compre.bssid_addr, bssid_addr_to_compare))
+    {
+        return (strcmp((char*)ap_entry_own.ssid, (char*)ap_entry_to_compre.ssid) == 0);
+    }
+    return 0;
+}
+
+int compare_station_count(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compare, uint8_t *client_addr,
+                          int automatic_kick) {
 
     ap ap_entry_own = ap_array_get_ap(bssid_addr_own);
     ap ap_entry_to_compre = ap_array_get_ap(bssid_addr_to_compare);
@@ -188,6 +244,19 @@ int compare_station_count(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compar
         } else {
             return ap_entry_own.station_count > ap_entry_to_compre.station_count;
         }
+
+        /*
+        int own_count = ap_entry_own.station_count;
+        if(automatic_kick)
+        {
+            own_count--;
+        }
+        if (is_connected(bssid_addr_to_compare, client_addr))
+        {
+            own_count--;
+        }
+
+        return own_count > ap_entry_to_compre.station_count;*/
     }
 
     return 0;
@@ -240,6 +309,13 @@ int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], int automat
             continue;
         }
 
+        // check if same ssid!
+        if(!compare_ssid(bssid_addr, probe_array[k].bssid_addr))
+        {
+            continue;
+        }
+
+
         printf("Calculating score to compare!\n");
         score_to_compare = eval_probe_metric(probe_array[k]);
 
@@ -247,10 +323,13 @@ int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], int automat
             return 1;
         }
         if (dawn_metric.use_station_count && own_score == score_to_compare) {
+
             // if ap have same value but station count is different...
-            if (compare_station_count(bssid_addr, probe_array[k].bssid_addr, automatic_kick)) {
+            if (compare_station_count(bssid_addr, probe_array[k].bssid_addr, NULL, automatic_kick)) {
                 return 1;
             }
+
+
         }
     }
     return 0;
@@ -591,12 +670,12 @@ ap ap_array_get_ap(uint8_t bssid_addr[]) {
         return ret;
     }
 
-
     pthread_mutex_lock(&ap_array_mutex);
     int i;
 
     for (i = 0; i <= ap_entry_last; i++) {
-        if (mac_is_equal(bssid_addr, ap_array[i].bssid_addr) || mac_is_greater(ap_array[i].bssid_addr, bssid_addr)) {
+        if (mac_is_equal(bssid_addr, ap_array[i].bssid_addr)){
+                    //|| mac_is_greater(ap_array[i].bssid_addr, bssid_addr)) {
             break;
         }
     }
@@ -615,9 +694,15 @@ void ap_array_insert(ap entry) {
 
     int i;
     for (i = 0; i <= ap_entry_last; i++) {
-        if (!mac_is_greater(entry.bssid_addr, ap_array[i].bssid_addr)) {
+        if (mac_is_greater(entry.bssid_addr, ap_array[i].bssid_addr) &&
+            strcmp((char*)entry.ssid, (char*)ap_array[i].ssid) == 0) {
+            continue;
+        }
+
+        if(!string_is_greater(entry.ssid, ap_array[i].ssid)){
             break;
         }
+
     }
     for (int j = ap_entry_last; j >= i; j--) {
         if (j + 1 <= ARRAY_AP_LEN) {
@@ -659,7 +744,7 @@ ap ap_array_delete(ap entry) {
 }
 
 void remove_old_client_entries(time_t current_time, long long int threshold) {
-    for (int i = 0; i < probe_entry_last; i++) {
+    for (int i = 0; i < client_entry_last; i++) {
         if (client_array[i].time < current_time - threshold) {
             client_array_delete(client_array[i]);
         }
@@ -676,7 +761,7 @@ void remove_old_probe_entries(time_t current_time, long long int threshold) {
 }
 
 void remove_old_ap_entries(time_t current_time, long long int threshold) {
-    for (int i = 0; i < probe_entry_last; i++) {
+    for (int i = 0; i < ap_entry_last; i++) {
         if (ap_array[i].time < current_time - threshold) {
             ap_array_delete(ap_array[i]);
         }
@@ -1160,8 +1245,8 @@ void print_ap_entry(ap entry) {
     char mac_buf_ap[20];
 
     sprintf(mac_buf_ap, MACSTR, MAC2STR(entry.bssid_addr));
-    printf("bssid_addr: %s, freq: %d, ht: %d, vht: %d, chan_utilz: %d\n",
-           mac_buf_ap, entry.freq, entry.ht, entry.vht, entry.channel_utilization);
+    printf("ssid: %s, bssid_addr: %s, freq: %d, ht: %d, vht: %d, chan_utilz: %d\n",
+           entry.ssid, mac_buf_ap, entry.freq, entry.ht, entry.vht, entry.channel_utilization);
 }
 
 void print_ap_array() {
