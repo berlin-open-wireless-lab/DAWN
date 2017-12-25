@@ -239,10 +239,20 @@ int compare_station_count(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compar
         && mac_is_equal(ap_entry_to_compre.bssid_addr, bssid_addr_to_compare)
             ) {
         printf("Comparing own %d to %d\n", ap_entry_own.station_count, ap_entry_to_compre.station_count);
+
+
         if (automatic_kick) {
             return ((int)ap_entry_own.station_count - 1) > (int)ap_entry_to_compre.station_count;
         } else {
-            return (int)ap_entry_own.station_count > (int)ap_entry_to_compre.station_count;
+
+            int sta_count_to_compare = ap_entry_to_compre.station_count;
+            if(is_connected(bssid_addr_to_compare, client_addr))
+            {
+                printf("IS ALREADY CONNECTED! DECREASE COUNTER!!!\n");
+                sta_count_to_compare--;
+            }
+
+            return (int)ap_entry_own.station_count > sta_count_to_compare;
         }
 
         /*
@@ -325,7 +335,7 @@ int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], int automat
         if (dawn_metric.use_station_count && own_score == score_to_compare) {
 
             // if ap have same value but station count is different...
-            if (compare_station_count(bssid_addr, probe_array[k].bssid_addr, NULL, automatic_kick)) {
+            if (compare_station_count(bssid_addr, probe_array[k].bssid_addr, probe_array[k].client_addr, automatic_kick)) {
                 return 1;
             }
 
