@@ -920,7 +920,7 @@ int send_set_probe(uint8_t client_addr[])
     blobmsg_add_macaddr(&b_probe, "bssid", client_addr);
     blobmsg_add_macaddr(&b_probe, "address", client_addr);
 
-    send_blob_attr_via_network(b_probe.head, "set_probe");
+    send_blob_attr_via_network(b_probe.head, "setprobe");
 
     return 0;
 }
