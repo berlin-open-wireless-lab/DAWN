@@ -161,30 +161,54 @@ int build_network_overview(struct blob_buf *b)
 {
     pthread_mutex_lock(&probe_array_mutex);
 
-    void *client_list, *ap_list;
+    void *client_list, *ap_list, *ssid_list;
     char ap_mac_buf[20];
     char client_mac_buf[20];
 
     blob_buf_init(b, 0);
-    int i;
-    for (i = 0; i <= client_entry_last; i++) {
-        int k;
-        sprintf(ap_mac_buf, MACSTR, MAC2STR(client_array[i].bssid_addr));
-        ap_list = blobmsg_open_table(b, ap_mac_buf);
-        for (k = i; i <= client_entry_last; k++){
-            if(!mac_is_equal(client_array[k].bssid_addr, client_array[i].bssid_addr))
+    int m;
+    for (m = 0; m <= ap_entry_last; m++) {
+        printf("COMPARING!\n");
+        if(m > 0)
+        {
+            if(strcmp((char*)ap_array[m].ssid, (char*)ap_array[m-1].ssid) == 0)
             {
-                i = k - 1;
-                break;
+                continue;
             }
-            sprintf(client_mac_buf, MACSTR, MAC2STR(client_array[k].client_addr));
-            client_list = blobmsg_open_table(b, client_mac_buf);
-            blobmsg_add_u32(b, "freq", client_array[k].freq);
-            blobmsg_add_u32(b, "ht", client_array[k].ht);
-            blobmsg_add_u32(b, "vht", client_array[k].vht);
-            blobmsg_close_table(b, client_list);
         }
-        blobmsg_close_table(b, ap_list);
+
+        ssid_list = blobmsg_open_table(b, (char*)ap_array[m].ssid);
+
+        blob_buf_init(b, 0);
+        int i;
+        for (i = 0; i <= client_entry_last; i++) {
+            int k;
+            sprintf(ap_mac_buf, MACSTR, MAC2STR(client_array[i].bssid_addr));
+            ap_list = blobmsg_open_table(b, ap_mac_buf);
+            for (k = i; i <= client_entry_last; k++){
+                ap ap_entry_i = ap_array_get_ap(probe_array[i].bssid_addr);
+
+                if(strcmp((char*)ap_entry_i.ssid, (char*)ap_array[m].ssid) != 0)
+                {
+                    continue;
+                }
+
+                if(!mac_is_equal(client_array[k].bssid_addr, client_array[i].bssid_addr))
+                {
+                    i = k - 1;
+                    break;
+                }
+                
+                sprintf(client_mac_buf, MACSTR, MAC2STR(client_array[k].client_addr));
+                client_list = blobmsg_open_table(b, client_mac_buf);
+                blobmsg_add_u32(b, "freq", client_array[k].freq);
+                blobmsg_add_u32(b, "ht", client_array[k].ht);
+                blobmsg_add_u32(b, "vht", client_array[k].vht);
+                blobmsg_close_table(b, client_list);
+            }
+            blobmsg_close_table(b, ap_list);
+        }
+        blobmsg_close_table(b, ssid_list);
     }
     pthread_mutex_unlock(&probe_array_mutex);
     return 0;
