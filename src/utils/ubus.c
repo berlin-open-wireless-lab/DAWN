@@ -436,9 +436,6 @@ static int handle_set_probe(struct blob_attr *msg) {
     memcpy(client_entry.bssid_addr, notify_req.bssid_addr, sizeof(uint8_t) * ETH_ALEN );
     memcpy(client_entry.client_addr, notify_req.client_addr, sizeof(uint8_t) * ETH_ALEN );
 
-    printf("SETTING CLIENT MACS ENTRY!!!!\n");
-    print_client_entry(client_entry);
-
     probe_array_set_all_probe_count(client_entry.client_addr, dawn_metric.min_probe_count);
 
     return 0;
@@ -984,24 +981,6 @@ static int get_hearing_map(struct ubus_context *ctx, struct ubus_object *obj,
 
     build_hearing_map_sort_client(&b);
     ubus_send_reply(ctx, req, b.head);
-
-    int tmp_int_mac[ETH_ALEN];
-    uint8_t tmp_mac[ETH_ALEN];
-    sscanf("10:0B:A9:6D:33:90", MACSTR, STR2MAC(tmp_int_mac));
-    for (int i = 0; i < ETH_ALEN; ++i)
-        tmp_mac[i] = (uint8_t) tmp_int_mac[i];
-
-    char mac_buf_target[20];
-    sprintf(mac_buf_target, MACSTR, MAC2STR(tmp_mac));
-    printf("SETTING PROBE COUNT OF MAC!!! %s\n", mac_buf_target);
-
-
-
-    printf("SENDING MAP!\n");
-
-
-    send_set_probe(tmp_mac);
-
     return 0;
 }
 

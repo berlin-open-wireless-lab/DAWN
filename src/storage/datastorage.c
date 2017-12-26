@@ -429,7 +429,7 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
 
 
             // here we should send a messsage to set the probe.count for all aps to the min that there is no delay between switching
-
+            // the hearing map is full...
             send_set_probe(client_array[j].client_addr);
 
             del_client_interface(id, client_array[j].client_addr, 5, 1, 1000);
