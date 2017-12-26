@@ -179,26 +179,24 @@ int build_network_overview(struct blob_buf *b)
 
         ssid_list = blobmsg_open_table(b, (char*)ap_array[m].ssid);
 
-        blob_buf_init(b, 0);
         int i;
         for (i = 0; i <= client_entry_last; i++) {
+            ap ap_entry_i = ap_array_get_ap(client_array[i].bssid_addr);
+
+            if(strcmp((char*)ap_entry_i.ssid, (char*)ap_array[m].ssid) != 0)
+            {
+                continue;
+            }
             int k;
             sprintf(ap_mac_buf, MACSTR, MAC2STR(client_array[i].bssid_addr));
             ap_list = blobmsg_open_table(b, ap_mac_buf);
             for (k = i; i <= client_entry_last; k++){
-                ap ap_entry_i = ap_array_get_ap(probe_array[i].bssid_addr);
-
-                if(strcmp((char*)ap_entry_i.ssid, (char*)ap_array[m].ssid) != 0)
-                {
-                    continue;
-                }
-
                 if(!mac_is_equal(client_array[k].bssid_addr, client_array[i].bssid_addr))
                 {
                     i = k - 1;
                     break;
                 }
-                
+
                 sprintf(client_mac_buf, MACSTR, MAC2STR(client_array[k].client_addr));
                 client_list = blobmsg_open_table(b, client_mac_buf);
                 blobmsg_add_u32(b, "freq", client_array[k].freq);
