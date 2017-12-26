@@ -427,6 +427,9 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
             }
             printf("Client is probably NOT in active transmisison. KICK! RxRate is: %f\n", rx_rate);
 
+
+            // here we should send a messsage to set the probe.count for all aps to the min that there is no delay between switching
+
             del_client_interface(id, client_array[j].client_addr, 5, 1, 1000);
             client_array_delete(client_array[j]);
 
@@ -604,6 +607,29 @@ probe_entry probe_array_delete(probe_entry entry) {
         probe_entry_last--;
     }
     return tmp;
+}
+
+int probe_array_set_probe_count(uint8_t bssid_addr[], uint8_t client_addr[], uint32_t probe_count) {
+
+    int updated = 0;
+
+    if (probe_entry_last == -1) {
+        return 0;
+    }
+
+
+    pthread_mutex_lock(&probe_array_mutex);
+    for (int i = 0; i <= probe_entry_last; i++) {
+        if (mac_is_equal(bssid_addr, probe_array[i].bssid_addr) &&
+            mac_is_equal(client_addr, probe_array[i].client_addr)) {
+            probe_array[i].signal = rssi;
+            updated = 1;
+            ubus_send_probe_via_network(probe_array[i]);
+        }
+    }
+    pthread_mutex_unlock(&probe_array_mutex);
+
+    return updated;
 }
 
 int probe_array_update_rssi(uint8_t bssid_addr[], uint8_t client_addr[], uint32_t rssi) {
