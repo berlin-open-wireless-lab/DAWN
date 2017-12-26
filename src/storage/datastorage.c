@@ -621,13 +621,13 @@ int probe_array_set_all_probe_count(uint8_t client_addr[], uint32_t probe_count)
 
     pthread_mutex_lock(&probe_array_mutex);
     for (int i = 0; i <= probe_entry_last; i++) {
-        if(mac_is_greater(client_addr, probe_array[i].client_addr))
-        {
-            break;
-        }
-
         if (mac_is_equal(client_addr, probe_array[i].client_addr)) {
+            printf("SETTING MAC!!!\n");
             probe_array[i].counter = probe_count;
+        }else if(!mac_is_greater(client_addr, probe_array[i].client_addr))
+        {
+            printf("MAC NOT FOUND!!!\n");
+            break;
         }
     }
     pthread_mutex_unlock(&probe_array_mutex);

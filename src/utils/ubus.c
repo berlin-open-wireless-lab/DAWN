@@ -415,8 +415,8 @@ static int handle_deauth_req(struct blob_attr *msg) {
     parse_to_hostapd_notify(msg, &notify_req);
 
     client client_entry;
-    memcpy(client_entry.bssid_addr, client_entry.bssid_addr, sizeof(uint8_t) * ETH_ALEN );
-    memcpy(client_entry.client_addr, client_entry.client_addr, sizeof(uint8_t) * ETH_ALEN );
+    memcpy(client_entry.bssid_addr, notify_req.bssid_addr, sizeof(uint8_t) * ETH_ALEN );
+    memcpy(client_entry.client_addr, notify_req.client_addr, sizeof(uint8_t) * ETH_ALEN );
 
     pthread_mutex_lock(&client_array_mutex);
     client_array_delete(client_entry);
@@ -433,8 +433,11 @@ static int handle_set_probe(struct blob_attr *msg) {
     parse_to_hostapd_notify(msg, &notify_req);
 
     client client_entry;
-    memcpy(client_entry.bssid_addr, client_entry.bssid_addr, sizeof(uint8_t) * ETH_ALEN );
-    memcpy(client_entry.client_addr, client_entry.client_addr, sizeof(uint8_t) * ETH_ALEN );
+    memcpy(client_entry.bssid_addr, notify_req.bssid_addr, sizeof(uint8_t) * ETH_ALEN );
+    memcpy(client_entry.client_addr, notify_req.client_addr, sizeof(uint8_t) * ETH_ALEN );
+
+    printf("SETTING CLIENT MACS ENTRY!!!!\n");
+    print_client_entry(client_entry);
 
     probe_array_set_all_probe_count(client_entry.client_addr, dawn_metric.min_probe_count);
 
@@ -502,7 +505,7 @@ int handle_network_msg(char* msg)
         printf("METHOD DEAUTH\n");
         handle_deauth_req(data_buf.head);
     } else if (strncmp(method, "setprobe", 5) == 0) {
-        printf("SET PROBE!\n");
+        printf("HANDLING SET PROBE!\n");
         handle_set_probe(data_buf.head);
     }
 
@@ -981,6 +984,24 @@ static int get_hearing_map(struct ubus_context *ctx, struct ubus_object *obj,
 
     build_hearing_map_sort_client(&b);
     ubus_send_reply(ctx, req, b.head);
+
+    int tmp_int_mac[ETH_ALEN];
+    uint8_t tmp_mac[ETH_ALEN];
+    sscanf("10:0B:A9:6D:33:90", MACSTR, STR2MAC(tmp_int_mac));
+    for (int i = 0; i < ETH_ALEN; ++i)
+        tmp_mac[i] = (uint8_t) tmp_int_mac[i];
+
+    char mac_buf_target[20];
+    sprintf(mac_buf_target, MACSTR, MAC2STR(tmp_mac));
+    printf("SETTING PROBE COUNT OF MAC!!! %s\n", mac_buf_target);
+
+
+
+    printf("SENDING MAP!\n");
+
+
+    send_set_probe(tmp_mac);
+
     return 0;
 }
 
