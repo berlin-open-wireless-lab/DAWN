@@ -413,8 +413,8 @@ static int handle_deauth_req(struct blob_attr *msg) {
     parse_to_hostapd_notify(msg, &notify_req);
 
     client client_entry;
-    memcpy(client_entry.bssid_addr, client_entry.bssid_addr, sizeof(uint8_t) * ETH_ALEN );
-    memcpy(client_entry.client_addr, client_entry.client_addr, sizeof(uint8_t) * ETH_ALEN );
+    memcpy(client_entry.bssid_addr, notify_req.bssid_addr, sizeof(uint8_t) * ETH_ALEN );
+    memcpy(client_entry.client_addr, notify_req.client_addr, sizeof(uint8_t) * ETH_ALEN );
 
     pthread_mutex_lock(&client_array_mutex);
     client_array_delete(client_entry);
