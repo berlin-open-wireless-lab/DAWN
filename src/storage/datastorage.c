@@ -430,6 +430,8 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
 
             // here we should send a messsage to set the probe.count for all aps to the min that there is no delay between switching
 
+            send_set_probe(client_array[j].client_addr);
+
             del_client_interface(id, client_array[j].client_addr, 5, 1, 1000);
             client_array_delete(client_array[j]);
 
@@ -609,7 +611,7 @@ probe_entry probe_array_delete(probe_entry entry) {
     return tmp;
 }
 
-int probe_array_set_probe_count(uint8_t bssid_addr[], uint8_t client_addr[], uint32_t probe_count) {
+int probe_array_set_all_probe_count(uint8_t client_addr[], uint32_t probe_count) {
 
     int updated = 0;
 
@@ -617,14 +619,15 @@ int probe_array_set_probe_count(uint8_t bssid_addr[], uint8_t client_addr[], uin
         return 0;
     }
 
-
     pthread_mutex_lock(&probe_array_mutex);
     for (int i = 0; i <= probe_entry_last; i++) {
-        if (mac_is_equal(bssid_addr, probe_array[i].bssid_addr) &&
-            mac_is_equal(client_addr, probe_array[i].client_addr)) {
-            probe_array[i].signal = rssi;
-            updated = 1;
-            ubus_send_probe_via_network(probe_array[i]);
+        if(mac_is_greater(client_addr, probe_array[i].client_addr))
+        {
+            break;
+        }
+
+        if (mac_is_equal(client_addr, probe_array[i].client_addr)) {
+            probe_array[i].counter = probe_count;
         }
     }
     pthread_mutex_unlock(&probe_array_mutex);

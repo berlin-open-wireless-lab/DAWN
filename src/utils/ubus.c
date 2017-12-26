@@ -181,6 +181,8 @@ static int get_network(struct ubus_context *ctx, struct ubus_object *obj,
                        struct ubus_request_data *req, const char *method,
                        struct blob_attr *msg);
 
+static int handle_set_probe(struct blob_attr *msg);
+
 int hostapd_array_check_id(uint32_t id);
 
 void hostapd_array_insert(uint32_t id);
@@ -425,6 +427,20 @@ static int handle_deauth_req(struct blob_attr *msg) {
     return 0;
 }
 
+static int handle_set_probe(struct blob_attr *msg) {
+
+    hostapd_notify_entry notify_req;
+    parse_to_hostapd_notify(msg, &notify_req);
+
+    client client_entry;
+    memcpy(client_entry.bssid_addr, client_entry.bssid_addr, sizeof(uint8_t) * ETH_ALEN );
+    memcpy(client_entry.client_addr, client_entry.client_addr, sizeof(uint8_t) * ETH_ALEN );
+
+    probe_array_set_all_probe_count(client_entry.client_addr, dawn_metric.min_probe_count);
+
+    return 0;
+}
+
 int handle_network_msg(char* msg)
 {
     //printf("HANDLING NETWORK MSG: %s\n", msg);
@@ -485,6 +501,12 @@ int handle_network_msg(char* msg)
     } else if (strncmp(method, "deauth", 5) == 0) {
         printf("METHOD DEAUTH\n");
         handle_deauth_req(data_buf.head);
+    } else if (strncmp(method, "setprobe", 5) == 0) {
+        printf("SET PROBE!\n");
+        handle_set_probe(data_buf.head);
+    }
+
+
         /*
         hostapd_notify_entry entry;
         parse_to_hostapd_notify(data_buf.head, &entry);
@@ -496,7 +518,7 @@ int handle_network_msg(char* msg)
         pthread_mutex_lock(&client_array_mutex);
         client_array_delete(client_entry);
         pthread_mutex_unlock(&client_array_mutex);*/
-    }
+    //}
     //free(method);
     //free(data);
     //printf("HANDLING FINISHED NETWORK MSG!\n");
@@ -885,6 +907,20 @@ int ubus_send_probe_via_network(struct probe_entry_s probe_entry) {
     blobmsg_add_u8(&b_probe, "vht_support", probe_entry.vht_support);
 
     send_blob_attr_via_network(b_probe.head, "probe");
+
+    return 0;
+}
+
+int send_set_probe(uint8_t client_addr[])
+{
+
+    printf("SENDING SET PROBE VIA NETWORK!\n");
+
+    blob_buf_init(&b_probe, 0);
+    blobmsg_add_macaddr(&b_probe, "bssid", client_addr);
+    blobmsg_add_macaddr(&b_probe, "address", client_addr);
+
+    send_blob_attr_via_network(b_probe.head, "set_probe");
 
     return 0;
 }

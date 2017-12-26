@@ -40,4 +40,6 @@ int send_blob_attr_via_network(struct blob_attr *msg, char* method);
 
 void blobmsg_add_macaddr(struct blob_buf *buf, const char *name, const uint8_t *addr);
 
+int send_set_probe(uint8_t client_addr[]);
+
 #endif
