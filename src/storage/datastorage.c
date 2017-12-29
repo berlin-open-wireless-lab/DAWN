@@ -542,7 +542,7 @@ client *client_array_delete(client entry) {
         }
     }
 
-    for (int j = i; j <= client_entry_last; j++) {
+    for (int j = i; j < client_entry_last; j++) {
         client_array[j] = client_array[j + 1];
     }
 
@@ -596,7 +596,7 @@ probe_entry probe_array_delete(probe_entry entry) {
         }
     }
 
-    for (int j = i; j <= probe_entry_last; j++) {
+    for (int j = i; j < probe_entry_last; j++) {
         probe_array[j] = probe_array[j + 1];
     }
 
@@ -765,7 +765,7 @@ ap ap_array_delete(ap entry) {
         }
     }
 
-    for (int j = i; j <= ap_entry_last; j++) {
+    for (int j = i; j < ap_entry_last; j++) {
         ap_array[j] = ap_array[j + 1];
     }
 
@@ -776,7 +776,7 @@ ap ap_array_delete(ap entry) {
 }
 
 void remove_old_client_entries(time_t current_time, long long int threshold) {
-    for (int i = 0; i < client_entry_last; i++) {
+    for (int i = 0; i <= client_entry_last; i++) {
         if (client_array[i].time < current_time - threshold) {
             client_array_delete(client_array[i]);
         }
@@ -784,7 +784,7 @@ void remove_old_client_entries(time_t current_time, long long int threshold) {
 }
 
 void remove_old_probe_entries(time_t current_time, long long int threshold) {
-    for (int i = 0; i < probe_entry_last; i++) {
+    for (int i = 0; i <= probe_entry_last; i++) {
         if (probe_array[i].time < current_time - threshold) {
             if (!is_connected(probe_array[i].bssid_addr, probe_array[i].client_addr))
                 probe_array_delete(probe_array[i]);
@@ -793,7 +793,7 @@ void remove_old_probe_entries(time_t current_time, long long int threshold) {
 }
 
 void remove_old_ap_entries(time_t current_time, long long int threshold) {
-    for (int i = 0; i < ap_entry_last; i++) {
+    for (int i = 0; i <= ap_entry_last; i++) {
         if (ap_array[i].time < current_time - threshold) {
             ap_array_delete(ap_array[i]);
         }
