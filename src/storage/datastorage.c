@@ -547,7 +547,7 @@ client *client_array_delete(client entry) {
         }
     }
 
-    for (int j = i; j <= client_entry_last; j++) {
+    for (int j = i; j < client_entry_last; j++) {
         client_array[j] = client_array[j + 1];
     }
 
