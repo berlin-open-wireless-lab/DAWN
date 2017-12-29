@@ -540,6 +540,8 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
 
     // TODO: Only handle probe request and NOT assoc, ...
 
+    respond_to_notify(req->peer);
+
     if (strncmp(method, "probe", 5) == 0) {
         return handle_probe_req(msg);
     } else if (strncmp(method, "auth", 4) == 0) {
@@ -971,4 +973,13 @@ static void ubus_add_oject()
     if (ret)
         fprintf(stderr, "Failed to add watch handler: %s\n", ubus_strerror(ret));
     */
+}
+
+
+static void respond_to_notify(uint32_t id) {
+    blob_buf_init(&b, 0);
+    blobmsg_add_u32(&b, "notify_response", 1234);
+
+    int timeout = 1;
+    ubus_invoke(ctx, id, "notify_response", b.head, NULL, NULL, timeout * 1000);
 }
