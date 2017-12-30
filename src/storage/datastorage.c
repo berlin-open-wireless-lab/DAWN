@@ -271,14 +271,21 @@ int compare_station_count(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compar
             return ((int)ap_entry_own.station_count - 1) > (int)ap_entry_to_compre.station_count;
         } else {
 
+            int sta_count = ap_entry_own.station_count;
             int sta_count_to_compare = ap_entry_to_compre.station_count;
+            if(is_connected(bssid_addr_own, client_addr))
+            {
+                printf("OWN IS ALREADY CONNECTED! DECREASE COUNTER!!!\n");
+                sta_count--;
+            }
+
             if(is_connected(bssid_addr_to_compare, client_addr))
             {
-                printf("IS ALREADY CONNECTED! DECREASE COUNTER!!!\n");
+                printf("COMPARE IS ALREADY CONNECTED! DECREASE COUNTER!!!\n");
                 sta_count_to_compare--;
             }
 
-            return (int)ap_entry_own.station_count > sta_count_to_compare;
+            return sta_count > sta_count_to_compare;
         }
 
         /*
