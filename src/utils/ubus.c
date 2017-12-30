@@ -188,9 +188,12 @@ int hostapd_array_check_id(uint32_t id);
 void hostapd_array_insert(uint32_t id);
 
 void hostapd_array_delete(uint32_t id);
+
 static void ubus_add_oject();
 
-void add_client_update_timer(time_t time) {
+static void respond_to_notify(uint32_t id);
+
+    void add_client_update_timer(time_t time) {
     uloop_timeout_set(&client_timer, time);
 }
 
