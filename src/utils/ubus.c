@@ -1016,8 +1016,9 @@ static void ubus_add_oject()
 
 
 static void respond_to_notify(uint32_t id) {
+    printf("SENDING NOTIFY!!!\n");
     blob_buf_init(&b, 0);
-    blobmsg_add_u32(&b, "notify_response", 1234);
+    blobmsg_add_u32(&b, "notify_response", 0);
 
     int timeout = 1;
     ubus_invoke(ctx, id, "notify_response", b.head, NULL, NULL, timeout * 1000);
