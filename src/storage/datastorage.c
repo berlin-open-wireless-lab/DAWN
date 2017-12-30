@@ -235,6 +235,9 @@ int eval_probe_metric(struct probe_entry_s probe_entry) {
     printf("SCORE: %d of:\n", score);
     print_probe_entry(probe_entry);
 
+    if(score < 0)
+        score = 0;
+
     return score;
 }
 
