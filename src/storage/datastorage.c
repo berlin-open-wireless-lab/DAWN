@@ -190,6 +190,7 @@ int build_network_overview(struct blob_buf *b)
             int k;
             sprintf(ap_mac_buf, MACSTR, MAC2STR(client_array[i].bssid_addr));
             ap_list = blobmsg_open_table(b, ap_mac_buf);
+            printf("AP MAC BUF: %s\n", ap_mac_buf);
             for (k = i; i <= client_entry_last; k++){
                 if(!mac_is_equal(client_array[k].bssid_addr, client_array[i].bssid_addr))
                 {
@@ -232,11 +233,11 @@ int eval_probe_metric(struct probe_entry_s probe_entry) {
     score += (probe_entry.signal >= dawn_metric.rssi_val) ? dawn_metric.rssi : 0;
     score += (probe_entry.signal <= dawn_metric.low_rssi_val) ? dawn_metric.low_rssi : 0;
 
-    printf("SCORE: %d of:\n", score);
-    print_probe_entry(probe_entry);
-
     if(score < 0)
         score = 0;
+
+    printf("SCORE: %d of:\n", score);
+    print_probe_entry(probe_entry);
 
     return score;
 }
