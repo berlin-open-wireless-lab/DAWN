@@ -427,6 +427,11 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
             }
             printf("Client is probably NOT in active transmisison. KICK! RxRate is: %f\n", rx_rate);
 
+
+            // here we should send a messsage to set the probe.count for all aps to the min that there is no delay between switching
+            // the hearing map is full...
+            send_set_probe(client_array[j].client_addr);
+
             del_client_interface(id, client_array[j].client_addr, 5, 1, 1000);
             client_array_delete(client_array[j]);
 
@@ -604,6 +609,30 @@ probe_entry probe_array_delete(probe_entry entry) {
         probe_entry_last--;
     }
     return tmp;
+}
+
+int probe_array_set_all_probe_count(uint8_t client_addr[], uint32_t probe_count) {
+
+    int updated = 0;
+
+    if (probe_entry_last == -1) {
+        return 0;
+    }
+
+    pthread_mutex_lock(&probe_array_mutex);
+    for (int i = 0; i <= probe_entry_last; i++) {
+        if (mac_is_equal(client_addr, probe_array[i].client_addr)) {
+            printf("SETTING MAC!!!\n");
+            probe_array[i].counter = probe_count;
+        }else if(!mac_is_greater(client_addr, probe_array[i].client_addr))
+        {
+            printf("MAC NOT FOUND!!!\n");
+            break;
+        }
+    }
+    pthread_mutex_unlock(&probe_array_mutex);
+
+    return updated;
 }
 
 int probe_array_update_rssi(uint8_t bssid_addr[], uint8_t client_addr[], uint32_t rssi) {
