@@ -74,7 +74,6 @@ struct uloop_timeout ap_timeout = {
 int build_hearing_map_sort_client(struct blob_buf *b)
 {
     print_probe_array();
-
     pthread_mutex_lock(&probe_array_mutex);
 
     void *client_list, *ap_list, *ssid_list;
@@ -116,7 +115,7 @@ int build_hearing_map_sort_client(struct blob_buf *b)
             int k;
             sprintf(client_mac_buf, MACSTR, MAC2STR(probe_array[i].client_addr));
             client_list = blobmsg_open_table(b, client_mac_buf);
-            for (k = i; i <= probe_entry_last; k++) {
+            for (k = i; k <= probe_entry_last; k++) {
                 ap ap_entry = ap_array_get_ap(probe_array[k].bssid_addr);
 
                 if (!mac_is_equal(ap_entry.bssid_addr, probe_array[k].bssid_addr)) {
@@ -159,8 +158,6 @@ int build_hearing_map_sort_client(struct blob_buf *b)
 
 int build_network_overview(struct blob_buf *b)
 {
-    pthread_mutex_lock(&probe_array_mutex);
-
     void *client_list, *ap_list, *ssid_list;
     char ap_mac_buf[20];
     char client_mac_buf[20];
@@ -191,7 +188,7 @@ int build_network_overview(struct blob_buf *b)
             sprintf(ap_mac_buf, MACSTR, MAC2STR(client_array[i].bssid_addr));
             ap_list = blobmsg_open_table(b, ap_mac_buf);
             printf("AP MAC BUF: %s\n", ap_mac_buf);
-            for (k = i; i <= client_entry_last; k++){
+            for (k = i; k <= client_entry_last; k++){
                 if(!mac_is_equal(client_array[k].bssid_addr, client_array[i].bssid_addr))
                 {
                     i = k - 1;
@@ -209,7 +206,6 @@ int build_network_overview(struct blob_buf *b)
         }
         blobmsg_close_table(b, ssid_list);
     }
-    pthread_mutex_unlock(&probe_array_mutex);
     return 0;
 }
 
