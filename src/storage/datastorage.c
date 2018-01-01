@@ -130,7 +130,11 @@ int build_hearing_map_sort_client(struct blob_buf *b)
                 if (!mac_is_equal(probe_array[k].client_addr, probe_array[i].client_addr)) {
                     i = k - 1;
                     break;
+                } else if(k == probe_entry_last)
+                {
+                    i = k;
                 }
+
                 sprintf(ap_mac_buf, MACSTR, MAC2STR(probe_array[k].bssid_addr));
                 ap_list = blobmsg_open_table(b, ap_mac_buf);
                 blobmsg_add_u32(b, "signal", probe_array[k].signal);
@@ -193,6 +197,9 @@ int build_network_overview(struct blob_buf *b)
                 {
                     i = k - 1;
                     break;
+                } else if(k == client_entry_last)
+                {
+                    i = k;
                 }
 
                 sprintf(client_mac_buf, MACSTR, MAC2STR(client_array[k].client_addr));
