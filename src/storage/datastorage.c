@@ -237,7 +237,7 @@ int eval_probe_metric(struct probe_entry_s probe_entry) {
     score += (probe_entry.signal <= dawn_metric.low_rssi_val) ? dawn_metric.low_rssi : 0;
 
     if(score < 0)
-        score = 0;
+        score = -2; // -1 already used...
 
     printf("SCORE: %d of:\n", score);
     print_probe_entry(probe_entry);
@@ -353,12 +353,15 @@ int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], int automat
         }
         if (dawn_metric.use_station_count && own_score == score_to_compare) {
 
-            // if ap have same value but station count is different...
-            if (compare_station_count(bssid_addr, probe_array[k].bssid_addr, probe_array[k].client_addr, automatic_kick)) {
-                return 1;
+            // only compare if score is bigger or euqal 0
+            if(own_score >= 0) {
+
+                // if ap have same value but station count is different...
+                if (compare_station_count(bssid_addr, probe_array[k].bssid_addr, probe_array[k].client_addr,
+                                          automatic_kick)) {
+                    return 1;
+                }
             }
-
-
         }
     }
     return 0;
