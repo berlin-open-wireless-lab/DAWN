@@ -221,7 +221,6 @@ int build_network_overview(struct blob_buf *b)
     }
     return 0;
 }
->>>>>>> master
 
 int eval_probe_metric(struct probe_entry_s probe_entry) {
 
