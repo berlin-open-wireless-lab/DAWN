@@ -25,7 +25,7 @@ void gcrypt_init() {
     }
 }
 
-void gcrypt_set_key_and_iv(char *key, char *iv) {
+void gcrypt_set_key_and_iv(const char *key, const char *iv) {
     size_t keylen = gcry_cipher_get_algo_keylen(GCRY_CIPHER);
     size_t blklen = gcry_cipher_get_algo_blklen(GCRY_CIPHER);
 
@@ -59,7 +59,7 @@ void gcrypt_set_key_and_iv(char *key, char *iv) {
 }
 
 // free out buffer after using!
-char *gcrypt_encrypt_msg(char *msg, size_t msg_length, int* out_length) {
+char *gcrypt_encrypt_msg(char *msg, size_t msg_length, int *out_length) {
     if (0U != (msg_length & 0xfU))
         msg_length += 0x10U - (msg_length & 0xfU);
 

@@ -5,7 +5,7 @@
 
 pthread_mutex_t send_mutex;
 
-int init_socket_runopts(char *_ip, char *_port, int broadcast_socket);
+int init_socket_runopts(const char *_ip, int _port, int _multicast_socket);
 
 int send_string(char *msg);
 

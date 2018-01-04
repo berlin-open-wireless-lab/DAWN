@@ -1,6 +1,24 @@
 #include "utils.h"
 #include "ubus.h"
 
+int string_is_greater(uint8_t* str, uint8_t* str_2) {
+
+    int length_1 = strlen((char*)str);
+    int length_2 = strlen((char*)str_2);
+
+    int length = length_1 <  length_2 ? length_1 : length_2;
+
+    for (int i = 0; i < length; i++) {
+        if (str[i] > str_2[i]) {
+            return 1;
+        }
+        if (str[i] < str_2[i]) {
+            return 0;
+        }
+    }
+    return length_1 > length_2;
+}
+
 int hex_to_bin(char ch) {
     if ((ch >= '0') && (ch <= '9')) return ch - '0';
     ch = tolower(ch);
@@ -23,4 +41,40 @@ int hwaddr_aton(const char *txt, uint8_t *addr) {
     }
 
     return 0;
+}
+
+int convert_mac(char *in, char *out) {
+    int i, j = 0;
+
+    for (i = 0; i < 6; i++) {
+        if (in[j + 1] != ':' && in[j + 1] != '\0') {
+            out[3 * i] = toupper(in[j]);
+            out[(3 * i) + 1] = toupper(in[j + 1]);
+            out[(3 * i) + 2] = in[j + 2];
+            j += 3;
+        } else {
+            out[3 * i] = '0';
+            out[(3 * i) + 1] = toupper(in[j]);
+            out[(3 * i) + 2] = toupper(in[j + 1]);
+            j += 2;
+        }
+    }
+    return 0;
+}
+
+void write_mac_to_file(char* path, uint8_t addr[])
+{
+    FILE *f = fopen(path, "a");
+    if (f == NULL)
+    {
+        printf("Error opening file!\n");
+        exit(1);
+    }
+
+    char mac_buf[20];
+    sprintf(mac_buf, MACSTR, MAC2STR(addr));
+
+    fprintf(f, "%s\n", mac_buf);
+
+    fclose(f);
 }

@@ -8,6 +8,8 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <libubox/blobmsg_json.h>
+
 
 #include "tcpsocket.h"
 
@@ -15,31 +17,70 @@
 #define ETH_ALEN 6
 #endif
 
+/* Mac */
+
+// ---------------- Defines -------------------
+#define MAC_LIST_LENGTH 100
+
+// ---------------- Structs ----------------
+uint8_t mac_list[MAC_LIST_LENGTH][ETH_ALEN];
+
+// ---------------- Functions ----------
+void insert_macs_from_file();
+int insert_to_maclist(uint8_t mac[]);
+
+
+/* Metric */
+
 struct probe_metric_s dawn_metric;
 
+// ---------------- Structs ----------------
 struct probe_metric_s {
     int ht_support;
     int vht_support;
     int no_ht_support;
     int no_vht_support;
     int rssi;
+    int low_rssi;
     int freq;
     int chan_util;
     int max_chan_util;
-    int min_rssi;
+    int rssi_val;
+    int low_rssi_val;
+    int chan_util_val;
+    int max_chan_util_val;
     int min_probe_count;
+    int bandwith_threshold;
+    int use_station_count;
+    int eval_probe_req;
 };
 
 struct time_config_s {
     time_t update_client;
     time_t remove_client;
     time_t remove_probe;
+    time_t remove_ap;
+    time_t update_hostapd;
 };
 
-#define SORT_NUM 5
-#define TIME_THRESHOLD 120  // every minute
+struct network_config_s {
+    const char* broadcast_ip;
+    int broadcast_port;
+    const char* multicast;
+    const char* shared_key;
+    const char* iv;
+    int bool_multicast;
+};
 
-// Probe entrys
+struct time_config_s timeout_config;
+
+// ---------------- Global variables ----------------
+struct probe_metric_s dawn_metric;
+
+
+/* Probe, Auth, Assoc */
+
+// ---------------- Structs ----------------
 typedef struct probe_entry_s {
     uint8_t bssid_addr[ETH_ALEN];
     uint8_t client_addr[ETH_ALEN];
@@ -60,13 +101,42 @@ typedef struct auth_entry_s {
     uint32_t freq;
 } auth_entry;
 
+typedef struct hostapd_notify_entry_s {
+    uint8_t bssid_addr[ETH_ALEN];
+    uint8_t client_addr[ETH_ALEN];
+} hostapd_notify_entry;
+
 typedef struct auth_entry_s assoc_entry;
 
+// ---------------- Defines ----------------
+#define PROBE_ARRAY_LEN 1000
 
-typedef struct {
-    uint32_t freq;
-} client_request;
+#define SSID_MAX_LEN 32
 
+// ---------------- Global variables ----------------
+struct probe_entry_s probe_array[PROBE_ARRAY_LEN];
+pthread_mutex_t probe_array_mutex;
+
+// ---------------- Functions ----------------
+probe_entry insert_to_array(probe_entry entry, int inc_counter);
+
+void probe_array_insert(probe_entry entry);
+
+probe_entry probe_array_delete(probe_entry entry);
+
+probe_entry probe_array_get_entry(uint8_t bssid_addr[], uint8_t client_addr[]);
+
+void print_probe_array();
+
+void print_probe_entry(probe_entry entry);
+
+void print_auth_entry(auth_entry entry);
+
+void uloop_add_data_cbs();
+
+/* AP, Client */
+
+// ---------------- Structs ----------------
 typedef struct client_s {
     uint8_t bssid_addr[ETH_ALEN];
     uint8_t client_addr[ETH_ALEN];
@@ -94,34 +164,31 @@ typedef struct ap_s {
     uint8_t vht;
     uint32_t channel_utilization;
     time_t time;
+    uint32_t station_count;
+    uint8_t ssid[SSID_MAX_LEN];
 } ap;
 
-// Array
+// ---------------- Defines ----------------
 #define ARRAY_AP_LEN 50
 #define TIME_THRESHOLD_AP 30
-struct ap_s ap_array[ARRAY_AP_LEN];
-pthread_mutex_t ap_array_mutex;
-
-ap insert_to_ap_array(ap entry);
-void print_ap_array();
-void *remove_ap_array_thread(void *arg);
-ap ap_array_get_ap(uint8_t bssid_addr[]);
-
-// Array
 #define ARRAY_CLIENT_LEN 1000
 #define TIME_THRESHOLD_CLIENT 30
 #define TIME_THRESHOLD_CLIENT_UPDATE 10
 #define TIME_THRESHOLD_CLIENT_KICK 60
 
-
+// ---------------- Global variables ----------------
 struct client_s client_array[ARRAY_CLIENT_LEN];
 pthread_mutex_t client_array_mutex;
+struct ap_s ap_array[ARRAY_AP_LEN];
+pthread_mutex_t ap_array_mutex;
 
 void print_tcp_array();
 
 int mac_is_equal(uint8_t addr1[], uint8_t addr2[]);
 
 int mac_is_greater(uint8_t addr1[], uint8_t addr2[]);
+
+// ---------------- Functions ----------------
 
 void insert_client_to_array(client entry);
 
@@ -135,33 +202,37 @@ void print_client_array();
 
 void print_client_entry(client entry);
 
-void *remove_client_array_thread(void *arg);
+ap insert_to_ap_array(ap entry);
 
-#define ARRAY_LEN 1000
+void print_ap_array();
 
-struct probe_entry_s probe_array[ARRAY_LEN];
-pthread_mutex_t probe_array_mutex;
+ap ap_array_get_ap(uint8_t bssid_addr[]);
 
-probe_entry insert_to_array(probe_entry entry, int inc_counter);
+int build_hearing_map_sort_client(struct blob_buf *b);
 
-void probe_array_insert(probe_entry entry);
+int build_network_overview(struct blob_buf *b);
 
-probe_entry probe_array_delete(probe_entry entry);
+int probe_array_set_all_probe_count(uint8_t client_addr[], uint32_t probe_count);
 
-probe_entry probe_array_get_entry(uint8_t bssid_addr[], uint8_t client_addr[]);
+/* Utils */
 
-int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[]);
+// ---------------- Defines -------------------
+#define SORT_NUM 5
+#define TIME_THRESHOLD 120  // every minute
 
-void print_array();
+// ---------------- Global variables ----------------
+char* sort_string;
 
-void print_probe_entry(probe_entry entry);
+// ---------------- Functions -------------------
+int mac_is_equal(uint8_t addr1[], uint8_t addr2[]);
 
-void print_auth_entry(auth_entry entry);
+int mac_is_greater(uint8_t addr1[], uint8_t addr2[]);
 
-void *remove_array_thread(void *arg);
+int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], int automatic_kick);
 
 
-// List
+/* List stuff */
+
 typedef struct node {
     probe_entry data;
     struct node *ptr;
@@ -181,7 +252,7 @@ void *remove_thread(void *arg);
 
 pthread_mutex_t list_mutex;
 node *probe_list_head;
-char sort_string[SORT_NUM];
+
 
 #define ARRAY_NETWORK_LEN 50
 struct network_con_s network_array[ARRAY_NETWORK_LEN];

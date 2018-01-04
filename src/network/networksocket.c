@@ -29,21 +29,23 @@ const char *ip;
 unsigned short port;
 char recv_string[MAX_RECV_STRING + 1];
 int recv_string_len;
+int multicast_socket;
 
 void *receive_msg(void *args);
 
 void *receive_msg_enc(void *args);
 
-int init_socket_runopts(char *_ip, char *_port, int broadcast_socket) {
+int init_socket_runopts(const char *_ip, int _port, int _multicast_socket) {
 
-    port = atoi(_port);
+    port = _port;
     ip = _ip;
+    multicast_socket = _multicast_socket;
 
-    if (broadcast_socket) {
-        sock = setup_broadcast_socket(ip, port, &addr);
-    } else {
+    if (multicast_socket) {
         printf("Settingup multicastsocket!\n");
         sock = setup_multicast_socket(ip, port, &addr);
+    } else {
+        sock = setup_broadcast_socket(ip, port, &addr);
     }
 
     pthread_t sniffer_thread;
@@ -141,42 +143,16 @@ void *receive_msg_enc(void *args) {
         }
         //recv_string[recv_string_len] = '\0';
 
-        char* base64_dec_str = malloc(Base64decode_len(recv_string));
+        char *base64_dec_str = malloc(Base64decode_len(recv_string));
         int base64_dec_length = Base64decode(base64_dec_str, recv_string);
+
 
         char *dec = gcrypt_decrypt_msg(base64_dec_str, base64_dec_length);
 
-        //printf("Free %s: %p\n","base64_dec_str", base64_dec_str);
+        //printf("NETRWORK RECEIVED: %s\n", dec);
+
         free(base64_dec_str);
-
-        //printf("[WC] Network-Received: %s\n", dec);
-
-        probe_entry prob_req;
-        struct blob_buf b;
-
-        blob_buf_init(&b, 0);
-        blobmsg_add_json_from_string(&b, dec);
-
-        char *str;
-        str = blobmsg_format_json(b.head, true);
-
-        if (str == NULL) {
-            return 0;
-        }
-
-        if (strlen(str) <= 0) {
-            return 0;
-        }
-
-        if (strstr(str, "clients") != NULL) {
-            parse_to_clients(b.head, 0, 0);
-        } else if (strstr(str, "target") != NULL) {
-            if (parse_to_probe_req(b.head, &prob_req) == 0) {
-                insert_to_array(prob_req, 0);
-            }
-        }
-        // free encrypted string
-        //printf("Free %s: %p\n","dec", dec);
+        handle_network_msg(dec);
         free(dec);
     }
 }
@@ -209,12 +185,16 @@ int send_string(char *msg) {
 
 int send_string_enc(char *msg) {
     pthread_mutex_lock(&send_mutex);
+
+    //printf("Sending string: %s\n", msg);
+
+
     size_t msglen = strlen(msg);
 
     int length_enc;
     char *enc = gcrypt_encrypt_msg(msg, msglen + 1, &length_enc);
 
-    char* base64_enc_str = malloc(Base64encode_len(length_enc));
+    char *base64_enc_str = malloc(Base64encode_len(length_enc));
     size_t base64_enc_length = Base64encode(base64_enc_str, enc, length_enc);
 
     if (sendto(sock,
@@ -235,4 +215,9 @@ int send_string_enc(char *msg) {
     return 0;
 }
 
-void close_socket() { close(sock); }
+void close_socket() {
+    if (multicast_socket) {
+        remove_multicast_socket(sock);
+    }
+    close(sock);
+}

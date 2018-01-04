@@ -11,45 +11,10 @@ NAME=dawn
 start_service()
 {
 	echo "Starting Service..."
-
-	local broadcast_ip
-	local broadcast_port
-	local sort_order
-	local hostapd_dir
-	local shared_key
-	local iv
-
-	config_load "${NAME}"
-	config_get broadcast_ip network broadcast_ip
-	config_get broadcast_port network broadcast_port
-    config_get shared_key network shared_key
-    config_get iv network iv
-
-	config_get sort_order ordering sort_order
-	config_get hostapd_dir hostapd hostapd_dir
-
 	procd_open_instance
-	echo "$PROG -p $broadcast_port -i $broadcast_ip -o $sort_order"
-	procd_set_param command "$PROG"
-	procd_append_param command -p "${broadcast_port}"
-	procd_append_param command -i "${broadcast_ip}"
-	procd_append_param command -o "${sort_order}"
-	procd_append_param command -h "${hostapd_dir}"
-    procd_append_param command -k "${shared_key}"
-    procd_append_param command -v "${iv}"
-
+	procd_set_param command $PROG
 	procd_set_param stdout 1
 	procd_set_param stderr 1
-
-	echo "${command}"
-
-	# procd_set_param respawn
-
-	echo "Starting mdns"
-	procd_add_mdns "dawn" "udp" "${broadcast_port}" "daemon=dawn" "colour=fuschia"
-
-	echo "MDNS Startet"
-
 	procd_close_instance
   	echo "Dawn instance started!"
 }
