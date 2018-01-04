@@ -596,6 +596,9 @@ static int add_subscriber(char *name) {
     hostapd_array_insert(id);
     fprintf(stderr, "Watching object %08x: %s\n", id, ubus_strerror(ret));
 
+    // respond to notify...
+    respond_to_notify(id);
+
     return 0;
 }
 
@@ -1018,7 +1021,7 @@ static void ubus_add_oject()
 static void respond_to_notify(uint32_t id) {
     printf("SENDING NOTIFY!!!\n");
     blob_buf_init(&b, 0);
-    blobmsg_add_u32(&b, "notify_response", 0);
+    blobmsg_add_u32(&b, "notify_response", 1);
 
     int timeout = 1;
     ubus_invoke(ctx, id, "notify_response", b.head, NULL, NULL, timeout * 1000);
