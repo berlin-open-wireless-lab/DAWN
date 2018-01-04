@@ -74,7 +74,6 @@ struct uloop_timeout ap_timeout = {
 int build_hearing_map_sort_client(struct blob_buf *b)
 {
     print_probe_array();
-
     pthread_mutex_lock(&probe_array_mutex);
 
     void *client_list, *ap_list, *ssid_list;
@@ -116,7 +115,7 @@ int build_hearing_map_sort_client(struct blob_buf *b)
             int k;
             sprintf(client_mac_buf, MACSTR, MAC2STR(probe_array[i].client_addr));
             client_list = blobmsg_open_table(b, client_mac_buf);
-            for (k = i; i <= probe_entry_last; k++) {
+            for (k = i; k <= probe_entry_last; k++) {
                 ap ap_entry = ap_array_get_ap(probe_array[k].bssid_addr);
 
                 if (!mac_is_equal(ap_entry.bssid_addr, probe_array[k].bssid_addr)) {
@@ -131,7 +130,11 @@ int build_hearing_map_sort_client(struct blob_buf *b)
                 if (!mac_is_equal(probe_array[k].client_addr, probe_array[i].client_addr)) {
                     i = k - 1;
                     break;
+                } else if(k == probe_entry_last)
+                {
+                    i = k;
                 }
+
                 sprintf(ap_mac_buf, MACSTR, MAC2STR(probe_array[k].bssid_addr));
                 ap_list = blobmsg_open_table(b, ap_mac_buf);
                 blobmsg_add_u32(b, "signal", probe_array[k].signal);
@@ -159,8 +162,6 @@ int build_hearing_map_sort_client(struct blob_buf *b)
 
 int build_network_overview(struct blob_buf *b)
 {
-    pthread_mutex_lock(&probe_array_mutex);
-
     void *client_list, *ap_list, *ssid_list;
     char ap_mac_buf[20];
     char client_mac_buf[20];
@@ -191,11 +192,14 @@ int build_network_overview(struct blob_buf *b)
             sprintf(ap_mac_buf, MACSTR, MAC2STR(client_array[i].bssid_addr));
             ap_list = blobmsg_open_table(b, ap_mac_buf);
             printf("AP MAC BUF: %s\n", ap_mac_buf);
-            for (k = i; i <= client_entry_last; k++){
+            for (k = i; k <= client_entry_last; k++){
                 if(!mac_is_equal(client_array[k].bssid_addr, client_array[i].bssid_addr))
                 {
                     i = k - 1;
                     break;
+                } else if(k == client_entry_last)
+                {
+                    i = k;
                 }
 
                 sprintf(client_mac_buf, MACSTR, MAC2STR(client_array[k].client_addr));
@@ -209,7 +213,6 @@ int build_network_overview(struct blob_buf *b)
         }
         blobmsg_close_table(b, ssid_list);
     }
-    pthread_mutex_unlock(&probe_array_mutex);
     return 0;
 }
 
@@ -234,7 +237,7 @@ int eval_probe_metric(struct probe_entry_s probe_entry) {
     score += (probe_entry.signal <= dawn_metric.low_rssi_val) ? dawn_metric.low_rssi : 0;
 
     if(score < 0)
-        score = 0;
+        score = -2; // -1 already used...
 
     printf("SCORE: %d of:\n", score);
     print_probe_entry(probe_entry);
@@ -267,32 +270,22 @@ int compare_station_count(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compar
         printf("Comparing own %d to %d\n", ap_entry_own.station_count, ap_entry_to_compre.station_count);
 
 
-        if (automatic_kick) {
-            return ((int)ap_entry_own.station_count - 1) > (int)ap_entry_to_compre.station_count;
-        } else {
-
-            int sta_count_to_compare = ap_entry_to_compre.station_count;
-            if(is_connected(bssid_addr_to_compare, client_addr))
-            {
-                printf("IS ALREADY CONNECTED! DECREASE COUNTER!!!\n");
-                sta_count_to_compare--;
-            }
-
-            return (int)ap_entry_own.station_count > sta_count_to_compare;
-        }
-
-        /*
-        int own_count = ap_entry_own.station_count;
-        if(automatic_kick)
+        int sta_count = ap_entry_own.station_count;
+        int sta_count_to_compare = ap_entry_to_compre.station_count;
+        if(is_connected(bssid_addr_own, client_addr))
         {
-            own_count--;
-        }
-        if (is_connected(bssid_addr_to_compare, client_addr))
-        {
-            own_count--;
+            printf("OWN IS ALREADY CONNECTED! DECREASE COUNTER!!!\n");
+            sta_count--;
         }
 
-        return own_count > ap_entry_to_compre.station_count;*/
+        if(is_connected(bssid_addr_to_compare, client_addr))
+        {
+            printf("COMPARE IS ALREADY CONNECTED! DECREASE COUNTER!!!\n");
+            sta_count_to_compare--;
+        }
+        printf("AFTER: Comparing own %d to %d\n", sta_count, sta_count_to_compare);
+
+        return sta_count > sta_count_to_compare;
     }
 
     return 0;
@@ -360,12 +353,15 @@ int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], int automat
         }
         if (dawn_metric.use_station_count && own_score == score_to_compare) {
 
-            // if ap have same value but station count is different...
-            if (compare_station_count(bssid_addr, probe_array[k].bssid_addr, probe_array[k].client_addr, automatic_kick)) {
-                return 1;
+            // only compare if score is bigger or euqal 0
+            if(own_score >= 0) {
+
+                // if ap have same value but station count is different...
+                if (compare_station_count(bssid_addr, probe_array[k].bssid_addr, probe_array[k].client_addr,
+                                          automatic_kick)) {
+                    return 1;
+                }
             }
-
-
         }
     }
     return 0;
