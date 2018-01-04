@@ -193,7 +193,7 @@ static void ubus_add_oject();
 
 static void respond_to_notify(uint32_t id);
 
-    void add_client_update_timer(time_t time) {
+void add_client_update_timer(time_t time) {
     uloop_timeout_set(&client_timer, time);
 }
 
@@ -564,8 +564,6 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
 
 
     // TODO: Only handle probe request and NOT assoc, ...
-
-    respond_to_notify(req->peer);
 
     if (strncmp(method, "probe", 5) == 0) {
         return handle_probe_req(msg);
