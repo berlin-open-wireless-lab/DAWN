@@ -9,6 +9,7 @@
 #define ETH_ALEN 6
 #endif
 
+#define WLAN_STATUS_SUCCESS 0
 #define WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA 17
 
 #include "ubus.h"
@@ -385,7 +386,7 @@ static int handle_auth_req(struct blob_attr *msg) {
     // delay problems...
 
     printf("ALLOW AUTH!\n");
-    return 0;
+    return WLAN_STATUS_SUCCESS;
 }
 
 static int handle_assoc_req(struct blob_attr *msg) {
@@ -411,7 +412,7 @@ static int handle_probe_req(struct blob_attr *msg) {
         return WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA;
     }
     //printf("MAC WILL BE ACCEPDTED!!!\n");
-    return 0;
+    return WLAN_STATUS_SUCCESS;
 }
 
 static int handle_deauth_req(struct blob_attr *msg) {
