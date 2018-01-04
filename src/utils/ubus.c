@@ -188,7 +188,10 @@ int hostapd_array_check_id(uint32_t id);
 void hostapd_array_insert(uint32_t id);
 
 void hostapd_array_delete(uint32_t id);
+
 static void ubus_add_oject();
+
+static void respond_to_notify(uint32_t id);
 
 void add_client_update_timer(time_t time) {
     uloop_timeout_set(&client_timer, time);
@@ -590,6 +593,9 @@ static int add_subscriber(char *name) {
     int ret = ubus_subscribe(ctx, &hostapd_event, id);
     hostapd_array_insert(id);
     fprintf(stderr, "Watching object %08x: %s\n", id, ubus_strerror(ret));
+
+    // respond to notify...
+    respond_to_notify(id);
 
     return 0;
 }
@@ -1007,4 +1013,14 @@ static void ubus_add_oject()
     if (ret)
         fprintf(stderr, "Failed to add watch handler: %s\n", ubus_strerror(ret));
     */
+}
+
+
+static void respond_to_notify(uint32_t id) {
+    printf("SENDING NOTIFY!!!\n");
+    blob_buf_init(&b, 0);
+    blobmsg_add_u32(&b, "notify_response", 1);
+
+    int timeout = 1;
+    ubus_invoke(ctx, id, "notify_response", b.head, NULL, NULL, timeout * 1000);
 }
