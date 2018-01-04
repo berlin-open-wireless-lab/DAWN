@@ -703,7 +703,7 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
     uloop_timeout_add(&client_timer);
 
 
-    //ubus_call_umdns();
+    ubus_call_umdns();
 
     ubus_add_oject();
 
