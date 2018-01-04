@@ -9,6 +9,8 @@
 #define ETH_ALEN 6
 #endif
 
+#define WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA 17
+
 #include "ubus.h"
 
 #include "networksocket.h"
@@ -371,12 +373,12 @@ static int handle_auth_req(struct blob_attr *msg) {
     // block if entry was not already found in probe database
     if (!(mac_is_equal(tmp.bssid_addr, auth_req.bssid_addr) && mac_is_equal(tmp.client_addr, auth_req.client_addr))) {
         printf("DENY AUTH!\n");
-        return UBUS_STATUS_UNKNOWN_ERROR;
+        return WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA;
     }
 
     if (!decide_function(&tmp)) {
         printf("DENY AUTH\n");
-        return UBUS_STATUS_UNKNOWN_ERROR;
+        return WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA;
     }
 
     // maybe add here if a client is already connected...
@@ -406,7 +408,7 @@ static int handle_probe_req(struct blob_attr *msg) {
 
     if (!decide_function(&tmp_prob_req)) {
         //printf("MAC WILL BE DECLINED!!!\n");
-        return UBUS_STATUS_UNKNOWN_ERROR;
+        return WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA;
     }
     //printf("MAC WILL BE ACCEPDTED!!!\n");
     return 0;
