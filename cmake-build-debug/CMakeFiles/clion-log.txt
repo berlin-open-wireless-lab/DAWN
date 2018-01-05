@@ -1,0 +1,8 @@
+/home/nick/clion-2017.2/bin/cmake/bin/cmake -DCMAKE_BUILD_TYPE=Debug -G "CodeBlocks - Unix Makefiles" /home/nick/DAWN
+CMake Error at src/CMakeLists.txt:44:
+  Parse error.  Expected a command name, got unquoted argument with text
+  "=======".
+
+
+-- Configuring incomplete, errors occurred!
+See also "/home/nick/DAWN/cmake-build-debug/CMakeFiles/CMakeOutput.log".

@@ -1,7 +1,7 @@
 # DAWN
 Decentralized WiFi Controller
 
-## Related Repositories
+## Related
 
 |Repro             |Content                   |
 |------------------|--------------------------|
