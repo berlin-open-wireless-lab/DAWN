@@ -20,7 +20,6 @@
 
 #define TRUE   1
 #define FALSE  0
-#define PORT 1026
 
 void *run_tcp_socket(void *arg)
 {
@@ -59,14 +58,14 @@ void *run_tcp_socket(void *arg)
     //type of socket created
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(PORT);
+    address.sin_port = htons(network_config.tcp_port);
 
     //bind the socket to localhost port 8888
     if (bind(master_socket, (struct sockaddr *) &address, sizeof(address)) < 0) {
         perror("bind failed");
         exit(EXIT_FAILURE);
     }
-    printf("Listener on port %d \n", PORT);
+    printf("Listener on port %d \n", network_config.tcp_port);
 
     //try to specify maximum of 3 pending connections for the master socket
     if (listen(master_socket, 3) < 0) {

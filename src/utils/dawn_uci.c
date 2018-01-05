@@ -92,6 +92,7 @@ struct network_config_s uci_get_dawn_network() {
             ret.shared_key = uci_lookup_option_string(uci_ctx, s, "shared_key");
             ret.iv = uci_lookup_option_string(uci_ctx, s, "iv");
             ret.network_option = uci_lookup_option_int(uci_ctx, s, "network_option");
+            ret.tcp_port = uci_lookup_option_int(uci_ctx, s, "tcp_port");
             return ret;
         }
     }

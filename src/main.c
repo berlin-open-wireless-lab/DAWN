@@ -113,6 +113,7 @@ int main(int argc, char **argv) {
 
     uci_init();
     struct network_config_s net_config = uci_get_dawn_network();
+    network_config = net_config;
     printf("Broadcst bla: %s\n", net_config.broadcast_ip);
 
     gcrypt_init();

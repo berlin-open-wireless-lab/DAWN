@@ -67,6 +67,7 @@ struct time_config_s {
 struct network_config_s {
     const char* broadcast_ip;
     int broadcast_port;
+    int tcp_port;
     int network_option;
     const char* multicast;
     const char* shared_key;
@@ -74,6 +75,7 @@ struct network_config_s {
     int bool_multicast;
 };
 
+struct network_config_s network_config;
 struct time_config_s timeout_config;
 
 // ---------------- Global variables ----------------
