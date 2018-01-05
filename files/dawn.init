@@ -15,7 +15,7 @@ start_service()
 	procd_set_param command $PROG
 	procd_set_param stdout 1
 	procd_set_param stderr 1
-	procd_add_mdns "dawn" "tcp" "1025"
+	procd_add_mdns "dawn" "tcp" "1026"
 	procd_close_instance
   	echo "Dawn instance started!"
 }

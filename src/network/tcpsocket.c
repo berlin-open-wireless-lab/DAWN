@@ -1,11 +1,8 @@
-//
-// Created by nick on 19.09.17.
-//
-
 // http://www.geeksforgeeks.org/socket-programming-in-cc-handling-multiple-clients-on-server-without-multi-threading/
 
 #include "tcpsocket.h"
 #include "datastorage.h"
+#include "ubus.h"
 
 //Example code: A simple server side code, which echos back the received message.
 //Handle multiple socket connections with select and fd_set on Linux
@@ -22,7 +19,7 @@
 
 #define TRUE   1
 #define FALSE  0
-#define PORT 1025
+#define PORT 1026
 
 void *run_tcp_socket(void *arg)
 {
@@ -167,7 +164,9 @@ void *run_tcp_socket(void *arg)
                     //set the string terminating NULL byte on the end
                     //of the data read
                     buffer[valread] = '\0';
-                    send(sd, buffer, strlen(buffer), 0);
+                    //send(sd, buffer, strlen(buffer), 0);
+                    printf("RECEIVED: %s\n", buffer);
+                    handle_network_msg(buffer);
                 }
             }
         }
@@ -186,13 +185,17 @@ int add_tcp_conncection(char* ipv4, int port){
     serv_addr.sin_addr.s_addr = inet_addr(ipv4);
     serv_addr.sin_port = htons(port);
 
-    if(tcp_array_contains_address(serv_addr))
+    print_tcp_array();
+
+    if(tcp_array_contains_address(serv_addr)) {
         return 0;
+    }
+
 
     if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0)
     {
-        fprintf(stderr,"ERROR connecting");
-        //return 0;
+        fprintf(stderr,"ERROR connecting\n");
+        return 0;
     }
 
     struct network_con_s tmp =
@@ -203,7 +206,7 @@ int add_tcp_conncection(char* ipv4, int port){
 
     insert_to_tcp_array(tmp);
 
-    printf("NEW TCP CONNECTION!!!");
+    printf("NEW TCP CONNECTION!!! to %s:%d\n", ipv4, port);
 
     return 0;
 }

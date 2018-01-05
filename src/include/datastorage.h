@@ -259,6 +259,6 @@ struct network_con_s network_array[ARRAY_NETWORK_LEN];
 pthread_mutex_t tcp_array_mutex;
 int insert_to_tcp_array(struct network_con_s entry);
 int tcp_array_contains_address(struct sockaddr_in entry);
-
+void send_tcp(char* msg);
 
 #endif

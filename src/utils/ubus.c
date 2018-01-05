@@ -163,7 +163,7 @@ enum {
 };
 
 static const struct blobmsg_policy dawn_umdns_table_policy[__DAWN_UMDNS_TABLE_MAX] = {
-        [DAWN_UMDNS_TABLE] = {.name = "_dawn._udp", .type = BLOBMSG_TYPE_TABLE},
+        [DAWN_UMDNS_TABLE] = {.name = "_dawn._tcp", .type = BLOBMSG_TYPE_TABLE},
 };
 
 enum {
@@ -570,7 +570,8 @@ int send_blob_attr_via_network(struct blob_attr *msg, char* method)
 
     //blobmsg_add_blob(&b, msg);
     str = blobmsg_format_json(b_send_network.head, true);
-    send_string_enc(str);
+    //send_string_enc(str);
+    send_tcp(str);
     //free(str);
     //free(data_str);
     return 0;
@@ -585,7 +586,6 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
 
     //TODO CHECK IF FREE IS CORREECT!
     free(str);
-
 
     // TODO: Only handle probe request and NOT assoc, ...
 

@@ -1338,6 +1338,27 @@ void print_tcp_entry(struct network_con_s entry)
     printf("Conenctin to Port: %d\n", entry.sock_addr.sin_port);
 }
 
+void send_tcp(char* msg)
+{
+    printf("SENDING TCP!\n");
+    pthread_mutex_lock(&tcp_array_mutex);
+    for (int i = 0; i <= tcp_entry_last; i++) {
+        if(send(network_array[i].sockfd, msg, strlen(msg), 0) < 0)
+        {
+            printf("Removing bad TCP connection!\n");
+            for (int j = i; j < client_entry_last; j++) {
+                network_array[j] = network_array[j + 1];
+            }
+
+            if (tcp_entry_last > -1) {
+                tcp_entry_last--;
+            }
+        }
+    }
+    pthread_mutex_unlock(&tcp_array_mutex);
+}
+
+
 void print_tcp_array()
 {
     printf("--------Connections------\n");
@@ -1395,9 +1416,9 @@ int tcp_array_contains_address_help(struct sockaddr_in entry) {
         if (entry.sin_addr.s_addr == network_array[i].sock_addr.sin_addr.s_addr) {
             return 1;
         }
-        if (entry.sin_addr.s_addr > network_array[i].sock_addr.sin_addr.s_addr) {
+        /*if (entry.sin_addr.s_addr > network_array[i].sock_addr.sin_addr.s_addr) {
             return 0;
-        }
+        }*/
     }
     return 0;
 }
