@@ -845,6 +845,7 @@ void remove_probe_array_cb(struct uloop_timeout *t) {
     pthread_mutex_lock(&probe_array_mutex);
     printf("[Thread] : Removing old entries!\n");
     remove_old_probe_entries(time(0), timeout_config.remove_probe);
+    printf("[Thread] : Removing old FINISHED!\n");
     pthread_mutex_unlock(&probe_array_mutex);
     uloop_timeout_set(&probe_timeout, timeout_config.remove_probe * 1000);
 }

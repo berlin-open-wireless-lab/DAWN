@@ -29,16 +29,18 @@ static struct blob_buf network_buf;
 static struct blob_buf data_buf;
 static struct blob_buf b_probe;
 
-
-
-
 void update_clients(struct uloop_timeout *t);
+
+void update_tcp_connections(struct uloop_timeout *t);
 
 struct uloop_timeout client_timer = {
         .cb = update_clients
 };
 struct uloop_timeout hostapd_timer = {
         .cb = update_hostapd_sockets
+};
+struct uloop_timeout umdns_timer = {
+        .cb = update_tcp_connections
 };
 
 #define MAX_HOSTAPD_SOCKETS 10
@@ -702,7 +704,6 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
     ctx_clients = ubus_connect(ubus_socket_clients);
     uloop_timeout_add(&client_timer);
 
-
     ubus_call_umdns();
 
     ubus_add_oject();
@@ -863,13 +864,15 @@ void update_clients(struct uloop_timeout *t) {
     uloop_timeout_set(&client_timer, timeout_config.update_client * 1000);
 }
 
-void *update_connections_thread(void *arg) {
-    while (1) {
-        sleep(TIME_THRESHOLD_CLIENT_KICK);
-        printf("[Thread] : Updating Connections!\n");
-        ubus_call_umdns();
-    }
-    return 0;
+void update_tcp_connections(struct uloop_timeout *t) {
+    ubus_call_umdns();
+    uloop_timeout_set(&umdns_timer, timeout_config.update_tcp_con * 1000);
+}
+
+void start_umdns_update()
+{
+    // update connections
+    uloop_timeout_add(&umdns_timer);
 }
 
 void update_hostapd_sockets(struct uloop_timeout *t) {

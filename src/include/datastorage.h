@@ -61,11 +61,13 @@ struct time_config_s {
     time_t remove_probe;
     time_t remove_ap;
     time_t update_hostapd;
+    time_t update_tcp_con;
 };
 
 struct network_config_s {
     const char* broadcast_ip;
     int broadcast_port;
+    int network_option;
     const char* multicast;
     const char* shared_key;
     const char* iv;

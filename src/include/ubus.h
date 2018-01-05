@@ -6,6 +6,8 @@
 
 #include "datastorage.h"
 
+void start_umdns_update();
+
 int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir);
 
 int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req);

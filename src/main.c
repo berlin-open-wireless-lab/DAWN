@@ -20,6 +20,8 @@ void daemon_shutdown();
 
 void signal_handler(int sig);
 
+int run_tcp_server();
+
 int init_mutex();
 
 struct sigaction signal_action;
@@ -79,6 +81,18 @@ int init_mutex()
         printf("\n mutex init failed\n");
         return 1;
     }
+
+    if (pthread_mutex_init(&tcp_array_mutex, NULL) != 0) {
+        printf("\n mutex init failed\n");
+        return 1;
+    }
+    return 0;
+}
+
+int run_tcp_server()
+{
+    pthread_create(&tid_tcp_server, NULL, &run_tcp_socket, NULL);
+    start_umdns_update();
     return 0;
 }
 
@@ -107,15 +121,25 @@ int main(int argc, char **argv) {
     struct time_config_s time_config = uci_get_time_config();
     timeout_config = time_config; // TODO: Refactor...
 
-    pthread_create(&tid_tcp_server, NULL, &run_tcp_socket, NULL);
-    pthread_create(&tid_connections, NULL, &update_connections_thread, NULL);
-
     hostapd_dir_glob = uci_get_dawn_hostapd_dir();
     sort_string = (char*) uci_get_dawn_sort_order();
 
     init_mutex();
 
-    init_socket_runopts(net_config.broadcast_ip, net_config.broadcast_port, net_config.bool_multicast);
+    switch(net_config.network_option)
+    {
+        case 0:
+            init_socket_runopts(net_config.broadcast_ip, net_config.broadcast_port, 0);
+            break;
+        case 1:
+            init_socket_runopts(net_config.broadcast_ip, net_config.broadcast_port, 1);
+            break;
+        case 2:
+            run_tcp_server();
+            break;
+        default:
+            exit(EXIT_FAILURE);
+    }
 
     insert_macs_from_file();
     dawn_init_ubus(ubus_socket, hostapd_dir_glob);
