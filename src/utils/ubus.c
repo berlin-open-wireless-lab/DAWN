@@ -18,6 +18,7 @@
 #include "utils.h"
 #include "dawn_uci.h"
 #include "datastorage.h"
+#include "tcpsocket.h"
 
 static struct ubus_context *ctx = NULL;
 static struct ubus_context *ctx_clients; /* own ubus conext otherwise strange behavior... */
@@ -707,6 +708,11 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
     ubus_call_umdns();
 
     ubus_add_oject();
+
+    start_umdns_update();
+
+    if(network_config.network_option == 2)
+        run_server(network_config.tcp_port);
 
     uloop_run();
 

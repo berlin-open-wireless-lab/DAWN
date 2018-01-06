@@ -1,25 +1,16 @@
-
-// http://www.geeksforgeeks.org/socket-programming-in-cc-handling-multiple-clients-on-server-without-multi-threading/
-
-#include "tcpsocket.h"
-#include "datastorage.h"
-#include "ubus.h"
-
-//Example code: A simple server side code, which echos back the received message.
-//Handle multiple socket connections with select and fd_set on Linux
-#include <stdio.h>
-#include <string.h>   //strlen
-#include <stdlib.h>
-#include <errno.h>
-#include <unistd.h>   //close
-#include <arpa/inet.h>    //close
-#include <sys/types.h>
-#include <sys/socket.h>
+#include <libubox/usock.h>
+#include <libubox/ustream.h>
+#include <libubox/uloop.h>
 #include <netinet/in.h>
-#include <sys/time.h> //FD_SET, FD_ISSET, FD_ZERO macros
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "tcpsocket.h"
+#include "ubus.h"
+#include <arpa/inet.h>
 
-#define TRUE   1
-#define FALSE  0
+// based on:
+// https://github.com/xfguo/libubox/blob/master/examples/ustream-example.c
 
 int tcp_array_insert(struct network_con_s entry);
 
@@ -29,164 +20,114 @@ void print_tcp_entry(struct network_con_s entry);
 
 int tcp_entry_last = -1;
 
-void *run_tcp_socket(void *arg)
+static struct uloop_fd server;
+struct client *next_client = NULL;
+
+struct client {
+    struct sockaddr_in sin;
+
+    struct ustream_fd s;
+    int ctr;
+};
+
+static void client_close(struct ustream *s)
 {
-    int opt = TRUE;
-    int master_socket, addrlen, new_socket, client_socket[30],
-            max_clients = 30, activity, i, valread, sd;
-    int max_sd;
-    struct sockaddr_in address;
+    struct client *cl = container_of(s, struct client, s.stream);
 
-    char buffer[1025];  //data buffer of 1K
+    fprintf(stderr, "Connection closed\n");
+    ustream_free(s);
+    close(cl->s.fd.fd);
+    free(cl);
+}
 
-    //set of socket descriptors
-    fd_set readfds;
+static void client_notify_write(struct ustream *s, int bytes)
+{
+    return;
+}
 
-    char *message = "ECHO Daemon v1.0 \r\n";
+static void client_notify_state(struct ustream *s)
+{
+    struct client *cl = container_of(s, struct client, s.stream);
 
-    //initialise all client_socket[] to 0 so not checked
-    for (i = 0; i < max_clients; i++) {
-        client_socket[i] = 0;
+    if (!s->eof)
+        return;
+
+    fprintf(stderr, "eof!, pending: %d, total: %d\n", s->w.data_bytes, cl->ctr);
+    if (!s->w.data_bytes)
+        return client_close(s);
+
+}
+
+static void client_read_cb(struct ustream *s, int bytes)
+{
+    char *str;
+    int len;
+
+    do {
+        str = ustream_get_read_buf(s, &len);
+        if (!str)
+            break;
+
+        printf("RECEIVED String: %s\n", str);
+        handle_network_msg(str);
+        ustream_consume(s, len);
+
+    } while(1);
+
+    if (s->w.data_bytes > 256 && !ustream_read_blocked(s)) {
+        fprintf(stderr, "Block read, bytes: %d\n", s->w.data_bytes);
+        ustream_set_read_blocked(s, true);
+    }
+}
+
+static void server_cb(struct uloop_fd *fd, unsigned int events)
+{
+    struct client *cl;
+    unsigned int sl = sizeof(struct sockaddr_in);
+    int sfd;
+
+    if (!next_client)
+        next_client = calloc(1, sizeof(*next_client));
+
+    cl = next_client;
+    sfd = accept(server.fd, (struct sockaddr *) &cl->sin, &sl);
+    if (sfd < 0) {
+        fprintf(stderr, "Accept failed\n");
+        return;
     }
 
-    //create a master socket
-    if ((master_socket = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
-        perror("socket failed");
-        exit(EXIT_FAILURE);
+    cl->s.stream.string_data = 1;
+    cl->s.stream.notify_read = client_read_cb;
+    cl->s.stream.notify_state = client_notify_state;
+    cl->s.stream.notify_write = client_notify_write;
+    ustream_fd_init(&cl->s, sfd);
+    next_client = NULL;
+    fprintf(stderr, "New connection\n");
+}
+
+int run_server(int port)
+{
+    char port_str[12];
+    sprintf(port_str, "%d", port);
+
+    server.cb = server_cb;
+    server.fd = usock(USOCK_TCP | USOCK_SERVER | USOCK_IPV4ONLY | USOCK_NUMERIC, INADDR_ANY, port_str);
+    if (server.fd < 0) {
+        perror("usock");
+        return 1;
     }
 
-    //set master socket to allow multiple connections ,
-    //this is just a good habit, it will work without this
-    if (setsockopt(master_socket, SOL_SOCKET, SO_REUSEADDR, (char *) &opt,
-                   sizeof(opt)) < 0) {
-        perror("setsockopt");
-        exit(EXIT_FAILURE);
-    }
+    uloop_fd_add(&server, ULOOP_READ);
 
-    //type of socket created
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(network_config.tcp_port);
-
-    //bind the socket to localhost port 8888
-    if (bind(master_socket, (struct sockaddr *) &address, sizeof(address)) < 0) {
-        perror("bind failed");
-        exit(EXIT_FAILURE);
-    }
-    printf("Listener on port %d \n", network_config.tcp_port);
-
-    //try to specify maximum of 3 pending connections for the master socket
-    if (listen(master_socket, 3) < 0) {
-        perror("listen");
-        exit(EXIT_FAILURE);
-    }
-
-    //accept the incoming connection
-    addrlen = sizeof(address);
-    puts("Waiting for connections ...");
-
-    while (TRUE) {
-        //clear the socket set
-        FD_ZERO(&readfds);
-
-        //add master socket to set
-        FD_SET(master_socket, &readfds);
-        max_sd = master_socket;
-
-        //add child sockets to set
-        for (i = 0; i < max_clients; i++) {
-            //socket descriptor
-            sd = client_socket[i];
-
-            //if valid socket descriptor then add to read list
-            if (sd > 0)
-                FD_SET(sd, &readfds);
-
-            //highest file descriptor number, need it for the select function
-            if (sd > max_sd)
-                max_sd = sd;
-        }
-
-        //wait for an activity on one of the sockets , timeout is NULL ,
-        //so wait indefinitely
-        activity = select(max_sd + 1, &readfds, NULL, NULL, NULL);
-
-        if ((activity < 0) && (errno != EINTR)) {
-            printf("select error");
-        }
-
-        //If something happened on the master socket ,
-        //then its an incoming connection
-        if (FD_ISSET(master_socket, &readfds)) {
-            if ((new_socket = accept(master_socket,
-                                     (struct sockaddr *) &address, (socklen_t *) &addrlen)) < 0) {
-                perror("accept");
-                exit(EXIT_FAILURE);
-            }
-
-            //inform user of socket number - used in send and receive commands
-            printf("New connection , socket fd is %d , ip is : %s , port : %d\n", new_socket,
-                   inet_ntoa(address.sin_addr), ntohs
-                   (address.sin_port));
-
-            //send new connection greeting message
-            if (send(new_socket, message, strlen(message), 0) != strlen(message)) {
-                perror("send");
-            }
-
-            puts("Welcome message sent successfully");
-
-            //add new socket to array of sockets
-            for (i = 0; i < max_clients; i++) {
-                //if position is empty
-                if (client_socket[i] == 0) {
-                    client_socket[i] = new_socket;
-                    printf("Adding to list of sockets as %d\n", i);
-
-                    break;
-                }
-            }
-        }
-
-        //else its some IO operation on some other socket
-        for (i = 0; i < max_clients; i++) {
-            sd = client_socket[i];
-
-            if (FD_ISSET(sd, &readfds)) {
-                //Check if it was for closing , and also read the
-                //incoming message
-                if ((valread = read(sd, buffer, 1024)) == 0) {
-                    //Somebody disconnected , get his details and print
-                    getpeername(sd, (struct sockaddr *) &address, \
-                        (socklen_t *) &addrlen);
-                    printf("Host disconnected , ip %s , port %d \n",
-                           inet_ntoa(address.sin_addr), ntohs(address.sin_port));
-
-                    //Close the socket and mark as 0 in list for reuse
-                    close(sd);
-                    client_socket[i] = 0;
-                }
-
-                    //Echo back the message that came in
-                else {
-                    //set the string terminating NULL byte on the end
-                    //of the data read
-                    buffer[valread] = '\0';
-                    //send(sd, buffer, strlen(buffer), 0);
-                    printf("RECEIVED: %s\n", buffer);
-                    handle_network_msg(buffer);
-                }
-            }
-        }
-    }
+    return 0;
 }
 
 int add_tcp_conncection(char* ipv4, int port){
     int sockfd;
     struct sockaddr_in serv_addr;
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0)
-        fprintf(stderr,"ERROR opening socket");
+
+    char port_str[12];
+    sprintf(port_str, "%d", port);
 
     memset(&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
@@ -196,17 +137,10 @@ int add_tcp_conncection(char* ipv4, int port){
     print_tcp_array();
 
     if(tcp_array_contains_address(serv_addr)) {
-        close(sockfd);
         return 0;
     }
 
-
-    if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0)
-    {
-        close(sockfd);
-        fprintf(stderr,"ERROR connecting\n");
-        return 0;
-    }
+    sockfd = usock(USOCK_TCP | USOCK_NONBLOCK, ipv4, port_str);
 
     struct network_con_s tmp =
             {

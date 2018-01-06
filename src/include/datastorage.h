@@ -10,9 +10,6 @@
 #include <unistd.h>
 #include <libubox/blobmsg_json.h>
 
-
-#include "tcpsocket.h"
-
 #ifndef ETH_ALEN
 #define ETH_ALEN 6
 #endif
@@ -255,9 +252,5 @@ void *remove_thread(void *arg);
 
 pthread_mutex_t list_mutex;
 node *probe_list_head;
-
-
-#define ARRAY_NETWORK_LEN 50
-struct network_con_s network_array[ARRAY_NETWORK_LEN];
 
 #endif

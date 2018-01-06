@@ -91,8 +91,9 @@ int init_mutex()
 
 int run_tcp_server()
 {
-    pthread_create(&tid_tcp_server, NULL, &run_tcp_socket, NULL);
-    start_umdns_update();
+    //run_server(1027);
+    //pthread_create(&tid_tcp_server, NULL, &run_tcp_socket, NULL);
+    //start_umdns_update();
     return 0;
 }
 
@@ -135,11 +136,8 @@ int main(int argc, char **argv) {
         case 1:
             init_socket_runopts(net_config.broadcast_ip, net_config.broadcast_port, 1);
             break;
-        case 2:
-            run_tcp_server();
-            break;
         default:
-            exit(EXIT_FAILURE);
+            break;
     }
 
     insert_macs_from_file();
