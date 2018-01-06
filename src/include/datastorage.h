@@ -187,8 +187,6 @@ pthread_mutex_t client_array_mutex;
 struct ap_s ap_array[ARRAY_AP_LEN];
 pthread_mutex_t ap_array_mutex;
 
-void print_tcp_array();
-
 int mac_is_equal(uint8_t addr1[], uint8_t addr2[]);
 
 int mac_is_greater(uint8_t addr1[], uint8_t addr2[]);
@@ -261,9 +259,5 @@ node *probe_list_head;
 
 #define ARRAY_NETWORK_LEN 50
 struct network_con_s network_array[ARRAY_NETWORK_LEN];
-pthread_mutex_t tcp_array_mutex;
-int insert_to_tcp_array(struct network_con_s entry);
-int tcp_array_contains_address(struct sockaddr_in entry);
-void send_tcp(char* msg);
 
 #endif

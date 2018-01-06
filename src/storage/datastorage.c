@@ -37,12 +37,6 @@ void remove_old_ap_entries(time_t current_time, long long int threshold);
 
 void print_ap_entry(ap entry);
 
-int tcp_array_contains_address_help(struct sockaddr_in entry);
-
-int tcp_array_insert(struct network_con_s entry);
-
-void print_tcp_entry(struct network_con_s entry);
-
 int probe_array_update_rssi(uint8_t bssid_addr[], uint8_t client_addr[], uint32_t rssi);
 
 int is_connected(uint8_t bssid_addr[], uint8_t client_addr[]);
@@ -56,7 +50,6 @@ int compare_ssid(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compare);
 int probe_entry_last = -1;
 int client_entry_last = -1;
 int ap_entry_last = -1;
-int tcp_entry_last = -1;
 int mac_list_entry_last = -1;
 
 void remove_probe_array_cb(struct uloop_timeout *t);
@@ -1323,104 +1316,4 @@ void print_ap_array() {
         print_ap_entry(ap_array[i]);
     }
     printf("------------------\n");
-}
-
-int insert_to_tcp_array(struct network_con_s entry) {
-    pthread_mutex_lock(&tcp_array_mutex);
-
-    int ret = tcp_array_insert(entry);
-    pthread_mutex_unlock(&tcp_array_mutex);
-
-    return ret;
-}
-
-void print_tcp_entry(struct network_con_s entry)
-{
-    printf("Conenctin to Port: %d\n", entry.sock_addr.sin_port);
-}
-
-void send_tcp(char* msg)
-{
-    printf("SENDING TCP!\n");
-    pthread_mutex_lock(&tcp_array_mutex);
-    for (int i = 0; i <= tcp_entry_last; i++) {
-        if(send(network_array[i].sockfd, msg, strlen(msg), 0) < 0)
-        {
-            close(network_array->sockfd);
-            printf("Removing bad TCP connection!\n");
-            for (int j = i; j < client_entry_last; j++) {
-                network_array[j] = network_array[j + 1];
-            }
-
-            if (tcp_entry_last > -1) {
-                tcp_entry_last--;
-            }
-        }
-    }
-    pthread_mutex_unlock(&tcp_array_mutex);
-}
-
-
-void print_tcp_array()
-{
-    printf("--------Connections------\n");
-    for (int i = 0; i <= tcp_entry_last; i++) {
-        print_tcp_entry(network_array[i]);
-    }
-    printf("------------------\n");
-}
-
-int tcp_array_insert(struct network_con_s entry) {
-    if (tcp_entry_last == -1) {
-        network_array[0] = entry;
-        tcp_entry_last++;
-        return 1;
-    }
-
-    int i;
-    for (i = 0; i <= tcp_entry_last; i++) {
-        if (entry.sock_addr.sin_addr.s_addr < network_array[i].sock_addr.sin_addr.s_addr) {
-            break;
-        }
-        if (entry.sock_addr.sin_addr.s_addr == network_array[i].sock_addr.sin_addr.s_addr) {
-            return 0;
-        }
-    }
-    for (int j = tcp_entry_last; j >= i; j--) {
-        if (j + 1 <= ARRAY_NETWORK_LEN) {
-            network_array[j + 1] = network_array[j];
-        }
-    }
-    network_array[i] = entry;
-
-    if (tcp_entry_last < ARRAY_NETWORK_LEN) {
-        tcp_entry_last++;
-    }
-    return 1;
-}
-
-int tcp_array_contains_address(struct sockaddr_in entry) {
-    pthread_mutex_lock(&tcp_array_mutex);
-
-    int ret = tcp_array_contains_address_help(entry);
-    pthread_mutex_unlock(&tcp_array_mutex);
-
-    return ret;
-}
-
-int tcp_array_contains_address_help(struct sockaddr_in entry) {
-    if (tcp_entry_last == -1) {
-        return 0;
-    }
-
-    int i;
-    for (i = 0; i <= tcp_entry_last; i++) {
-        if (entry.sin_addr.s_addr == network_array[i].sock_addr.sin_addr.s_addr) {
-            return 1;
-        }
-        /*if (entry.sin_addr.s_addr > network_array[i].sock_addr.sin_addr.s_addr) {
-            return 0;
-        }*/
-    }
-    return 0;
 }
