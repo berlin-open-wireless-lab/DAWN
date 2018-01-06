@@ -636,7 +636,7 @@ static int subscribe_to_hostapd_interfaces(const char *hostapd_dir) {
 
     dirp = opendir(hostapd_dir);  // error handling?
     if (!dirp) {
-        fprintf(stderr, "No hostapd sockets!\n");
+        fprintf(stderr, "[SUBSCRIBING] No hostapd sockets!\n");
         return -1;
     }
     while ((entry = readdir(dirp)) != NULL) {
