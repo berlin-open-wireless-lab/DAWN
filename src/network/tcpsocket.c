@@ -188,12 +188,14 @@ int add_tcp_conncection(char* ipv4, int port){
     print_tcp_array();
 
     if(tcp_array_contains_address(serv_addr)) {
+        close(sockfd);
         return 0;
     }
 
 
     if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0)
     {
+        close(sockfd);
         fprintf(stderr,"ERROR connecting\n");
         return 0;
     }

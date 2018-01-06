@@ -170,6 +170,7 @@ typedef struct ap_s {
     time_t time;
     uint32_t station_count;
     uint8_t ssid[SSID_MAX_LEN];
+    uint32_t collision_domain;
 } ap;
 
 // ---------------- Defines ----------------

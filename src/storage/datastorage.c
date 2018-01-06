@@ -1346,6 +1346,7 @@ void send_tcp(char* msg)
     for (int i = 0; i <= tcp_entry_last; i++) {
         if(send(network_array[i].sockfd, msg, strlen(msg), 0) < 0)
         {
+            close(network_array->sockfd);
             printf("Removing bad TCP connection!\n");
             for (int j = i; j < client_entry_last; j++) {
                 network_array[j] = network_array[j + 1];
