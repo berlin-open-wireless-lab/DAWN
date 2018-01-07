@@ -50,6 +50,10 @@ struct probe_metric_s {
     int bandwith_threshold;
     int use_station_count;
     int eval_probe_req;
+    int eval_auth_req;
+    int eval_assoc_req;
+    int deny_auth_reason;
+    int deny_assoc_reason;
 };
 
 struct time_config_s {

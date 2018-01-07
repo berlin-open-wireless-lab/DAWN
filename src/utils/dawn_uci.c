@@ -67,6 +67,10 @@ struct probe_metric_s uci_get_dawn_metric() {
             ret.bandwith_threshold = uci_lookup_option_int(uci_ctx, s, "bandwith_threshold");
             ret.use_station_count = uci_lookup_option_int(uci_ctx, s, "use_station_count");
             ret.eval_probe_req = uci_lookup_option_int(uci_ctx, s, "eval_probe_req");
+            ret.eval_auth_req = uci_lookup_option_int(uci_ctx, s, "eval_auth_req");
+            ret.eval_assoc_req = uci_lookup_option_int(uci_ctx, s, "eval_assoc_req");
+            ret.deny_auth_reason = uci_lookup_option_int(uci_ctx, s, "deny_auth_reason");
+            ret.deny_assoc_reason = uci_lookup_option_int(uci_ctx, s, "deny_assoc_reason");
             return ret;
         }
     }

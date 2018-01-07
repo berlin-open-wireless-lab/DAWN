@@ -12,6 +12,10 @@
 #define WLAN_STATUS_SUCCESS 0
 #define WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA 17
 
+#define REQ_TYPE_PROBE 0
+#define REQ_TYPE_AUTH 1
+#define REQ_TYPE_ASSOC 2
+
 #include "ubus.h"
 
 #include "networksocket.h"
@@ -279,14 +283,24 @@ void blobmsg_add_macaddr(struct blob_buf *buf, const char *name, const uint8_t *
 }
 
 
-static int decide_function(probe_entry *prob_req) {
+static int decide_function(probe_entry *prob_req, int req_type) {
     printf("COUNTER: %d\n", prob_req->counter);
 
     if (prob_req->counter < dawn_metric.min_probe_count) {
         return 0;
     }
 
-    if(!dawn_metric.eval_probe_req)
+    if(req_type == REQ_TYPE_PROBE && !dawn_metric.eval_probe_req)
+    {
+        return 1;
+    }
+
+    if(req_type == REQ_TYPE_AUTH && !dawn_metric.eval_auth_req)
+    {
+        return 1;
+    }
+
+    if(req_type == REQ_TYPE_AUTH && !dawn_metric.eval_assoc_req)
     {
         return 1;
     }
@@ -398,44 +412,60 @@ static int handle_auth_req(struct blob_attr *msg) {
     // block if entry was not already found in probe database
     if (!(mac_is_equal(tmp.bssid_addr, auth_req.bssid_addr) && mac_is_equal(tmp.client_addr, auth_req.client_addr))) {
         printf("DENY AUTH!\n");
-        return WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA;
+        return dawn_metric.deny_auth_reason;
     }
 
-    if (!decide_function(&tmp)) {
+    if (!decide_function(&tmp, REQ_TYPE_AUTH)) {
         printf("DENY AUTH\n");
-        return WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA;
-    }
 
-    // maybe add here if a client is already connected...
-    // delay problems...
+        return dawn_metric.deny_auth_reason;
+    }
 
     printf("ALLOW AUTH!\n");
     return WLAN_STATUS_SUCCESS;
 }
 
 static int handle_assoc_req(struct blob_attr *msg) {
-    //assoc_entry assoc_req;
-    //parse_to_auth_req(msg, &assoc_req);
 
-    return handle_auth_req(msg);
+    print_probe_array();
+    auth_entry auth_req;
+    parse_to_auth_req(msg, &auth_req);
+    printf("ASSOC Entry: ");
+    print_auth_entry(auth_req);
+
+    probe_entry tmp = probe_array_get_entry(auth_req.bssid_addr, auth_req.client_addr);
+
+    printf("Entry found\n");
+    print_probe_entry(tmp);
+
+    // block if entry was not already found in probe database
+    if (!(mac_is_equal(tmp.bssid_addr, auth_req.bssid_addr) && mac_is_equal(tmp.client_addr, auth_req.client_addr))) {
+        printf("DENY ASSOC!\n");
+        return dawn_metric.deny_assoc_reason;
+    }
+
+    if (!decide_function(&tmp, REQ_TYPE_ASSOC)) {
+        printf("DENY ASSOC\n");
+        return dawn_metric.deny_assoc_reason;
+    }
+
+    printf("ALLOW ASSOC!\n");
+    return WLAN_STATUS_SUCCESS;
 }
 
 static int handle_probe_req(struct blob_attr *msg) {
-    //printf("[WC] Parse Probe Request\n");
     probe_entry prob_req;
     probe_entry tmp_prob_req;
+
     if(parse_to_probe_req(msg, &prob_req) == 0)
     {
         tmp_prob_req = insert_to_array(prob_req, 1);
-        //print_probe_array();
         send_blob_attr_via_network(msg, "probe");
     }
 
-    if (!decide_function(&tmp_prob_req)) {
-        //printf("MAC WILL BE DECLINED!!!\n");
-        return WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA;
+    if (!decide_function(&tmp_prob_req, REQ_TYPE_PROBE)) {
+        return WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA; // no reason needed...
     }
-    //printf("MAC WILL BE ACCEPDTED!!!\n");
     return WLAN_STATUS_SUCCESS;
 }
 
@@ -595,8 +625,7 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
     if (strncmp(method, "probe", 5) == 0) {
         return handle_probe_req(msg);
     } else if (strncmp(method, "auth", 4) == 0) {
-        //return handle_auth_req(msg);
-        return 0;
+        return handle_auth_req(msg);
     } else if (strncmp(method, "assoc", 5) == 0) {
         return handle_assoc_req(msg);
     } else if (strncmp(method, "deauth", 6) == 0) {
