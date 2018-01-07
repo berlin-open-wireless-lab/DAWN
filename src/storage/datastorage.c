@@ -284,7 +284,7 @@ int compare_station_count(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compar
         }
         printf("AFTER: Comparing own %d to %d\n", sta_count, sta_count_to_compare);
 
-        return sta_count > sta_count_to_compare;
+        return sta_count - sta_count_to_compare < dawn_metric.max_station_diff;
     }
 
     return 0;

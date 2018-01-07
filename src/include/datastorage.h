@@ -49,6 +49,7 @@ struct probe_metric_s {
     int min_probe_count;
     int bandwith_threshold;
     int use_station_count;
+    int max_station_diff;
     int eval_probe_req;
     int eval_auth_req;
     int eval_assoc_req;
