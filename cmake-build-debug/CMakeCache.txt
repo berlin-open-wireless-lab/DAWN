@@ -195,10 +195,10 @@ ProcessorCount_cmd_getconf:FILEPATH=/usr/bin/getconf
 ProcessorCount_cmd_sysctl:FILEPATH=/sbin/sysctl
 
 //Value Computed by CMake
-dawn_BINARY_DIR:STATIC=/home/nick/DAWN/cmake-build-debug
+dawn_BINARY_DIR:STATIC=/home/nick/DAWN/cmake-build-debug/src
 
 //Value Computed by CMake
-dawn_SOURCE_DIR:STATIC=/home/nick/DAWN
+dawn_SOURCE_DIR:STATIC=/home/nick/DAWN/src
 
 
 ########################

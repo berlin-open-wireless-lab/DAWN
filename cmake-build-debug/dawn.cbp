@@ -159,6 +159,9 @@
 		<Unit filename="/home/nick/DAWN/src/include/runopts.h">
 			<Option target="dawn"/>
 		</Unit>
+		<Unit filename="/home/nick/DAWN/src/include/tcpsocket.h">
+			<Option target="dawn"/>
+		</Unit>
 		<Unit filename="/home/nick/DAWN/src/include/ubus.h">
 			<Option target="dawn"/>
 		</Unit>
@@ -175,6 +178,9 @@
 			<Option target="dawn"/>
 		</Unit>
 		<Unit filename="/home/nick/DAWN/src/network/networksocket.c">
+			<Option target="dawn"/>
+		</Unit>
+		<Unit filename="/home/nick/DAWN/src/network/tcpsocket.c">
 			<Option target="dawn"/>
 		</Unit>
 		<Unit filename="/home/nick/DAWN/src/storage/datastorage.c">

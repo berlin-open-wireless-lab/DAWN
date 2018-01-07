@@ -10,6 +10,7 @@ set(CMAKE_DEPENDS_CHECK_C
   "/home/nick/DAWN/src/network/broadcastsocket.c" "/home/nick/DAWN/cmake-build-debug/src/CMakeFiles/dawn.dir/network/broadcastsocket.c.o"
   "/home/nick/DAWN/src/network/multicastsocket.c" "/home/nick/DAWN/cmake-build-debug/src/CMakeFiles/dawn.dir/network/multicastsocket.c.o"
   "/home/nick/DAWN/src/network/networksocket.c" "/home/nick/DAWN/cmake-build-debug/src/CMakeFiles/dawn.dir/network/networksocket.c.o"
+  "/home/nick/DAWN/src/network/tcpsocket.c" "/home/nick/DAWN/cmake-build-debug/src/CMakeFiles/dawn.dir/network/tcpsocket.c.o"
   "/home/nick/DAWN/src/storage/datastorage.c" "/home/nick/DAWN/cmake-build-debug/src/CMakeFiles/dawn.dir/storage/datastorage.c.o"
   "/home/nick/DAWN/src/utils/dawn_iwinfo.c" "/home/nick/DAWN/cmake-build-debug/src/CMakeFiles/dawn.dir/utils/dawn_iwinfo.c.o"
   "/home/nick/DAWN/src/utils/dawn_uci.c" "/home/nick/DAWN/cmake-build-debug/src/CMakeFiles/dawn.dir/utils/dawn_uci.c.o"

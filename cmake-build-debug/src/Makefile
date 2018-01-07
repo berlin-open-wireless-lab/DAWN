@@ -333,6 +333,33 @@ network/networksocket.c.s:
 	cd /home/nick/DAWN/cmake-build-debug && $(MAKE) -f src/CMakeFiles/dawn.dir/build.make src/CMakeFiles/dawn.dir/network/networksocket.c.s
 .PHONY : network/networksocket.c.s
 
+network/tcpsocket.o: network/tcpsocket.c.o
+
+.PHONY : network/tcpsocket.o
+
+# target to build an object file
+network/tcpsocket.c.o:
+	cd /home/nick/DAWN/cmake-build-debug && $(MAKE) -f src/CMakeFiles/dawn.dir/build.make src/CMakeFiles/dawn.dir/network/tcpsocket.c.o
+.PHONY : network/tcpsocket.c.o
+
+network/tcpsocket.i: network/tcpsocket.c.i
+
+.PHONY : network/tcpsocket.i
+
+# target to preprocess a source file
+network/tcpsocket.c.i:
+	cd /home/nick/DAWN/cmake-build-debug && $(MAKE) -f src/CMakeFiles/dawn.dir/build.make src/CMakeFiles/dawn.dir/network/tcpsocket.c.i
+.PHONY : network/tcpsocket.c.i
+
+network/tcpsocket.s: network/tcpsocket.c.s
+
+.PHONY : network/tcpsocket.s
+
+# target to generate assembly for a file
+network/tcpsocket.c.s:
+	cd /home/nick/DAWN/cmake-build-debug && $(MAKE) -f src/CMakeFiles/dawn.dir/build.make src/CMakeFiles/dawn.dir/network/tcpsocket.c.s
+.PHONY : network/tcpsocket.c.s
+
 storage/datastorage.o: storage/datastorage.c.o
 
 .PHONY : storage/datastorage.o
@@ -526,6 +553,9 @@ help:
 	@echo "... network/networksocket.o"
 	@echo "... network/networksocket.i"
 	@echo "... network/networksocket.s"
+	@echo "... network/tcpsocket.o"
+	@echo "... network/tcpsocket.i"
+	@echo "... network/tcpsocket.s"
 	@echo "... storage/datastorage.o"
 	@echo "... storage/datastorage.i"
 	@echo "... storage/datastorage.s"

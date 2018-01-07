@@ -10,6 +10,7 @@ file(REMOVE_RECURSE
   "CMakeFiles/dawn.dir/crypto/crypto.c.o"
   "CMakeFiles/dawn.dir/crypto/base64.c.o"
   "CMakeFiles/dawn.dir/utils/utils.c.o"
+  "CMakeFiles/dawn.dir/network/tcpsocket.c.o"
   "CMakeFiles/dawn.dir/utils/dawn_iwinfo.c.o"
   "dawn.pdb"
   "dawn"
