@@ -1,7 +1,7 @@
 # DAWN
 Decentralized WiFi Controller
 
-## Related Repositories
+## Related
 
 |Repro             |Content                   |
 |------------------|--------------------------|
@@ -61,5 +61,9 @@ Edit settings under
     /etc/config/dawn
     
 Restart daemon
-
     /etc/init.d/dawn restart
+
+## Setting up Routers
+
+Wifi should use same ESSIDs. That's important to ensure that every AP gets a probe request.
+The routers should bridge the wifi to wan port. So just one DHCP.

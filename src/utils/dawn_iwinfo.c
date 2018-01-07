@@ -35,7 +35,7 @@ int compare_essid_iwinfo(__uint8_t *bssid_addr, __uint8_t *bssid_addr_to_compare
     struct dirent *entry;
     dirp = opendir(hostapd_dir_glob);  // error handling?
     if (!dirp) {
-        fprintf(stderr, "No hostapd sockets!\n");
+        fprintf(stderr, "[COMPARE ESSID] No hostapd sockets!\n");
         return 0;
     }
 
@@ -93,7 +93,7 @@ int get_bandwidth_iwinfo(__uint8_t *client_addr, float *rx_rate, float *tx_rate)
     struct dirent *entry;
     dirp = opendir(hostapd_dir_glob);  // error handling?
     if (!dirp) {
-        fprintf(stderr, "No hostapd sockets!\n");
+        fprintf(stderr, "[BANDWITH INFO]No hostapd sockets!\n");
         return 0;
     }
 
@@ -152,7 +152,7 @@ int get_rssi_iwinfo(__uint8_t *client_addr) {
     struct dirent *entry;
     dirp = opendir(hostapd_dir_glob);  // error handling?
     if (!dirp) {
-        fprintf(stderr, "No hostapd sockets!\n");
+        fprintf(stderr, "[RSSI INFO] No hostapd sockets!\n");
         return INT_MIN;
     }
 

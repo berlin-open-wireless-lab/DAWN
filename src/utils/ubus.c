@@ -18,6 +18,7 @@
 #include "utils.h"
 #include "dawn_uci.h"
 #include "datastorage.h"
+#include "tcpsocket.h"
 
 static struct ubus_context *ctx = NULL;
 static struct ubus_context *ctx_clients; /* own ubus conext otherwise strange behavior... */
@@ -29,16 +30,18 @@ static struct blob_buf network_buf;
 static struct blob_buf data_buf;
 static struct blob_buf b_probe;
 
-
-
-
 void update_clients(struct uloop_timeout *t);
+
+void update_tcp_connections(struct uloop_timeout *t);
 
 struct uloop_timeout client_timer = {
         .cb = update_clients
 };
 struct uloop_timeout hostapd_timer = {
         .cb = update_hostapd_sockets
+};
+struct uloop_timeout umdns_timer = {
+        .cb = update_tcp_connections
 };
 
 #define MAX_HOSTAPD_SOCKETS 10
@@ -155,6 +158,27 @@ static const struct blobmsg_policy client_policy[__CLIENT_MAX] = {
         [CLIENT_WPS] = {.name = "wps", .type = BLOBMSG_TYPE_INT8},
         [CLIENT_MFP] = {.name = "mfp", .type = BLOBMSG_TYPE_INT8},
         [CLIENT_AID] = {.name = "aid", .type = BLOBMSG_TYPE_INT32},
+};
+
+enum {
+    DAWN_UMDNS_TABLE,
+    __DAWN_UMDNS_TABLE_MAX,
+};
+
+static const struct blobmsg_policy dawn_umdns_table_policy[__DAWN_UMDNS_TABLE_MAX] = {
+        [DAWN_UMDNS_TABLE] = {.name = "_dawn._tcp", .type = BLOBMSG_TYPE_TABLE},
+};
+
+enum {
+    DAWN_UMDNS_IPV4,
+    DAWN_UMDNS_PORT,
+    __DAWN_UMDNS_MAX,
+};
+
+static const struct blobmsg_policy dawn_umdns_policy[__DAWN_UMDNS_MAX] = {
+        [DAWN_UMDNS_IPV4] = {.name = "ipv4", .type = BLOBMSG_TYPE_STRING},
+        [DAWN_UMDNS_PORT] = {.name = "port", .type = BLOBMSG_TYPE_INT32},
+
 };
 
 /* Function Definitions */
@@ -549,7 +573,8 @@ int send_blob_attr_via_network(struct blob_attr *msg, char* method)
 
     //blobmsg_add_blob(&b, msg);
     str = blobmsg_format_json(b_send_network.head, true);
-    send_string_enc(str);
+    //send_string_enc(str);
+    send_tcp(str);
     //free(str);
     //free(data_str);
     return 0;
@@ -564,7 +589,6 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
 
     //TODO CHECK IF FREE IS CORREECT!
     free(str);
-
 
     // TODO: Only handle probe request and NOT assoc, ...
 
@@ -614,7 +638,7 @@ static int subscribe_to_hostapd_interfaces(const char *hostapd_dir) {
 
     dirp = opendir(hostapd_dir);  // error handling?
     if (!dirp) {
-        fprintf(stderr, "No hostapd sockets!\n");
+        fprintf(stderr, "[SUBSCRIBING] No hostapd sockets!\n");
         return -1;
     }
     while ((entry = readdir(dirp)) != NULL) {
@@ -682,10 +706,14 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
     ctx_clients = ubus_connect(ubus_socket_clients);
     uloop_timeout_add(&client_timer);
 
-
-    //ubus_call_umdns();
+    ubus_call_umdns();
 
     ubus_add_oject();
+
+    start_umdns_update();
+
+    if(network_config.network_option == 2)
+        run_server(network_config.tcp_port);
 
     uloop_run();
 
@@ -843,6 +871,17 @@ void update_clients(struct uloop_timeout *t) {
     uloop_timeout_set(&client_timer, timeout_config.update_client * 1000);
 }
 
+void update_tcp_connections(struct uloop_timeout *t) {
+    ubus_call_umdns();
+    uloop_timeout_set(&umdns_timer, timeout_config.update_tcp_con * 1000);
+}
+
+void start_umdns_update()
+{
+    // update connections
+    uloop_timeout_add(&umdns_timer);
+}
+
 void update_hostapd_sockets(struct uloop_timeout *t) {
     subscribe_to_hostapd_interfaces(hostapd_dir_glob);
     uloop_timeout_set(&hostapd_timer, timeout_config.update_hostapd * 1000);
@@ -883,12 +922,39 @@ void del_client_interface(uint32_t id, const uint8_t *client_addr, uint32_t reas
 }
 
 static void ubus_umdns_cb(struct ubus_request *req, int type, struct blob_attr *msg) {
+    struct blob_attr *tb[__DAWN_UMDNS_TABLE_MAX];
 
     if (!msg)
         return;
 
-    char *str = blobmsg_format_json(msg, true);
-    printf("UMDNS:\n%s", str);
+    blobmsg_parse(dawn_umdns_table_policy, __DAWN_UMDNS_MAX, tb, blob_data(msg), blob_len(msg));
+
+    if (!tb[DAWN_UMDNS_TABLE])
+    {
+        return;
+    }
+
+    struct blob_attr *attr;
+    struct blobmsg_hdr *hdr;
+    int len = blobmsg_data_len(tb[DAWN_UMDNS_TABLE]);
+
+    __blob_for_each_attr(attr, blobmsg_data(tb[DAWN_UMDNS_TABLE]), len)
+    {
+        hdr = blob_data(attr);
+
+        struct blob_attr *tb_dawn[__DAWN_UMDNS_MAX];
+        blobmsg_parse(dawn_umdns_policy, __DAWN_UMDNS_MAX, tb_dawn, blobmsg_data(attr), blobmsg_len(attr));
+
+        printf("Hostname: %s\n", hdr->name);
+        if (tb_dawn[DAWN_UMDNS_IPV4] && tb_dawn[DAWN_UMDNS_PORT]) {
+            printf("IPV4: %s\n", blobmsg_get_string(tb_dawn[DAWN_UMDNS_IPV4]));
+            printf("Port: %d\n", blobmsg_get_u32(tb_dawn[DAWN_UMDNS_PORT]));
+        }else{
+            return;
+        }
+
+        add_tcp_conncection(blobmsg_get_string(tb_dawn[DAWN_UMDNS_IPV4]), blobmsg_get_u32(tb_dawn[DAWN_UMDNS_PORT]));
+    }
 }
 
 int ubus_call_umdns() {
@@ -899,7 +965,9 @@ int ubus_call_umdns() {
     }
 
     int timeout = 1;
+    ubus_invoke(ctx_clients, id, "update", NULL, NULL, NULL, timeout * 1000);
     ubus_invoke(ctx_clients, id, "browse", NULL, ubus_umdns_cb, NULL, timeout * 1000);
+
     return 0;
 }
 

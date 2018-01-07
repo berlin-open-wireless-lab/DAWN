@@ -45,7 +45,6 @@ int mac_in_maclist(uint8_t mac[]);
 
 int compare_station_count(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compare, uint8_t *client_addr,
                           int automatic_kick);
-
 int compare_ssid(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compare);
 
 int probe_entry_last = -1;
@@ -839,6 +838,7 @@ void remove_probe_array_cb(struct uloop_timeout *t) {
     pthread_mutex_lock(&probe_array_mutex);
     printf("[Thread] : Removing old entries!\n");
     remove_old_probe_entries(time(0), timeout_config.remove_probe);
+    printf("[Thread] : Removing old FINISHED!\n");
     pthread_mutex_unlock(&probe_array_mutex);
     uloop_timeout_set(&probe_timeout, timeout_config.remove_probe * 1000);
 }

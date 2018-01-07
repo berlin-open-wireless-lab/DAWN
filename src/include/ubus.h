@@ -6,6 +6,8 @@
 
 #include "datastorage.h"
 
+void start_umdns_update();
+
 int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir);
 
 int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req);
@@ -23,6 +25,8 @@ void del_client_interface(uint32_t id, const uint8_t *client_addr, uint32_t reas
 void del_client_all_interfaces(const uint8_t *client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time);
 
 void *update_clients_thread(void *arg);
+
+void *update_connections_thread(void *arg);
 
 const char *hostapd_dir_glob;
 

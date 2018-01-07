@@ -8,6 +8,11 @@
 #include "networksocket.h"
 #include "ubus.h"
 #include "dawn_uci.h"
+#include "tcpsocket.h"
+
+#define BUFSIZE 17
+#define BUFSIZE_DIR 256
+
 #include "crypto.h"
 #include "dawn_iwinfo.h"
 
@@ -15,16 +20,18 @@ void daemon_shutdown();
 
 void signal_handler(int sig);
 
+int run_tcp_server();
+
 int init_mutex();
 
 struct sigaction signal_action;
 
+pthread_t tid_tcp_server;
+pthread_t tid_connections;
 void daemon_shutdown() {
-
     // kill threads
     close_socket();
     uci_clear();
-    printf("Cancelling Threads!\n");
     uloop_cancelled = true;
 
     // free ressources
@@ -33,6 +40,7 @@ void daemon_shutdown() {
     pthread_mutex_destroy(&probe_array_mutex);
     pthread_mutex_destroy(&client_array_mutex);
     pthread_mutex_destroy(&ap_array_mutex);
+    pthread_mutex_destroy(&tcp_array_mutex);
 }
 
 void signal_handler(int sig) {
@@ -73,6 +81,19 @@ int init_mutex()
         printf("\n mutex init failed\n");
         return 1;
     }
+
+    if (pthread_mutex_init(&tcp_array_mutex, NULL) != 0) {
+        printf("\n mutex init failed\n");
+        return 1;
+    }
+    return 0;
+}
+
+int run_tcp_server()
+{
+    //run_server(1027);
+    //pthread_create(&tid_tcp_server, NULL, &run_tcp_socket, NULL);
+    //start_umdns_update();
     return 0;
 }
 
@@ -93,6 +114,7 @@ int main(int argc, char **argv) {
 
     uci_init();
     struct network_config_s net_config = uci_get_dawn_network();
+    network_config = net_config;
     printf("Broadcst bla: %s\n", net_config.broadcast_ip);
 
     gcrypt_init();
@@ -106,7 +128,17 @@ int main(int argc, char **argv) {
 
     init_mutex();
 
-    init_socket_runopts(net_config.broadcast_ip, net_config.broadcast_port, net_config.bool_multicast);
+    switch(net_config.network_option)
+    {
+        case 0:
+            init_socket_runopts(net_config.broadcast_ip, net_config.broadcast_port, 0);
+            break;
+        case 1:
+            init_socket_runopts(net_config.broadcast_ip, net_config.broadcast_port, 1);
+            break;
+        default:
+            break;
+    }
 
     insert_macs_from_file();
     dawn_init_ubus(ubus_socket, hostapd_dir_glob);

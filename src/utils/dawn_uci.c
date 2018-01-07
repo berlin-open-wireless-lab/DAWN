@@ -33,6 +33,7 @@ struct time_config_s uci_get_time_config() {
             ret.remove_probe = uci_lookup_option_int(uci_ctx, s, "remove_probe");
             ret.update_hostapd = uci_lookup_option_int(uci_ctx, s, "update_hostapd");
             ret.remove_ap = uci_lookup_option_int(uci_ctx, s, "remove_ap");
+            ret.update_tcp_con = uci_lookup_option_int(uci_ctx, s, "update_tcp_con");
             return ret;
         }
     }
@@ -90,6 +91,8 @@ struct network_config_s uci_get_dawn_network() {
             printf("multicast: %s\n", ret.broadcast_ip);
             ret.shared_key = uci_lookup_option_string(uci_ctx, s, "shared_key");
             ret.iv = uci_lookup_option_string(uci_ctx, s, "iv");
+            ret.network_option = uci_lookup_option_int(uci_ctx, s, "network_option");
+            ret.tcp_port = uci_lookup_option_int(uci_ctx, s, "tcp_port");
             return ret;
         }
     }

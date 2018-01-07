@@ -10,7 +10,6 @@
 #include <unistd.h>
 #include <libubox/blobmsg_json.h>
 
-
 #ifndef ETH_ALEN
 #define ETH_ALEN 6
 #endif
@@ -59,17 +58,21 @@ struct time_config_s {
     time_t remove_probe;
     time_t remove_ap;
     time_t update_hostapd;
+    time_t update_tcp_con;
 };
 
 struct network_config_s {
     const char* broadcast_ip;
     int broadcast_port;
+    int tcp_port;
+    int network_option;
     const char* multicast;
     const char* shared_key;
     const char* iv;
     int bool_multicast;
 };
 
+struct network_config_s network_config;
 struct time_config_s timeout_config;
 
 // ---------------- Global variables ----------------
@@ -164,6 +167,7 @@ typedef struct ap_s {
     time_t time;
     uint32_t station_count;
     uint8_t ssid[SSID_MAX_LEN];
+    uint32_t collision_domain;
 } ap;
 
 // ---------------- Defines ----------------
@@ -180,7 +184,12 @@ pthread_mutex_t client_array_mutex;
 struct ap_s ap_array[ARRAY_AP_LEN];
 pthread_mutex_t ap_array_mutex;
 
+int mac_is_equal(uint8_t addr1[], uint8_t addr2[]);
+
+int mac_is_greater(uint8_t addr1[], uint8_t addr2[]);
+
 // ---------------- Functions ----------------
+
 void insert_client_to_array(client entry);
 
 void kick_clients(uint8_t bssid[], uint32_t id);
@@ -243,6 +252,5 @@ void *remove_thread(void *arg);
 
 pthread_mutex_t list_mutex;
 node *probe_list_head;
-
 
 #endif
