@@ -65,5 +65,4 @@ Restart daemon
 
 ## Setting up Routers
 
-Wifi should use same ESSIDs. That's important to ensure that every AP gets a probe request.
-The routers should bridge the wifi to wan port. So just one DHCP.
+There should be only one DHCP for every network...
