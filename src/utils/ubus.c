@@ -290,18 +290,15 @@ static int decide_function(probe_entry *prob_req, int req_type) {
         return 0;
     }
 
-    if(req_type == REQ_TYPE_PROBE && !dawn_metric.eval_probe_req)
-    {
+    if (req_type == REQ_TYPE_PROBE && !dawn_metric.eval_probe_req) {
         return 1;
     }
 
-    if(req_type == REQ_TYPE_AUTH && !dawn_metric.eval_auth_req)
-    {
+    if (req_type == REQ_TYPE_AUTH && !dawn_metric.eval_auth_req) {
         return 1;
     }
 
-    if(req_type == REQ_TYPE_AUTH && !dawn_metric.eval_assoc_req)
-    {
+    if (req_type == REQ_TYPE_AUTH && !dawn_metric.eval_assoc_req) {
         return 1;
     }
 
@@ -457,8 +454,7 @@ static int handle_probe_req(struct blob_attr *msg) {
     probe_entry prob_req;
     probe_entry tmp_prob_req;
 
-    if(parse_to_probe_req(msg, &prob_req) == 0)
-    {
+    if (parse_to_probe_req(msg, &prob_req) == 0) {
         tmp_prob_req = insert_to_array(prob_req, 1);
         send_blob_attr_via_network(msg, "probe");
     }
@@ -475,8 +471,8 @@ static int handle_deauth_req(struct blob_attr *msg) {
     parse_to_hostapd_notify(msg, &notify_req);
 
     client client_entry;
-    memcpy(client_entry.bssid_addr, notify_req.bssid_addr, sizeof(uint8_t) * ETH_ALEN );
-    memcpy(client_entry.client_addr, notify_req.client_addr, sizeof(uint8_t) * ETH_ALEN );
+    memcpy(client_entry.bssid_addr, notify_req.bssid_addr, sizeof(uint8_t) * ETH_ALEN);
+    memcpy(client_entry.client_addr, notify_req.client_addr, sizeof(uint8_t) * ETH_ALEN);
 
     pthread_mutex_lock(&client_array_mutex);
     client_array_delete(client_entry);
@@ -493,16 +489,15 @@ static int handle_set_probe(struct blob_attr *msg) {
     parse_to_hostapd_notify(msg, &notify_req);
 
     client client_entry;
-    memcpy(client_entry.bssid_addr, notify_req.bssid_addr, sizeof(uint8_t) * ETH_ALEN );
-    memcpy(client_entry.client_addr, notify_req.client_addr, sizeof(uint8_t) * ETH_ALEN );
+    memcpy(client_entry.bssid_addr, notify_req.bssid_addr, sizeof(uint8_t) * ETH_ALEN);
+    memcpy(client_entry.client_addr, notify_req.client_addr, sizeof(uint8_t) * ETH_ALEN);
 
     probe_array_set_all_probe_count(client_entry.client_addr, dawn_metric.min_probe_count);
 
     return 0;
 }
 
-int handle_network_msg(char* msg)
-{
+int handle_network_msg(char *msg) {
     //printf("HANDLING NETWORK MSG: %s\n", msg);
     struct blob_attr *tb[__NETWORK_MAX];
     char *method;
@@ -513,8 +508,7 @@ int handle_network_msg(char* msg)
 
     blobmsg_parse(network_policy, __NETWORK_MAX, tb, blob_data(network_buf.head), blob_len(network_buf.head));
 
-    if(!tb[NETWORK_METHOD] ||!tb[NETWORK_DATA] )
-    {
+    if (!tb[NETWORK_METHOD] || !tb[NETWORK_DATA]) {
         return -1;
     }
     //method = blobmsg_get_string(tb[NETWORK_METHOD]);
@@ -528,35 +522,27 @@ int handle_network_msg(char* msg)
 
 
     //printf("DO STRINGCOMPARE: %s : %s!\n", method, data);
-    if(!data_buf.head)
-    {
+    if (!data_buf.head) {
         //printf("NULL?!\n");
         return -1;
     }
 
-    if(blob_len(data_buf.head) <= 0)
-    {
+    if (blob_len(data_buf.head) <= 0) {
         //printf("NULL?!\n");
         return -1;
     }
 
-    if(strlen(method) < 5)
-    {
+    if (strlen(method) < 5) {
         //printf("STRING IS LESS THAN 5!\n");
         return -1;
     }
 
     if (strncmp(method, "probe", 5) == 0) {
-        //printf("METHOD PROBE\n");
         probe_entry entry;
-        if(parse_to_probe_req(data_buf.head, &entry) == 0)
-        {
+        if (parse_to_probe_req(data_buf.head, &entry) == 0) {
             insert_to_array(entry, 0);
-            //print_probe_array();
         }
     } else if (strncmp(method, "clients", 5) == 0) {
-        //printf("METHOD CLIENTS\n");
-        //printf("PARSING CLIENTS NETWORK MSG!\n");
         parse_to_clients(data_buf.head, 0, 0);
     } else if (strncmp(method, "deauth", 5) == 0) {
         printf("METHOD DEAUTH\n");
@@ -565,31 +551,12 @@ int handle_network_msg(char* msg)
         printf("HANDLING SET PROBE!\n");
         handle_set_probe(data_buf.head);
     }
-
-
-        /*
-        hostapd_notify_entry entry;
-        parse_to_hostapd_notify(data_buf.head, &entry);
-
-        client client_entry;
-        memcpy(client_entry.bssid_addr, client_entry.bssid_addr, sizeof(uint8_t) * ETH_ALEN );
-        memcpy(client_entry.client_addr, client_entry.client_addr, sizeof(uint8_t) * ETH_ALEN );
-
-        pthread_mutex_lock(&client_array_mutex);
-        client_array_delete(client_entry);
-        pthread_mutex_unlock(&client_array_mutex);*/
-    //}
-    //free(method);
-    //free(data);
-    //printf("HANDLING FINISHED NETWORK MSG!\n");
     return 0;
 }
 
 
-int send_blob_attr_via_network(struct blob_attr *msg, char* method)
-{
-    if(!msg)
-    {
+int send_blob_attr_via_network(struct blob_attr *msg, char *method) {
+    if (!msg) {
         return -1;
     }
 
@@ -617,10 +584,7 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
     str = blobmsg_format_json(msg, true);
     printf("METHOD new: %s : %s\n", method, str);
 
-    //TODO CHECK IF FREE IS CORREECT!
     free(str);
-
-    // TODO: Only handle probe request and NOT assoc, ...
 
     if (strncmp(method, "probe", 5) == 0) {
         return handle_probe_req(msg);
@@ -700,8 +664,6 @@ static int subscribe_to_hostapd(const char *hostapd_dir) {
 
     subscribe_to_hostapd_interfaces(hostapd_dir);
 
-
-    // free(hostapd_dir); // free string
     return 0;
 }
 
@@ -741,7 +703,7 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
 
     start_umdns_update();
 
-    if(network_config.network_option == 2)
+    if (network_config.network_option == 2)
         run_server(network_config.tcp_port);
 
     uloop_run();
@@ -829,18 +791,15 @@ dump_client_table(struct blob_attr *head, int len, const char *bssid_addr, uint3
 int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
     struct blob_attr *tb[__CLIENT_TABLE_MAX];
 
-    if(!msg)
-    {
+    if (!msg) {
         return -1;
     }
 
-    if(!blob_data(msg))
-    {
+    if (!blob_data(msg)) {
         return -1;
     }
 
-    if(blob_len(msg) <= 0)
-    {
+    if (blob_len(msg) <= 0) {
         return -1;
     }
 
@@ -857,7 +816,7 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
         ap_entry.ht = blobmsg_get_u8(tb[CLIENT_TABLE_HT]);
         ap_entry.vht = blobmsg_get_u8(tb[CLIENT_TABLE_VHT]);
         ap_entry.channel_utilization = blobmsg_get_u32(tb[CLIENT_TABLE_CHAN_UTIL]);
-        strcpy((char*)ap_entry.ssid, blobmsg_get_string(tb[CLIENT_TABLE_SSID]));
+        strcpy((char *) ap_entry.ssid, blobmsg_get_string(tb[CLIENT_TABLE_SSID]));
 
         if (tb[CLIENT_TABLE_NUM_STA]) {
             ap_entry.station_count = blobmsg_get_u32(tb[CLIENT_TABLE_NUM_STA]);
@@ -905,8 +864,7 @@ void update_tcp_connections(struct uloop_timeout *t) {
     uloop_timeout_set(&umdns_timer, timeout_config.update_tcp_con * 1000);
 }
 
-void start_umdns_update()
-{
+void start_umdns_update() {
     // update connections
     uloop_timeout_add(&umdns_timer);
 }
@@ -958,8 +916,7 @@ static void ubus_umdns_cb(struct ubus_request *req, int type, struct blob_attr *
 
     blobmsg_parse(dawn_umdns_table_policy, __DAWN_UMDNS_MAX, tb, blob_data(msg), blob_len(msg));
 
-    if (!tb[DAWN_UMDNS_TABLE])
-    {
+    if (!tb[DAWN_UMDNS_TABLE]) {
         return;
     }
 
@@ -978,7 +935,7 @@ static void ubus_umdns_cb(struct ubus_request *req, int type, struct blob_attr *
         if (tb_dawn[DAWN_UMDNS_IPV4] && tb_dawn[DAWN_UMDNS_PORT]) {
             printf("IPV4: %s\n", blobmsg_get_string(tb_dawn[DAWN_UMDNS_IPV4]));
             printf("Port: %d\n", blobmsg_get_u32(tb_dawn[DAWN_UMDNS_PORT]));
-        }else{
+        } else {
             return;
         }
 
@@ -1018,8 +975,7 @@ int ubus_send_probe_via_network(struct probe_entry_s probe_entry) {
     return 0;
 }
 
-int send_set_probe(uint8_t client_addr[])
-{
+int send_set_probe(uint8_t client_addr[]) {
 
     printf("SENDING SET PROBE VIA NETWORK!\n");
 
@@ -1038,7 +994,7 @@ enum {
 };
 
 static const struct blobmsg_policy add_del_policy[__ADD_DEL_MAC_MAX] = {
-        [MAC_ADDR] = { "addr", BLOBMSG_TYPE_STRING },
+        [MAC_ADDR] = {"addr", BLOBMSG_TYPE_STRING},
 };
 
 static const struct ubus_method dawn_methods[] = {
@@ -1060,8 +1016,8 @@ static struct ubus_object dawn_object = {
 };
 
 static int add_mac(struct ubus_context *ctx, struct ubus_object *obj,
-                       struct ubus_request_data *req, const char *method,
-                       struct blob_attr *msg) {
+                   struct ubus_request_data *req, const char *method,
+                   struct blob_attr *msg) {
 
     struct blob_attr *tb[__ADD_DEL_MAC_MAX];
     uint8_t addr[ETH_ALEN];
@@ -1074,8 +1030,7 @@ static int add_mac(struct ubus_context *ctx, struct ubus_object *obj,
     if (hwaddr_aton(blobmsg_data(tb[MAC_ADDR]), addr))
         return UBUS_STATUS_INVALID_ARGUMENT;
 
-    if(insert_to_maclist(addr) == 0)
-    {
+    if (insert_to_maclist(addr) == 0) {
         write_mac_to_file("/etc/dawn/mac_list", addr);
     }
 
@@ -1083,8 +1038,8 @@ static int add_mac(struct ubus_context *ctx, struct ubus_object *obj,
 }
 
 static int get_hearing_map(struct ubus_context *ctx, struct ubus_object *obj,
-                   struct ubus_request_data *req, const char *method,
-                   struct blob_attr *msg) {
+                           struct ubus_request_data *req, const char *method,
+                           struct blob_attr *msg) {
 
     build_hearing_map_sort_client(&b);
     ubus_send_reply(ctx, req, b.head);
@@ -1093,16 +1048,15 @@ static int get_hearing_map(struct ubus_context *ctx, struct ubus_object *obj,
 
 
 static int get_network(struct ubus_context *ctx, struct ubus_object *obj,
-                           struct ubus_request_data *req, const char *method,
-                           struct blob_attr *msg) {
+                       struct ubus_request_data *req, const char *method,
+                       struct blob_attr *msg) {
 
     build_network_overview(&b);
     ubus_send_reply(ctx, req, b.head);
     return 0;
 }
 
-static void ubus_add_oject()
-{
+static void ubus_add_oject() {
     int ret;
 
     ret = ubus_add_object(ctx, &dawn_object);

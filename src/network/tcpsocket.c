@@ -30,9 +30,9 @@ struct client {
     int ctr;
 };
 
-static void client_close(struct ustream *s)
-{
-    struct client *cl = container_of(s, struct client, s.stream);
+static void client_close(struct ustream *s) {
+    struct client *cl = container_of(s,
+    struct client, s.stream);
 
     fprintf(stderr, "Connection closed\n");
     ustream_free(s);
@@ -40,14 +40,13 @@ static void client_close(struct ustream *s)
     free(cl);
 }
 
-static void client_notify_write(struct ustream *s, int bytes)
-{
+static void client_notify_write(struct ustream *s, int bytes) {
     return;
 }
 
-static void client_notify_state(struct ustream *s)
-{
-    struct client *cl = container_of(s, struct client, s.stream);
+static void client_notify_state(struct ustream *s) {
+    struct client *cl = container_of(s,
+    struct client, s.stream);
 
     if (!s->eof)
         return;
@@ -58,8 +57,7 @@ static void client_notify_state(struct ustream *s)
 
 }
 
-static void client_read_cb(struct ustream *s, int bytes)
-{
+static void client_read_cb(struct ustream *s, int bytes) {
     char *str;
     int len;
 
@@ -72,7 +70,7 @@ static void client_read_cb(struct ustream *s, int bytes)
         handle_network_msg(str);
         ustream_consume(s, len);
 
-    } while(1);
+    } while (1);
 
     if (s->w.data_bytes > 256 && !ustream_read_blocked(s)) {
         fprintf(stderr, "Block read, bytes: %d\n", s->w.data_bytes);
@@ -80,8 +78,7 @@ static void client_read_cb(struct ustream *s, int bytes)
     }
 }
 
-static void server_cb(struct uloop_fd *fd, unsigned int events)
-{
+static void server_cb(struct uloop_fd *fd, unsigned int events) {
     struct client *cl;
     unsigned int sl = sizeof(struct sockaddr_in);
     int sfd;
@@ -105,8 +102,7 @@ static void server_cb(struct uloop_fd *fd, unsigned int events)
     fprintf(stderr, "New connection\n");
 }
 
-int run_server(int port)
-{
+int run_server(int port) {
     char port_str[12];
     sprintf(port_str, "%d", port);
 
@@ -122,7 +118,7 @@ int run_server(int port)
     return 0;
 }
 
-int add_tcp_conncection(char* ipv4, int port){
+int add_tcp_conncection(char *ipv4, int port) {
     int sockfd;
     struct sockaddr_in serv_addr;
 
@@ -136,7 +132,7 @@ int add_tcp_conncection(char* ipv4, int port){
 
     print_tcp_array();
 
-    if(tcp_array_contains_address(serv_addr)) {
+    if (tcp_array_contains_address(serv_addr)) {
         return 0;
     }
 
@@ -164,18 +160,15 @@ int insert_to_tcp_array(struct network_con_s entry) {
     return ret;
 }
 
-void print_tcp_entry(struct network_con_s entry)
-{
+void print_tcp_entry(struct network_con_s entry) {
     printf("Conenctin to Port: %d\n", entry.sock_addr.sin_port);
 }
 
-void send_tcp(char* msg)
-{
+void send_tcp(char *msg) {
     printf("SENDING TCP!\n");
     pthread_mutex_lock(&tcp_array_mutex);
     for (int i = 0; i <= tcp_entry_last; i++) {
-        if(send(network_array[i].sockfd, msg, strlen(msg), 0) < 0)
-        {
+        if (send(network_array[i].sockfd, msg, strlen(msg), 0) < 0) {
             close(network_array->sockfd);
             printf("Removing bad TCP connection!\n");
             for (int j = i; j < tcp_entry_last; j++) {
@@ -191,8 +184,7 @@ void send_tcp(char* msg)
 }
 
 
-void print_tcp_array()
-{
+void print_tcp_array() {
     printf("--------Connections------\n");
     for (int i = 0; i <= tcp_entry_last; i++) {
         print_tcp_entry(network_array[i]);

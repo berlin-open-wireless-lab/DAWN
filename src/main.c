@@ -28,6 +28,7 @@ struct sigaction signal_action;
 
 pthread_t tid_tcp_server;
 pthread_t tid_connections;
+
 void daemon_shutdown() {
     // kill threads
     close_socket();
@@ -60,8 +61,7 @@ void signal_handler(int sig) {
     }
 }
 
-int init_mutex()
-{
+int init_mutex() {
     if (pthread_mutex_init(&list_mutex, NULL) != 0) {
         printf("\n mutex init failed\n");
         return 1;
@@ -89,8 +89,7 @@ int init_mutex()
     return 0;
 }
 
-int run_tcp_server()
-{
+int run_tcp_server() {
     //run_server(1027);
     //pthread_create(&tid_tcp_server, NULL, &run_tcp_socket, NULL);
     //start_umdns_update();
@@ -124,12 +123,11 @@ int main(int argc, char **argv) {
     timeout_config = time_config; // TODO: Refactor...
 
     hostapd_dir_glob = uci_get_dawn_hostapd_dir();
-    sort_string = (char*) uci_get_dawn_sort_order();
+    sort_string = (char *) uci_get_dawn_sort_order();
 
     init_mutex();
 
-    switch(net_config.network_option)
-    {
+    switch (net_config.network_option) {
         case 0:
             init_socket_runopts(net_config.broadcast_ip, net_config.broadcast_port, 0);
             break;

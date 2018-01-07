@@ -24,6 +24,7 @@ uint8_t mac_list[MAC_LIST_LENGTH][ETH_ALEN];
 
 // ---------------- Functions ----------
 void insert_macs_from_file();
+
 int insert_to_maclist(uint8_t mac[]);
 
 
@@ -67,13 +68,13 @@ struct time_config_s {
 };
 
 struct network_config_s {
-    const char* broadcast_ip;
+    const char *broadcast_ip;
     int broadcast_port;
     int tcp_port;
     int network_option;
-    const char* multicast;
-    const char* shared_key;
-    const char* iv;
+    const char *multicast;
+    const char *shared_key;
+    const char *iv;
     int bool_multicast;
 };
 
@@ -226,7 +227,7 @@ int probe_array_set_all_probe_count(uint8_t client_addr[], uint32_t probe_count)
 #define TIME_THRESHOLD 120  // every minute
 
 // ---------------- Global variables ----------------
-char* sort_string;
+char *sort_string;
 
 // ---------------- Functions -------------------
 int mac_is_equal(uint8_t addr1[], uint8_t addr2[]);

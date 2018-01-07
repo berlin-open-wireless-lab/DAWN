@@ -11,9 +11,8 @@ static struct uci_package *uci_pkg;
 // why is this not included in uci lib...?!
 // fund here: https://github.com/br101/pingcheck/blob/master/uci.c
 static int uci_lookup_option_int(struct uci_context *uci, struct uci_section *s,
-                                 const char *name)
-{
-    const char* str = uci_lookup_option_string(uci, s, name);
+                                 const char *name) {
+    const char *str = uci_lookup_option_string(uci, s, name);
     return str == NULL ? -1 : atoi(str);
 }
 
@@ -23,11 +22,11 @@ struct time_config_s uci_get_time_config() {
     printf("Loading Times!");
 
     struct uci_element *e;
-    uci_foreach_element(&uci_pkg->sections, e) {
+    uci_foreach_element(&uci_pkg->sections, e)
+    {
         struct uci_section *s = uci_to_section(e);
 
-        if (strcmp(s->type, "times") == 0)
-        {
+        if (strcmp(s->type, "times") == 0) {
             ret.update_client = uci_lookup_option_int(uci_ctx, s, "update_client");
             ret.remove_client = uci_lookup_option_int(uci_ctx, s, "remove_client");
             ret.remove_probe = uci_lookup_option_int(uci_ctx, s, "remove_probe");
@@ -45,11 +44,11 @@ struct probe_metric_s uci_get_dawn_metric() {
     struct probe_metric_s ret;
 
     struct uci_element *e;
-    uci_foreach_element(&uci_pkg->sections, e) {
+    uci_foreach_element(&uci_pkg->sections, e)
+    {
         struct uci_section *s = uci_to_section(e);
 
-        if (strcmp(s->type, "metric") == 0)
-        {
+        if (strcmp(s->type, "metric") == 0) {
             ret.ht_support = uci_lookup_option_int(uci_ctx, s, "ht_support");
             ret.vht_support = uci_lookup_option_int(uci_ctx, s, "vht_support");
             ret.no_ht_support = uci_lookup_option_int(uci_ctx, s, "no_ht_support");
@@ -83,11 +82,11 @@ struct network_config_s uci_get_dawn_network() {
     struct network_config_s ret;
 
     struct uci_element *e;
-    uci_foreach_element(&uci_pkg->sections, e) {
+    uci_foreach_element(&uci_pkg->sections, e)
+    {
         struct uci_section *s = uci_to_section(e);
 
-        if (strcmp(s->type, "network") == 0)
-        {
+        if (strcmp(s->type, "network") == 0) {
             printf("Fronund network entry!\n");
             ret.broadcast_ip = uci_lookup_option_string(uci_ctx, s, "broadcast_ip");
             printf("BROADCAST: %s\n", ret.broadcast_ip);
@@ -104,7 +103,8 @@ struct network_config_s uci_get_dawn_network() {
 
     return ret;
 }
-const char* uci_get_dawn_hostapd_dir() {
+
+const char *uci_get_dawn_hostapd_dir() {
     struct uci_element *e;
     uci_foreach_element(&uci_pkg->sections, e)
     {
@@ -117,21 +117,20 @@ const char* uci_get_dawn_hostapd_dir() {
     return NULL;
 }
 
-const char* uci_get_dawn_sort_order() {
+const char *uci_get_dawn_sort_order() {
     struct uci_element *e;
-    uci_foreach_element(&uci_pkg->sections, e) {
+    uci_foreach_element(&uci_pkg->sections, e)
+    {
         struct uci_section *s = uci_to_section(e);
 
-        if (strcmp(s->type, "ordering") == 0)
-        {
+        if (strcmp(s->type, "ordering") == 0) {
             return uci_lookup_option_string(uci_ctx, s, "sort_order");
         }
     }
     return NULL;
 }
 
-int uci_init()
-{
+int uci_init() {
     struct uci_context *ctx = uci_ctx;
 
     if (!ctx) {
@@ -152,14 +151,11 @@ int uci_init()
     return 1;
 }
 
-int uci_clear()
-{
-    if(uci_pkg != NULL)
-    {
+int uci_clear() {
+    if (uci_pkg != NULL) {
         uci_unload(uci_ctx, uci_pkg);
     }
-    if(uci_ctx != NULL)
-    {
+    if (uci_ctx != NULL) {
         uci_free_context(uci_ctx);
     }
     return 1;

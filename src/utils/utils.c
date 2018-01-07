@@ -1,12 +1,12 @@
 #include "utils.h"
 #include "ubus.h"
 
-int string_is_greater(uint8_t* str, uint8_t* str_2) {
+int string_is_greater(uint8_t *str, uint8_t *str_2) {
 
-    int length_1 = strlen((char*)str);
-    int length_2 = strlen((char*)str_2);
+    int length_1 = strlen((char *) str);
+    int length_2 = strlen((char *) str_2);
 
-    int length = length_1 <  length_2 ? length_1 : length_2;
+    int length = length_1 < length_2 ? length_1 : length_2;
 
     for (int i = 0; i < length; i++) {
         if (str[i] > str_2[i]) {
@@ -62,11 +62,9 @@ int convert_mac(char *in, char *out) {
     return 0;
 }
 
-void write_mac_to_file(char* path, uint8_t addr[])
-{
+void write_mac_to_file(char *path, uint8_t addr[]) {
     FILE *f = fopen(path, "a");
-    if (f == NULL)
-    {
+    if (f == NULL) {
         printf("Error opening file!\n");
         exit(1);
     }

@@ -19,11 +19,10 @@ int get_bandwidth(const char *ifname, uint8_t *client_addr, float *rx_rate, floa
 
 #define IWINFO_BUFSIZE    24 * 1024
 
-#define IWINFO_ESSID_MAX_SIZE	32
+#define IWINFO_ESSID_MAX_SIZE    32
 
 
-int compare_essid_iwinfo(__uint8_t *bssid_addr, __uint8_t *bssid_addr_to_compare)
-{
+int compare_essid_iwinfo(__uint8_t *bssid_addr, __uint8_t *bssid_addr_to_compare) {
     const struct iwinfo_ops *iw;
 
     char mac_buf[20];
@@ -39,31 +38,29 @@ int compare_essid_iwinfo(__uint8_t *bssid_addr, __uint8_t *bssid_addr_to_compare
         return 0;
     }
 
-    char* essid = NULL;
-    char* essid_to_compare = NULL;
+    char *essid = NULL;
+    char *essid_to_compare = NULL;
 
-    char buf_essid[IWINFO_ESSID_MAX_SIZE+1] = { 0 };
-    char buf_essid_to_compare[IWINFO_ESSID_MAX_SIZE+1] = { 0 };
+    char buf_essid[IWINFO_ESSID_MAX_SIZE + 1] = {0};
+    char buf_essid_to_compare[IWINFO_ESSID_MAX_SIZE + 1] = {0};
 
     while ((entry = readdir(dirp)) != NULL && (essid == NULL || essid_to_compare == NULL)) {
         if (entry->d_type == DT_SOCK) {
 
             iw = iwinfo_backend(entry->d_name);
 
-            static char buf_bssid[18] = { 0 };
+            static char buf_bssid[18] = {0};
             if (iw->bssid(entry->d_name, buf_bssid))
                 snprintf(buf_bssid, sizeof(buf_bssid), "00:00:00:00:00:00");
 
-            if(strcmp(mac_buf, buf_bssid) == 0)
-            {
+            if (strcmp(mac_buf, buf_bssid) == 0) {
 
                 if (iw->ssid(entry->d_name, buf_essid))
                     memset(buf_essid, 0, sizeof(buf_essid));
                 essid = buf_essid;
             }
 
-            if(strcmp(mac_buf_to_compare, buf_bssid) == 0)
-            {
+            if (strcmp(mac_buf_to_compare, buf_bssid) == 0) {
                 if (iw->ssid(entry->d_name, buf_essid_to_compare))
                     memset(buf_essid_to_compare, 0, sizeof(buf_essid_to_compare));
                 essid_to_compare = buf_essid_to_compare;
@@ -74,13 +71,11 @@ int compare_essid_iwinfo(__uint8_t *bssid_addr, __uint8_t *bssid_addr_to_compare
 
     printf("Comparing: %s with %s\n", essid, essid_to_compare);
 
-    if(essid == NULL || essid_to_compare == NULL)
-    {
+    if (essid == NULL || essid_to_compare == NULL) {
         return -1;
     }
 
-    if(strcmp(essid, essid_to_compare) == 0)
-    {
+    if (strcmp(essid, essid_to_compare) == 0) {
         return 0;
     }
 
