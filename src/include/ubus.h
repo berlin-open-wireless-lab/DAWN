@@ -46,4 +46,6 @@ void blobmsg_add_macaddr(struct blob_buf *buf, const char *name, const uint8_t *
 
 int send_set_probe(uint8_t client_addr[]);
 
+int send_add_mac(uint8_t* client_addr);
+
 #endif

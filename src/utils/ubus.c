@@ -214,6 +214,8 @@ static int get_network(struct ubus_context *ctx, struct ubus_object *obj,
 
 static int handle_set_probe(struct blob_attr *msg);
 
+static int parse_add_mac_to_file(struct blob_attr *msg);
+
 int hostapd_array_check_id(uint32_t id);
 
 void hostapd_array_insert(uint32_t id);
@@ -555,7 +557,12 @@ int handle_network_msg(char *msg) {
     } else if (strncmp(method, "setprobe", 5) == 0) {
         printf("HANDLING SET PROBE!\n");
         handle_set_probe(data_buf.head);
+    } else if (strncmp(method, "addmac", 5) == 0)
+    {
+        parse_add_mac_to_file(data_buf.head);
     }
+
+
     return 0;
 }
 
@@ -1020,10 +1027,8 @@ static struct ubus_object dawn_object = {
         .n_methods = ARRAY_SIZE(dawn_methods),
 };
 
-static int add_mac(struct ubus_context *ctx, struct ubus_object *obj,
-                   struct ubus_request_data *req, const char *method,
-                   struct blob_attr *msg) {
-
+static int parse_add_mac_to_file(struct blob_attr *msg)
+{
     struct blob_attr *tb[__ADD_DEL_MAC_MAX];
     uint8_t addr[ETH_ALEN];
 
@@ -1038,9 +1043,25 @@ static int add_mac(struct ubus_context *ctx, struct ubus_object *obj,
     if (insert_to_maclist(addr) == 0) {
         write_mac_to_file("/etc/dawn/mac_list", addr);
     }
+    return 0;
+}
+
+static int add_mac(struct ubus_context *ctx, struct ubus_object *obj,
+                   struct ubus_request_data *req, const char *method,
+                   struct blob_attr *msg) {
+    parse_add_mac_to_file(msg);
 
     // here we need to send it via the network!
     // and we have to find some adaptive strategie to realize bad driver beahviour
+    send_blob_attr_via_network(msg, "addmac");
+
+    return 0;
+}
+
+int send_add_mac(uint8_t* client_addr) {
+    blob_buf_init(&b, 0);
+    blobmsg_add_macaddr(&b, "addr", client_addr);
+    send_blob_attr_via_network(b.head, "addmac");
 
     return 0;
 }
