@@ -27,6 +27,8 @@ void insert_macs_from_file();
 
 int insert_to_maclist(uint8_t mac[]);
 
+int mac_in_maclist(uint8_t mac[]);
+
 
 /* Metric */
 

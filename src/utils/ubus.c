@@ -286,6 +286,11 @@ void blobmsg_add_macaddr(struct blob_buf *buf, const char *name, const uint8_t *
 static int decide_function(probe_entry *prob_req, int req_type) {
     printf("COUNTER: %d\n", prob_req->counter);
 
+    if(mac_in_maclist(prob_req->client_addr))
+    {
+        return 1;
+    }
+
     if (prob_req->counter < dawn_metric.min_probe_count) {
         return 0;
     }

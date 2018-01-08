@@ -41,8 +41,6 @@ int probe_array_update_rssi(uint8_t bssid_addr[], uint8_t client_addr[], uint32_
 
 int is_connected(uint8_t bssid_addr[], uint8_t client_addr[]);
 
-int mac_in_maclist(uint8_t mac[]);
-
 int compare_station_count(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compare, uint8_t *client_addr,
                           int automatic_kick);
 int compare_ssid(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compare);
