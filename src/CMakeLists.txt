@@ -27,9 +27,6 @@ SET(SOURCES
 
         include/utils.h
 
-        utils/runopts.c
-        include/runopts.h
-
         utils/dawn_uci.c
         include/dawn_uci.h
 

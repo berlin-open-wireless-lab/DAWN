@@ -9,7 +9,7 @@ static struct uci_context *uci_ctx;
 static struct uci_package *uci_pkg;
 
 // why is this not included in uci lib...?!
-// fund here: https://github.com/br101/pingcheck/blob/master/uci.c
+// found here: https://github.com/br101/pingcheck/blob/master/uci.c
 static int uci_lookup_option_int(struct uci_context *uci, struct uci_section *s,
                                  const char *name) {
     const char *str = uci_lookup_option_string(uci, s, name);
