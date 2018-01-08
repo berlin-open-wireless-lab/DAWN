@@ -1039,6 +1039,9 @@ static int add_mac(struct ubus_context *ctx, struct ubus_object *obj,
         write_mac_to_file("/etc/dawn/mac_list", addr);
     }
 
+    // here we need to send it via the network!
+    // and we have to find some adaptive strategie to realize bad driver beahviour
+
     return 0;
 }
 
