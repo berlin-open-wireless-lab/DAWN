@@ -67,6 +67,7 @@ struct time_config_s {
     time_t remove_ap;
     time_t update_hostapd;
     time_t update_tcp_con;
+    time_t denied_req_threshold;
 };
 
 struct network_config_s {
@@ -100,6 +101,7 @@ typedef struct probe_entry_s {
     uint8_t vht_support;
     time_t time;
     int counter;
+    int deny_counter;
 } probe_entry;
 
 typedef struct auth_entry_s {
@@ -108,6 +110,8 @@ typedef struct auth_entry_s {
     uint8_t target_addr[ETH_ALEN];
     uint32_t signal;
     uint32_t freq;
+    time_t time;
+    int counter;
 } auth_entry;
 
 typedef struct hostapd_notify_entry_s {
@@ -116,6 +120,11 @@ typedef struct hostapd_notify_entry_s {
 } hostapd_notify_entry;
 
 typedef struct auth_entry_s assoc_entry;
+
+#define DENY_REQ_ARRAY_LEN 100
+struct auth_entry_s denied_req_array[DENY_REQ_ARRAY_LEN];
+pthread_mutex_t denied_array_mutex;
+auth_entry insert_to_denied_req_array(auth_entry entry, int inc_counter);
 
 // ---------------- Defines ----------------
 #define PROBE_ARRAY_LEN 1000

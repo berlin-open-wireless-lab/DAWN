@@ -86,6 +86,11 @@ int init_mutex() {
         printf("\n mutex init failed\n");
         return 1;
     }
+
+    if (pthread_mutex_init(&denied_array_mutex, NULL) != 0) {
+        printf("\n mutex init failed\n");
+        return 1;
+    }
     return 0;
 }
 
