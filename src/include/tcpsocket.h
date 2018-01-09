@@ -28,5 +28,4 @@ void send_tcp(char *msg);
 #define ARRAY_NETWORK_LEN 50
 struct network_con_s network_array[ARRAY_NETWORK_LEN];
 
-
 #endif //DAWN_TCPSOCKET_H
