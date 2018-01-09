@@ -41,6 +41,8 @@ int probe_array_update_rssi(uint8_t bssid_addr[], uint8_t client_addr[], uint32_
 
 int is_connected(uint8_t bssid_addr[], uint8_t client_addr[]);
 
+int is_connected_somehwere(uint8_t client_addr[]);
+
 int compare_station_count(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compare, uint8_t *client_addr,
                           int automatic_kick);
 int compare_ssid(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compare);
@@ -473,6 +475,23 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
     pthread_mutex_unlock(&client_array_mutex);
 }
 
+int is_connected_somehwere(uint8_t client_addr[]) {
+    int i;
+    int found_in_array = 0;
+
+    if (client_entry_last == -1) {
+        return 0;
+    }
+
+    for (i = 0; i <= client_entry_last; i++) {
+        if (mac_is_equal(client_addr, client_array[i].client_addr)) {
+            found_in_array = 1;
+            break;
+        }
+    }
+    return found_in_array;
+}
+
 int is_connected(uint8_t bssid_addr[], uint8_t client_addr[]) {
     int i;
     int found_in_array = 0;
@@ -888,7 +907,7 @@ void denied_req_array_cb(struct uloop_timeout *t) {
         if (denied_req_array[i].time < current_time - timeout_config.denied_req_threshold) {
 
             // client is not connected for a given time threshold!
-            if(!is_connected(denied_req_array[i].bssid_addr, denied_req_array[i].client_addr))
+            if(!is_connected_somehwere(denied_req_array[i].client_addr))
             {
                 printf("Client has propaly a BAD DRIVER!\n");
                 if (insert_to_maclist(denied_req_array[i].client_addr) == 0) {
