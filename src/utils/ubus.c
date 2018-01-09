@@ -409,6 +409,11 @@ static int handle_auth_req(struct blob_attr *msg) {
     printf("AUTH Entry: ");
     print_auth_entry(auth_req);
 
+    if(mac_in_maclist(auth_req.client_addr))
+    {
+        return WLAN_STATUS_SUCCESS;
+    }
+
     probe_entry tmp = probe_array_get_entry(auth_req.bssid_addr, auth_req.client_addr);
 
     printf("Entry found\n");
@@ -440,6 +445,11 @@ static int handle_assoc_req(struct blob_attr *msg) {
     parse_to_auth_req(msg, &auth_req);
     printf("ASSOC Entry: ");
     print_auth_entry(auth_req);
+
+    if(mac_in_maclist(auth_req.client_addr))
+    {
+        return WLAN_STATUS_SUCCESS;
+    }
 
     probe_entry tmp = probe_array_get_entry(auth_req.bssid_addr, auth_req.client_addr);
 
