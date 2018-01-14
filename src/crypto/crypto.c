@@ -1,3 +1,6 @@
+// based on:
+// https://github.com/vedantk/gcrypt-example/blob/master/gcry.cc
+
 #include "crypto.h"
 
 #include <stdio.h>
