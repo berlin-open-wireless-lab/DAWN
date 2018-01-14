@@ -422,13 +422,18 @@ static int handle_auth_req(struct blob_attr *msg) {
     // block if entry was not already found in probe database
     if (!(mac_is_equal(tmp.bssid_addr, auth_req.bssid_addr) && mac_is_equal(tmp.client_addr, auth_req.client_addr))) {
         printf("DENY AUTH!\n");
-        insert_to_denied_req_array(auth_req, 1);
+
+        if(dawn_metric.use_driver_recog){
+            insert_to_denied_req_array(auth_req, 1);
+        }
         return dawn_metric.deny_auth_reason;
     }
 
     if (!decide_function(&tmp, REQ_TYPE_AUTH)) {
         printf("DENY AUTH\n");
-        insert_to_denied_req_array(auth_req, 1);
+        if(dawn_metric.use_driver_recog) {
+            insert_to_denied_req_array(auth_req, 1);
+        }
         return dawn_metric.deny_auth_reason;
     }
 
@@ -459,13 +464,17 @@ static int handle_assoc_req(struct blob_attr *msg) {
     // block if entry was not already found in probe database
     if (!(mac_is_equal(tmp.bssid_addr, auth_req.bssid_addr) && mac_is_equal(tmp.client_addr, auth_req.client_addr))) {
         printf("DENY ASSOC!\n");
-        insert_to_denied_req_array(auth_req, 1);
+        if(dawn_metric.use_driver_recog) {
+            insert_to_denied_req_array(auth_req, 1);
+        }
         return dawn_metric.deny_assoc_reason;
     }
 
     if (!decide_function(&tmp, REQ_TYPE_ASSOC)) {
         printf("DENY ASSOC\n");
-        insert_to_denied_req_array(auth_req, 1);
+        if(dawn_metric.use_driver_recog) {
+            insert_to_denied_req_array(auth_req, 1);
+        }
         return dawn_metric.deny_assoc_reason;
     }
 

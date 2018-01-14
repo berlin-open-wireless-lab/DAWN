@@ -58,6 +58,7 @@ struct probe_metric_s {
     int eval_assoc_req;
     int deny_auth_reason;
     int deny_assoc_reason;
+    int use_driver_recog;
 };
 
 struct time_config_s {

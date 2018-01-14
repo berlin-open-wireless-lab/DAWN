@@ -866,7 +866,10 @@ void uloop_add_data_cbs() {
     uloop_timeout_add(&probe_timeout);
     uloop_timeout_add(&client_timeout);
     uloop_timeout_add(&ap_timeout);
-    uloop_timeout_add(&denied_req_timeout);
+
+    if(dawn_metric.use_driver_recog){
+        uloop_timeout_add(&denied_req_timeout);
+    }
 }
 
 void remove_probe_array_cb(struct uloop_timeout *t) {
