@@ -10,19 +10,23 @@ Decentralized WiFi Controller
 
 ## Installation
 
-### Compiling LEDE with patch
+### Compiling OpenWRT with patch
 
-Clone LEDE source code
+Create Folder
 
-    git clone https://github.com/lede-project/source.git
+    mkdir patched_openwrt
 
-Switch to directory
+Enter folder
 
-    cd lede/
+    cd patched_openwrt
+
+Clone OpenWRT source code
+
+    git clone https://github.com/openwrt/openwrt.git source
    
 Clone patch
 
-    git clone https://github.com/berlin-open-wireless-lab/patches-pending.git
+    git clone https://github.com/berlin-open-wireless-lab/patches-pending.git patches
     
 Apply patches
 
@@ -65,4 +69,5 @@ Restart daemon
 
 ## Setting up Routers
 
-There should be only one DHCP for every network...
+You can find a good guide to configure your router is [here](https://gist.github.com/braian87b/bba9da3a7ac23c35b7f1eecafecdd47d).
+I setup the OpenWRT Router as dump APs.
