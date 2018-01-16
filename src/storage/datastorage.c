@@ -448,7 +448,9 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
             // the hearing map is full...
             send_set_probe(client_array[j].client_addr);
 
-            del_client_interface(id, client_array[j].client_addr, 5, 1, 1000);
+            // don't deauth station
+            // maybe we can use handovers...
+            del_client_interface(id, client_array[j].client_addr, 5, 0, 1000);
             client_array_delete(client_array[j]);
 
             // don't delete clients in a row. use update function again...
