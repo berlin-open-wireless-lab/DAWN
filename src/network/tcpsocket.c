@@ -66,7 +66,7 @@ static void client_read_cb(struct ustream *s, int bytes) {
         if (!str)
             break;
 
-        printf("RECEIVED String: %s\n", str);
+        //printf("RECEIVED String: %s\n", str);
         handle_network_msg(str);
         ustream_consume(s, len);
 
