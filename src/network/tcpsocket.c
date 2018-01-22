@@ -186,7 +186,7 @@ void send_tcp(char *msg) {
     size_t base64_enc_length = Base64encode(base64_enc_str, enc, length_enc);
 
     for (int i = 0; i <= tcp_entry_last; i++) {
-        if (send(network_array[i].sockfd, msg, strlen(msg), 0) < 0) {
+        if (send(network_array[i].sockfd, base64_enc_str, base64_enc_length, 0) < 0) {
             close(network_array->sockfd);
             printf("Removing bad TCP connection!\n");
             for (int j = i; j < tcp_entry_last; j++) {
