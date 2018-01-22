@@ -6,8 +6,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include "tcpsocket.h"
-#include "ubus.h"
 #include <arpa/inet.h>
+#include "ubus.h"
+#include "crypto.h"
 
 // based on:
 // https://github.com/xfguo/libubox/blob/master/examples/ustream-example.c
