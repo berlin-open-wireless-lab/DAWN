@@ -67,7 +67,15 @@ static void client_read_cb(struct ustream *s, int bytes) {
             break;
 
         //printf("RECEIVED String: %s\n", str);
-        handle_network_msg(str);
+
+        char *base64_dec_str = malloc(Base64decode_len(str));
+        int base64_dec_length = Base64decode(base64_dec_str, str);
+        char *dec = gcrypt_decrypt_msg(base64_dec_str, base64_dec_length);
+        printf("NETRWORK RECEIVED: %s\n", dec);
+        free(base64_dec_str);
+        handle_network_msg(dec);
+        free(dec);
+
         ustream_consume(s, len);
 
     } while (1);
@@ -167,6 +175,15 @@ void print_tcp_entry(struct network_con_s entry) {
 void send_tcp(char *msg) {
     printf("SENDING TCP!\n");
     pthread_mutex_lock(&tcp_array_mutex);
+
+    size_t msglen = strlen(msg);
+
+    int length_enc;
+    char *enc = gcrypt_encrypt_msg(msg, msglen + 1, &length_enc);
+
+    char *base64_enc_str = malloc(Base64encode_len(length_enc));
+    size_t base64_enc_length = Base64encode(base64_enc_str, enc, length_enc);
+
     for (int i = 0; i <= tcp_entry_last; i++) {
         if (send(network_array[i].sockfd, msg, strlen(msg), 0) < 0) {
             close(network_array->sockfd);
@@ -180,6 +197,8 @@ void send_tcp(char *msg) {
             }
         }
     }
+    free(base64_enc_str);
+    free(enc);
     pthread_mutex_unlock(&tcp_array_mutex);
 }
 
