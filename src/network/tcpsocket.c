@@ -69,13 +69,18 @@ static void client_read_cb(struct ustream *s, int bytes) {
 
         //printf("RECEIVED String: %s\n", str);
 
-        char *base64_dec_str = malloc(Base64decode_len(str));
-        int base64_dec_length = Base64decode(base64_dec_str, str);
-        char *dec = gcrypt_decrypt_msg(base64_dec_str, base64_dec_length);
-        printf("NETRWORK RECEIVED: %s\n", dec);
-        free(base64_dec_str);
-        handle_network_msg(dec);
-        free(dec);
+        if(network_config.use_symm_enc)
+        {
+            char *base64_dec_str = malloc(Base64decode_len(str));
+            int base64_dec_length = Base64decode(base64_dec_str, str);
+            char *dec = gcrypt_decrypt_msg(base64_dec_str, base64_dec_length);
+            printf("NETRWORK RECEIVED: %s\n", dec);
+            free(base64_dec_str);
+            handle_network_msg(dec);
+            free(dec);
+        } else {
+            handle_network_msg(str);
+        }
 
         ustream_consume(s, len);
 
@@ -177,29 +182,45 @@ void send_tcp(char *msg) {
     printf("SENDING TCP!\n");
     pthread_mutex_lock(&tcp_array_mutex);
 
-    size_t msglen = strlen(msg);
+    if(network_config.use_symm_enc) {
+        int length_enc;
+        size_t msglen = strlen(msg);
+        char *enc = gcrypt_encrypt_msg(msg, msglen + 1, &length_enc);
 
-    int length_enc;
-    char *enc = gcrypt_encrypt_msg(msg, msglen + 1, &length_enc);
+        char *base64_enc_str = malloc(Base64encode_len(length_enc));
+        size_t base64_enc_length = Base64encode(base64_enc_str, enc, length_enc);
 
-    char *base64_enc_str = malloc(Base64encode_len(length_enc));
-    size_t base64_enc_length = Base64encode(base64_enc_str, enc, length_enc);
+        for (int i = 0; i <= tcp_entry_last; i++) {
+            if (send(network_array[i].sockfd, base64_enc_str, base64_enc_length, 0) < 0) {
+                close(network_array->sockfd);
+                printf("Removing bad TCP connection!\n");
+                for (int j = i; j < tcp_entry_last; j++) {
+                    network_array[j] = network_array[j + 1];
+                }
 
-    for (int i = 0; i <= tcp_entry_last; i++) {
-        if (send(network_array[i].sockfd, base64_enc_str, base64_enc_length, 0) < 0) {
-            close(network_array->sockfd);
-            printf("Removing bad TCP connection!\n");
-            for (int j = i; j < tcp_entry_last; j++) {
-                network_array[j] = network_array[j + 1];
+                if (tcp_entry_last > -1) {
+                    tcp_entry_last--;
+                }
             }
+        }
+        free(base64_enc_str);
+        free(enc);
+    } else {
+        for (int i = 0; i <= tcp_entry_last; i++) {
+            if (send(network_array[i].sockfd, msg, strlen(msg), 0) < 0) {
+                close(network_array->sockfd);
+                printf("Removing bad TCP connection!\n");
+                for (int j = i; j < tcp_entry_last; j++) {
+                    network_array[j] = network_array[j + 1];
+                }
 
-            if (tcp_entry_last > -1) {
-                tcp_entry_last--;
+                if (tcp_entry_last > -1) {
+                    tcp_entry_last--;
+                }
             }
         }
     }
-    free(base64_enc_str);
-    free(enc);
+
     pthread_mutex_unlock(&tcp_array_mutex);
 }
 

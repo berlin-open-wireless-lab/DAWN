@@ -80,6 +80,7 @@ struct network_config_s {
     const char *shared_key;
     const char *iv;
     int bool_multicast;
+    int use_symm_enc;
 };
 
 struct network_config_s network_config;
