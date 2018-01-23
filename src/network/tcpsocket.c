@@ -16,6 +16,8 @@
 
 int tcp_array_insert(struct network_con_s entry);
 
+int tcp_array_delete(struct sockaddr_in entry);
+
 int tcp_array_contains_address_help(struct sockaddr_in entry);
 
 void print_tcp_entry(struct network_con_s entry);
@@ -39,6 +41,12 @@ static void client_close(struct ustream *s) {
     fprintf(stderr, "Connection closed\n");
     ustream_free(s);
     close(cl->s.fd.fd);
+
+    // remove from tcp array
+    pthread_mutex_lock(&tcp_array_mutex);
+    tcp_array_delete(cl->sin);
+    pthread_mutex_unlock(&tcp_array_mutex);
+
     free(cl);
 }
 
@@ -54,6 +62,8 @@ static void client_notify_state(struct ustream *s) {
         return;
 
     fprintf(stderr, "eof!, pending: %d, total: %d\n", s->w.data_bytes, cl->ctr);
+
+    // TODO: REMOVE CLIENT FROM LIST!
     if (!s->w.data_bytes)
         return client_close(s);
 
@@ -72,8 +82,8 @@ static void client_read_cb(struct ustream *s, int bytes) {
 
         if(network_config.use_symm_enc)
         {
-            char *base64_dec_str = malloc(B64_DECODE_LEN(str));
-            int base64_dec_length = b64_decode(str, base64_dec_str, B64_DECODE_LEN(str));
+            char *base64_dec_str = malloc(B64_DECODE_LEN(strlen(str)));
+            int base64_dec_length = b64_decode(str, base64_dec_str, B64_DECODE_LEN(strlen(str)));
             char *dec = gcrypt_decrypt_msg(base64_dec_str, base64_dec_length);
 
             printf("NETRWORK RECEIVED: %s\n", dec);
@@ -262,6 +272,31 @@ int tcp_array_insert(struct network_con_s entry) {
         tcp_entry_last++;
     }
     return 1;
+}
+
+int tcp_array_delete(struct sockaddr_in entry) {
+    int i;
+    int found_in_array = 0;
+
+    if (tcp_entry_last == -1) {
+        return 0;
+    }
+
+    for (i = 0; i <= tcp_entry_last; i++) {
+        if (entry.sin_addr.s_addr == network_array[i].sock_addr.sin_addr.s_addr) {
+            found_in_array = 1;
+            break;
+        }
+    }
+
+    for (int j = i; j < tcp_entry_last; j++) {
+        network_array[j] = network_array[j + 1];
+    }
+
+    if (tcp_entry_last > -1 && found_in_array) {
+        tcp_entry_last--;
+    }
+    return 0;
 }
 
 int tcp_array_contains_address(struct sockaddr_in entry) {

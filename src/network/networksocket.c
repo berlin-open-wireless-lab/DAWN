@@ -142,8 +142,8 @@ void *receive_msg_enc(void *args) {
         }
         //recv_string[recv_string_len] = '\0';
 
-        char *base64_dec_str = malloc(B64_DECODE_LEN(recv_string));
-        int base64_dec_length = b64_decode(str, base64_dec_str, B64_DECODE_LEN(recv_string));
+        char *base64_dec_str = malloc(B64_DECODE_LEN(strlen(recv_string)));
+        int base64_dec_length = b64_decode(recv_string, base64_dec_str, B64_DECODE_LEN(strlen(recv_string)));
         char *dec = gcrypt_decrypt_msg(base64_dec_str, base64_dec_length);
 
         //printf("NETRWORK RECEIVED: %s\n", dec);
