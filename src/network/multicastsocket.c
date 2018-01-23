@@ -11,6 +11,9 @@
 
 #include "multicastsocket.h"
 
+// TODO: Consider to remove this...
+
+
 static struct ip_mreq command;
 
 int setup_multicast_socket(const char *_multicast_ip, unsigned short _multicast_port, struct sockaddr_in *addr) {

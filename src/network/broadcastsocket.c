@@ -8,6 +8,9 @@
 #include "networksocket.h"
 #include "broadcastsocket.h"
 
+// TODO: Consider to remove this...
+
+
 int setup_broadcast_socket(const char *_broadcast_ip, unsigned short _broadcast_port, struct sockaddr_in *addr) {
     int sock;
     int broadcast_permission;
