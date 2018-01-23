@@ -80,8 +80,7 @@ static void client_read_cb(struct ustream *s, int bytes) {
 
         //printf("RECEIVED String: %s\n", str);
 
-        if(network_config.use_symm_enc)
-        {
+        if (network_config.use_symm_enc) {
             char *base64_dec_str = malloc(B64_DECODE_LEN(strlen(str)));
             int base64_dec_length = b64_decode(str, base64_dec_str, B64_DECODE_LEN(strlen(str)));
             char *dec = gcrypt_decrypt_msg(base64_dec_str, base64_dec_length);
@@ -194,13 +193,13 @@ void send_tcp(char *msg) {
     printf("SENDING TCP!\n");
     pthread_mutex_lock(&tcp_array_mutex);
 
-    if(network_config.use_symm_enc) {
+    if (network_config.use_symm_enc) {
         int length_enc;
         size_t msglen = strlen(msg);
         char *enc = gcrypt_encrypt_msg(msg, msglen + 1, &length_enc);
 
         char *base64_enc_str = malloc(B64_ENCODE_LEN(length_enc));
-        size_t base64_enc_length = b64_encode(enc,  length_enc, base64_enc_str, B64_ENCODE_LEN(length_enc));
+        size_t base64_enc_length = b64_encode(enc, length_enc, base64_enc_str, B64_ENCODE_LEN(length_enc));
 
         for (int i = 0; i <= tcp_entry_last; i++) {
             if (send(network_array[i].sockfd, base64_enc_str, base64_enc_length, 0) < 0) {
