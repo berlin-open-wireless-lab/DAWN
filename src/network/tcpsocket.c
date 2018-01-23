@@ -1,6 +1,7 @@
 #include <libubox/usock.h>
 #include <libubox/ustream.h>
 #include <libubox/uloop.h>
+#include <libubox/utils.h> // base64 encoding
 #include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -186,9 +187,9 @@ void send_tcp(char *msg) {
         int length_enc;
         size_t msglen = strlen(msg);
         char *enc = gcrypt_encrypt_msg(msg, msglen + 1, &length_enc);
-
-        char *base64_enc_str = malloc(Base64encode_len(length_enc));
-        size_t base64_enc_length = Base64encode(base64_enc_str, enc, length_enc);
+        
+        char *base64_enc_str = malloc(B64_ENCODE_LEN(length_enc));
+        size_t base64_enc_length = b64_encode(enc,  length_enc, base64_enc_str, B64_ENCODE_LEN(length_enc));
 
         for (int i = 0; i <= tcp_entry_last; i++) {
             if (send(network_array[i].sockfd, base64_enc_str, base64_enc_length, 0) < 0) {
