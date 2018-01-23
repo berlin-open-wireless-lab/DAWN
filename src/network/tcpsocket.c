@@ -72,9 +72,10 @@ static void client_read_cb(struct ustream *s, int bytes) {
 
         if(network_config.use_symm_enc)
         {
-            char *base64_dec_str = malloc(Base64decode_len(str));
-            int base64_dec_length = Base64decode(base64_dec_str, str);
+            char *base64_dec_str = malloc(B64_DECODE_LEN(str));
+            int base64_dec_length = b64_decode(str, base64_dec_str, B64_DECODE_LEN(str));
             char *dec = gcrypt_decrypt_msg(base64_dec_str, base64_dec_length);
+
             printf("NETRWORK RECEIVED: %s\n", dec);
             free(base64_dec_str);
             handle_network_msg(dec);
@@ -187,7 +188,7 @@ void send_tcp(char *msg) {
         int length_enc;
         size_t msglen = strlen(msg);
         char *enc = gcrypt_encrypt_msg(msg, msglen + 1, &length_enc);
-        
+
         char *base64_enc_str = malloc(B64_ENCODE_LEN(length_enc));
         size_t base64_enc_length = b64_encode(enc,  length_enc, base64_enc_str, B64_ENCODE_LEN(length_enc));
 

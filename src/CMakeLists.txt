@@ -33,10 +33,7 @@ SET(SOURCES
         crypto/crypto.c
         include/crypto.h
 
-        crypto/base64.c
-        include/base64.h
-
-		utils/utils.c
+        utils/utils.c
 
         include/tcpsocket.h
         network/tcpsocket.c

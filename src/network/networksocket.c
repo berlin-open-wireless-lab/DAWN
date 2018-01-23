@@ -143,10 +143,8 @@ void *receive_msg_enc(void *args) {
         }
         //recv_string[recv_string_len] = '\0';
 
-        char *base64_dec_str = malloc(Base64decode_len(recv_string));
-        int base64_dec_length = Base64decode(base64_dec_str, recv_string);
-
-
+        char *base64_dec_str = malloc(B64_DECODE_LEN(str));
+        int base64_dec_length = b64_decode(str, base64_dec_str, B64_DECODE_LEN(str));
         char *dec = gcrypt_decrypt_msg(base64_dec_str, base64_dec_length);
 
         //printf("NETRWORK RECEIVED: %s\n", dec);
@@ -194,8 +192,8 @@ int send_string_enc(char *msg) {
     int length_enc;
     char *enc = gcrypt_encrypt_msg(msg, msglen + 1, &length_enc);
 
-    char *base64_enc_str = malloc(Base64encode_len(length_enc));
-    size_t base64_enc_length = Base64encode(base64_enc_str, enc, length_enc);
+    char *base64_enc_str = malloc(B64_ENCODE_LEN(length_enc));
+    size_t base64_enc_length = b64_encode(enc,  length_enc, base64_enc_str, B64_ENCODE_LEN(length_enc));
 
     if (sendto(sock,
                base64_enc_str,
