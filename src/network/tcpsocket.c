@@ -32,6 +32,7 @@ struct client {
 
     struct ustream_fd s;
     int ctr;
+    int counter;
 };
 
 static void client_close(struct ustream *s) {

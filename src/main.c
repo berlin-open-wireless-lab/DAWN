@@ -9,25 +9,15 @@
 #include "ubus.h"
 #include "dawn_uci.h"
 #include "tcpsocket.h"
-
-#define BUFSIZE 17
-#define BUFSIZE_DIR 256
-
 #include "crypto.h"
-#include "dawn_iwinfo.h"
 
 void daemon_shutdown();
 
 void signal_handler(int sig);
 
-int run_tcp_server();
-
 int init_mutex();
 
 struct sigaction signal_action;
-
-pthread_t tid_tcp_server;
-pthread_t tid_connections;
 
 void daemon_shutdown() {
     // kill threads
@@ -94,13 +84,6 @@ int init_mutex() {
     return 0;
 }
 
-int run_tcp_server() {
-    //run_server(1027);
-    //pthread_create(&tid_tcp_server, NULL, &run_tcp_socket, NULL);
-    //start_umdns_update();
-    return 0;
-}
-
 int main(int argc, char **argv) {
 
     const char *ubus_socket = NULL;
@@ -119,8 +102,8 @@ int main(int argc, char **argv) {
     uci_init();
     struct network_config_s net_config = uci_get_dawn_network();
     network_config = net_config;
-    printf("Broadcst bla: %s\n", net_config.broadcast_ip);
 
+    // init crypto
     gcrypt_init();
     gcrypt_set_key_and_iv(net_config.shared_key, net_config.iv);
 

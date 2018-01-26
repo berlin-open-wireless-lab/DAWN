@@ -2,24 +2,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/socket.h>
 #include <unistd.h>
-
-#include <libconfig.h>
-
 #include <libubox/blobmsg_json.h>
 
 #include "networksocket.h"
 #include "datastorage.h"
-#include "broadcastsocket.h"
 #include "multicastsocket.h"
+#include "broadcastsocket.h"
 #include "ubus.h"
 #include "crypto.h"
-#include "utils.h"
 
 /* Network Defines */
 #define MAX_RECV_STRING 5000
-#define NET_CONFIG_PATH "/etc/wlancontroller/networkconfig.conf"
 
 /* Network Attributes */
 int sock;
