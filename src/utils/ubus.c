@@ -122,6 +122,7 @@ enum {
     CLIENT_TABLE_VHT,
     CLIENT_TABLE_CHAN_UTIL,
     CLIENT_TABLE_NUM_STA,
+    CLIENT_TABLE_COL_DOMAIN,
     __CLIENT_TABLE_MAX,
 };
 
@@ -134,6 +135,7 @@ static const struct blobmsg_policy client_table_policy[__CLIENT_TABLE_MAX] = {
         [CLIENT_TABLE_VHT] = {.name = "vht_supported", .type = BLOBMSG_TYPE_INT8},
         [CLIENT_TABLE_CHAN_UTIL] = {.name = "channel_utilization", .type = BLOBMSG_TYPE_INT32},
         [CLIENT_TABLE_NUM_STA] = {.name = "num_sta", .type = BLOBMSG_TYPE_INT32},
+        [CLIENT_TABLE_COL_DOMAIN] = {.name = "collision_domain", .type = BLOBMSG_TYPE_INT32},
 };
 
 enum {
@@ -183,7 +185,6 @@ enum {
 static const struct blobmsg_policy dawn_umdns_policy[__DAWN_UMDNS_MAX] = {
         [DAWN_UMDNS_IPV4] = {.name = "ipv4", .type = BLOBMSG_TYPE_STRING},
         [DAWN_UMDNS_PORT] = {.name = "port", .type = BLOBMSG_TYPE_INT32},
-
 };
 
 /* Function Definitions */
@@ -856,10 +857,11 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
         ap_entry.channel_utilization = blobmsg_get_u32(tb[CLIENT_TABLE_CHAN_UTIL]);
         strcpy((char *) ap_entry.ssid, blobmsg_get_string(tb[CLIENT_TABLE_SSID]));
 
-        // ap is own ap
-        if(id != 0)
+        if (tb[CLIENT_TABLE_COL_DOMAIN])
         {
-            ap_entry.collision_domain = network_config.collision_domain;
+            ap_entry.collision_domain = blobmsg_get_u32(tb[CLIENT_TABLE_COL_DOMAIN]);
+        } else {
+            ap_entry.collision_domain = -1;
         }
 
         if (tb[CLIENT_TABLE_NUM_STA]) {
@@ -882,8 +884,6 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     if (!msg)
         return;
 
-
-
     char* data_str = blobmsg_format_json(msg, 1);
     blob_buf_init(&b_domain, 0);
     blobmsg_add_json_from_string(&b_domain, data_str);
@@ -891,8 +891,8 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     char* collision_string = blobmsg_format_json(b_domain.head, 1);
     printf("ADDED COLLISION DOMAIN: %s\n", collision_string);
 
-    send_blob_attr_via_network(msg, "clients");
-    parse_to_clients(msg, 1, req->peer);
+    send_blob_attr_via_network(b_domain.head, "clients");
+    parse_to_clients(b_domain.head, 1, req->peer);
 
     print_client_array();
     print_ap_array();
