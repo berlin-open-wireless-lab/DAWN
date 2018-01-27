@@ -81,6 +81,7 @@ struct network_config_s {
     const char *iv;
     int bool_multicast;
     int use_symm_enc;
+    int collision_domain;
 };
 
 struct network_config_s network_config;
@@ -186,7 +187,7 @@ typedef struct ap_s {
     time_t time;
     uint32_t station_count;
     uint8_t ssid[SSID_MAX_LEN];
-    uint32_t collision_domain;
+    int collision_domain;
 } ap;
 
 // ---------------- Defines ----------------

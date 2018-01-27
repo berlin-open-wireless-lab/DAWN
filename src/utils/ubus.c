@@ -33,6 +33,7 @@ static struct blob_buf b_send_network;
 static struct blob_buf network_buf;
 static struct blob_buf data_buf;
 static struct blob_buf b_probe;
+static struct blob_buf b_domain;
 
 void update_clients(struct uloop_timeout *t);
 
@@ -855,6 +856,12 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
         ap_entry.channel_utilization = blobmsg_get_u32(tb[CLIENT_TABLE_CHAN_UTIL]);
         strcpy((char *) ap_entry.ssid, blobmsg_get_string(tb[CLIENT_TABLE_SSID]));
 
+        // ap is own ap
+        if(id != 0)
+        {
+            ap_entry.collision_domain = network_config.collision_domain;
+        }
+
         if (tb[CLIENT_TABLE_NUM_STA]) {
             ap_entry.station_count = blobmsg_get_u32(tb[CLIENT_TABLE_NUM_STA]);
         } else {
@@ -874,6 +881,15 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
 
     if (!msg)
         return;
+
+
+
+    char* data_str = blobmsg_format_json(msg, 1);
+    blob_buf_init(&b_domain, 0);
+    blobmsg_add_json_from_string(&b_domain, data_str);
+    blobmsg_add_u32(&b_domain, "collision_domain", network_config.collision_domain);
+    char* collision_string = blobmsg_format_json(b_domain.head, 1);
+    printf("ADDED COLLISION DOMAIN: %s\n", collision_string);
 
     send_blob_attr_via_network(msg, "clients");
     parse_to_clients(msg, 1, req->peer);

@@ -98,6 +98,7 @@ struct network_config_s uci_get_dawn_network() {
             ret.network_option = uci_lookup_option_int(uci_ctx, s, "network_option");
             ret.tcp_port = uci_lookup_option_int(uci_ctx, s, "tcp_port");
             ret.use_symm_enc = uci_lookup_option_int(uci_ctx, s, "use_symm_enc");
+            ret.collision_domain = uci_lookup_option_int(uci_ctx, s, "collision_domain");
             return ret;
         }
     }
