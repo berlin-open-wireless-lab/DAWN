@@ -223,6 +223,7 @@ int build_network_overview(struct blob_buf *b)
                 blobmsg_add_u32(b, "freq", client_array[k].freq);
                 blobmsg_add_u32(b, "ht", client_array[k].ht);
                 blobmsg_add_u32(b, "vht", client_array[k].vht);
+                blobmsg_add_u32(b, "collision_count", ap_get_collision_count(ap_array[m].collision_domain));
                 blobmsg_close_table(b, client_list);
             }
             blobmsg_close_table(b, ap_list);
@@ -359,7 +360,6 @@ int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], int automat
         {
             continue;
         }
-
 
         printf("Calculating score to compare!\n");
         score_to_compare = eval_probe_metric(probe_array[k]);
