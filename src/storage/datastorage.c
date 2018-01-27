@@ -759,6 +759,22 @@ ap insert_to_ap_array(ap entry) {
     return entry;
 }
 
+int ap_get_collision_count(int col_domain) {
+
+    int ret_sta_count = 0;
+
+    pthread_mutex_lock(&ap_array_mutex);
+    int i;
+
+    for (i = 0; i <= ap_entry_last; i++) {
+        if(ap_array[i].collision_domain == col_domain)
+            ret_sta_count += ap_array[i].station_count;
+    }
+    pthread_mutex_unlock(&ap_array_mutex);
+
+    return ret_sta_count;
+}
+
 ap ap_array_get_ap(uint8_t bssid_addr[]) {
     ap ret;
 
