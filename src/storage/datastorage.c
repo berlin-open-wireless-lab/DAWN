@@ -1491,8 +1491,11 @@ void print_ap_entry(ap entry) {
     char mac_buf_ap[20];
 
     sprintf(mac_buf_ap, MACSTR, MAC2STR(entry.bssid_addr));
-    printf("ssid: %s, bssid_addr: %s, freq: %d, ht: %d, vht: %d, chan_utilz: %d, col_d: %d, bandwidth: %d\n",
-           entry.ssid, mac_buf_ap, entry.freq, entry.ht, entry.vht, entry.channel_utilization, entry.collision_domain, entry.bandwidth);
+    printf("ssid: %s, bssid_addr: %s, freq: %d, ht: %d, vht: %d, chan_utilz: %d, col_d: %d, bandwidth: %d, col_count: %d\n",
+           entry.ssid, mac_buf_ap, entry.freq, entry.ht, entry.vht,
+           entry.channel_utilization, entry.collision_domain, entry.bandwidth,
+            ap_get_collision_count(entry.collision_domain)
+    );
 }
 
 void print_ap_array() {
