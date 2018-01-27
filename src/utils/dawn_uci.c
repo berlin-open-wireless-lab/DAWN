@@ -91,10 +91,8 @@ struct network_config_s uci_get_dawn_network() {
         if (strcmp(s->type, "network") == 0) {
             printf("Fronund network entry!\n");
             ret.broadcast_ip = uci_lookup_option_string(uci_ctx, s, "broadcast_ip");
-            printf("BROADCAST: %s\n", ret.broadcast_ip);
             ret.broadcast_port = uci_lookup_option_int(uci_ctx, s, "broadcast_port");
             ret.bool_multicast = uci_lookup_option_int(uci_ctx, s, "multicast");
-            printf("multicast: %s\n", ret.broadcast_ip);
             ret.shared_key = uci_lookup_option_string(uci_ctx, s, "shared_key");
             ret.iv = uci_lookup_option_string(uci_ctx, s, "iv");
             ret.network_option = uci_lookup_option_int(uci_ctx, s, "network_option");
