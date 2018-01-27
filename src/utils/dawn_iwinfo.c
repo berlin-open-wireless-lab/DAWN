@@ -127,15 +127,10 @@ int get_bandwidth(const char *ifname, uint8_t *client_addr, float *rx_rate, floa
         e = (struct iwinfo_assoclist_entry *) &buf[i];
 
         if (mac_is_equal(client_addr, e->mac)) {
-            //struct iwinfo_assoclist_entry * rx_rate = e->rx_rate;
-            //struct iwinfo_assoclist_entry * tx_rate = e->tx_rate;
             *rx_rate = e->rx_rate.rate / 1000;
             *tx_rate = e->tx_rate.rate / 1000;
             return 1;
         }
-        //    return  e->signal;
-
-
     }
 
     return 0;
