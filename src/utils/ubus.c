@@ -123,6 +123,7 @@ enum {
     CLIENT_TABLE_CHAN_UTIL,
     CLIENT_TABLE_NUM_STA,
     CLIENT_TABLE_COL_DOMAIN,
+    CLIENT_TABLE_BANDWIDTH,
     __CLIENT_TABLE_MAX,
 };
 
@@ -136,6 +137,7 @@ static const struct blobmsg_policy client_table_policy[__CLIENT_TABLE_MAX] = {
         [CLIENT_TABLE_CHAN_UTIL] = {.name = "channel_utilization", .type = BLOBMSG_TYPE_INT32},
         [CLIENT_TABLE_NUM_STA] = {.name = "num_sta", .type = BLOBMSG_TYPE_INT32},
         [CLIENT_TABLE_COL_DOMAIN] = {.name = "collision_domain", .type = BLOBMSG_TYPE_INT32},
+        [CLIENT_TABLE_BANDWIDTH] = {.name = "bandwidth", .type = BLOBMSG_TYPE_INT32},
 };
 
 enum {
@@ -864,6 +866,13 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
             ap_entry.collision_domain = -1;
         }
 
+        if (tb[CLIENT_TABLE_BANDWIDTH])
+        {
+            ap_entry.bandwidth = blobmsg_get_u32(tb[CLIENT_TABLE_BANDWIDTH]);
+        } else {
+            ap_entry.bandwidth = -1;
+        }
+
         if (tb[CLIENT_TABLE_NUM_STA]) {
             ap_entry.station_count = blobmsg_get_u32(tb[CLIENT_TABLE_NUM_STA]);
         } else {
@@ -888,8 +897,10 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     blob_buf_init(&b_domain, 0);
     blobmsg_add_json_from_string(&b_domain, data_str);
     blobmsg_add_u32(&b_domain, "collision_domain", network_config.collision_domain);
+    blobmsg_add_u32(&b_domain, "bandwidth", network_config.bandwidth);
+
     char* collision_string = blobmsg_format_json(b_domain.head, 1);
-    printf("ADDED COLLISION DOMAIN: %s\n", collision_string);
+    printf("ADDED COLLISION DOMAIN AND BANDWITDH: %s\n", collision_string);
 
     send_blob_attr_via_network(b_domain.head, "clients");
     parse_to_clients(b_domain.head, 1, req->peer);
