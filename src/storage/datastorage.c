@@ -369,7 +369,7 @@ int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], int automat
         }
         if (dawn_metric.use_station_count && own_score == score_to_compare) {
 
-            // only compare if score is bigger or euqal 0
+            // only compare if score is bigger or equal 0
             if(own_score >= 0) {
 
                 // if ap have same value but station count is different...
