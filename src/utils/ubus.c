@@ -447,7 +447,6 @@ static int handle_auth_req(struct blob_attr *msg) {
     }
 
     // maybe send here that the client is connected?
-
     printf("ALLOW AUTH!\n");
     return WLAN_STATUS_SUCCESS;
 }

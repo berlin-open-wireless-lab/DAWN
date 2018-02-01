@@ -12,6 +12,7 @@
 #include "multicastsocket.h"
 
 // TODO: Consider to remove this...
+// based on: http://openbook.rheinwerk-verlag.de/linux_unix_programmierung/Kap11-018.htm
 
 
 static struct ip_mreq command;
@@ -30,7 +31,7 @@ int setup_multicast_socket(const char *_multicast_ip, unsigned short _multicast_
         exit(EXIT_FAILURE);
     }
 
-    /* Mehr Prozessen erlauben, denselben Port zu nutzen */
+    // allow multiple processes to use the same port
     loop = 1;
     if (setsockopt(sock,
                    SOL_SOCKET,
@@ -46,7 +47,7 @@ int setup_multicast_socket(const char *_multicast_ip, unsigned short _multicast_
         exit(EXIT_FAILURE);
     }
 
-    /* Broadcast auf dieser Maschine zulassen */
+    // allow broadcast
     loop = 1;
     if (setsockopt(sock,
                    IPPROTO_IP,
@@ -56,7 +57,7 @@ int setup_multicast_socket(const char *_multicast_ip, unsigned short _multicast_
         exit(EXIT_FAILURE);
     }
 
-    /* Join the broadcast group: */
+    // join broadcast group
     command.imr_multiaddr.s_addr = inet_addr(_multicast_ip);
     command.imr_interface.s_addr = htonl (INADDR_ANY);
     if (command.imr_multiaddr.s_addr == -1) {
