@@ -86,6 +86,8 @@ int init_mutex() {
 
 int main(int argc, char **argv) {
 
+    printf("sizeof(probe_entry_s) == %d", sizeof(struct probe_entry_s));
+
     const char *ubus_socket = NULL;
 
     argc -= optind;
