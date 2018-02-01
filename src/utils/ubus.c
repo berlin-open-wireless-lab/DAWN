@@ -323,8 +323,13 @@ static int decide_function(probe_entry *prob_req, int req_type) {
 
 static void hostapd_handle_remove(struct ubus_context *ctx,
                                   struct ubus_subscriber *s, uint32_t id) {
+    int ret;
+
     fprintf(stderr, "Object %08x went away\n", id);
-    ubus_unsubscribe(ctx, s, id);
+    ret = ubus_unsubscribe(ctx, s, id);
+    if(ret)
+        fprintf(stderr, "Removing object %08x: %s\n", id, ubus_strerror(ret));
+
     hostapd_array_delete(id);
 }
 
@@ -534,7 +539,6 @@ static int handle_set_probe(struct blob_attr *msg) {
 }
 
 int handle_network_msg(char *msg) {
-    //printf("HANDLING NETWORK MSG: %s\n", msg);
     struct blob_attr *tb[__NETWORK_MAX];
     char *method;
     char *data;
@@ -547,8 +551,6 @@ int handle_network_msg(char *msg) {
     if (!tb[NETWORK_METHOD] || !tb[NETWORK_DATA]) {
         return -1;
     }
-    //method = blobmsg_get_string(tb[NETWORK_METHOD]);
-    //data = blobmsg_get_string(tb[NETWORK_DATA]);
 
     method = blobmsg_data(tb[NETWORK_METHOD]);
     data = blobmsg_data(tb[NETWORK_DATA]);
@@ -556,20 +558,15 @@ int handle_network_msg(char *msg) {
     blob_buf_init(&data_buf, 0);
     blobmsg_add_json_from_string(&data_buf, data);
 
-
-    //printf("DO STRINGCOMPARE: %s : %s!\n", method, data);
     if (!data_buf.head) {
-        //printf("NULL?!\n");
         return -1;
     }
 
     if (blob_len(data_buf.head) <= 0) {
-        //printf("NULL?!\n");
         return -1;
     }
 
     if (strlen(method) < 5) {
-        //printf("STRING IS LESS THAN 5!\n");
         return -1;
     }
 
@@ -591,12 +588,12 @@ int handle_network_msg(char *msg) {
         parse_add_mac_to_file(data_buf.head);
     }
 
-
     return 0;
 }
 
 
 int send_blob_attr_via_network(struct blob_attr *msg, char *method) {
+
     if (!msg) {
         return -1;
     }
@@ -608,8 +605,6 @@ int send_blob_attr_via_network(struct blob_attr *msg, char *method) {
     blobmsg_add_string(&b_send_network, "method", method);
     blobmsg_add_string(&b_send_network, "data", data_str);
 
-
-    //blobmsg_add_blob(&b, msg);
     str = blobmsg_format_json(b_send_network.head, true);
 
     if (network_config.network_option == 2)
@@ -619,9 +614,7 @@ int send_blob_attr_via_network(struct blob_attr *msg, char *method) {
     {
         send_string_enc(str);
     }
-    //send_tcp(str);
-    //free(str);
-    //free(data_str);
+
     return 0;
 }
 
@@ -1154,10 +1147,14 @@ static void ubus_add_oject() {
 static void respond_to_notify(uint32_t id) {
     // This is needed to respond to the ubus notify ...
     // TODO: Maybe we need to disable on shutdown...
+    int ret;
 
     blob_buf_init(&b, 0);
     blobmsg_add_u32(&b, "notify_response", 1);
 
     int timeout = 1;
-    ubus_invoke(ctx, id, "notify_response", b.head, NULL, NULL, timeout * 1000);
+    ret = ubus_invoke(ctx, id, "notify_response", b.head, NULL, NULL, timeout * 1000);
+    if (ret)
+        fprintf(stderr, "Failed to invoke: %s\n", ubus_strerror(ret));
+
 }
