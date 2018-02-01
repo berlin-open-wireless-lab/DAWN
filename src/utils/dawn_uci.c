@@ -19,8 +19,6 @@ static int uci_lookup_option_int(struct uci_context *uci, struct uci_section *s,
 struct time_config_s uci_get_time_config() {
     struct time_config_s ret;
 
-    printf("Loading Times!");
-
     struct uci_element *e;
     uci_foreach_element(&uci_pkg->sections, e)
     {
@@ -89,7 +87,6 @@ struct network_config_s uci_get_dawn_network() {
         struct uci_section *s = uci_to_section(e);
 
         if (strcmp(s->type, "network") == 0) {
-            printf("Fronund network entry!\n");
             ret.broadcast_ip = uci_lookup_option_string(uci_ctx, s, "broadcast_ip");
             ret.broadcast_port = uci_lookup_option_int(uci_ctx, s, "broadcast_port");
             ret.bool_multicast = uci_lookup_option_int(uci_ctx, s, "multicast");

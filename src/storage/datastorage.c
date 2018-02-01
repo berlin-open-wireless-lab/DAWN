@@ -931,6 +931,9 @@ void denied_req_array_cb(struct uloop_timeout *t) {
             if(!is_connected_somehwere(denied_req_array[i].client_addr))
             {
                 printf("Client has propaly a BAD DRIVER!\n");
+
+                // problem that somehow station will land into this list
+                // maybe delete again?
                 if (insert_to_maclist(denied_req_array[i].client_addr) == 0) {
                     send_add_mac(denied_req_array[i].client_addr);
                     write_mac_to_file("/etc/dawn/mac_list", denied_req_array[i].client_addr);

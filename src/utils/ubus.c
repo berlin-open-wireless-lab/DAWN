@@ -611,8 +611,15 @@ int send_blob_attr_via_network(struct blob_attr *msg, char *method) {
 
     //blobmsg_add_blob(&b, msg);
     str = blobmsg_format_json(b_send_network.head, true);
-    //send_string_enc(str);
-    send_tcp(str);
+
+    if (network_config.network_option == 2)
+    {
+        send_tcp(str);
+    } else
+    {
+        send_string_enc(str);
+    }
+    //send_tcp(str);
     //free(str);
     //free(data_str);
     return 0;
@@ -1022,9 +1029,6 @@ int ubus_call_umdns() {
 }
 
 int ubus_send_probe_via_network(struct probe_entry_s probe_entry) {
-
-    printf("SENDING PROBE VIA NETWORK!\n");
-
     blob_buf_init(&b_probe, 0);
     blobmsg_add_macaddr(&b_probe, "bssid", probe_entry.bssid_addr);
     blobmsg_add_macaddr(&b_probe, "address", probe_entry.client_addr);
@@ -1040,9 +1044,6 @@ int ubus_send_probe_via_network(struct probe_entry_s probe_entry) {
 }
 
 int send_set_probe(uint8_t client_addr[]) {
-
-    printf("SENDING SET PROBE VIA NETWORK!\n");
-
     blob_buf_init(&b_probe, 0);
     blobmsg_add_macaddr(&b_probe, "bssid", client_addr);
     blobmsg_add_macaddr(&b_probe, "address", client_addr);
@@ -1114,16 +1115,18 @@ int send_add_mac(uint8_t* client_addr) {
     blob_buf_init(&b, 0);
     blobmsg_add_macaddr(&b, "addr", client_addr);
     send_blob_attr_via_network(b.head, "addmac");
-
     return 0;
 }
 
 static int get_hearing_map(struct ubus_context *ctx, struct ubus_object *obj,
                            struct ubus_request_data *req, const char *method,
                            struct blob_attr *msg) {
+    int ret;
 
     build_hearing_map_sort_client(&b);
-    ubus_send_reply(ctx, req, b.head);
+    ret = ubus_send_reply(ctx, req, b.head);
+    if (ret)
+        fprintf(stderr, "Failed to send reply: %s\n", ubus_strerror(ret));
     return 0;
 }
 
@@ -1131,9 +1134,12 @@ static int get_hearing_map(struct ubus_context *ctx, struct ubus_object *obj,
 static int get_network(struct ubus_context *ctx, struct ubus_object *obj,
                        struct ubus_request_data *req, const char *method,
                        struct blob_attr *msg) {
+    int ret;
 
     build_network_overview(&b);
-    ubus_send_reply(ctx, req, b.head);
+    ret = ubus_send_reply(ctx, req, b.head);
+    if (ret)
+        fprintf(stderr, "Failed to send reply: %s\n", ubus_strerror(ret));
     return 0;
 }
 
@@ -1143,17 +1149,12 @@ static void ubus_add_oject() {
     ret = ubus_add_object(ctx, &dawn_object);
     if (ret)
         fprintf(stderr, "Failed to add object: %s\n", ubus_strerror(ret));
-    printf("ADDED UBUS OBJECT!!!\n");
-
-    /*ret = ubus_register_subscriber(ctx, &test_event);
-    if (ret)
-        fprintf(stderr, "Failed to add watch handler: %s\n", ubus_strerror(ret));
-    */
 }
 
-
 static void respond_to_notify(uint32_t id) {
-    printf("SENDING NOTIFY!!!\n");
+    // This is needed to respond to the ubus notify ...
+    // TODO: Maybe we need to disable on shutdown...
+
     blob_buf_init(&b, 0);
     blobmsg_add_u32(&b, "notify_response", 1);
 
