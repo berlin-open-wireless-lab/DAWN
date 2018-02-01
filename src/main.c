@@ -86,6 +86,7 @@ int init_mutex() {
 
 int main(int argc, char **argv) {
 
+    printf("DAAAAAAAAAAAAAAAAAAAAAWWWWWWWWWWWWWWWWNNNNNNN\n");
     printf("\nDAWN sizeof(probe_entry_s) == %d\n", sizeof(struct probe_entry_s));
 
     const char *ubus_socket = NULL;
