@@ -6,6 +6,13 @@
 
 #include "datastorage.h"
 
+#define WLAN_STATUS_SUCCESS 0
+#define WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA 17
+
+// Disassociation Reason
+#define UNSPECIFIED_REASON 0
+#define NO_MORE_STAS 5
+
 void start_umdns_update();
 
 int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir);

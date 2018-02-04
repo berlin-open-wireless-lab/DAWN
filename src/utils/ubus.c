@@ -9,9 +9,6 @@
 #define ETH_ALEN 6
 #endif
 
-#define WLAN_STATUS_SUCCESS 0
-#define WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA 17
-
 #define REQ_TYPE_PROBE 0
 #define REQ_TYPE_AUTH 1
 #define REQ_TYPE_ASSOC 2
