@@ -39,7 +39,7 @@ SET(SOURCES
         network/tcpsocket.c
 
         include/dawn_iwinfo.h
-        utils/dawn_iwinfo.c)
+        utils/dawn_iwinfo.c utils/ieee80211_utils.c include/ieee80211_utils.h)
 
 SET(LIBS
         ubox ubus json-c blobmsg_json config uci gcrypt iwinfo)

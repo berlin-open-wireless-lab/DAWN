@@ -106,6 +106,7 @@ typedef struct probe_entry_s {
     time_t time;
     int counter;
     int deny_counter;
+    uint8_t max_supp_datarate;
 } probe_entry;
 
 typedef struct auth_entry_s {

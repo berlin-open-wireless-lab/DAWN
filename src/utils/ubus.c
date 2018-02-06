@@ -97,6 +97,8 @@ enum {
     PROB_FREQ,
     PROB_HT_SUPPORT,
     PROB_VHT_SUPPORT,
+    PROB_SUPP_RATES,
+    PROB_EXT_SUPP_RATES,
     __PROB_MAX,
 };
 
@@ -108,6 +110,8 @@ static const struct blobmsg_policy prob_policy[__PROB_MAX] = {
         [PROB_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
         [PROB_HT_SUPPORT] = {.name = "ht_support", .type = BLOBMSG_TYPE_INT8},
         [PROB_VHT_SUPPORT] = {.name = "vht_support", .type = BLOBMSG_TYPE_INT8},
+        [PROB_SUPP_RATES] = {.name = "supp_rates", .type = BLOBMSG_TYPE_ARRAY},
+        [PROB_EXT_SUPP_RATES] = {.name = "ext_supp_rates", .type = BLOBMSG_TYPE_ARRAY},
 };
 
 enum {
@@ -403,6 +407,25 @@ int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req) {
         prob_req->vht_support = blobmsg_get_u8(tb[PROB_VHT_SUPPORT]);
     }
 
+    if (tb[PROB_EXT_SUPP_RATES]) {
+        struct blob_attr *attr;
+        int len = blobmsg_data_len(tb[PROB_EXT_SUPP_RATES]);
+        struct blob_attr *data = blobmsg_data(tb[PROB_EXT_SUPP_RATES]);
+        __blob_for_each_attr(attr, data, len)
+        {
+            printf("EXT Supp Rates: %d\n", blobmsg_get_u8(attr));
+        }
+    }
+
+    if (tb[PROB_SUPP_RATES]) {
+        struct blob_attr *attr;
+        //struct blobmsg_hdr *hdr;
+        int len = blobmsg_data_len(tb[PROB_SUPP_RATES]);
+        blobmsg_for_each_attr(attr, blobmsg_data(tb[PROB_SUPP_RATES]), len)
+        {
+            printf("Supp Rates: %d\n", blobmsg_get_u8(attr));
+        }
+    }
     return 0;
 }
 
