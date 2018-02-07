@@ -416,7 +416,7 @@ int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req) {
         struct blob_attr *data = blobmsg_data(tb[PROB_EXT_SUPP_RATES]);
         __blob_for_each_attr(attr, data, len)
         {
-            uint8_t tmp_rate = (uint8_t)blobmsg_get_u32(attr);
+            uint8_t tmp_rate = (uint8_t)blobmsg_get_u32(attr); // actually a u8 value but u8 is for json...
             max_rate = tmp_rate > max_rate ? tmp_rate : max_rate;
             min_rate = tmp_rate < min_rate ? tmp_rate : min_rate;
         }
@@ -861,9 +861,6 @@ dump_client_table(struct blob_attr *head, int len, const char *bssid_addr, uint3
 }
 
 int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
-
-    printf("PARSING TO CLIENTS!\n");
-
     struct blob_attr *tb[__CLIENT_TABLE_MAX];
 
     if (!msg) {
@@ -882,6 +879,7 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
 
     if (tb[CLIENT_TABLE] && tb[CLIENT_TABLE_BSSID] && tb[CLIENT_TABLE_FREQ] && tb[CLIENT_TABLE_HT] &&
         tb[CLIENT_TABLE_VHT]) {
+        
         dump_client_table(blobmsg_data(tb[CLIENT_TABLE]), blobmsg_data_len(tb[CLIENT_TABLE]),
                           blobmsg_data(tb[CLIENT_TABLE_BSSID]), blobmsg_get_u32(tb[CLIENT_TABLE_FREQ]),
                           blobmsg_get_u8(tb[CLIENT_TABLE_HT]), blobmsg_get_u8(tb[CLIENT_TABLE_VHT]));
