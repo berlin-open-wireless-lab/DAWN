@@ -407,13 +407,19 @@ int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req) {
         prob_req->vht_support = blobmsg_get_u8(tb[PROB_VHT_SUPPORT]);
     }
 
+    uint8_t max_rate = 0;
+    uint8_t min_rate = 255;
+
     if (tb[PROB_EXT_SUPP_RATES]) {
         struct blob_attr *attr;
         int len = blobmsg_data_len(tb[PROB_EXT_SUPP_RATES]);
         struct blob_attr *data = blobmsg_data(tb[PROB_EXT_SUPP_RATES]);
         __blob_for_each_attr(attr, data, len)
         {
-            printf("EXT Supp Rates: %d\n", blobmsg_get_u8(attr));
+            uint8_t tmp_rate = (uint8_t)blobmsg_get_u32(attr);
+            printf("TMP Supported Rate is: %d\n", tmp_rate);
+            max_rate = tmp_rate > max_rate ? tmp_rate : max_rate;
+            min_rate = tmp_rate < min_rate ? tmp_rate : min_rate;
         }
     }
 
@@ -421,11 +427,16 @@ int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req) {
         struct blob_attr *attr;
         //struct blobmsg_hdr *hdr;
         int len = blobmsg_data_len(tb[PROB_SUPP_RATES]);
-        blobmsg_for_each_attr(attr, blobmsg_data(tb[PROB_SUPP_RATES]), len)
+        __blob_for_each_attr(attr, blobmsg_data(tb[PROB_SUPP_RATES]), len)
         {
-            printf("Supp Rates: %d\n", blobmsg_get_u8(attr));
+            uint8_t tmp_rate = (uint8_t)blobmsg_get_u32(attr);
+            printf("TMP Supported Rate is: %d\n", tmp_rate);
+            max_rate = tmp_rate > max_rate ? tmp_rate : max_rate;
+            min_rate = tmp_rate < min_rate ? tmp_rate : min_rate;
         }
     }
+    printf("MAX Supported Rate is: %d\n", max_rate);
+    printf("Min Supported Rate is: %d\n", min_rate);
     return 0;
 }
 
