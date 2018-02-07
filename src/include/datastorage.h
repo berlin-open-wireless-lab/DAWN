@@ -107,6 +107,7 @@ typedef struct probe_entry_s {
     int counter;
     int deny_counter;
     uint8_t max_supp_datarate;
+    uint8_t min_supp_datarate;
 } probe_entry;
 
 typedef struct auth_entry_s {

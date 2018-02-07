@@ -417,7 +417,6 @@ int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req) {
         __blob_for_each_attr(attr, data, len)
         {
             uint8_t tmp_rate = (uint8_t)blobmsg_get_u32(attr);
-            printf("TMP Supported Rate is: %d\n", tmp_rate);
             max_rate = tmp_rate > max_rate ? tmp_rate : max_rate;
             min_rate = tmp_rate < min_rate ? tmp_rate : min_rate;
         }
@@ -430,13 +429,15 @@ int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req) {
         __blob_for_each_attr(attr, blobmsg_data(tb[PROB_SUPP_RATES]), len)
         {
             uint8_t tmp_rate = (uint8_t)blobmsg_get_u32(attr);
-            printf("TMP Supported Rate is: %d\n", tmp_rate);
             max_rate = tmp_rate > max_rate ? tmp_rate : max_rate;
             min_rate = tmp_rate < min_rate ? tmp_rate : min_rate;
         }
     }
     printf("MAX Supported Rate is: %d\n", max_rate);
     printf("Min Supported Rate is: %d\n", min_rate);
+    prob_req->max_supp_datarate = max_rate;
+    prob_req->min_supp_datarate = min_rate;
+
     return 0;
 }
 
@@ -860,6 +861,9 @@ dump_client_table(struct blob_attr *head, int len, const char *bssid_addr, uint3
 }
 
 int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
+
+    printf("PARSING TO CLIENTS!\n");
+
     struct blob_attr *tb[__CLIENT_TABLE_MAX];
 
     if (!msg) {
@@ -909,6 +913,7 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
             ap_entry.station_count = 0;
         }
 
+        printf("INSERTING TO AP ARRAY!\n");
         insert_to_ap_array(ap_entry);
 
         if (do_kick) {
