@@ -911,7 +911,6 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
             ap_entry.station_count = 0;
         }
 
-        printf("INSERTING TO AP ARRAY!\n");
         insert_to_ap_array(ap_entry);
 
         if (do_kick) {
@@ -933,7 +932,6 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     blobmsg_add_u32(&b_domain, "bandwidth", network_config.bandwidth);
 
     char* collision_string = blobmsg_format_json(b_domain.head, 1);
-    printf("ADDED COLLISION DOMAIN AND BANDWITDH: %s\n", collision_string);
 
     send_blob_attr_via_network(b_domain.head, "clients");
     parse_to_clients(b_domain.head, 1, req->peer);

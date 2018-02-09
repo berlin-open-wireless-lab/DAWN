@@ -1,6 +1,3 @@
-//
-// Created by nick on 06.02.18.
-//
 #include "ieee80211_utils.h"
 
 #include <stdint.h>

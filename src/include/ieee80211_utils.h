@@ -1,7 +1,3 @@
-//
-// Created by nick on 06.02.18.
-//
-
 #ifndef DAWN_IEEE80211_UTILS_H
 #define DAWN_IEEE80211_UTILS_H
 

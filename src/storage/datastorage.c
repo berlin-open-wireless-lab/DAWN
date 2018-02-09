@@ -1451,8 +1451,8 @@ void print_probe_entry(probe_entry entry) {
 
     printf(
             "bssid_addr: %s, client_addr: %s, signal: %d, freq: "
-                    "%d, counter: %d, vht: %d\n",
-            mac_buf_ap, mac_buf_client, entry.signal, entry.freq, entry.counter, entry.vht_support);
+                    "%d, counter: %d, vht: %d, min_rate: %d, max_rate: %d\n",
+            mac_buf_ap, mac_buf_client, entry.signal, entry.freq, entry.counter, entry.vht_support, entry.min_supp_datarate, entry.max_supp_datarate);
 }
 
 void print_auth_entry(auth_entry entry) {
