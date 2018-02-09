@@ -931,7 +931,7 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     blobmsg_add_u32(&b_domain, "collision_domain", network_config.collision_domain);
     blobmsg_add_u32(&b_domain, "bandwidth", network_config.bandwidth);
 
-    char* collision_string = blobmsg_format_json(b_domain.head, 1);
+    //char* collision_string = blobmsg_format_json(b_domain.head, 1);
 
     send_blob_attr_via_network(b_domain.head, "clients");
     parse_to_clients(b_domain.head, 1, req->peer);
