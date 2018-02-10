@@ -10,7 +10,7 @@ Decentralized WiFi Controller
 
 ## Installation
 
-See [installation](INSTALL.md)-
+See [installation](INSTALL.md).
 
 ## Setting up Routers
 
