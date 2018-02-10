@@ -43,3 +43,33 @@ I setup the OpenWRT Router as dump APs.
     		
 	    }
     }
+
+    root@OpenWrt:~# ubus call dawn get_hearing_map
+    {
+	    "Free-Cookies": {
+		    "0E:5B:DB:XX:XX:XX": {
+			    "00:27:19:XX:XX:XX": {
+				    "signal": -64,
+				    "freq": 2452,
+				    "ht_support": true,
+				    "vht_support": false,
+				    "channel_utilization": 12,
+				    "num_sta": 1,
+				    "ht": 1,
+				    "vht": 0,
+				    "score": 10
+			    },
+			    "A4:2B:B0:XX:XX:XX": {
+				    "signal": -70,
+				    "freq": 2412,
+				    "ht_support": true,
+				    "vht_support": false,
+				    "channel_utilization": 71,
+				    "num_sta": 3,
+				    "ht": 1,
+				    "vht": 0,
+				    "score": 10
+			    }
+		    }
+	    }
+    }
