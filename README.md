@@ -18,6 +18,7 @@ You can find a good guide to configure your router is [here](https://gist.github
 I setup the OpenWRT Router as dump APs.
 
 ## ubus interface
+To get an overview of all connected Clients sorted by the SSID.
 
     root@OpenWrt:~# ubus call dawn get_network
     {
@@ -43,8 +44,7 @@ I setup the OpenWRT Router as dump APs.
     		
 	    }
     }
-
-
+To get the hearing map you can use:
 
     root@OpenWrt:~# ubus call dawn get_hearing_map
     {
