@@ -22,29 +22,29 @@ I setup the OpenWRT Router as dump APs.
 
 |Option             |Standard | Meaning |
 |-------------------|---------|---------|
-|ht_support         |  '10'   |         |
-|vht_support        |  '100'  |         |
-|no_ht_support      |  '0'    |         |
-|no_vht_support     |  '0'    |         |
-|rssi               |  '10'   |         |
-|low_rssi           |  '-500' |         |
-|freq               |  '100'  |         |
-|chan_util          |  '0'    |         |
-|max_chan_util      |  '-500' |         |
-|rssi_val           |  '-60'  |         |
-|low_rssi_val       |  '-80'  |         |
-|chan_util_val      |  '140'  |         |
-|max_chan_util_val  |  '170'  |         |
-|min_probe_count    |  '2'    |         |
-|bandwith_threshold |  '6'    |         |
-|use_station_count  |  '1'    |         |
-|max_station_diff   |  '1'    |         |
-|eval_probe_req     |  '1'    |         |
-|eval_auth_req      |  '1'    |         |
-|eval_assoc_req     |  '1'    |         |
-|deny_auth_reason   |  '1'    |         |
-|deny_assoc_reason  |  '17'   |         |
-|use_driver_recog   |  '1'    |         |
+|ht_support         |  '10'   |If AP and station support high throughput.|
+|vht_support        |  '100'  |If AP and station support very high throughput.|
+|no_ht_support      |  '0'    |If AP and station not supporting high throughput.|
+|no_vht_support     |  '0'    |If AP and station not supporting very high throughput.
+|rssi               |  '10'   |If RSSI is greater equal rssi_val.|
+|low_rssi           |  '-500' |If RSSI is less than low_rssi_val.|
+|freq               |  '100'  |If connection is 5Ghz.|
+|chan_util          |  '0'    |If channel utilization is lower chan_util_val.|
+|max_chan_util      |  '-500' |If channel utilization is greater max_chan_util_val.|
+|rssi_val           |  '-60'  |Threshold for an good RSSI.|
+|low_rssi_val       |  '-80'  |Threshold for an bad RSSI.|
+|chan_util_val      |  '140'  |Threshold for an good channel utilization.|
+|max_chan_util_val  |  '170'  |Threshold for a bad channel utilization.|
+|min_probe_count    |  '2'    |Minimum number of probe requests aftrer calculating if AP is best and sending a probe response.|
+|bandwith_threshold |  '6'    |Threshold for the receiving bit rate indicating if a client is in an active transmission.|
+|use_station_count  |  '1'    |Use station count as metric.|
+|max_station_diff   |  '1'    |Maximal station difference that is allowed.|
+|eval_probe_req     |  '1'    |Evaluate the incoming probe requests.|
+|eval_auth_req      |  '1'    |Evaluate the incomning authentication reqeuests.|
+|eval_assoc_req     |  '1'    |Evaluate the incoming association requests.|
+|deny_auth_reason   |  '1'    |Status code for denying authentications.|
+|deny_assoc_reason  |  '17'   |Status code for denying associations.|
+|use_driver_recog   |  '1'    |Allow drivers to connect after a certain time.|
 
 
 ## ubus interface
