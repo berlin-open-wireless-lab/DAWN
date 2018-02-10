@@ -45,6 +45,7 @@ I setup the OpenWRT Router as dump APs.
     }
 
 
+
     root@OpenWrt:~# ubus call dawn get_hearing_map
     {
 	    "Free-Cookies": {
