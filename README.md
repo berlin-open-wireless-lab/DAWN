@@ -19,7 +19,8 @@ I setup the OpenWRT Router as dump APs.
 
 ## Configuration
 
-|Option             ¦Standard | Meaning |
+
+|Option             |Standard | Meaning |
 |-------------------|---------|---------|
 |ht_support         |  '10'   |         |
 |vht_support        |  '100'  |         |
@@ -44,6 +45,7 @@ I setup the OpenWRT Router as dump APs.
 |deny_auth_reason   |  '1'    |         |
 |deny_assoc_reason  |  '17'   |         |
 |use_driver_recog   |  '1'    |         |
+
 
 ## ubus interface
 To get an overview of all connected Clients sorted by the SSID.
