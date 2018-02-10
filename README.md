@@ -8,7 +8,9 @@ Decentralized WiFi Controller
 |[patches-pending](https://github.com/berlin-open-wireless-lab/patches-pending)|Pending OpenWrt Patches DAWN is depending on|
 |[bowl-feed](https://github.com/berlin-open-wireless-lab/bowl-feed)|Feed for DAWN|
 
-[Install](INSTALL.md)
+## Installation
+
+See [installation](INSTALL.md)-
 
 ## Setting up Routers
 
