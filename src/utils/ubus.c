@@ -646,6 +646,9 @@ int send_blob_attr_via_network(struct blob_attr *msg, char *method) {
         send_string_enc(str);
     }
 
+    free(data_str);
+    free(str);
+
     return 0;
 }
 
@@ -938,6 +941,8 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
 
     print_client_array();
     print_ap_array();
+
+    free(data_str);
 }
 
 static int ubus_get_clients() {
