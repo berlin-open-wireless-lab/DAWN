@@ -65,8 +65,8 @@ static void client_notify_state(struct ustream *s) {
     fprintf(stderr, "eof!, pending: %d, total: %d\n", s->w.data_bytes, cl->ctr);
 
     // TODO: REMOVE CLIENT FROM LIST! OR NOT?
-    if (!s->w.data_bytes)
-        return client_close(s);
+    //if (!s->w.data_bytes)
+    //    return client_close(s);
 
 }
 
