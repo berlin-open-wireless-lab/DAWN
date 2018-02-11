@@ -1,12 +1,14 @@
 #ifndef DAWN_TCPSOCKET_H
 #define DAWN_TCPSOCKET_H
 
+#include <libubox/ustream.h>
 #include <netinet/in.h>
 #include <pthread.h>
 
 struct network_con_s {
     int sockfd;
     struct sockaddr_in sock_addr;
+    struct ustream_fd s;
 };
 
 void *run_tcp_socket(void *arg);

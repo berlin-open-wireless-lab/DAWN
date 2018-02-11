@@ -34,7 +34,7 @@ struct client {
     int ctr;
     int counter;
 };
-/*
+
 static void client_close(struct ustream *s) {
     struct client *cl = container_of(s,
     struct client, s.stream);
@@ -49,7 +49,7 @@ static void client_close(struct ustream *s) {
     pthread_mutex_unlock(&tcp_array_mutex);
 
     free(cl);
-}*/
+}
 
 static void client_notify_write(struct ustream *s, int bytes) {
     return;
@@ -65,8 +65,8 @@ static void client_notify_state(struct ustream *s) {
     fprintf(stderr, "eof!, pending: %d, total: %d\n", s->w.data_bytes, cl->ctr);
 
     // TODO: REMOVE CLIENT FROM LIST! OR NOT?
-    //if (!s->w.data_bytes)
-    //    return client_close(s);
+    if (!s->w.data_bytes)
+        return client_close(s);
 
 }
 
@@ -145,7 +145,7 @@ int run_server(int port) {
 }
 
 int add_tcp_conncection(char *ipv4, int port) {
-    int sockfd;
+    //int sockfd;
     struct sockaddr_in serv_addr;
 
     char port_str[12];
@@ -162,13 +162,15 @@ int add_tcp_conncection(char *ipv4, int port) {
         return 0;
     }
 
-    sockfd = usock(USOCK_TCP, ipv4, port_str);
-
+    int sockfd = usock(USOCK_TCP | USOCK_NONBLOCK, ipv4, port_str);
     struct network_con_s tmp =
             {
                     .sock_addr = serv_addr,
                     .sockfd = sockfd
             };
+    //tmp.s.fd.fd = usock(USOCK_TCP | USOCK_NONBLOCK, ipv4, port_str);
+    //uloop_fd_add(&tmp.s.fd, ULOOP_WRITE);
+    //tmp.sockfd = tmp.s.fd.fd;
 
     insert_to_tcp_array(tmp);
 
