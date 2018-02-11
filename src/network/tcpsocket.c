@@ -34,7 +34,7 @@ struct client {
     int ctr;
     int counter;
 };
-
+/*
 static void client_close(struct ustream *s) {
     struct client *cl = container_of(s,
     struct client, s.stream);
@@ -49,7 +49,7 @@ static void client_close(struct ustream *s) {
     pthread_mutex_unlock(&tcp_array_mutex);
 
     free(cl);
-}
+}*/
 
 static void client_notify_write(struct ustream *s, int bytes) {
     return;
