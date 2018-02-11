@@ -162,7 +162,7 @@ int add_tcp_conncection(char *ipv4, int port) {
         return 0;
     }
 
-    sockfd = usock(USOCK_TCP | USOCK_NONBLOCK, ipv4, port_str);
+    sockfd = usock(USOCK_TCP | USOCK_BLOCK, ipv4, port_str);
 
     struct network_con_s tmp =
             {
