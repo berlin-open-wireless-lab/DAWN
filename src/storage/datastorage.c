@@ -243,7 +243,13 @@ int eval_probe_metric(struct probe_entry_s probe_entry) {
     if (mac_is_equal(ap_entry.bssid_addr, probe_entry.bssid_addr)) {
         score += probe_entry.ht_support && ap_entry.ht ? dawn_metric.ht_support : 0;
         score += !probe_entry.ht_support && !ap_entry.ht ? dawn_metric.no_ht_support : 0;
-        score += probe_entry.vht_support && ap_entry.vht ? dawn_metric.vht_support : 0;
+
+        // performance anomaly?
+        if(network_config.bandwidth >= 1000 || network_config.bandwidth == -1)
+        {
+            score += probe_entry.vht_support && ap_entry.vht ? dawn_metric.vht_support : 0;
+        }
+
         score += !probe_entry.vht_support && !ap_entry.vht ? dawn_metric.no_vht_support : 0;
         score += ap_entry.channel_utilization <= dawn_metric.chan_util_val ? dawn_metric.chan_util : 0;
         score += ap_entry.channel_utilization > dawn_metric.max_chan_util_val ? dawn_metric.max_chan_util : 0;
@@ -448,9 +454,9 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
             // the hearing map is full...
             send_set_probe(client_array[j].client_addr);
 
-            // don't deauth station?
+            // don't deauth station? <- deauth is better!
             // maybe we can use handovers...
-            del_client_interface(id, client_array[j].client_addr, NO_MORE_STAS, 0, 1000);
+            del_client_interface(id, client_array[j].client_addr, NO_MORE_STAS, 1, 1000);
             client_array_delete(client_array[j]);
 
             // don't delete clients in a row. use update function again...
@@ -462,7 +468,7 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
         } else if (do_kick == -1) {
             printf("No Information about client. Force reconnect:\n");
             print_client_entry(client_array[j]);
-            del_client_interface(id, client_array[j].client_addr, 0, 0, 0);
+            del_client_interface(id, client_array[j].client_addr, 0, 1, 0);
 
             // ap is best
         } else {
