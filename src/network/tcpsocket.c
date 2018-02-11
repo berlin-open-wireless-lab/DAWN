@@ -34,7 +34,7 @@ struct client {
     int ctr;
     int counter;
 };
-/*
+
 static void client_close(struct ustream *s) {
     struct client *cl = container_of(s,
     struct client, s.stream);
@@ -49,7 +49,7 @@ static void client_close(struct ustream *s) {
     pthread_mutex_unlock(&tcp_array_mutex);
 
     free(cl);
-}*/
+}
 
 static void client_notify_write(struct ustream *s, int bytes) {
     return;
@@ -65,8 +65,8 @@ static void client_notify_state(struct ustream *s) {
     fprintf(stderr, "eof!, pending: %d, total: %d\n", s->w.data_bytes, cl->ctr);
 
     // TODO: REMOVE CLIENT FROM LIST! OR NOT?
-    //if (!s->w.data_bytes)
-    //    return client_close(s);
+    if (!s->w.data_bytes)
+        return client_close(s);
 
 }
 
