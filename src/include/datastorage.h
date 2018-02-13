@@ -59,6 +59,7 @@ struct probe_metric_s {
     int deny_auth_reason;
     int deny_assoc_reason;
     int use_driver_recog;
+    int min_kick_count;
 };
 
 struct time_config_s {
@@ -179,6 +180,7 @@ typedef struct client_s {
     uint8_t mfp;
     time_t time;
     uint32_t aid;
+    uint32_t kick_count;
 } client;
 
 typedef struct ap_s {
@@ -220,7 +222,7 @@ void kick_clients(uint8_t bssid[], uint32_t id);
 
 void client_array_insert(client entry);
 
-client *client_array_delete(client entry);
+client client_array_delete(client entry);
 
 void print_client_array();
 

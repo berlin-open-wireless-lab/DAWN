@@ -71,6 +71,7 @@ struct probe_metric_s uci_get_dawn_metric() {
             ret.deny_assoc_reason = uci_lookup_option_int(uci_ctx, s, "deny_assoc_reason");
             ret.max_station_diff = uci_lookup_option_int(uci_ctx, s, "max_station_diff");
             ret.use_driver_recog = uci_lookup_option_int(uci_ctx, s, "use_driver_recog");
+            ret.min_kick_count = uci_lookup_option_int(uci_ctx, s, "min_kick_count");
             return ret;
         }
     }

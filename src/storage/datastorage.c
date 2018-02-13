@@ -433,6 +433,16 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
 
         // better ap available
         if (do_kick > 0) {
+
+            // kick after algorithm decided to kick several times
+            // + rssi is changing a lot
+            // + chan util is changing a lot
+            // + ping pong behavior of clients will be reduced...
+            client_array[j].kick_count++;
+            if(client_array[j].kick_count < dawn_metric.min_kick_count){
+                continue;
+            }
+
             printf("Better AP available. Kicking client:\n");
             print_client_entry(client_array[j]);
             printf("Check if client is active receiving!\n");
@@ -569,21 +579,21 @@ void client_array_insert(client entry) {
     }
 }
 
-client *client_array_delete(client entry) {
+client client_array_delete(client entry) {
 
     int i;
     int found_in_array = 0;
-    client *tmp = NULL;
+    client tmp;
 
     if (client_entry_last == -1) {
-        return NULL;
+        return tmp;
     }
 
     for (i = 0; i <= client_entry_last; i++) {
         if (mac_is_equal(entry.bssid_addr, client_array[i].bssid_addr) &&
             mac_is_equal(entry.client_addr, client_array[i].client_addr)) {
             found_in_array = 1;
-            tmp = &client_array[i];
+            tmp = client_array[i];
             break;
         }
     }
@@ -956,7 +966,12 @@ void insert_client_to_array(client entry) {
     pthread_mutex_lock(&client_array_mutex);
     entry.time = time(0);
 
-    client_array_delete(entry);
+    client client_tmp = client_array_delete(entry);
+
+    if (mac_is_equal(entry.bssid_addr, client_tmp.bssid_addr)) {
+        entry.kick_count = client_tmp.kick_count;
+    }
+
     client_array_insert(entry);
 
     pthread_mutex_unlock(&client_array_mutex);
