@@ -437,7 +437,7 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
             // kick after algorithm decided to kick several times
             // + rssi is changing a lot
             // + chan util is changing a lot
-            // + ping pong behavior of clients will be reduced...
+            // + ping pong behavior of clients will be reduced
             client_array[j].kick_count++;
             if(client_array[j].kick_count < dawn_metric.min_kick_count){
                 continue;
@@ -484,6 +484,8 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
         } else {
             printf("AP is best. Client will stay:\n");
             print_client_entry(client_array[j]);
+            // set kick counter to 0 again
+            client_array[j].kick_count = 0;
         }
     }
 
