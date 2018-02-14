@@ -439,6 +439,7 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
             // + chan util is changing a lot
             // + ping pong behavior of clients will be reduced
             client_array[j].kick_count++;
+            printf("Comparing kick count kickcount: %d to min_kick_count: %d!\n", client_array[j].kick_count, dawn_metric.min_kick_count);
             if(client_array[j].kick_count < dawn_metric.min_kick_count){
                 continue;
             }
@@ -967,6 +968,7 @@ void denied_req_array_cb(struct uloop_timeout *t) {
 void insert_client_to_array(client entry) {
     pthread_mutex_lock(&client_array_mutex);
     entry.time = time(0);
+    entry.kick_count = 0;
 
     client client_tmp = client_array_delete(entry);
 
