@@ -1500,8 +1500,8 @@ void print_client_entry(client entry) {
     sprintf(mac_buf_ap, MACSTR, MAC2STR(entry.bssid_addr));
     sprintf(mac_buf_client, MACSTR, MAC2STR(entry.client_addr));
 
-    printf("bssid_addr: %s, client_addr: %s, freq: %d, ht_supported: %d, vht_supported: %d, ht: %d, vht: %d\n",
-           mac_buf_ap, mac_buf_client, entry.freq, entry.ht_supported, entry.vht_supported, entry.ht, entry.vht);
+    printf("bssid_addr: %s, client_addr: %s, freq: %d, ht_supported: %d, vht_supported: %d, ht: %d, vht: %d, kick: %d\n",
+           mac_buf_ap, mac_buf_client, entry.freq, entry.ht_supported, entry.vht_supported, entry.ht, entry.vht, entry.kick_count);
 }
 
 void print_client_array() {
