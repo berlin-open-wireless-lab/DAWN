@@ -3,8 +3,6 @@
 
 #include <pthread.h>
 
-// TODO: Add some comments
-
 pthread_mutex_t send_mutex;
 
 int init_socket_runopts(const char *_ip, int _port, int _multicast_socket);
