@@ -6,7 +6,7 @@
 
 #include "datastorage.h"
 
-// 802.11 Status codes...
+// 802.11 Status codes
 #define WLAN_STATUS_SUCCESS 0
 #define WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA 17
 #define WLAN_STATUS_DENIED_NOT_HT_SUPPORT 27
