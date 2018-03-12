@@ -49,5 +49,4 @@ ADD_EXECUTABLE(dawn ${SOURCES} utils/dawn_uci.c include/dawn_uci.h)
 TARGET_LINK_LIBRARIES(dawn ${LIBS})
 
 INSTALL(TARGETS dawn
-        RUNTIME DESTINATION /usr/bin/
-        )
+        RUNTIME DESTINATION /usr/bin/)
