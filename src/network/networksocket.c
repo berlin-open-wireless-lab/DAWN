@@ -69,8 +69,6 @@ void *receive_msg(void *args) {
         }
         recv_string[recv_string_len] = '\0';
 
-        //printf("[WC] Network-Received: %s\n", recv_string);
-
         probe_entry prob_req;
         struct blob_buf b;
 
@@ -80,14 +78,6 @@ void *receive_msg(void *args) {
         char *str;
         str = blobmsg_format_json(b.head, true);
 
-
-        /*
-          TODO: REFACTOR THIS!!! (just workaround)
-                OTHERWISE NULLPOINTER?!
-                * MAYBE THIS IS UNNECESSARY :O
-
-        */
-
         if (str == NULL) {
             return 0;
         }
@@ -96,10 +86,6 @@ void *receive_msg(void *args) {
             return 0;
         }
 
-        /*
-          HERE IS NULLPOINTER PROBABLY
-        */
-
         if (strstr(str, "clients") != NULL) {
             parse_to_clients(b.head, 0, 0);
         } else if (strstr(str, "target") != NULL) {
@@ -107,15 +93,6 @@ void *receive_msg(void *args) {
                 insert_to_array(prob_req, 0);
             }
         }
-
-        //if(parse_to_probe_req(b.head, &prob_req) == 0)
-        //{
-        //  insert_to_array(prob_req, 0);
-        //}
-
-
-        // insert to list
-        //insert_to_list(prob_req, 0);
     }
 }
 
@@ -134,13 +111,10 @@ void *receive_msg_enc(void *args) {
         if (strlen(recv_string) <= 0) {
             return 0;
         }
-        //recv_string[recv_string_len] = '\0';
 
         char *base64_dec_str = malloc(B64_DECODE_LEN(strlen(recv_string)));
         int base64_dec_length = b64_decode(recv_string, base64_dec_str, B64_DECODE_LEN(strlen(recv_string)));
         char *dec = gcrypt_decrypt_msg(base64_dec_str, base64_dec_length);
-
-        //printf("NETRWORK RECEIVED: %s\n", dec);
 
         free(base64_dec_str);
         handle_network_msg(dec);
@@ -152,7 +126,6 @@ int send_string(char *msg) {
     pthread_mutex_lock(&send_mutex);
     size_t msglen = strlen(msg);
 
-    //printf("Sending string! %s\n", msg);
     if (sendto(sock,
                msg,
                msglen,
@@ -165,23 +138,13 @@ int send_string(char *msg) {
     }
     pthread_mutex_unlock(&send_mutex);
 
-
-    /*if (sendto(sock, msg, msglen, 0, (struct sockaddr *)&addr,
-               sizeof(addr)) != msglen) {
-      fprintf(stderr, "Failed to send message.\n");
-      return -1;
-    }*/
     return 0;
 }
 
 int send_string_enc(char *msg) {
     pthread_mutex_lock(&send_mutex);
 
-    //printf("Sending string: %s\n", msg);
-
-
     size_t msglen = strlen(msg);
-
     int length_enc;
     char *enc = gcrypt_encrypt_msg(msg, msglen + 1, &length_enc);
 
@@ -198,9 +161,8 @@ int send_string_enc(char *msg) {
         pthread_mutex_unlock(&send_mutex);
         exit(EXIT_FAILURE);
     }
-    //printf("Free %s: %p\n","base64_enc_str", base64_enc_str);
+
     free(base64_enc_str);
-    //printf("Free %s: %p\n","enc", enc);
     free(enc);
     pthread_mutex_unlock(&send_mutex);
     return 0;
