@@ -19,6 +19,7 @@ int string_is_greater(uint8_t *str, uint8_t *str_2) {
     return length_1 > length_2;
 }
 
+// source: https://elixir.bootlin.com/linux/v4.9/source/lib/hexdump.c#L28
 int hex_to_bin(char ch) {
     if ((ch >= '0') && (ch <= '9')) return ch - '0';
     ch = tolower(ch);
@@ -26,6 +27,7 @@ int hex_to_bin(char ch) {
     return -1;
 }
 
+// based on: hostapd src/utils/common.c
 int hwaddr_aton(const char *txt, uint8_t *addr) {
     int i;
 

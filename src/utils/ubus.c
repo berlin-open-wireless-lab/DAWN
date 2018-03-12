@@ -1115,7 +1115,6 @@ static int add_mac(struct ubus_context *ctx, struct ubus_object *obj,
     parse_add_mac_to_file(msg);
 
     // here we need to send it via the network!
-    // and we have to find some adaptive strategie to realize bad driver beahviour
     send_blob_attr_via_network(msg, "addmac");
 
     return 0;
