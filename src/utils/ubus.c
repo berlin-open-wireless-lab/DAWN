@@ -293,8 +293,7 @@ void blobmsg_add_macaddr(struct blob_buf *buf, const char *name, const uint8_t *
 static int decide_function(probe_entry *prob_req, int req_type) {
     printf("COUNTER: %d\n", prob_req->counter);
 
-    if(mac_in_maclist(prob_req->client_addr))
-    {
+    if (mac_in_maclist(prob_req->client_addr)) {
         return 1;
     }
 
@@ -328,7 +327,7 @@ static void hostapd_handle_remove(struct ubus_context *ctx,
 
     fprintf(stderr, "Object %08x went away\n", id);
     ret = ubus_unsubscribe(ctx, s, id);
-    if(ret)
+    if (ret)
         fprintf(stderr, "Removing object %08x: %s\n", id, ubus_strerror(ret));
 
     hostapd_array_delete(id);
@@ -416,7 +415,7 @@ int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req) {
         struct blob_attr *data = blobmsg_data(tb[PROB_EXT_SUPP_RATES]);
         __blob_for_each_attr(attr, data, len)
         {
-            uint8_t tmp_rate = (uint8_t)blobmsg_get_u32(attr); // actually a u8 value but u8 is for json...
+            uint8_t tmp_rate = (uint8_t) blobmsg_get_u32(attr); // actually a u8 value but u8 is for json...
             max_rate = tmp_rate > max_rate ? tmp_rate : max_rate;
             min_rate = tmp_rate < min_rate ? tmp_rate : min_rate;
         }
@@ -428,7 +427,7 @@ int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req) {
         int len = blobmsg_data_len(tb[PROB_SUPP_RATES]);
         __blob_for_each_attr(attr, blobmsg_data(tb[PROB_SUPP_RATES]), len)
         {
-            uint8_t tmp_rate = (uint8_t)blobmsg_get_u32(attr);
+            uint8_t tmp_rate = (uint8_t) blobmsg_get_u32(attr);
             max_rate = tmp_rate > max_rate ? tmp_rate : max_rate;
             min_rate = tmp_rate < min_rate ? tmp_rate : min_rate;
         }
@@ -450,8 +449,7 @@ static int handle_auth_req(struct blob_attr *msg) {
     printf("AUTH Entry: ");
     print_auth_entry(auth_req);
 
-    if(mac_in_maclist(auth_req.client_addr))
-    {
+    if (mac_in_maclist(auth_req.client_addr)) {
         return WLAN_STATUS_SUCCESS;
     }
 
@@ -464,7 +462,7 @@ static int handle_auth_req(struct blob_attr *msg) {
     if (!(mac_is_equal(tmp.bssid_addr, auth_req.bssid_addr) && mac_is_equal(tmp.client_addr, auth_req.client_addr))) {
         printf("DENY AUTH!\n");
 
-        if(dawn_metric.use_driver_recog){
+        if (dawn_metric.use_driver_recog) {
             insert_to_denied_req_array(auth_req, 1);
         }
         return dawn_metric.deny_auth_reason;
@@ -472,7 +470,7 @@ static int handle_auth_req(struct blob_attr *msg) {
 
     if (!decide_function(&tmp, REQ_TYPE_AUTH)) {
         printf("DENY AUTH\n");
-        if(dawn_metric.use_driver_recog) {
+        if (dawn_metric.use_driver_recog) {
             insert_to_denied_req_array(auth_req, 1);
         }
         return dawn_metric.deny_auth_reason;
@@ -491,8 +489,7 @@ static int handle_assoc_req(struct blob_attr *msg) {
     printf("ASSOC Entry: ");
     print_auth_entry(auth_req);
 
-    if(mac_in_maclist(auth_req.client_addr))
-    {
+    if (mac_in_maclist(auth_req.client_addr)) {
         return WLAN_STATUS_SUCCESS;
     }
 
@@ -504,7 +501,7 @@ static int handle_assoc_req(struct blob_attr *msg) {
     // block if entry was not already found in probe database
     if (!(mac_is_equal(tmp.bssid_addr, auth_req.bssid_addr) && mac_is_equal(tmp.client_addr, auth_req.client_addr))) {
         printf("DENY ASSOC!\n");
-        if(dawn_metric.use_driver_recog) {
+        if (dawn_metric.use_driver_recog) {
             insert_to_denied_req_array(auth_req, 1);
         }
         return dawn_metric.deny_assoc_reason;
@@ -512,7 +509,7 @@ static int handle_assoc_req(struct blob_attr *msg) {
 
     if (!decide_function(&tmp, REQ_TYPE_ASSOC)) {
         printf("DENY ASSOC\n");
-        if(dawn_metric.use_driver_recog) {
+        if (dawn_metric.use_driver_recog) {
             insert_to_denied_req_array(auth_req, 1);
         }
         return dawn_metric.deny_assoc_reason;
@@ -614,8 +611,7 @@ int handle_network_msg(char *msg) {
     } else if (strncmp(method, "setprobe", 5) == 0) {
         printf("HANDLING SET PROBE!\n");
         handle_set_probe(data_buf.head);
-    } else if (strncmp(method, "addmac", 5) == 0)
-    {
+    } else if (strncmp(method, "addmac", 5) == 0) {
         parse_add_mac_to_file(data_buf.head);
     }
 
@@ -638,11 +634,9 @@ int send_blob_attr_via_network(struct blob_attr *msg, char *method) {
 
     str = blobmsg_format_json(b_send_network.head, true);
 
-    if (network_config.network_option == 2)
-    {
+    if (network_config.network_option == 2) {
         send_tcp(str);
-    } else
-    {
+    } else {
         send_string_enc(str);
     }
 
@@ -882,7 +876,7 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
 
     if (tb[CLIENT_TABLE] && tb[CLIENT_TABLE_BSSID] && tb[CLIENT_TABLE_FREQ] && tb[CLIENT_TABLE_HT] &&
         tb[CLIENT_TABLE_VHT]) {
-        
+
         dump_client_table(blobmsg_data(tb[CLIENT_TABLE]), blobmsg_data_len(tb[CLIENT_TABLE]),
                           blobmsg_data(tb[CLIENT_TABLE_BSSID]), blobmsg_get_u32(tb[CLIENT_TABLE_FREQ]),
                           blobmsg_get_u8(tb[CLIENT_TABLE_HT]), blobmsg_get_u8(tb[CLIENT_TABLE_VHT]));
@@ -894,15 +888,13 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
         ap_entry.channel_utilization = blobmsg_get_u32(tb[CLIENT_TABLE_CHAN_UTIL]);
         strcpy((char *) ap_entry.ssid, blobmsg_get_string(tb[CLIENT_TABLE_SSID]));
 
-        if (tb[CLIENT_TABLE_COL_DOMAIN])
-        {
+        if (tb[CLIENT_TABLE_COL_DOMAIN]) {
             ap_entry.collision_domain = blobmsg_get_u32(tb[CLIENT_TABLE_COL_DOMAIN]);
         } else {
             ap_entry.collision_domain = -1;
         }
 
-        if (tb[CLIENT_TABLE_BANDWIDTH])
-        {
+        if (tb[CLIENT_TABLE_BANDWIDTH]) {
             ap_entry.bandwidth = blobmsg_get_u32(tb[CLIENT_TABLE_BANDWIDTH]);
         } else {
             ap_entry.bandwidth = -1;
@@ -928,7 +920,7 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     if (!msg)
         return;
 
-    char* data_str = blobmsg_format_json(msg, 1);
+    char *data_str = blobmsg_format_json(msg, 1);
     blob_buf_init(&b_domain, 0);
     blobmsg_add_json_from_string(&b_domain, data_str);
     blobmsg_add_u32(&b_domain, "collision_domain", network_config.collision_domain);
@@ -975,15 +967,6 @@ void update_hostapd_sockets(struct uloop_timeout *t) {
 }
 
 void del_client_all_interfaces(const uint8_t *client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time) {
-    /* Problem:
-      On which interface is the client?
-      First send to all ifaces to ban client... xD
-      Maybe Hashmap?
-
-      * get_clients method and look if client is there
-      * save on which hostapd the client is...
-    */
-
     blob_buf_init(&b, 0);
     blobmsg_add_macaddr(&b, "addr", client_addr);
     blobmsg_add_u32(&b, "reason", reason);
@@ -1038,7 +1021,6 @@ static void ubus_umdns_cb(struct ubus_request *req, int type, struct blob_attr *
         } else {
             return;
         }
-
         add_tcp_conncection(blobmsg_get_string(tb_dawn[DAWN_UMDNS_IPV4]), blobmsg_get_u32(tb_dawn[DAWN_UMDNS_PORT]));
     }
 }
@@ -1109,8 +1091,7 @@ static struct ubus_object dawn_object = {
         .n_methods = ARRAY_SIZE(dawn_methods),
 };
 
-static int parse_add_mac_to_file(struct blob_attr *msg)
-{
+static int parse_add_mac_to_file(struct blob_attr *msg) {
     struct blob_attr *tb[__ADD_DEL_MAC_MAX];
     uint8_t addr[ETH_ALEN];
 
@@ -1140,7 +1121,7 @@ static int add_mac(struct ubus_context *ctx, struct ubus_object *obj,
     return 0;
 }
 
-int send_add_mac(uint8_t* client_addr) {
+int send_add_mac(uint8_t *client_addr) {
     blob_buf_init(&b, 0);
     blobmsg_add_macaddr(&b, "addr", client_addr);
     send_blob_attr_via_network(b.head, "addmac");
@@ -1192,5 +1173,4 @@ static void respond_to_notify(uint32_t id) {
     ret = ubus_invoke(ctx, id, "notify_response", b.head, NULL, NULL, timeout * 1000);
     if (ret)
         fprintf(stderr, "Failed to invoke: %s\n", ubus_strerror(ret));
-
 }

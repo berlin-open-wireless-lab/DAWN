@@ -66,18 +66,12 @@ char *gcrypt_encrypt_msg(char *msg, size_t msg_length, int *out_length) {
     if (0U != (msg_length & 0xfU))
         msg_length += 0x10U - (msg_length & 0xfU);
 
-    //msg_length++; // increase because of \0
     char *out = malloc(msg_length);
-    gcry_error_handle = gcry_cipher_encrypt(
-            gcry_cipher_hd, // gcry_cipher_hd_t
-            out,    // void *
-            msg_length,    // size_t
-            msg,    // const void *
-            msg_length);   // size_t
+    gcry_error_handle = gcry_cipher_encrypt(gcry_cipher_hd, out, msg_length, msg, msg_length);
     if (gcry_error_handle) {
-        printf("gcry_cipher_encrypt failed:  %s/%s\n",
-               gcry_strsource(gcry_error_handle),
-               gcry_strerror(gcry_error_handle));
+        fprintf(stderr, "gcry_cipher_encrypt failed:  %s/%s\n",
+                gcry_strsource(gcry_error_handle),
+                gcry_strerror(gcry_error_handle));
         return NULL;
     }
     *out_length = msg_length;
@@ -90,23 +84,16 @@ char *gcrypt_decrypt_msg(char *msg, size_t msg_length) {
         msg_length += 0x10U - (msg_length & 0xfU);
 
     char *out_buffer = malloc(msg_length);
-    gcry_error_handle = gcry_cipher_decrypt(
-            gcry_cipher_hd, // gcry_cipher_hd_t
-            out_buffer,    // void *
-            msg_length,    // size_t
-            msg,    // const void *
-            msg_length);   // size_t
+    gcry_error_handle = gcry_cipher_decrypt(gcry_cipher_hd, out_buffer, msg_length, msg, msg_length);
     if (gcry_error_handle) {
-        printf("gcry_cipher_encrypt failed:  %s/%s\n",
-               gcry_strsource(gcry_error_handle),
-               gcry_strerror(gcry_error_handle));
-        //printf("Free %s: %p\n","out_buffer", out_buffer);
+        fprintf(stderr, "gcry_cipher_encrypt failed:  %s/%s\n",
+                gcry_strsource(gcry_error_handle),
+                gcry_strerror(gcry_error_handle));
         free(out_buffer);
         return NULL;
     }
     char *out = malloc(strlen(out_buffer) + 1);
     strcpy(out, out_buffer);
-    //printf("Free %s: %p\n","out_buffer", out_buffer);
     free(out_buffer);
     return out;
 }
