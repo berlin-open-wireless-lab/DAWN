@@ -11,8 +11,6 @@
 
 #include "multicastsocket.h"
 
-// TODO: Consider to remove this...
-
 // based on: http://openbook.rheinwerk-verlag.de/linux_unix_programmierung/Kap11-018.htm
 
 static struct ip_mreq command;
