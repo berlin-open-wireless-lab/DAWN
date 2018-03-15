@@ -705,7 +705,7 @@ static int subscribe_to_hostapd_interfaces(const char *hostapd_dir) {
     }
     while ((entry = readdir(dirp)) != NULL) {
         if (entry->d_type == DT_SOCK) {
-            char subscribe_name[256];
+            char subscribe_name[300];
             sprintf(subscribe_name, "hostapd.%s", entry->d_name);
             add_subscriber(subscribe_name);
         }

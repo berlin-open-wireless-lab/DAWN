@@ -715,7 +715,7 @@ int probe_array_update_rssi(uint8_t bssid_addr[], uint8_t client_addr[], uint32_
 probe_entry probe_array_get_entry(uint8_t bssid_addr[], uint8_t client_addr[]) {
 
     int i;
-    probe_entry tmp;
+    probe_entry tmp = { .bssid_addr = {0,0,0,0,0,0}, .client_addr = {0,0,0,0,0,0}};
 
     if (probe_entry_last == -1) {
         return tmp;
@@ -795,7 +795,7 @@ int ap_get_collision_count(int col_domain) {
 }
 
 ap ap_array_get_ap(uint8_t bssid_addr[]) {
-    ap ret;
+    ap ret = {.bssid_addr = {0,0,0,0,0,0}};
 
     if (ap_entry_last == -1) {
         return ret;
