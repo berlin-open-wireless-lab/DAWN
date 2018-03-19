@@ -185,3 +185,53 @@ int get_rssi(const char *ifname, uint8_t *client_addr) {
 
     return INT_MIN;
 }
+
+int get_expected_throughput_iwinfo(__uint8_t *client_addr) {
+
+    DIR *dirp;
+    struct dirent *entry;
+    dirp = opendir(hostapd_dir_glob);  // error handling?
+    if (!dirp) {
+        fprintf(stderr, "[RSSI INFO] No hostapd sockets!\n");
+        return INT_MIN;
+    }
+
+    int exp_thr = INT_MIN;
+
+    while ((entry = readdir(dirp)) != NULL) {
+        if (entry->d_type == DT_SOCK) {
+            exp_thr = get_rssi(entry->d_name, client_addr);
+            if (exp_thr != INT_MIN)
+                break;
+        }
+    }
+    closedir(dirp);
+    return exp_thr;
+}
+
+int get_expected_throughput(const char *ifname, uint8_t *client_addr) {
+
+    int i, len;
+    char buf[IWINFO_BUFSIZE];
+    struct iwinfo_assoclist_entry *e;
+    const struct iwinfo_ops *iw;
+
+    iw = iwinfo_backend(ifname);
+
+    if (iw->assoclist(ifname, buf, &len)) {
+        printf("No information available\n");
+        return INT_MIN;
+    } else if (len <= 0) {
+        printf("No station connected\n");
+        return INT_MIN;
+    }
+
+    for (i = 0; i < len; i += sizeof(struct iwinfo_assoclist_entry)) {
+        e = (struct iwinfo_assoclist_entry *) &buf[i];
+
+        if (mac_is_equal(client_addr, e->mac))
+            return e->thr;
+    }
+
+    return INT_MIN;
+}
