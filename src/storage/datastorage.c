@@ -419,7 +419,7 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
         // update rssi
         int rssi = get_rssi_iwinfo(client_array[j].client_addr);
         int exp_thr = get_expected_throughput_iwinfo(client_array[j].client_addr);
-        printf("Expectd throughput %d\n", exp_thr);
+        printf("Expectd throughput %f Mbit/sec\n", iee80211_calculate_expected_throughput_mbit(exp_thr));
 
         if (rssi != INT_MIN) {
             pthread_mutex_unlock(&probe_array_mutex);
