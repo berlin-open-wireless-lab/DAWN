@@ -200,7 +200,7 @@ int get_expected_throughput_iwinfo(__uint8_t *client_addr) {
 
     while ((entry = readdir(dirp)) != NULL) {
         if (entry->d_type == DT_SOCK) {
-            exp_thr = get_rssi(entry->d_name, client_addr);
+            exp_thr = get_expected_throughput(entry->d_name, client_addr);
             if (exp_thr != INT_MIN)
                 break;
         }
