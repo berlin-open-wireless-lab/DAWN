@@ -18,7 +18,10 @@ int get_rssi_iwinfo(__uint8_t *client_addr);
  * Get expected throughut using the mac adress of the client.
  * Function uses libiwinfo and searches through all interfaces that are existing.
  * @param client_addr - mac adress of the client
- * @return The expected throughput of the client if successful. INT_MIN if client was not found.
+ * @return
+ * + The expected throughput of the client if successful.
+ * + INT_MIN if client was not found.
+ * + 0 if the client is not supporting this feature.
  */
 int get_expected_throughput_iwinfo(uint8_t *client_addr);
 
@@ -45,7 +48,10 @@ int compare_essid_iwinfo(__uint8_t *bssid_addr, __uint8_t *bssid_addr_to_compare
  * Function returns the expected throughput using the interface and the client address.
  * @param ifname
  * @param client_addr
- * @return - The expected throughput of the client if successful. INT_MIN if client was not found.
+ * @return
+ * + The expected throughput of the client if successful.
+ * + INT_MIN if client was not found.
+ * + 0 if the client is not supporting this feature.
  */
 int get_expected_throughput(const char *ifname, uint8_t *client_addr);
 
