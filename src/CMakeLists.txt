@@ -39,14 +39,17 @@ SET(SOURCES
         network/tcpsocket.c
 
         include/dawn_iwinfo.h
-        utils/dawn_iwinfo.c utils/ieee80211_utils.c include/ieee80211_utils.h)
+        utils/dawn_iwinfo.c
+
+        utils/ieee80211_utils.c
+        include/ieee80211_utils.h)
 
 SET(LIBS
         ubox ubus json-c blobmsg_json uci gcrypt iwinfo)
 
-ADD_EXECUTABLE(dawn ${SOURCES} utils/dawn_uci.c include/dawn_uci.h)
+ADD_EXECUTABLE(dawn ${SOURCES})
 
 TARGET_LINK_LIBRARIES(dawn ${LIBS})
 
 INSTALL(TARGETS dawn
-        RUNTIME DESTINATION /usr/bin/)
+        RUNTIME DESTINATION /usr/sbin/)
