@@ -25,14 +25,13 @@ SET(SOURCES
         utils/ubus.c
         include/ubus.h
 
-        include/utils.h
-
         utils/dawn_uci.c
         include/dawn_uci.h
 
         crypto/crypto.c
         include/crypto.h
 
+        include/utils.h
         utils/utils.c
 
         include/tcpsocket.h

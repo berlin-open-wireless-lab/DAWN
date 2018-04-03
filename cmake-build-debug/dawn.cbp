@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6"/>
+	<Project>
+		<Option title="dawn"/>
+		<Option makefile_is_custom="1"/>
+		<Option compiler="gcc"/>
+		<Option virtualFolders="CMake Files\;CMake Files\src\;"/>
+		<Build>
+			<Target title="all">
+				<Option working_dir="/home/nick/DAWN/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/Makefile&quot;  VERBOSE=1 all"/>
+					<CompileFile command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="install/strip">
+				<Option working_dir="/home/nick/DAWN/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/Makefile&quot;  VERBOSE=1 install/strip"/>
+					<CompileFile command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="install/local">
+				<Option working_dir="/home/nick/DAWN/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/Makefile&quot;  VERBOSE=1 install/local"/>
+					<CompileFile command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="install">
+				<Option working_dir="/home/nick/DAWN/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/Makefile&quot;  VERBOSE=1 install"/>
+					<CompileFile command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="list_install_components">
+				<Option working_dir="/home/nick/DAWN/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/Makefile&quot;  VERBOSE=1 list_install_components"/>
+					<CompileFile command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="rebuild_cache">
+				<Option working_dir="/home/nick/DAWN/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/Makefile&quot;  VERBOSE=1 rebuild_cache"/>
+					<CompileFile command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="edit_cache">
+				<Option working_dir="/home/nick/DAWN/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/Makefile&quot;  VERBOSE=1 edit_cache"/>
+					<CompileFile command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="dawn">
+				<Option output="/home/nick/DAWN/cmake-build-debug/src/dawn" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/nick/DAWN/cmake-build-debug/src"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/home/nick/DAWN/src/include"/>
+					<Add directory="/usr/include/c++/6"/>
+					<Add directory="/usr/include/x86_64-linux-gnu/c++/6"/>
+					<Add directory="/usr/include/c++/6/backward"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/6/include"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/6/include-fixed"/>
+					<Add directory="/usr/include/x86_64-linux-gnu"/>
+					<Add directory="/usr/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/src/Makefile&quot;  VERBOSE=1 dawn"/>
+					<CompileFile command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/src/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/src/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/src/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="dawn/fast">
+				<Option output="/home/nick/DAWN/cmake-build-debug/src/dawn" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/nick/DAWN/cmake-build-debug/src"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/home/nick/DAWN/src/include"/>
+					<Add directory="/usr/include/c++/6"/>
+					<Add directory="/usr/include/x86_64-linux-gnu/c++/6"/>
+					<Add directory="/usr/include/c++/6/backward"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/6/include"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/6/include-fixed"/>
+					<Add directory="/usr/include/x86_64-linux-gnu"/>
+					<Add directory="/usr/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/src/Makefile&quot;  VERBOSE=1 dawn/fast"/>
+					<CompileFile command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/src/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/src/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j4 -f &quot;/home/nick/DAWN/cmake-build-debug/src/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+		</Build>
+		<Unit filename="/home/nick/DAWN/src/crypto/crypto.c">
+			<Option target="dawn"/>
+		</Unit>
+		<Unit filename="/home/nick/DAWN/src/include/broadcastsocket.h">
+			<Option target="dawn"/>
+		</Unit>
+		<Unit filename="/home/nick/DAWN/src/include/crypto.h">
+			<Option target="dawn"/>
+		</Unit>
+		<Unit filename="/home/nick/DAWN/src/include/datastorage.h">
+			<Option target="dawn"/>
+		</Unit>
+		<Unit filename="/home/nick/DAWN/src/include/dawn_iwinfo.h">
+			<Option target="dawn"/>
+		</Unit>
+		<Unit filename="/home/nick/DAWN/src/include/dawn_uci.h">
+			<Option target="dawn"/>
+		</Unit>
+		<Unit filename="/home/nick/DAWN/src/include/ieee80211_utils.h">
+			<Option target="dawn"/>
+		</Unit>
+		<Unit filename="/home/nick/DAWN/src/include/multicastsocket.h">
+			<Option target="dawn"/>
+		</Unit>
+		<Unit filename="/home/nick/DAWN/src/include/networksocket.h">
+			<Option target="dawn"/>
+		</Unit>
+		<Unit filename="/home/nick/DAWN/src/include/tcpsocket.h">
+			<Option target="dawn"/>
+		</Unit>
+		<Unit filename="/home/nick/DAWN/src/include/ubus.h">
+			<Option target="dawn"/>
+		</Unit>
+		<Unit filename="/home/nick/DAWN/src/include/utils.h">
+			<Option target="dawn"/>
+		</Unit>
+		<Unit filename="/home/nick/DAWN/src/main.c">
+			<Option target="dawn"/>
+		</Unit>
+		<Unit filename="/home/nick/DAWN/src/network/broadcastsocket.c">
+			<Option target="dawn"/>
+		</Unit>
+		<Unit filename="/home/nick/DAWN/src/network/multicastsocket.c">
+			<Option target="dawn"/>
+		</Unit>
+		<Unit filename="/home/nick/DAWN/src/network/networksocket.c">
+			<Option target="dawn"/>
+		</Unit>
+		<Unit filename="/home/nick/DAWN/src/network/tcpsocket.c">
+			<Option target="dawn"/>
+		</Unit>
+		<Unit filename="/home/nick/DAWN/src/storage/datastorage.c">
+			<Option target="dawn"/>
+		</Unit>
+		<Unit filename="/home/nick/DAWN/src/utils/dawn_iwinfo.c">
+			<Option target="dawn"/>
+		</Unit>
+		<Unit filename="/home/nick/DAWN/src/utils/dawn_uci.c">
+			<Option target="dawn"/>
+		</Unit>
+		<Unit filename="/home/nick/DAWN/src/utils/ieee80211_utils.c">
+			<Option target="dawn"/>
+		</Unit>
+		<Unit filename="/home/nick/DAWN/src/utils/ubus.c">
+			<Option target="dawn"/>
+		</Unit>
+		<Unit filename="/home/nick/DAWN/src/utils/utils.c">
+			<Option target="dawn"/>
+		</Unit>
+		<Unit filename="/home/nick/DAWN/CMakeLists.txt">
+			<Option virtualFolder="CMake Files\"/>
+		</Unit>
+		<Unit filename="/home/nick/DAWN/src/CMakeLists.txt">
+			<Option virtualFolder="CMake Files\src\"/>
+		</Unit>
+	</Project>
+</CodeBlocks_project_file>
