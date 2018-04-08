@@ -68,31 +68,8 @@ void *receive_msg(void *args) {
             return 0;
         }
         recv_string[recv_string_len] = '\0';
-
-        probe_entry prob_req;
-        struct blob_buf b;
-
-        blob_buf_init(&b, 0);
-        blobmsg_add_json_from_string(&b, recv_string);
-
-        char *str;
-        str = blobmsg_format_json(b.head, true);
-
-        if (str == NULL) {
-            return 0;
-        }
-
-        if (strlen(str) <= 0) {
-            return 0;
-        }
-
-        if (strstr(str, "clients") != NULL) {
-            parse_to_clients(b.head, 0, 0);
-        } else if (strstr(str, "target") != NULL) {
-            if (parse_to_probe_req(b.head, &prob_req) == 0) {
-                insert_to_array(prob_req, 0);
-            }
-        }
+        
+        handle_network_msg(recv_string);
     }
 }
 
