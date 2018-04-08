@@ -42,10 +42,20 @@ int init_socket_runopts(const char *_ip, int _port, int _multicast_socket) {
     }
 
     pthread_t sniffer_thread;
-    if (pthread_create(&sniffer_thread, NULL, receive_msg_enc, NULL)) { // try encrypted
-        fprintf(stderr, "Could not create receiving thread!");
-        return -1;
+    if(network_config.use_symm_enc)
+    {
+        if (pthread_create(&sniffer_thread, NULL, receive_msg_enc, NULL)) {
+            fprintf(stderr, "Could not create receiving thread!");
+            return -1;
+        }
+    } else
+    {
+        if (pthread_create(&sniffer_thread, NULL, receive_msg, NULL)) {
+            fprintf(stderr, "Could not create receiving thread!");
+            return -1;
+        }
     }
+
 
     fprintf(stdout, "Connected to %s:%d\n", ip, port);
 
@@ -95,7 +105,7 @@ void *receive_msg_enc(void *args) {
         char *dec = gcrypt_decrypt_msg(base64_dec_str, base64_dec_length);
 
         free(base64_dec_str);
-        printf("NETRWORK RECEIVED: %s\n", recv_string);
+        printf("NETRWORK RECEIVED: %s\n", dec);
         handle_network_msg(dec);
         free(dec);
     }
