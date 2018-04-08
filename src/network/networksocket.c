@@ -13,7 +13,7 @@
 #include "crypto.h"
 
 /* Network Defines */
-#define MAX_RECV_STRING 5000
+#define MAX_RECV_STRING 2048
 
 /* Network Attributes */
 int sock;
@@ -99,13 +99,14 @@ void *receive_msg_enc(void *args) {
         if (strlen(recv_string) <= 0) {
             return 0;
         }
+        recv_string[recv_string_len] = '\0';
 
         char *base64_dec_str = malloc(B64_DECODE_LEN(strlen(recv_string)));
         int base64_dec_length = b64_decode(recv_string, base64_dec_str, B64_DECODE_LEN(strlen(recv_string)));
         char *dec = gcrypt_decrypt_msg(base64_dec_str, base64_dec_length);
 
-        free(base64_dec_str);
         printf("NETRWORK RECEIVED: %s\n", dec);
+        free(base64_dec_str);
         handle_network_msg(dec);
         free(dec);
     }
@@ -133,12 +134,12 @@ int send_string(char *msg) {
 int send_string_enc(char *msg) {
     pthread_mutex_lock(&send_mutex);
 
-    size_t msglen = strlen(msg);
     int length_enc;
+    size_t msglen = strlen(msg);
     char *enc = gcrypt_encrypt_msg(msg, msglen + 1, &length_enc);
 
     char *base64_enc_str = malloc(B64_ENCODE_LEN(length_enc));
-    size_t base64_enc_length = b64_encode(enc,  length_enc, base64_enc_str, B64_ENCODE_LEN(length_enc));
+    size_t base64_enc_length = b64_encode(enc, length_enc, base64_enc_str, B64_ENCODE_LEN(length_enc));
 
     if (sendto(sock,
                base64_enc_str,
@@ -150,7 +151,6 @@ int send_string_enc(char *msg) {
         pthread_mutex_unlock(&send_mutex);
         exit(EXIT_FAILURE);
     }
-
     free(base64_enc_str);
     free(enc);
     pthread_mutex_unlock(&send_mutex);
