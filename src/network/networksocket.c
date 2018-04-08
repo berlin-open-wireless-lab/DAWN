@@ -68,7 +68,8 @@ void *receive_msg(void *args) {
             return 0;
         }
         recv_string[recv_string_len] = '\0';
-        
+
+        printf("NETRWORK RECEIVED: %s\n", recv_string);
         handle_network_msg(recv_string);
     }
 }
@@ -94,6 +95,7 @@ void *receive_msg_enc(void *args) {
         char *dec = gcrypt_decrypt_msg(base64_dec_str, base64_dec_length);
 
         free(base64_dec_str);
+        printf("NETRWORK RECEIVED: %s\n", recv_string);
         handle_network_msg(dec);
         free(dec);
     }
