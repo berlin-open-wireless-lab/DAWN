@@ -79,7 +79,7 @@ void *receive_msg(void *args) {
         }
         recv_string[recv_string_len] = '\0';
 
-        printf("NETRWORK RECEIVED: %s\n", recv_string);
+        printf("NETRWORK RECEIVED NEW: %s\n", recv_string);
         handle_network_msg(recv_string);
     }
 }
