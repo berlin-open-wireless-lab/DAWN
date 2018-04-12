@@ -53,17 +53,17 @@ void signal_handler(int sig) {
 
 int init_mutex() {
     if (pthread_mutex_init(&list_mutex, NULL) != 0) {
-        fprintf(stderr,"Mutex init failed!\n");
+        fprintf(stderr, "Mutex init failed!\n");
         return 1;
     }
 
     if (pthread_mutex_init(&probe_array_mutex, NULL) != 0) {
-        fprintf(stderr,"Mutex init failed!\n");
+        fprintf(stderr, "Mutex init failed!\n");
         return 1;
     }
 
     if (pthread_mutex_init(&client_array_mutex, NULL) != 0) {
-        fprintf(stderr,"Mutex init failed!\n");
+        fprintf(stderr, "Mutex init failed!\n");
         return 1;
     }
 
@@ -73,12 +73,12 @@ int init_mutex() {
     }
 
     if (pthread_mutex_init(&tcp_array_mutex, NULL) != 0) {
-        fprintf(stderr,"Mutex init failed!\n");
+        fprintf(stderr, "Mutex init failed!\n");
         return 1;
     }
 
     if (pthread_mutex_init(&denied_array_mutex, NULL) != 0) {
-        fprintf(stderr,"Mutex init failed!\n");
+        fprintf(stderr, "Mutex init failed!\n");
         return 1;
     }
     return 0;

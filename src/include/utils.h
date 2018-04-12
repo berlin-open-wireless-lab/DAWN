@@ -37,7 +37,7 @@ int convert_mac(char *in, char *out);
  * @param path
  * @param addr
  */
-void write_mac_to_file(char* path, uint8_t addr[]);
+void write_mac_to_file(char *path, uint8_t addr[]);
 
 /**
  * Check if a string is greater than another one.
@@ -45,6 +45,6 @@ void write_mac_to_file(char* path, uint8_t addr[]);
  * @param str_2
  * @return
  */
-int string_is_greater(uint8_t* str, uint8_t* str_2);
+int string_is_greater(uint8_t *str, uint8_t *str_2);
 
 #endif

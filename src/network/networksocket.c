@@ -42,14 +42,12 @@ int init_socket_runopts(const char *_ip, int _port, int _multicast_socket) {
     }
 
     pthread_t sniffer_thread;
-    if(network_config.use_symm_enc)
-    {
+    if (network_config.use_symm_enc) {
         if (pthread_create(&sniffer_thread, NULL, receive_msg_enc, NULL)) {
             fprintf(stderr, "Could not create receiving thread!");
             return -1;
         }
-    } else
-    {
+    } else {
         if (pthread_create(&sniffer_thread, NULL, receive_msg, NULL)) {
             fprintf(stderr, "Could not create receiving thread!");
             return -1;

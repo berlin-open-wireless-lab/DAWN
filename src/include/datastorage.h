@@ -131,6 +131,7 @@ typedef struct auth_entry_s assoc_entry;
 #define DENY_REQ_ARRAY_LEN 100
 struct auth_entry_s denied_req_array[DENY_REQ_ARRAY_LEN];
 pthread_mutex_t denied_array_mutex;
+
 auth_entry insert_to_denied_req_array(auth_entry entry, int inc_counter);
 
 // ---------------- Defines ----------------

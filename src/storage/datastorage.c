@@ -46,6 +46,7 @@ int is_connected_somehwere(uint8_t client_addr[]);
 
 int compare_station_count(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compare, uint8_t *client_addr,
                           int automatic_kick);
+
 int compare_ssid(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compare);
 
 void denied_req_array_insert(auth_entry entry);
@@ -88,8 +89,7 @@ struct uloop_timeout denied_req_timeout = {
         .cb = denied_req_array_cb
 };
 
-int build_hearing_map_sort_client(struct blob_buf *b)
-{
+int build_hearing_map_sort_client(struct blob_buf *b) {
     print_probe_array();
     pthread_mutex_lock(&probe_array_mutex);
 
@@ -101,15 +101,13 @@ int build_hearing_map_sort_client(struct blob_buf *b)
     int m;
     for (m = 0; m <= ap_entry_last; m++) {
         printf("COMPARING!\n");
-        if(m > 0)
-        {
-            if(strcmp((char*)ap_array[m].ssid, (char*)ap_array[m-1].ssid) == 0)
-            {
+        if (m > 0) {
+            if (strcmp((char *) ap_array[m].ssid, (char *) ap_array[m - 1].ssid) == 0) {
                 continue;
             }
         }
         printf("OPEN TABLE!!!\n");
-        ssid_list = blobmsg_open_table(b, (char*)ap_array[m].ssid);
+        ssid_list = blobmsg_open_table(b, (char *) ap_array[m].ssid);
 
         int i;
         for (i = 0; i <= probe_entry_last; i++) {
@@ -124,8 +122,7 @@ int build_hearing_map_sort_client(struct blob_buf *b)
                 continue;
             }
 
-            if(strcmp((char*)ap_entry_i.ssid, (char*)ap_array[m].ssid) != 0)
-            {
+            if (strcmp((char *) ap_entry_i.ssid, (char *) ap_array[m].ssid) != 0) {
                 continue;
             }
 
@@ -139,16 +136,14 @@ int build_hearing_map_sort_client(struct blob_buf *b)
                     continue;
                 }
 
-                if(strcmp((char*)ap_entry.ssid, (char*)ap_array[m].ssid) != 0)
-                {
+                if (strcmp((char *) ap_entry.ssid, (char *) ap_array[m].ssid) != 0) {
                     continue;
                 }
 
                 if (!mac_is_equal(probe_array[k].client_addr, probe_array[i].client_addr)) {
                     i = k - 1;
                     break;
-                } else if(k == probe_entry_last)
-                {
+                } else if (k == probe_entry_last) {
                     i = k;
                 }
 
@@ -177,8 +172,7 @@ int build_hearing_map_sort_client(struct blob_buf *b)
     return 0;
 }
 
-int build_network_overview(struct blob_buf *b)
-{
+int build_network_overview(struct blob_buf *b) {
     void *client_list, *ap_list, *ssid_list;
     char ap_mac_buf[20];
     char client_mac_buf[20];
@@ -187,35 +181,30 @@ int build_network_overview(struct blob_buf *b)
     int m;
     for (m = 0; m <= ap_entry_last; m++) {
         printf("COMPARING!\n");
-        if(m > 0)
-        {
-            if(strcmp((char*)ap_array[m].ssid, (char*)ap_array[m-1].ssid) == 0)
-            {
+        if (m > 0) {
+            if (strcmp((char *) ap_array[m].ssid, (char *) ap_array[m - 1].ssid) == 0) {
                 continue;
             }
         }
 
-        ssid_list = blobmsg_open_table(b, (char*)ap_array[m].ssid);
+        ssid_list = blobmsg_open_table(b, (char *) ap_array[m].ssid);
 
         int i;
         for (i = 0; i <= client_entry_last; i++) {
             ap ap_entry_i = ap_array_get_ap(client_array[i].bssid_addr);
 
-            if(strcmp((char*)ap_entry_i.ssid, (char*)ap_array[m].ssid) != 0)
-            {
+            if (strcmp((char *) ap_entry_i.ssid, (char *) ap_array[m].ssid) != 0) {
                 continue;
             }
             int k;
             sprintf(ap_mac_buf, MACSTR, MAC2STR(client_array[i].bssid_addr));
             ap_list = blobmsg_open_table(b, ap_mac_buf);
             printf("AP MAC BUF: %s\n", ap_mac_buf);
-            for (k = i; k <= client_entry_last; k++){
-                if(!mac_is_equal(client_array[k].bssid_addr, client_array[i].bssid_addr))
-                {
+            for (k = i; k <= client_entry_last; k++) {
+                if (!mac_is_equal(client_array[k].bssid_addr, client_array[i].bssid_addr)) {
                     i = k - 1;
                     break;
-                } else if(k == client_entry_last)
-                {
+                } else if (k == client_entry_last) {
                     i = k;
                 }
 
@@ -246,8 +235,7 @@ int eval_probe_metric(struct probe_entry_s probe_entry) {
         score += !probe_entry.ht_support && !ap_entry.ht ? dawn_metric.no_ht_support : 0;
 
         // performance anomaly?
-        if(network_config.bandwidth >= 1000 || network_config.bandwidth == -1)
-        {
+        if (network_config.bandwidth >= 1000 || network_config.bandwidth == -1) {
             score += probe_entry.vht_support && ap_entry.vht ? dawn_metric.vht_support : 0;
         }
 
@@ -260,7 +248,7 @@ int eval_probe_metric(struct probe_entry_s probe_entry) {
     score += (probe_entry.signal >= dawn_metric.rssi_val) ? dawn_metric.rssi : 0;
     score += (probe_entry.signal <= dawn_metric.low_rssi_val) ? dawn_metric.low_rssi : 0;
 
-    if(score < 0)
+    if (score < 0)
         score = -2; // -1 already used...
 
     printf("SCORE: %d of:\n", score);
@@ -274,9 +262,8 @@ int compare_ssid(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compare) {
     ap ap_entry_to_compre = ap_array_get_ap(bssid_addr_to_compare);
 
     if (mac_is_equal(ap_entry_own.bssid_addr, bssid_addr_own) &&
-            mac_is_equal(ap_entry_to_compre.bssid_addr, bssid_addr_to_compare))
-    {
-        return (strcmp((char*)ap_entry_own.ssid, (char*)ap_entry_to_compre.ssid) == 0);
+        mac_is_equal(ap_entry_to_compre.bssid_addr, bssid_addr_to_compare)) {
+        return (strcmp((char *) ap_entry_own.ssid, (char *) ap_entry_to_compre.ssid) == 0);
     }
     return 0;
 }
@@ -296,14 +283,12 @@ int compare_station_count(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compar
 
         int sta_count = ap_entry_own.station_count;
         int sta_count_to_compare = ap_entry_to_compre.station_count;
-        if(is_connected(bssid_addr_own, client_addr))
-        {
+        if (is_connected(bssid_addr_own, client_addr)) {
             printf("OWN IS ALREADY CONNECTED! DECREASE COUNTER!!!\n");
             sta_count--;
         }
 
-        if(is_connected(bssid_addr_to_compare, client_addr))
-        {
+        if (is_connected(bssid_addr_to_compare, client_addr)) {
             printf("COMPARE IS ALREADY CONNECTED! DECREASE COUNTER!!!\n");
             sta_count_to_compare--;
         }
@@ -363,8 +348,7 @@ int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], int automat
         }
 
         // check if same ssid!
-        if(!compare_ssid(bssid_addr, probe_array[k].bssid_addr))
-        {
+        if (!compare_ssid(bssid_addr, probe_array[k].bssid_addr)) {
             continue;
         }
 
@@ -377,7 +361,7 @@ int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], int automat
         if (dawn_metric.use_station_count && own_score == score_to_compare) {
 
             // only compare if score is bigger or equal 0
-            if(own_score >= 0) {
+            if (own_score >= 0) {
 
                 // if ap have same value but station count is different...
                 if (compare_station_count(bssid_addr, probe_array[k].bssid_addr, probe_array[k].client_addr,
@@ -391,7 +375,8 @@ int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], int automat
 }
 
 int kick_client(struct client_s client_entry) {
-    return !mac_in_maclist(client_entry.client_addr) && better_ap_available(client_entry.bssid_addr, client_entry.client_addr, 1);
+    return !mac_in_maclist(client_entry.client_addr) &&
+           better_ap_available(client_entry.bssid_addr, client_entry.client_addr, 1);
 }
 
 void kick_clients(uint8_t bssid[], uint32_t id) {
@@ -444,8 +429,9 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
             // + chan util is changing a lot
             // + ping pong behavior of clients will be reduced
             client_array[j].kick_count++;
-            printf("Comparing kick count kickcount: %d to min_kick_count: %d!\n", client_array[j].kick_count, dawn_metric.min_kick_count);
-            if(client_array[j].kick_count < dawn_metric.min_kick_count){
+            printf("Comparing kick count kickcount: %d to min_kick_count: %d!\n", client_array[j].kick_count,
+                   dawn_metric.min_kick_count);
+            if (client_array[j].kick_count < dawn_metric.min_kick_count) {
                 continue;
             }
 
@@ -546,7 +532,7 @@ int client_array_go_next_help(char sort_order[], int i, client entry,
             // client-mac
         case 'c':
             return mac_is_greater(entry.client_addr, next_entry.client_addr) &&
-                mac_is_equal(entry.bssid_addr, next_entry.bssid_addr);
+                   mac_is_equal(entry.bssid_addr, next_entry.bssid_addr);
         default:
             break;
     }
@@ -683,8 +669,7 @@ int probe_array_set_all_probe_count(uint8_t client_addr[], uint32_t probe_count)
         if (mac_is_equal(client_addr, probe_array[i].client_addr)) {
             printf("SETTING MAC!!!\n");
             probe_array[i].counter = probe_count;
-        }else if(!mac_is_greater(client_addr, probe_array[i].client_addr))
-        {
+        } else if (!mac_is_greater(client_addr, probe_array[i].client_addr)) {
             printf("MAC NOT FOUND!!!\n");
             break;
         }
@@ -720,7 +705,7 @@ int probe_array_update_rssi(uint8_t bssid_addr[], uint8_t client_addr[], uint32_
 probe_entry probe_array_get_entry(uint8_t bssid_addr[], uint8_t client_addr[]) {
 
     int i;
-    probe_entry tmp = { .bssid_addr = {0,0,0,0,0,0}, .client_addr = {0,0,0,0,0,0}};
+    probe_entry tmp = {.bssid_addr = {0, 0, 0, 0, 0, 0}, .client_addr = {0, 0, 0, 0, 0, 0}};
 
     if (probe_entry_last == -1) {
         return tmp;
@@ -791,7 +776,7 @@ int ap_get_collision_count(int col_domain) {
     int i;
 
     for (i = 0; i <= ap_entry_last; i++) {
-        if(ap_array[i].collision_domain == col_domain)
+        if (ap_array[i].collision_domain == col_domain)
             ret_sta_count += ap_array[i].station_count;
     }
     pthread_mutex_unlock(&ap_array_mutex);
@@ -800,7 +785,7 @@ int ap_get_collision_count(int col_domain) {
 }
 
 ap ap_array_get_ap(uint8_t bssid_addr[]) {
-    ap ret = {.bssid_addr = {0,0,0,0,0,0}};
+    ap ret = {.bssid_addr = {0, 0, 0, 0, 0, 0}};
 
     if (ap_entry_last == -1) {
         return ret;
@@ -810,8 +795,8 @@ ap ap_array_get_ap(uint8_t bssid_addr[]) {
     int i;
 
     for (i = 0; i <= ap_entry_last; i++) {
-        if (mac_is_equal(bssid_addr, ap_array[i].bssid_addr)){
-                    //|| mac_is_greater(ap_array[i].bssid_addr, bssid_addr)) {
+        if (mac_is_equal(bssid_addr, ap_array[i].bssid_addr)) {
+            //|| mac_is_greater(ap_array[i].bssid_addr, bssid_addr)) {
             break;
         }
     }
@@ -831,11 +816,11 @@ void ap_array_insert(ap entry) {
     int i;
     for (i = 0; i <= ap_entry_last; i++) {
         if (mac_is_greater(entry.bssid_addr, ap_array[i].bssid_addr) &&
-            strcmp((char*)entry.ssid, (char*)ap_array[i].ssid) == 0) {
+            strcmp((char *) entry.ssid, (char *) ap_array[i].ssid) == 0) {
             continue;
         }
 
-        if(!string_is_greater(entry.ssid, ap_array[i].ssid)){
+        if (!string_is_greater(entry.ssid, ap_array[i].ssid)) {
             break;
         }
 
@@ -909,7 +894,7 @@ void uloop_add_data_cbs() {
     uloop_timeout_add(&client_timeout);
     uloop_timeout_add(&ap_timeout);
 
-    if(dawn_metric.use_driver_recog){
+    if (dawn_metric.use_driver_recog) {
         uloop_timeout_add(&denied_req_timeout);
     }
 }
@@ -952,8 +937,7 @@ void denied_req_array_cb(struct uloop_timeout *t) {
         if (denied_req_array[i].time < current_time - timeout_config.denied_req_threshold) {
 
             // client is not connected for a given time threshold!
-            if(!is_connected_somehwere(denied_req_array[i].client_addr))
-            {
+            if (!is_connected_somehwere(denied_req_array[i].client_addr)) {
                 printf("Client has propaly a BAD DRIVER!\n");
 
                 // problem that somehow station will land into this list
@@ -986,10 +970,9 @@ void insert_client_to_array(client entry) {
     pthread_mutex_unlock(&client_array_mutex);
 }
 
-void insert_macs_from_file()
-{
-    FILE * fp;
-    char * line = NULL;
+void insert_macs_from_file() {
+    FILE *fp;
+    char *line = NULL;
     size_t len = 0;
     ssize_t read;
 
@@ -1011,8 +994,7 @@ void insert_macs_from_file()
     }
 
     printf("Printing MAC List:\n");
-    for(int i = 0; i <= mac_list_entry_last; i++)
-    {
+    for (int i = 0; i <= mac_list_entry_last; i++) {
         char mac_buf_target[20];
         sprintf(mac_buf_target, MACSTR, MAC2STR(mac_list[i]));
         printf("%d: %s\n", i, mac_buf_target);
@@ -1024,10 +1006,8 @@ void insert_macs_from_file()
     //exit(EXIT_SUCCESS);
 }
 
-int insert_to_maclist(uint8_t mac[])
-{
-    if(mac_in_maclist(mac))
-    {
+int insert_to_maclist(uint8_t mac[]) {
+    if (mac_in_maclist(mac)) {
         return -1;
     }
 
@@ -1040,12 +1020,9 @@ int insert_to_maclist(uint8_t mac[])
 }
 
 
-int mac_in_maclist(uint8_t mac[])
-{
-    for(int i = 0; i <= mac_list_entry_last; i++)
-    {
-        if(mac_is_equal(mac, mac_list[i]))
-        {
+int mac_in_maclist(uint8_t mac[]) {
+    for (int i = 0; i <= mac_list_entry_last; i++) {
+        if (mac_is_equal(mac, mac_list[i])) {
             return 1;
         }
     }
@@ -1077,7 +1054,7 @@ auth_entry insert_to_denied_req_array(auth_entry entry, int inc_counter) {
 }
 
 int denied_req_array_go_next_help(char sort_order[], int i, auth_entry entry,
-                              auth_entry next_entry) {
+                                  auth_entry next_entry) {
     switch (sort_order[i]) {
         // bssid-mac
         case 'b':
@@ -1093,7 +1070,7 @@ int denied_req_array_go_next_help(char sort_order[], int i, auth_entry entry,
 }
 
 int denied_req_array_go_next(char sort_order[], int i, auth_entry entry,
-                         auth_entry next_entry) {
+                             auth_entry next_entry) {
     int conditions = 1;
     for (int j = 0; j < i; j++) {
         i &= !(denied_req_array_go_next(sort_order, j, entry, next_entry));
@@ -1154,13 +1131,6 @@ auth_entry denied_req_array_delete(auth_entry entry) {
     }
     return tmp;
 }
-
-
-
-
-
-
-
 
 
 node *delete_probe_req(node **ret_remove, node *head, uint8_t bssid_addr[],
@@ -1481,8 +1451,9 @@ void print_probe_entry(probe_entry entry) {
 
     printf(
             "bssid_addr: %s, client_addr: %s, signal: %d, freq: "
-                    "%d, counter: %d, vht: %d, min_rate: %d, max_rate: %d\n",
-            mac_buf_ap, mac_buf_client, entry.signal, entry.freq, entry.counter, entry.vht_support, entry.min_supp_datarate, entry.max_supp_datarate);
+            "%d, counter: %d, vht: %d, min_rate: %d, max_rate: %d\n",
+            mac_buf_ap, mac_buf_client, entry.signal, entry.freq, entry.counter, entry.vht_support,
+            entry.min_supp_datarate, entry.max_supp_datarate);
 }
 
 void print_auth_entry(auth_entry entry) {
@@ -1496,7 +1467,7 @@ void print_auth_entry(auth_entry entry) {
 
     printf(
             "bssid_addr: %s, client_addr: %s, signal: %d, freq: "
-                    "%d\n",
+            "%d\n",
             mac_buf_ap, mac_buf_client, entry.signal, entry.freq);
 }
 
@@ -1508,7 +1479,8 @@ void print_client_entry(client entry) {
     sprintf(mac_buf_client, MACSTR, MAC2STR(entry.client_addr));
 
     printf("bssid_addr: %s, client_addr: %s, freq: %d, ht_supported: %d, vht_supported: %d, ht: %d, vht: %d, kick: %d\n",
-           mac_buf_ap, mac_buf_client, entry.freq, entry.ht_supported, entry.vht_supported, entry.ht, entry.vht, entry.kick_count);
+           mac_buf_ap, mac_buf_client, entry.freq, entry.ht_supported, entry.vht_supported, entry.ht, entry.vht,
+           entry.kick_count);
 }
 
 void print_client_array() {
@@ -1527,7 +1499,7 @@ void print_ap_entry(ap entry) {
     printf("ssid: %s, bssid_addr: %s, freq: %d, ht: %d, vht: %d, chan_utilz: %d, col_d: %d, bandwidth: %d, col_count: %d\n",
            entry.ssid, mac_buf_ap, entry.freq, entry.ht, entry.vht,
            entry.channel_utilization, entry.collision_domain, entry.bandwidth,
-            ap_get_collision_count(entry.collision_domain)
+           ap_get_collision_count(entry.collision_domain)
     );
 }
 

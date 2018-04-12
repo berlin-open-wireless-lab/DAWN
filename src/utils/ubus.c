@@ -637,11 +637,9 @@ int send_blob_attr_via_network(struct blob_attr *msg, char *method) {
     if (network_config.network_option == 2) {
         send_tcp(str);
     } else {
-        if(network_config.use_symm_enc)
-        {
+        if (network_config.use_symm_enc) {
             send_string_enc(str);
-        } else
-        {
+        } else {
             send_string(str);
         }
     }

@@ -127,7 +127,7 @@ void add_client_update_timer(time_t time);
  * @param msg
  * @return
  */
-int handle_network_msg(char* msg);
+int handle_network_msg(char *msg);
 
 /**
  * Send message via network.
@@ -135,7 +135,7 @@ int handle_network_msg(char* msg);
  * @param method
  * @return
  */
-int send_blob_attr_via_network(struct blob_attr *msg, char* method);
+int send_blob_attr_via_network(struct blob_attr *msg, char *method);
 
 /**
  * Add mac to a list that contains addresses of clients that can not be controlled.
@@ -158,6 +158,6 @@ int send_set_probe(uint8_t client_addr[]);
  * @param client_addr
  * @return
  */
-int send_add_mac(uint8_t* client_addr);
+int send_add_mac(uint8_t *client_addr);
 
 #endif
