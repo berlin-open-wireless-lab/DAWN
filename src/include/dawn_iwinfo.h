@@ -55,4 +55,6 @@ int compare_essid_iwinfo(__uint8_t *bssid_addr, __uint8_t *bssid_addr_to_compare
  */
 int get_expected_throughput(const char *ifname, uint8_t *client_addr);
 
+int get_bssid(const char *ifname, uint8_t *bssid_addr);
+
 #endif //DAWN_RSSI_H

@@ -235,3 +235,13 @@ int get_expected_throughput(const char *ifname, uint8_t *client_addr) {
 
     return INT_MIN;
 }
+
+int get_bssid(const char *ifname, uint8_t *bssid_addr) {
+    const struct iwinfo_ops *iw;
+
+    iw = iwinfo_backend(ifname);
+
+    // bssid
+    memcpy(bssid_addr, iw->bssid, ETH_ALEN * sizeof(uint8_t));
+    return 0;
+}
