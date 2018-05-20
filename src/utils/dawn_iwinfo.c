@@ -245,3 +245,11 @@ int get_bssid(const char *ifname, uint8_t *bssid_addr) {
     memcpy(bssid_addr, iw->bssid, ETH_ALEN * sizeof(uint8_t));
     return 0;
 }
+
+int get_ssid(const char *ifname, char* ssid) {
+    const struct iwinfo_ops *iw;
+
+    iw = iwinfo_backend(ifname);
+
+    return iw->ssid(ifname, ssid);
+}

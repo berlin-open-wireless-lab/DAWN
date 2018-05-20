@@ -18,6 +18,7 @@
 #include "networksocket.h"
 #include "utils.h"
 #include "dawn_uci.h"
+#include "dawn_iwinfo.h"
 #include "datastorage.h"
 #include "tcpsocket.h"
 
@@ -25,6 +26,7 @@
 static struct ubus_context *ctx_clients; /* own ubus conext otherwise strange behavior... */
 
 static struct ubus_subscriber hostapd_event;
+
 static struct blob_buf b;
 static struct blob_buf b_send_network;
 static struct blob_buf network_buf;
@@ -54,9 +56,12 @@ struct hostapd_sock_entry{
     uint32_t id;
     char iface_name[MAX_INTERFACE_NAME];
     uint8_t bssid_addr[ETH_ALEN];
+    char ssid[SSID_MAX_LEN];
+    //struct ubus_subscriber* subscriber;
+    struct ubus_subscriber subscriber;
 };
 
-struct hostapd_sock_entry hostapd_sock_arr[MAX_HOSTAPD_SOCKETS];
+struct hostapd_sock_entry* hostapd_sock_arr[MAX_HOSTAPD_SOCKETS];
 int hostapd_sock_last = -1;
 
 enum {
@@ -209,7 +214,7 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
 
 static int add_subscriber(char *name);
 
-static int subscribe_to_hostapd_interfaces(const char *hostapd_dir);
+//static int subscribe_to_hostapd_interfaces(const char *hostapd_dir);
 
 static int ubus_get_clients();
 
@@ -232,9 +237,11 @@ static int parse_add_mac_to_file(struct blob_attr *msg);
 
 int hostapd_array_check_id(uint32_t id);
 
-void hostapd_array_insert(struct hostapd_sock_entry entry);
+void hostapd_array_insert(struct hostapd_sock_entry* entry);
 
-struct hostapd_sock_entry hostapd_array_get_entry(uint32_t id);
+struct hostapd_sock_entry* hostapd_array_get_entry(uint32_t id);
+
+struct hostapd_sock_entry* hostapd_array_get_entry_by_object_id(uint32_t id);
 
 void hostapd_array_delete(uint32_t id);
 
@@ -246,39 +253,47 @@ void add_client_update_timer(time_t time) {
     uloop_timeout_set(&client_timer, time);
 }
 
-struct hostapd_sock_entry hostapd_array_get_entry(uint32_t id) {
+struct hostapd_sock_entry* hostapd_array_get_entry_by_object_id(uint32_t id) {
     for (int i = 0; i <= hostapd_sock_last; i++) {
-        printf("%d: ID: %d\n",i,hostapd_sock_arr[i].id);
-        if (hostapd_sock_arr[i].id == id) {
+        printf("%d: Object ID: %d\n",i,hostapd_sock_arr[i]->subscriber.obj.id);
+        if (hostapd_sock_arr[i]->subscriber.obj.id == id) {
             printf("FOUND ENTRY!\n");
             return hostapd_sock_arr[i];
         }
     }
-    struct hostapd_sock_entry ret = {
-        .id = 1
-    };
-    printf("DONT FOUND!!!\n");
-    return ret;
+    return NULL;
+}
+
+struct hostapd_sock_entry* hostapd_array_get_entry(uint32_t id) {
+    for (int i = 0; i <= hostapd_sock_last; i++) {
+        printf("%d: ID: %d\n",i,hostapd_sock_arr[i]->id);
+        if (hostapd_sock_arr[i]->id == id) {
+            printf("FOUND ENTRY!\n");
+            return hostapd_sock_arr[i];
+        }
+    }
+    return NULL;
 }
 
 int hostapd_array_check_id(uint32_t id) {
     for (int i = 0; i <= hostapd_sock_last; i++) {
-        if (hostapd_sock_arr[i].id == id) {
+        if (hostapd_sock_arr[i]->id == id) {
             return 1;
         }
     }
     return 0;
 }
 
-void hostapd_array_insert(struct hostapd_sock_entry entry) {
+void hostapd_array_insert(struct hostapd_sock_entry* entry) {
     if (hostapd_sock_last < MAX_HOSTAPD_SOCKETS) {
         hostapd_sock_last++;
         hostapd_sock_arr[hostapd_sock_last] = entry;
     }
 
     for (int i = 0; i <= hostapd_sock_last; i++) {
-        printf("%d: %d\n", i, hostapd_sock_arr[i].id);
+        printf("%d: %d\n", i, hostapd_sock_arr[i]->id);
     }
+    printf("ADDED HOSTAPD!\n");
 }
 
 void hostapd_array_delete(uint32_t id) {
@@ -290,8 +305,9 @@ void hostapd_array_delete(uint32_t id) {
     }
 
     for (i = 0; i <= hostapd_sock_last; i++) {
-        if (hostapd_sock_arr[i].id == id) {
+        if (hostapd_sock_arr[i]->id == id) {
             found_in_array = 1;
+            free(hostapd_sock_arr[i]);
             break;
         }
     }
@@ -678,27 +694,22 @@ int send_blob_attr_via_network(struct blob_attr *msg, char *method) {
 static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
                           struct ubus_request_data *req, const char *method,
                           struct blob_attr *msg) {
+    printf("NOTIFYYYY!!!\n");
     char *str;
     str = blobmsg_format_json(msg, true);
     printf("METHOD new: %s : %s\n", method, str);
     free(str);
-
     // here add bssid!!!
-    printf("SEARCHING CTX: local_id: %d\n",ctx->local_id);
-    printf("SEARCHING OBJECT: id: %d, name: %s Path: %s\n",obj->id, obj->name, obj->path);
+    //printf("SEARCHING CTX: local_id: %d\n",ctx->local_id);
+    //printf("SEARCHING OBJECT: id: %d, name: %s Path: %s\n",obj->id, obj->name, obj->path);
     //printf("SEARCHING OBJECT TYPE: id: %d, name: %s\n",obj->type->id, obj->type->name);
-    printf("SEARCHING FOR: PEER: %d, Object: %d, Seq: %d \n",req->peer, req->object, req->seq);
-    struct hostapd_sock_entry entry = hostapd_array_get_entry(req->peer);
-    if(entry.id != req->peer)
+    //printf("SEARCHING FOR: PEER: %d, Object: %d, Seq: %d \n",req->peer, req->object, req->seq);
+    struct hostapd_sock_entry *entry = hostapd_array_get_entry_by_object_id(obj->id);
+    if(entry)
     {
-        printf("WRRRRRON!\n");
-        //return -1;
+        printf("FOUND ENTRYYY!!!\n");
     }
-
-    struct ubus_subscriber *subscriber;
-    subscriber = container_of(obj, struct ubus_subscriber, obj);
-
-    printf("PATH WIH UNPACKING: %s\n", subscriber->obj.path);
+    //printf("PATH WIH UNPACKING: %s\n", subscriber->obj.path);
 
     struct blob_attr *cur; int rem;
     blob_buf_init(&b_notify, 0);
@@ -708,8 +719,8 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
 
     }
 
-    //blobmsg_add_macaddr(&b_notify, "bssid", entry.bssid_addr);
-    //blobmsg_add_string(&b_notify, "ssid", entry.iface_name);
+    blobmsg_add_macaddr(&b_notify, "bssid", entry->bssid_addr);
+    blobmsg_add_string(&b_notify, "ssid", entry->iface_name);
 
     char *blaaa;
     blaaa = blobmsg_format_json(b_notify.head, true);
@@ -733,10 +744,12 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
 static int add_subscriber(char *name) {
 
     char subscribe_name[300];
+    int ret;
     sprintf(subscribe_name, "hostapd.%s", name);
 
     uint32_t id = 0;
 
+    printf("TRYING TO SUBSCRIBE TO: %s\n", subscribe_name);
     if (ubus_lookup_id(ctx_clients, subscribe_name, &id)) {
         fprintf(stderr, "Failed to look up test object for %s\n", subscribe_name);
         return -1;
@@ -746,18 +759,50 @@ static int add_subscriber(char *name) {
         return 0;
     }
 
-    int ret = ubus_subscribe(ctx_clients, &hostapd_event, id);
+    // add callbacks
 
-    struct hostapd_sock_entry entry =
-            {
-                    .id = id,
-            };
-    strcpy(entry.iface_name, name);
-    hostapd_array_insert(entry);
+
+    //struct hostapd_sock_entry *hostapd_entry = malloc(sizeof(struct hostapd_sock_entry));
+
+    //struct ubus_subscriber *hostapd_event = malloc(sizeof(struct ubus_subscriber));
+    //struct ubus_subscriber hostapd_event;
+    //hostapd_entry->subscriber.remove_cb = hostapd_handle_remove;
+    //hostapd_entry->subscriber.cb = hostapd_notify;
+
+    hostapd_event.remove_cb = hostapd_handle_remove;
+    hostapd_event.cb = hostapd_notify;
+
+
+    //hostapd_entry->subscriber = hostapd_event;
+    //strcpy(hostapd_entry->iface_name, name);
+    //printf("COPY BSSID!\n");
+    //get_bssid(name,hostapd_entry->bssid_addr);
+
+    //char mac_buf_bssid[20];
+    //sprintf(mac_buf_bssid, MACSTR, MAC2STR(hostapd_entry->bssid_addr));
+
+    //printf("COPYED BSSID: %s\n", mac_buf_bssid);
+    //printf("COPY SSID!\n");
+    //get_ssid(name, hostapd_entry->ssid);
+   // printf("COPYED SSID: %s\n", hostapd_entry->ssid);
+
+    //hostapd_array_insert(hostapd_entry);
+    //printf("INSERTED HOSTAPDDD!\n");
+
+    //printf("Bla %p\n", &hostapd_entry->subscriber);
+
+    printf("USING OTHER SUBSCRIBER!\n");
+    ret = ubus_register_subscriber(ctx_clients, &hostapd_event);
+    if (ret) {
+        fprintf(stderr, "Failed to add watch handler: %s\n", ubus_strerror(ret));
+        return -1;
+    }
+    printf("TRY TO SUBSCRIBE!!!\n");
+    ret = ubus_subscribe(ctx_clients, &hostapd_event, id);
 
     fprintf(stderr, "Watching object %08x: %s\n", id, ubus_strerror(ret));
 
-    printf("SEARCHING OBJECT: id: %d, name: %s Path: %s\n",hostapd_event.obj.id, hostapd_event.obj.name, hostapd_event.obj.path);
+    //printf("SEARCHING OBJECT: id: %d, name: %s Path: %s\n",hostapd_event->obj.id, hostapd_event->obj.name, hostapd_event->obj.path);
     //printf("SEARCHING OBJECT TYPE: id: %d, name: %s\n",hostapd_event.obj.type->id, hostapd_event.obj.type->name);
     //printf("SEARCHING FOR: PEER: %d, Object: %d, Seq: %d \n",req->peer, req->object, req->seq);
 
@@ -791,27 +836,19 @@ static int subscribe_to_hostapd_interfaces(const char *hostapd_dir) {
     return 0;
 }
 
-static int subscribe_to_hostapd(const char *hostapd_dir) {
+/*static int subscribe_to_hostapd(const char *hostapd_dir) {
 
     if (ctx_clients == NULL) {
         return 0;
     }
 
     printf("Registering ubus event subscriber!\n");
-    int ret = ubus_register_subscriber(ctx_clients, &hostapd_event);
-    if (ret) {
-        fprintf(stderr, "Failed to add watch handler: %s\n", ubus_strerror(ret));
-        return -1;
-    }
 
-    // add callbacks
-    hostapd_event.remove_cb = hostapd_handle_remove;
-    hostapd_event.cb = hostapd_notify;
 
     subscribe_to_hostapd_interfaces(hostapd_dir);
 
     return 0;
-}
+}*/
 
 int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
     uloop_init();
@@ -830,7 +867,7 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
     // set dawn metric
     dawn_metric = uci_get_dawn_metric();
 
-    subscribe_to_hostapd(hostapd_dir);
+    //subscribe_to_hostapd(hostapd_dir);
 
     // update hostapd
     uloop_timeout_add(&hostapd_timer);
@@ -1006,13 +1043,13 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     blobmsg_add_u32(&b_domain, "bandwidth", network_config.bandwidth);
 
     printf("SEARCHING FOR: %d\n", req->peer);
-    struct hostapd_sock_entry entry = hostapd_array_get_entry(req->peer);
-    if(entry.id != req->peer)
+    struct hostapd_sock_entry *entry = hostapd_array_get_entry(req->peer);
+    if(entry->id != req->peer)
     {
         //return;
     }
-    blobmsg_add_macaddr(&b_domain, "bssid", entry.bssid_addr);
-    blobmsg_add_string(&b_domain, "SSID", entry.iface_name);
+    blobmsg_add_macaddr(&b_domain, "bssid", entry->bssid_addr);
+    blobmsg_add_string(&b_domain, "SSID", entry->iface_name);
 
     //char* collision_string = blobmsg_format_json(b_domain.head, 1);
 
@@ -1028,7 +1065,7 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
 static int ubus_get_clients() {
     for (int i = 0; i <= hostapd_sock_last; i++) {
         int timeout = 1;
-        ubus_invoke(ctx_clients, hostapd_sock_arr[i].id, "get_clients", NULL, ubus_get_clients_cb, NULL, timeout * 1000);
+        ubus_invoke(ctx_clients, hostapd_sock_arr[i]->id, "get_clients", NULL, ubus_get_clients_cb, NULL, timeout * 1000);
     }
     return 0;
 }
@@ -1063,7 +1100,7 @@ void del_client_all_interfaces(const uint8_t *client_addr, uint32_t reason, uint
 
     for (int i = 0; i <= hostapd_sock_last; i++) {
         int timeout = 1;
-        ubus_invoke(ctx_clients, hostapd_sock_arr[i].id, "del_client", b.head, NULL, NULL, timeout * 1000);
+        ubus_invoke(ctx_clients, hostapd_sock_arr[i]->id, "del_client", b.head, NULL, NULL, timeout * 1000);
     }
 }
 
