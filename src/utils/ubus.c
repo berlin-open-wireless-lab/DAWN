@@ -23,9 +23,10 @@
 #include "tcpsocket.h"
 
 //static struct ubus_context *ctx = NULL;
-static struct ubus_context *ctx_clients; /* own ubus conext otherwise strange behavior... */
+static struct ubus_context *ctx = NULL; /* own ubus conext otherwise strange behavior... */
 
-static struct ubus_subscriber hostapd_event;
+//static struct ubus_subscriber hostapd_event;
+struct ubus_subscriber sub;
 
 static struct blob_buf b;
 static struct blob_buf b_send_network;
@@ -54,11 +55,12 @@ struct uloop_timeout umdns_timer = {
 
 struct hostapd_sock_entry{
     uint32_t id;
+    uint32_t obj_id;
     char iface_name[MAX_INTERFACE_NAME];
     uint8_t bssid_addr[ETH_ALEN];
     char ssid[SSID_MAX_LEN];
     //struct ubus_subscriber* subscriber;
-    struct ubus_subscriber subscriber;
+    struct ubus_subscriber sub;
 };
 
 struct hostapd_sock_entry* hostapd_sock_arr[MAX_HOSTAPD_SOCKETS];
@@ -255,8 +257,8 @@ void add_client_update_timer(time_t time) {
 
 struct hostapd_sock_entry* hostapd_array_get_entry_by_object_id(uint32_t id) {
     for (int i = 0; i <= hostapd_sock_last; i++) {
-        printf("%d: Object ID: %d\n",i,hostapd_sock_arr[i]->subscriber.obj.id);
-        if (hostapd_sock_arr[i]->subscriber.obj.id == id) {
+        printf("%d: Object ID: %d\n",i,hostapd_sock_arr[i]->sub.obj.id);
+        if (hostapd_sock_arr[i]->sub.obj.id == id) {
             printf("FOUND ENTRY!\n");
             return hostapd_sock_arr[i];
         }
@@ -367,7 +369,7 @@ static void hostapd_handle_remove(struct ubus_context *ctx,
     int ret;
 
     fprintf(stderr, "Object %08x went away\n", id);
-    ret = ubus_unsubscribe(ctx_clients, s, id);
+    ret = ubus_unsubscribe(ctx, s, id);
     if (ret)
         fprintf(stderr, "Removing object %08x: %s\n", id, ubus_strerror(ret));
 
@@ -745,7 +747,7 @@ static int add_subscriber(char *name) {
 
     char subscribe_name[300];
     int ret;
-    struct hostapd_sock_entry *hostapd_entry:
+    struct hostapd_sock_entry *hostapd_entry;
 
 
     sprintf(subscribe_name, "hostapd.%s", name);
@@ -753,25 +755,23 @@ static int add_subscriber(char *name) {
     uint32_t id = 0;
 
     printf("TRYING TO SUBSCRIBE TO: %s\n", subscribe_name);
-    if (ubus_lookup_id(ctx_clients, subscribe_name, &id)) {
+    if (ubus_lookup_id(ctx, subscribe_name, &id)) {
         fprintf(stderr, "Failed to look up test object for %s\n", subscribe_name);
         return -1;
     }
+
+    //id = ubus_find_id(&objects, 0);
+    //struct ubus_object *obj = ubusd_find_object(id);
+
+    printf("ID: %d\n", id);
     // add callbacks
     hostapd_entry = malloc(sizeof(struct hostapd_sock_entry));
-    hostapd_entry->subscriber.remove_cb = hostapd_handle_remove;
-    hostapd_entry->subscriber.cb = hostapd_notify;
-    ret = ubus_register_subscriber( ctx_clients, &hostapd_entry->subscriber );
+    hostapd_entry->sub.remove_cb = hostapd_handle_remove;
+    hostapd_entry->sub.cb = hostapd_notify;
+
+    ret = ubus_subscribe( ctx, &sub, id);
+    printf("FINISHED!\n");
     fprintf(stderr, "Watching object %08x: %s\n", id, ubus_strerror(ret));
-    ret = ubus_subscribe( ctx_clients, &hostapd_entry->subscriber, id)
-
-    fprintf(stderr, "Watching object %08x: %s\n", id, ubus_strerror(ret));
-
-    //printf("SEARCHING OBJECT: id: %d, name: %s Path: %s\n",hostapd_event->obj.id, hostapd_event->obj.name, hostapd_event->obj.path);
-    //printf("SEARCHING OBJECT TYPE: id: %d, name: %s\n",hostapd_event.obj.type->id, hostapd_event.obj.type->name);
-    //printf("SEARCHING FOR: PEER: %d, Object: %d, Seq: %d \n",req->peer, req->object, req->seq);
-
-    // respond to notify...
     respond_to_notify(id);
 
     return 0;
@@ -781,9 +781,19 @@ static int subscribe_to_hostapd_interfaces(const char *hostapd_dir) {
     DIR *dirp;
     struct dirent *entry;
 
-    if (ctx_clients == NULL) {
+    if (ctx == NULL) {
         return 0;
     }
+
+    struct hostapd_entry* hostapd_entr = malloc(sizeof(struct hostapd_entry));
+
+    //sub.remove_cb = hostapd_handle_remove;;
+    //sub.cb = hostapd_notify;
+
+    printf("Register Subscriber!\n");
+
+    //struct ubus_subscriber sub;
+    int ret = ubus_register_subscriber( ctx, &hostapd_entr->sub );//fprintf(stderr, "Watching object %08x: %s\n", id, ubus_strerror(ret));
 
     dirp = opendir(hostapd_dir);  // error handling?
     if (!dirp) {
@@ -793,7 +803,7 @@ static int subscribe_to_hostapd_interfaces(const char *hostapd_dir) {
     while ((entry = readdir(dirp)) != NULL) {
         if (entry->d_type == DT_SOCK) {
             add_subscriber(entry->d_name);
-            goto finish;
+            //goto finish;
         }
     }
     finish:
@@ -819,15 +829,15 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
     uloop_init();
     signal(SIGPIPE, SIG_IGN);
 
-    ctx_clients = ubus_connect(ubus_socket);
-    if (!ctx_clients) {
+    ctx = ubus_connect(ubus_socket);
+    if (!ctx) {
         fprintf(stderr, "Failed to connect to ubus\n");
         return -1;
     } else {
         printf("Connected to ubus\n");
-    }
+        }
 
-    ubus_add_uloop(ctx_clients);
+    ubus_add_uloop(ctx);
 
     // set dawn metric
     dawn_metric = uci_get_dawn_metric();
@@ -835,21 +845,21 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
     //subscribe_to_hostapd(hostapd_dir);
 
     // update hostapd
-    uloop_timeout_add(&hostapd_timer);
+    //uloop_timeout_add(&hostapd_timer);
 
     // remove probe
-    uloop_add_data_cbs();
+    //uloop_add_data_cbs();
 
     // get clients
-    const char *ubus_socket_clients = NULL;
-    ctx_clients = ubus_connect(ubus_socket_clients);
-    uloop_timeout_add(&client_timer);
+    //const char *ubus_socket_clients = NULL;
+    //ctx_clients = ubus_connect(ubus_socket_clients);
+    //uloop_timeout_add(&client_timer);
 
-    ubus_call_umdns();
+    //ubus_call_umdns();
 
-    ubus_add_oject();
+    //ubus_add_oject();
 
-    start_umdns_update();
+    //start_umdns_update();
 
     if (network_config.network_option == 2)
         run_server(network_config.tcp_port);
@@ -861,7 +871,7 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
 
     close_socket();
 
-    ubus_free(ctx_clients);
+    ubus_free(ctx);
     uloop_done();
     return 0;
 }
@@ -1030,7 +1040,7 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
 static int ubus_get_clients() {
     for (int i = 0; i <= hostapd_sock_last; i++) {
         int timeout = 1;
-        ubus_invoke(ctx_clients, hostapd_sock_arr[i]->id, "get_clients", NULL, ubus_get_clients_cb, NULL, timeout * 1000);
+        ubus_invoke(ctx, hostapd_sock_arr[i]->id, "get_clients", NULL, ubus_get_clients_cb, NULL, timeout * 1000);
     }
     return 0;
 }
@@ -1065,7 +1075,7 @@ void del_client_all_interfaces(const uint8_t *client_addr, uint32_t reason, uint
 
     for (int i = 0; i <= hostapd_sock_last; i++) {
         int timeout = 1;
-        ubus_invoke(ctx_clients, hostapd_sock_arr[i]->id, "del_client", b.head, NULL, NULL, timeout * 1000);
+        ubus_invoke(ctx, hostapd_sock_arr[i]->id, "del_client", b.head, NULL, NULL, timeout * 1000);
     }
 }
 
@@ -1078,7 +1088,7 @@ void del_client_interface(uint32_t id, const uint8_t *client_addr, uint32_t reas
     blobmsg_add_u32(&b, "ban_time", ban_time);
 
     int timeout = 1;
-    ubus_invoke(ctx_clients, id, "del_client", b.head, NULL, NULL, timeout * 1000);
+    ubus_invoke(ctx, id, "del_client", b.head, NULL, NULL, timeout * 1000);
 }
 
 static void ubus_umdns_cb(struct ubus_request *req, int type, struct blob_attr *msg) {
@@ -1117,14 +1127,14 @@ static void ubus_umdns_cb(struct ubus_request *req, int type, struct blob_attr *
 
 int ubus_call_umdns() {
     u_int32_t id;
-    if (ubus_lookup_id(ctx_clients, "umdns", &id)) {
+    if (ubus_lookup_id(ctx, "umdns", &id)) {
         fprintf(stderr, "Failed to look up test object for %s\n", "umdns");
         return -1;
     }
 
     int timeout = 1;
-    ubus_invoke(ctx_clients, id, "update", NULL, NULL, NULL, timeout * 1000);
-    ubus_invoke(ctx_clients, id, "browse", NULL, ubus_umdns_cb, NULL, timeout * 1000);
+    ubus_invoke(ctx, id, "update", NULL, NULL, NULL, timeout * 1000);
+    ubus_invoke(ctx, id, "browse", NULL, ubus_umdns_cb, NULL, timeout * 1000);
 
     return 0;
 }
@@ -1223,7 +1233,7 @@ static int get_hearing_map(struct ubus_context *ctx, struct ubus_object *obj,
     int ret;
 
     build_hearing_map_sort_client(&b);
-    ret = ubus_send_reply(ctx_clients, req, b.head);
+    ret = ubus_send_reply(ctx, req, b.head);
     if (ret)
         fprintf(stderr, "Failed to send reply: %s\n", ubus_strerror(ret));
     return 0;
@@ -1236,7 +1246,7 @@ static int get_network(struct ubus_context *ctx, struct ubus_object *obj,
     int ret;
 
     build_network_overview(&b);
-    ret = ubus_send_reply(ctx_clients, req, b.head);
+    ret = ubus_send_reply(ctx, req, b.head);
     if (ret)
         fprintf(stderr, "Failed to send reply: %s\n", ubus_strerror(ret));
     return 0;
@@ -1245,7 +1255,7 @@ static int get_network(struct ubus_context *ctx, struct ubus_object *obj,
 static void ubus_add_oject() {
     int ret;
 
-    ret = ubus_add_object(ctx_clients, &dawn_object);
+    ret = ubus_add_object(ctx, &dawn_object);
     if (ret)
         fprintf(stderr, "Failed to add object: %s\n", ubus_strerror(ret));
 }
@@ -1260,7 +1270,7 @@ static void respond_to_notify(uint32_t id) {
     blobmsg_add_u32(&b, "notify_response", 1);
 
     int timeout = 1;
-    ret = ubus_invoke(ctx_clients, id, "notify_response", b.head, NULL, NULL, timeout * 1000);
+    ret = ubus_invoke(ctx, id, "notify_response", b.head, NULL, NULL, timeout * 1000);
     if (ret)
         fprintf(stderr, "Failed to invoke: %s\n", ubus_strerror(ret));
 }

@@ -3,7 +3,7 @@ PROJECT(dawn)
 
 INCLUDE_DIRECTORIES(include)
 
-ADD_DEFINITIONS(-Os -Wall -Werror --std=gnu99 -Wmissing-declarations -Wno-unknown-warning-option -Wno-format-truncation)
+ADD_DEFINITIONS(-Os -Wall --std=gnu99 -Wmissing-declarations -Wno-unknown-warning-option -Wno-format-truncation)
 
 SET(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
 
@@ -44,7 +44,7 @@ SET(SOURCES
         include/ieee80211_utils.h)
 
 SET(LIBS
-        ubox ubus json-c blobmsg_json uci gcrypt iwinfo)
+        ubox ubus ubusd json-c blobmsg_json uci gcrypt iwinfo)
 
 ADD_EXECUTABLE(dawn ${SOURCES})
 
