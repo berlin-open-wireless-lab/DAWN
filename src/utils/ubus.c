@@ -745,6 +745,9 @@ static int add_subscriber(char *name) {
 
     char subscribe_name[300];
     int ret;
+    struct hostapd_sock_entry *hostapd_entry:
+
+
     sprintf(subscribe_name, "hostapd.%s", name);
 
     uint32_t id = 0;
@@ -754,51 +757,13 @@ static int add_subscriber(char *name) {
         fprintf(stderr, "Failed to look up test object for %s\n", subscribe_name);
         return -1;
     }
-
-    if (hostapd_array_check_id(id)) {
-        return 0;
-    }
-
     // add callbacks
-
-
-    //struct hostapd_sock_entry *hostapd_entry = malloc(sizeof(struct hostapd_sock_entry));
-
-    //struct ubus_subscriber *hostapd_event = malloc(sizeof(struct ubus_subscriber));
-    //struct ubus_subscriber hostapd_event;
-    //hostapd_entry->subscriber.remove_cb = hostapd_handle_remove;
-    //hostapd_entry->subscriber.cb = hostapd_notify;
-
-    hostapd_event.remove_cb = hostapd_handle_remove;
-    hostapd_event.cb = hostapd_notify;
-
-
-    //hostapd_entry->subscriber = hostapd_event;
-    //strcpy(hostapd_entry->iface_name, name);
-    //printf("COPY BSSID!\n");
-    //get_bssid(name,hostapd_entry->bssid_addr);
-
-    //char mac_buf_bssid[20];
-    //sprintf(mac_buf_bssid, MACSTR, MAC2STR(hostapd_entry->bssid_addr));
-
-    //printf("COPYED BSSID: %s\n", mac_buf_bssid);
-    //printf("COPY SSID!\n");
-    //get_ssid(name, hostapd_entry->ssid);
-   // printf("COPYED SSID: %s\n", hostapd_entry->ssid);
-
-    //hostapd_array_insert(hostapd_entry);
-    //printf("INSERTED HOSTAPDDD!\n");
-
-    //printf("Bla %p\n", &hostapd_entry->subscriber);
-
-    printf("USING OTHER SUBSCRIBER!\n");
-    ret = ubus_register_subscriber(ctx_clients, &hostapd_event);
-    if (ret) {
-        fprintf(stderr, "Failed to add watch handler: %s\n", ubus_strerror(ret));
-        return -1;
-    }
-    printf("TRY TO SUBSCRIBE!!!\n");
-    ret = ubus_subscribe(ctx_clients, &hostapd_event, id);
+    hostapd_entry = malloc(sizeof(struct hostapd_sock_entry));
+    hostapd_entry->subscriber.remove_cb = hostapd_handle_remove;
+    hostapd_entry->subscriber.cb = hostapd_notify;
+    ret = ubus_register_subscriber( ctx_clients, &hostapd_entry->subscriber );
+    fprintf(stderr, "Watching object %08x: %s\n", id, ubus_strerror(ret));
+    ret = ubus_subscribe( ctx_clients, &hostapd_entry->subscriber, id)
 
     fprintf(stderr, "Watching object %08x: %s\n", id, ubus_strerror(ret));
 
