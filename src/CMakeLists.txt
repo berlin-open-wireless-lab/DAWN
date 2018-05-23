@@ -44,7 +44,7 @@ SET(SOURCES
         include/ieee80211_utils.h)
 
 SET(LIBS
-        ubox ubus ubusd json-c blobmsg_json uci gcrypt iwinfo)
+        ubox ubus json-c blobmsg_json uci gcrypt iwinfo)
 
 ADD_EXECUTABLE(dawn ${SOURCES})
 

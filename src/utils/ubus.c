@@ -4,6 +4,7 @@
 #include <libubox/uloop.h>
 #include <libubus.h>
 #include <sys/types.h>
+#include <stdbool.h>
 
 #ifndef ETH_ALEN
 #define ETH_ALEN 6
@@ -22,11 +23,7 @@
 #include "datastorage.h"
 #include "tcpsocket.h"
 
-//static struct ubus_context *ctx = NULL;
-static struct ubus_context *ctx = NULL; /* own ubus conext otherwise strange behavior... */
-
-//static struct ubus_subscriber hostapd_event;
-struct ubus_subscriber sub;
+static struct ubus_context *ctx = NULL;
 
 static struct blob_buf b;
 static struct blob_buf b_send_network;
@@ -59,8 +56,9 @@ struct hostapd_sock_entry{
     char iface_name[MAX_INTERFACE_NAME];
     uint8_t bssid_addr[ETH_ALEN];
     char ssid[SSID_MAX_LEN];
-    //struct ubus_subscriber* subscriber;
-    struct ubus_subscriber sub;
+    uint8_t ht;
+    uint8_t vht;
+    struct ubus_subscriber subscriber;
 };
 
 struct hostapd_sock_entry* hostapd_sock_arr[MAX_HOSTAPD_SOCKETS];
@@ -113,8 +111,6 @@ enum {
     PROB_FREQ,
     PROB_HT_SUPPORT,
     PROB_VHT_SUPPORT,
-    PROB_SUPP_RATES,
-    PROB_EXT_SUPP_RATES,
     __PROB_MAX,
 };
 
@@ -126,8 +122,6 @@ static const struct blobmsg_policy prob_policy[__PROB_MAX] = {
         [PROB_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
         [PROB_HT_SUPPORT] = {.name = "ht_support", .type = BLOBMSG_TYPE_INT8},
         [PROB_VHT_SUPPORT] = {.name = "vht_support", .type = BLOBMSG_TYPE_INT8},
-        [PROB_SUPP_RATES] = {.name = "supp_rates", .type = BLOBMSG_TYPE_ARRAY},
-        [PROB_EXT_SUPP_RATES] = {.name = "ext_supp_rates", .type = BLOBMSG_TYPE_ARRAY},
 };
 
 enum {
@@ -216,8 +210,6 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
 
 static int add_subscriber(char *name);
 
-//static int subscribe_to_hostapd_interfaces(const char *hostapd_dir);
-
 static int ubus_get_clients();
 
 static int
@@ -257,8 +249,8 @@ void add_client_update_timer(time_t time) {
 
 struct hostapd_sock_entry* hostapd_array_get_entry_by_object_id(uint32_t id) {
     for (int i = 0; i <= hostapd_sock_last; i++) {
-        printf("%d: Object ID: %d\n",i,hostapd_sock_arr[i]->sub.obj.id);
-        if (hostapd_sock_arr[i]->sub.obj.id == id) {
+        printf("%d: Object ID: %d\n",i,hostapd_sock_arr[i]->subscriber.obj.id);
+        if (hostapd_sock_arr[i]->subscriber.obj.id == id) {
             printf("FOUND ENTRY!\n");
             return hostapd_sock_arr[i];
         }
@@ -309,6 +301,8 @@ void hostapd_array_delete(uint32_t id) {
     for (i = 0; i <= hostapd_sock_last; i++) {
         if (hostapd_sock_arr[i]->id == id) {
             found_in_array = 1;
+
+            // in thisfunction we are freeing the struct
             free(hostapd_sock_arr[i]);
             break;
         }
@@ -321,7 +315,6 @@ void hostapd_array_delete(uint32_t id) {
     if (hostapd_sock_last > -1 && found_in_array) {
         hostapd_sock_last--;
     }
-
 }
 
 void blobmsg_add_macaddr(struct blob_buf *buf, const char *name, const uint8_t *addr) {
@@ -367,9 +360,8 @@ static int decide_function(probe_entry *prob_req, int req_type) {
 static void hostapd_handle_remove(struct ubus_context *ctx,
                                   struct ubus_subscriber *s, uint32_t id) {
     int ret;
-
     fprintf(stderr, "Object %08x went away\n", id);
-    ret = ubus_unsubscribe(ctx, s, id);
+    ret= ubus_unsubscribe(ctx, s, id);
     if (ret)
         fprintf(stderr, "Removing object %08x: %s\n", id, ubus_strerror(ret));
 
@@ -448,37 +440,6 @@ int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req) {
     if (tb[PROB_VHT_SUPPORT]) {
         prob_req->vht_support = blobmsg_get_u8(tb[PROB_VHT_SUPPORT]);
     }
-
-    uint8_t max_rate = 0;
-    uint8_t min_rate = 255;
-
-    if (tb[PROB_EXT_SUPP_RATES]) {
-        struct blob_attr *attr;
-        int len = blobmsg_data_len(tb[PROB_EXT_SUPP_RATES]);
-        struct blob_attr *data = blobmsg_data(tb[PROB_EXT_SUPP_RATES]);
-        __blob_for_each_attr(attr, data, len)
-        {
-            uint8_t tmp_rate = (uint8_t) blobmsg_get_u32(attr); // actually a u8 value but u8 is for json...
-            max_rate = tmp_rate > max_rate ? tmp_rate : max_rate;
-            min_rate = tmp_rate < min_rate ? tmp_rate : min_rate;
-        }
-    }
-
-    if (tb[PROB_SUPP_RATES]) {
-        struct blob_attr *attr;
-        //struct blobmsg_hdr *hdr;
-        int len = blobmsg_data_len(tb[PROB_SUPP_RATES]);
-        __blob_for_each_attr(attr, blobmsg_data(tb[PROB_SUPP_RATES]), len)
-        {
-            uint8_t tmp_rate = (uint8_t) blobmsg_get_u32(attr);
-            max_rate = tmp_rate > max_rate ? tmp_rate : max_rate;
-            min_rate = tmp_rate < min_rate ? tmp_rate : min_rate;
-        }
-    }
-    printf("MAX Supported Rate is: %d\n", max_rate);
-    printf("Min Supported Rate is: %d\n", min_rate);
-    prob_req->max_supp_datarate = max_rate;
-    prob_req->min_supp_datarate = min_rate;
 
     return 0;
 }
@@ -701,34 +662,21 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
     str = blobmsg_format_json(msg, true);
     printf("METHOD new: %s : %s\n", method, str);
     free(str);
-    // here add bssid!!!
-    //printf("SEARCHING CTX: local_id: %d\n",ctx->local_id);
-    //printf("SEARCHING OBJECT: id: %d, name: %s Path: %s\n",obj->id, obj->name, obj->path);
-    //printf("SEARCHING OBJECT TYPE: id: %d, name: %s\n",obj->type->id, obj->type->name);
-    //printf("SEARCHING FOR: PEER: %d, Object: %d, Seq: %d \n",req->peer, req->object, req->seq);
-    struct hostapd_sock_entry *entry = hostapd_array_get_entry_by_object_id(obj->id);
-    if(entry)
-    {
-        printf("FOUND ENTRYYY!!!\n");
-    }
-    //printf("PATH WIH UNPACKING: %s\n", subscriber->obj.path);
+
+    struct hostapd_sock_entry *entry;
+    struct ubus_subscriber *subscriber;
+
+    subscriber = container_of(obj, struct ubus_subscriber, obj);
+    entry = container_of(subscriber, struct hostapd_sock_entry, subscriber);
 
     struct blob_attr *cur; int rem;
     blob_buf_init(&b_notify, 0);
     blobmsg_for_each_attr(cur, msg, rem){
         blobmsg_add_blob(&b_notify, cur);
-        //blobmsg_add_blob(&buf, blobmsg_data(tb2[2]));
-
     }
 
     blobmsg_add_macaddr(&b_notify, "bssid", entry->bssid_addr);
-    blobmsg_add_string(&b_notify, "ssid", entry->iface_name);
-
-    char *blaaa;
-    blaaa = blobmsg_format_json(b_notify.head, true);
-    printf("NNNEW: %s\n", blaaa);
-    free(blaaa);
-    return 0;
+    blobmsg_add_string(&b_notify, "ssid", entry->ssid);
 
     if (strncmp(method, "probe", 5) == 0) {
         return handle_probe_req(b_notify.head);
@@ -748,30 +696,38 @@ static int add_subscriber(char *name) {
     char subscribe_name[300];
     int ret;
     struct hostapd_sock_entry *hostapd_entry;
+    uint32_t id = 0;
 
 
     sprintf(subscribe_name, "hostapd.%s", name);
 
-    uint32_t id = 0;
-
-    printf("TRYING TO SUBSCRIBE TO: %s\n", subscribe_name);
     if (ubus_lookup_id(ctx, subscribe_name, &id)) {
         fprintf(stderr, "Failed to look up test object for %s\n", subscribe_name);
         return -1;
     }
 
-    //id = ubus_find_id(&objects, 0);
-    //struct ubus_object *obj = ubusd_find_object(id);
+    if(hostapd_array_check_id(id))
+    {
+        // entry already existing
+        return 0;
+    }
 
-    printf("ID: %d\n", id);
-    // add callbacks
-    hostapd_entry = malloc(sizeof(struct hostapd_sock_entry));
-    hostapd_entry->sub.remove_cb = hostapd_handle_remove;
-    hostapd_entry->sub.cb = hostapd_notify;
+    hostapd_entry = calloc(1, sizeof(struct hostapd_sock_entry));
+    hostapd_entry->id = id;
+    hostapd_entry->subscriber.remove_cb = hostapd_handle_remove;
+    hostapd_entry->subscriber.cb = hostapd_notify;
 
-    ret = ubus_subscribe( ctx, &sub, id);
-    printf("FINISHED!\n");
+    get_bssid(name, hostapd_entry->bssid_addr);
+    get_ssid(name, hostapd_entry->ssid);
+
+    // TODO: here we need to add ht and vht supported!!!
+
+    ret = ubus_register_subscriber(ctx, &hostapd_entry->subscriber);
+    ret = ubus_subscribe( ctx, &hostapd_entry->subscriber, id);
+
+    hostapd_array_insert(hostapd_entry);
     fprintf(stderr, "Watching object %08x: %s\n", id, ubus_strerror(ret));
+
     respond_to_notify(id);
 
     return 0;
@@ -785,16 +741,6 @@ static int subscribe_to_hostapd_interfaces(const char *hostapd_dir) {
         return 0;
     }
 
-    struct hostapd_entry* hostapd_entr = malloc(sizeof(struct hostapd_entry));
-
-    //sub.remove_cb = hostapd_handle_remove;;
-    //sub.cb = hostapd_notify;
-
-    printf("Register Subscriber!\n");
-
-    //struct ubus_subscriber sub;
-    int ret = ubus_register_subscriber( ctx, &hostapd_entr->sub );//fprintf(stderr, "Watching object %08x: %s\n", id, ubus_strerror(ret));
-
     dirp = opendir(hostapd_dir);  // error handling?
     if (!dirp) {
         fprintf(stderr, "[SUBSCRIBING] No hostapd sockets!\n");
@@ -803,27 +749,11 @@ static int subscribe_to_hostapd_interfaces(const char *hostapd_dir) {
     while ((entry = readdir(dirp)) != NULL) {
         if (entry->d_type == DT_SOCK) {
             add_subscriber(entry->d_name);
-            //goto finish;
         }
     }
-    finish:
     closedir(dirp);
     return 0;
 }
-
-/*static int subscribe_to_hostapd(const char *hostapd_dir) {
-
-    if (ctx_clients == NULL) {
-        return 0;
-    }
-
-    printf("Registering ubus event subscriber!\n");
-
-
-    subscribe_to_hostapd_interfaces(hostapd_dir);
-
-    return 0;
-}*/
 
 int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
     uloop_init();
@@ -842,24 +772,19 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
     // set dawn metric
     dawn_metric = uci_get_dawn_metric();
 
-    //subscribe_to_hostapd(hostapd_dir);
-
-    // update hostapd
-    //uloop_timeout_add(&hostapd_timer);
+    uloop_timeout_add(&hostapd_timer);
 
     // remove probe
-    //uloop_add_data_cbs();
+    uloop_add_data_cbs();
 
     // get clients
-    //const char *ubus_socket_clients = NULL;
-    //ctx_clients = ubus_connect(ubus_socket_clients);
-    //uloop_timeout_add(&client_timer);
+    uloop_timeout_add(&client_timer);
 
-    //ubus_call_umdns();
+    ubus_call_umdns();
 
-    //ubus_add_oject();
+    ubus_add_oject();
 
-    //start_umdns_update();
+    start_umdns_update();
 
     if (network_config.network_option == 2)
         run_server(network_config.tcp_port);
@@ -876,6 +801,7 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
     return 0;
 }
 
+// TOOD: Refactor this!
 static void
 dump_client(struct blob_attr **tb, uint8_t client_addr[], const char *bssid_addr, uint32_t freq, uint8_t ht_supported,
             uint8_t vht_supported) {
@@ -924,11 +850,12 @@ dump_client(struct blob_attr **tb, uint8_t client_addr[], const char *bssid_addr
     insert_client_to_array(client_entry);
 }
 
-static void
+static int
 dump_client_table(struct blob_attr *head, int len, const char *bssid_addr, uint32_t freq, uint8_t ht_supported,
                   uint8_t vht_supported) {
     struct blob_attr *attr;
     struct blobmsg_hdr *hdr;
+    int station_count = 0;
 
     __blob_for_each_attr(attr, head, len)
     {
@@ -945,7 +872,9 @@ dump_client_table(struct blob_attr *head, int len, const char *bssid_addr, uint3
             tmp_mac[i] = (uint8_t) tmp_int_mac[i];
 
         dump_client(tb, tmp_mac, bssid_addr, freq, ht_supported, vht_supported);
+        station_count++;
     }
+    return station_count;
 }
 
 int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
@@ -965,19 +894,38 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
 
     blobmsg_parse(client_table_policy, __CLIENT_TABLE_MAX, tb, blob_data(msg), blob_len(msg));
 
-    if (tb[CLIENT_TABLE] && tb[CLIENT_TABLE_BSSID] && tb[CLIENT_TABLE_FREQ] && tb[CLIENT_TABLE_HT] &&
-        tb[CLIENT_TABLE_VHT]) {
-
-        dump_client_table(blobmsg_data(tb[CLIENT_TABLE]), blobmsg_data_len(tb[CLIENT_TABLE]),
+    if (tb[CLIENT_TABLE] && tb[CLIENT_TABLE_BSSID] && tb[CLIENT_TABLE_FREQ]) {
+        int num_stations = 0;
+         num_stations = dump_client_table(blobmsg_data(tb[CLIENT_TABLE]), blobmsg_data_len(tb[CLIENT_TABLE]),
                           blobmsg_data(tb[CLIENT_TABLE_BSSID]), blobmsg_get_u32(tb[CLIENT_TABLE_FREQ]),
                           blobmsg_get_u8(tb[CLIENT_TABLE_HT]), blobmsg_get_u8(tb[CLIENT_TABLE_VHT]));
         ap ap_entry;
         hwaddr_aton(blobmsg_data(tb[CLIENT_TABLE_BSSID]), ap_entry.bssid_addr);
         ap_entry.freq = blobmsg_get_u32(tb[CLIENT_TABLE_FREQ]);
-        ap_entry.ht = blobmsg_get_u8(tb[CLIENT_TABLE_HT]);
-        ap_entry.vht = blobmsg_get_u8(tb[CLIENT_TABLE_VHT]);
-        ap_entry.channel_utilization = blobmsg_get_u32(tb[CLIENT_TABLE_CHAN_UTIL]);
-        strcpy((char *) ap_entry.ssid, blobmsg_get_string(tb[CLIENT_TABLE_SSID]));
+
+        if(tb[CLIENT_TABLE_HT]){
+            ap_entry.ht = blobmsg_get_u8(tb[CLIENT_TABLE_HT]);
+        } else {
+            ap_entry.ht = false;
+        }
+
+        if(tb[CLIENT_TABLE_VHT]){
+            ap_entry.vht = blobmsg_get_u8(tb[CLIENT_TABLE_VHT]);
+        } else
+        {
+            ap_entry.vht = false;
+        }
+
+        if(tb[CLIENT_TABLE_CHAN_UTIL]) {
+            ap_entry.channel_utilization = blobmsg_get_u32(tb[CLIENT_TABLE_CHAN_UTIL]);
+        } else // if this is not existing set to 0?
+        {
+            ap_entry.channel_utilization = 0;
+        }
+
+        if(tb[CLIENT_TABLE_SSID]) {
+            strcpy((char *) ap_entry.ssid, blobmsg_get_string(tb[CLIENT_TABLE_SSID]));
+        }
 
         if (tb[CLIENT_TABLE_COL_DOMAIN]) {
             ap_entry.collision_domain = blobmsg_get_u32(tb[CLIENT_TABLE_COL_DOMAIN]);
@@ -991,11 +939,7 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
             ap_entry.bandwidth = -1;
         }
 
-        if (tb[CLIENT_TABLE_NUM_STA]) {
-            ap_entry.station_count = blobmsg_get_u32(tb[CLIENT_TABLE_NUM_STA]);
-        } else {
-            ap_entry.station_count = 0;
-        }
+        ap_entry.station_count = num_stations;
 
         insert_to_ap_array(ap_entry);
 
@@ -1017,16 +961,23 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     blobmsg_add_u32(&b_domain, "collision_domain", network_config.collision_domain);
     blobmsg_add_u32(&b_domain, "bandwidth", network_config.bandwidth);
 
+
+
     printf("SEARCHING FOR: %d\n", req->peer);
     struct hostapd_sock_entry *entry = hostapd_array_get_entry(req->peer);
     if(entry->id != req->peer)
     {
+        printf("WRONG ENTRY!!!\n");
+        return;
         //return;
     }
     blobmsg_add_macaddr(&b_domain, "bssid", entry->bssid_addr);
-    blobmsg_add_string(&b_domain, "SSID", entry->iface_name);
+    blobmsg_add_string(&b_domain, "ssid", entry->ssid);
+    blobmsg_add_u8(&b_domain, "ht_supported", entry->ht);
+    blobmsg_add_u8(&b_domain, "vht_supported", entry->vht);
 
-    //char* collision_string = blobmsg_format_json(b_domain.head, 1);
+    char* collision_string = blobmsg_format_json(b_domain.head, 1);
+    printf("COLLISION STRING: %s\n", collision_string);
 
     send_blob_attr_via_network(b_domain.head, "clients");
     parse_to_clients(b_domain.head, 1, req->peer);

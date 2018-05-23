@@ -117,9 +117,11 @@ int get_bandwidth(const char *ifname, uint8_t *client_addr, float *rx_rate, floa
 
     if (iw->assoclist(ifname, buf, &len)) {
         printf("No information available\n");
+        iwinfo_finish();
         return 0;
     } else if (len <= 0) {
         printf("No station connected\n");
+        iwinfo_finish();
         return 0;
     }
 
@@ -170,9 +172,11 @@ int get_rssi(const char *ifname, uint8_t *client_addr) {
 
     if (iw->assoclist(ifname, buf, &len)) {
         printf("No information available\n");
+        iwinfo_finish();
         return INT_MIN;
     } else if (len <= 0) {
         printf("No station connected\n");
+        iwinfo_finish();
         return INT_MIN;
     }
 
@@ -183,6 +187,7 @@ int get_rssi(const char *ifname, uint8_t *client_addr) {
             return e->signal;
     }
 
+    iwinfo_finish();
     return INT_MIN;
 }
 
@@ -232,6 +237,7 @@ int get_expected_throughput(const char *ifname, uint8_t *client_addr) {
         if (mac_is_equal(client_addr, e->mac))
             return e->thr;
     }
+    iwinfo_finish();
 
     return INT_MIN;
 }
@@ -239,17 +245,33 @@ int get_expected_throughput(const char *ifname, uint8_t *client_addr) {
 int get_bssid(const char *ifname, uint8_t *bssid_addr) {
     const struct iwinfo_ops *iw;
 
+    printf("GETTING BSSID OF: %s\n", ifname);
+
     iw = iwinfo_backend(ifname);
 
-    // bssid
-    memcpy(bssid_addr, iw->bssid, ETH_ALEN * sizeof(uint8_t));
+    printf("IW TYPE: %s\n", iwinfo_type(ifname));
+
+    static char buf[18] = { 0 };
+
+    if (iw->bssid(ifname, buf))
+        snprintf(buf, sizeof(buf), "00:00:00:00:00:00");
+
+    hwaddr_aton(buf,bssid_addr);
+    iwinfo_finish();
+
     return 0;
 }
 
 int get_ssid(const char *ifname, char* ssid) {
     const struct iwinfo_ops *iw;
 
+    char buf[IWINFO_ESSID_MAX_SIZE+1] = { 0 };
     iw = iwinfo_backend(ifname);
-
-    return iw->ssid(ifname, ssid);
+    if (iw->ssid(ifname, buf))
+        memset(buf, 0, sizeof(buf));
+    printf("SSID: %s\n", buf);
+    memcpy(ssid, buf, (SSID_MAX_LEN) * sizeof(char));
+    strcpy(ssid, buf);
+    printf("SSID: %s\n", ssid);
+    return 0;
 }
