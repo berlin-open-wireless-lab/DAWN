@@ -1,3 +1,7 @@
+# DAWN IS RIGHT NOW REFACTORED AND NOT READY TO USE!
+Current version needs modifcation to libiwinfo.
+Furthermore I wait that my pull requests will be accepted. :)
+
 # DAWN
 Decentralized WiFi Controller
 
