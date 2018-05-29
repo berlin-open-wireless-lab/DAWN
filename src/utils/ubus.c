@@ -58,6 +58,8 @@ struct hostapd_sock_entry{
     char ssid[SSID_MAX_LEN];
     uint8_t ht;
     uint8_t vht;
+    uint64_t last_channel_time;
+    uint64_t last_channel_time_busy;
     struct ubus_subscriber subscriber;
 };
 
@@ -977,7 +979,8 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     blobmsg_add_u8(&b_domain, "ht_supported", entry->ht);
     blobmsg_add_u8(&b_domain, "vht_supported", entry->vht);
 
-    int channel_util = get_channel_utilization(entry->iface_name);
+    int channel_util = get_channel_utilization(entry->iface_name, &entry->last_channel_time, &entry->last_channel_time_busy);
+    blobmsg_add_u32(&b_domain, "channel_utilization", channel_util);
     printf("CHANNEL UTILIZATION!!!: %d\n", channel_util);
 
     char* collision_string = blobmsg_format_json(b_domain.head, 1);

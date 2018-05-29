@@ -21,9 +21,6 @@ int get_bandwidth(const char *ifname, uint8_t *client_addr, float *rx_rate, floa
 
 #define IWINFO_ESSID_MAX_SIZE    32
 
-uint64_t last_channel_time = 0;
-uint64_t last_channel_time_busy = 0;
-
 int compare_essid_iwinfo(__uint8_t *bssid_addr, __uint8_t *bssid_addr_to_compare) {
     const struct iwinfo_ops *iw;
 
@@ -278,19 +275,27 @@ int get_ssid(const char *ifname, char* ssid) {
     return 0;
 }
 
-int get_channel_utilization(const char *ifname) {
+int get_channel_utilization(const char *ifname, uint64_t *last_channel_time, uint64_t *last_channel_time_busy) {
+    printf("GETTING UTILKIATUION FOR : %s\n", ifname);
+
     const struct iwinfo_ops *iw;
     struct iwinfo_survey_entry survey_entry;
 
     iw = iwinfo_backend(ifname);
     if (iw->survey(ifname, &survey_entry))
-    {
-        uint64_t dividend = survey_entry.channel_time_busy - last_channel_time_busy;
-        uint64_t divisor =  survey_entry.channel_time - last_channel_time;
-        last_channel_time = survey_entry.channel_time;
-        last_channel_time_busy = survey_entry.channel_time_busy;
-        printf("GOT SURVEY INFO!\n");
-        return (dividend * 255 / divisor);
-    }
-    return 0;
+        return 0;
+
+    uint64_t dividend = survey_entry.channel_time_busy - *last_channel_time_busy;
+    uint64_t divisor =  survey_entry.channel_time - *last_channel_time;
+    *last_channel_time = survey_entry.channel_time;
+    *last_channel_time_busy = survey_entry.channel_time_busy;
+    printf("dvidend: %llu\n", dividend);
+    printf("divisior: %llu\n", divisor);
+
+    printf("last_channel_time: %llu\n", *last_channel_time);
+    printf("last_channel_time_busy: %llu\n", *last_channel_time_busy);
+
+    printf("GOT SURVEY INFO!\n");
+    return (int)(dividend * 255 / divisor);
+    iwinfo_finish();
 }
