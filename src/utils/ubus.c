@@ -717,6 +717,7 @@ static int add_subscriber(char *name) {
     hostapd_entry->subscriber.remove_cb = hostapd_handle_remove;
     hostapd_entry->subscriber.cb = hostapd_notify;
 
+    strcpy(hostapd_entry->iface_name, name);
     get_bssid(name, hostapd_entry->bssid_addr);
     get_ssid(name, hostapd_entry->ssid);
 
@@ -975,6 +976,9 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     blobmsg_add_string(&b_domain, "ssid", entry->ssid);
     blobmsg_add_u8(&b_domain, "ht_supported", entry->ht);
     blobmsg_add_u8(&b_domain, "vht_supported", entry->vht);
+
+    int channel_util = get_channel_utilization(entry->iface_name);
+    printf("CHANNEL UTILIZATION!!!: %d\n", channel_util);
 
     char* collision_string = blobmsg_format_json(b_domain.head, 1);
     printf("COLLISION STRING: %s\n", collision_string);

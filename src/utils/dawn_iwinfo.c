@@ -21,6 +21,8 @@ int get_bandwidth(const char *ifname, uint8_t *client_addr, float *rx_rate, floa
 
 #define IWINFO_ESSID_MAX_SIZE    32
 
+uint64_t last_channel_time = 0;
+uint64_t last_channel_time_busy = 0;
 
 int compare_essid_iwinfo(__uint8_t *bssid_addr, __uint8_t *bssid_addr_to_compare) {
     const struct iwinfo_ops *iw;
@@ -283,7 +285,12 @@ int get_channel_utilization(const char *ifname) {
     iw = iwinfo_backend(ifname);
     if (iw->survey(ifname, &survey_entry))
     {
+        uint64_t dividend = survey_entry.channel_time_busy - last_channel_time_busy;
+        uint64_t divisor =  survey_entry.channel_time - last_channel_time;
+        last_channel_time = survey_entry.channel_time;
+        last_channel_time_busy = survey_entry.channel_time_busy;
         printf("GOT SURVEY INFO!\n");
+        return (dividend * 255 / divisor);
     }
     return 0;
 }

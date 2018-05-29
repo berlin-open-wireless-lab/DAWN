@@ -59,4 +59,6 @@ int get_bssid(const char *ifname, uint8_t *bssid_addr);
 
 int get_ssid(const char *ifname, char *ssid);
 
+int get_channel_utilization(const char *ifname);
+
 #endif //DAWN_RSSI_H
