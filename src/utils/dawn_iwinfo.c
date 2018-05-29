@@ -326,7 +326,7 @@ int support_vht(const char *ifname) {
 
     if (iw->htmodelist(ifname, &htmodes))
     {
-        printf("No HT mode information available\n");
+        printf("No VHT mode information available\n");
         return 0;
     }
 
