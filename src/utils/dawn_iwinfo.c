@@ -299,3 +299,21 @@ int get_channel_utilization(const char *ifname, uint64_t *last_channel_time, uin
     return (int)(dividend * 255 / divisor);
     iwinfo_finish();
 }
+
+int support_ht(const char *ifname) {
+    const struct iwinfo_ops *iw;
+
+    iw = iwinfo_backend(ifname);
+    int htmodes = 0;
+
+    if (iw->htmodelist(ifname, &htmodes))
+    {
+        printf("No HT mode information available\n");
+        return 0;
+    }
+
+    uint32_t ht_support_bitmask = (1 << 2) | (1 << 3);
+    int ret = htmodes & ht_support_bitmask;
+    iwinfo_finish();
+    return ret;
+}

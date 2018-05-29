@@ -724,6 +724,8 @@ static int add_subscriber(char *name) {
     get_ssid(name, hostapd_entry->ssid);
 
     // TODO: here we need to add ht and vht supported!!!
+    // actually we wanted to use an ubus call but for now we can use libiwinfo
+
 
     ret = ubus_register_subscriber(ctx, &hostapd_entry->subscriber);
     ret = ubus_subscribe( ctx, &hostapd_entry->subscriber, id);
