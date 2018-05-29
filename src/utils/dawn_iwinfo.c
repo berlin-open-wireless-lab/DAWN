@@ -312,8 +312,26 @@ int support_ht(const char *ifname) {
         return 0;
     }
 
-    uint32_t ht_support_bitmask = (1 << 2) | (1 << 3);
+    uint32_t ht_support_bitmask = (1 << 0) | (1 << 2);
     int ret = htmodes & ht_support_bitmask;
+    iwinfo_finish();
+    return ret;
+}
+
+int support_vht(const char *ifname) {
+    const struct iwinfo_ops *iw;
+
+    iw = iwinfo_backend(ifname);
+    int htmodes = 0;
+
+    if (iw->htmodelist(ifname, &htmodes))
+    {
+        printf("No HT mode information available\n");
+        return 0;
+    }
+
+    uint32_t vht_support_bitmask = (1 << 2) | (1 << 2) | (1 << 3) | (1 << 4) | (1 << 5) | (1 << 6);
+    int ret = htmodes & vht_support_bitmask;
     iwinfo_finish();
     return ret;
 }
