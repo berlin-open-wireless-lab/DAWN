@@ -725,6 +725,8 @@ static int add_subscriber(char *name) {
 
     // TODO: here we need to add ht and vht supported!!!
     // actually we wanted to use an ubus call but for now we can use libiwinfo
+    hostapd_entry->ht = (uint8_t) support_ht(name);
+    hostapd_entry->vht = (uint8_t) support_vht(name);
 
 
     ret = ubus_register_subscriber(ctx, &hostapd_entry->subscriber);

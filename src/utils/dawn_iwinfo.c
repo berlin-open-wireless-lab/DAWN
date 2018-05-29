@@ -313,7 +313,7 @@ int support_ht(const char *ifname) {
     }
 
     uint32_t ht_support_bitmask = (1 << 0) | (1 << 2);
-    int ret = htmodes & ht_support_bitmask;
+    int ret = htmodes & ht_support_bitmask ? 1 : 0;
     iwinfo_finish();
     return ret;
 }
@@ -331,7 +331,7 @@ int support_vht(const char *ifname) {
     }
 
     uint32_t vht_support_bitmask = (1 << 2) | (1 << 2) | (1 << 3) | (1 << 4) | (1 << 5) | (1 << 6);
-    int ret = htmodes & vht_support_bitmask;
+    int ret = htmodes & vht_support_bitmask ? 1 : 0;
     iwinfo_finish();
     return ret;
 }
