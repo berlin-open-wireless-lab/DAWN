@@ -296,8 +296,11 @@ int get_channel_utilization(const char *ifname, uint64_t *last_channel_time, uin
     printf("last_channel_time_busy: %llu\n", *last_channel_time_busy);
 
     printf("GOT SURVEY INFO!\n");
-    return (int)(dividend * 255 / divisor);
+    int ret = 0;
+    if(divisor)
+        ret = (int)(dividend * 255 / divisor);
     iwinfo_finish();
+    return ret;
 }
 
 int support_ht(const char *ifname) {

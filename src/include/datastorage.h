@@ -60,6 +60,7 @@ struct probe_metric_s {
     int deny_assoc_reason;
     int use_driver_recog;
     int min_kick_count;
+    int chan_util_avg_period;
 };
 
 struct time_config_s {
@@ -70,6 +71,7 @@ struct time_config_s {
     time_t update_hostapd;
     time_t update_tcp_con;
     time_t denied_req_threshold;
+    time_t update_chan_util;
 };
 
 struct network_config_s {

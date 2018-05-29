@@ -37,6 +37,8 @@ void update_clients(struct uloop_timeout *t);
 
 void update_tcp_connections(struct uloop_timeout *t);
 
+void update_channel_utilization(struct uloop_timeout *t);
+
 struct uloop_timeout client_timer = {
         .cb = update_clients
 };
@@ -45,6 +47,9 @@ struct uloop_timeout hostapd_timer = {
 };
 struct uloop_timeout umdns_timer = {
         .cb = update_tcp_connections
+};
+struct uloop_timeout channel_utilization_timer = {
+        .cb = update_channel_utilization
 };
 
 #define MAX_HOSTAPD_SOCKETS 10
@@ -60,6 +65,9 @@ struct hostapd_sock_entry{
     uint8_t vht;
     uint64_t last_channel_time;
     uint64_t last_channel_time_busy;
+    int chan_util_samples_sum;
+    int chan_util_num_sample_periods;
+    int chan_util_average;
     struct ubus_subscriber subscriber;
 };
 
@@ -787,6 +795,8 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
     // get clients
     uloop_timeout_add(&client_timer);
 
+    uloop_timeout_add(&channel_utilization_timer);
+
     ubus_call_umdns();
 
     ubus_add_oject();
@@ -983,9 +993,8 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     blobmsg_add_u8(&b_domain, "ht_supported", entry->ht);
     blobmsg_add_u8(&b_domain, "vht_supported", entry->vht);
 
-    int channel_util = get_channel_utilization(entry->iface_name, &entry->last_channel_time, &entry->last_channel_time_busy);
-    blobmsg_add_u32(&b_domain, "channel_utilization", channel_util);
-    printf("CHANNEL UTILIZATION!!!: %d\n", channel_util);
+    //int channel_util = get_channel_utilization(entry->iface_name, &entry->last_channel_time, &entry->last_channel_time_busy);
+    blobmsg_add_u32(&b_domain, "channel_utilization", entry->chan_util_average);
 
     char* collision_string = blobmsg_format_json(b_domain.head, 1);
     printf("COLLISION STRING: %s\n", collision_string);
@@ -1011,6 +1020,22 @@ void update_clients(struct uloop_timeout *t) {
     ubus_get_clients();
     // maybe to much?! don't set timer again...
     uloop_timeout_set(&client_timer, timeout_config.update_client * 1000);
+}
+
+void update_channel_utilization(struct uloop_timeout *t) {
+    for (int i = 0; i <= hostapd_sock_last; i++) {
+
+        hostapd_sock_arr[i]->chan_util_samples_sum += get_channel_utilization(hostapd_sock_arr[i]->iface_name, &hostapd_sock_arr[i]->last_channel_time, &hostapd_sock_arr[i]->last_channel_time_busy);
+        hostapd_sock_arr[i]->chan_util_num_sample_periods++;
+
+        if(hostapd_sock_arr[i]->chan_util_num_sample_periods > dawn_metric.chan_util_avg_period)
+        {
+            hostapd_sock_arr[i]->chan_util_average = hostapd_sock_arr[i]->chan_util_samples_sum / hostapd_sock_arr[i]->chan_util_num_sample_periods;
+            hostapd_sock_arr[i]->chan_util_samples_sum = 0;
+            hostapd_sock_arr[i]->chan_util_num_sample_periods = 0;
+        }
+    }
+    uloop_timeout_set(&channel_utilization_timer, timeout_config.update_chan_util * 1000);
 }
 
 void update_tcp_connections(struct uloop_timeout *t) {

@@ -32,6 +32,7 @@ struct time_config_s uci_get_time_config() {
             ret.remove_ap = uci_lookup_option_int(uci_ctx, s, "remove_ap");
             ret.update_tcp_con = uci_lookup_option_int(uci_ctx, s, "update_tcp_con");
             ret.denied_req_threshold = uci_lookup_option_int(uci_ctx, s, "denied_req_threshold");
+            ret.update_chan_util = uci_lookup_option_int(uci_ctx, s, "update_chan_util");
             return ret;
         }
     }
@@ -72,6 +73,7 @@ struct probe_metric_s uci_get_dawn_metric() {
             ret.max_station_diff = uci_lookup_option_int(uci_ctx, s, "max_station_diff");
             ret.use_driver_recog = uci_lookup_option_int(uci_ctx, s, "use_driver_recog");
             ret.min_kick_count = uci_lookup_option_int(uci_ctx, s, "min_number_to_kick");
+            ret.chan_util_avg_period = uci_lookup_option_int(uci_ctx, s, "chan_util_avg_period");
             return ret;
         }
     }
