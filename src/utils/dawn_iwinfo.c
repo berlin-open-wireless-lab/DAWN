@@ -275,3 +275,15 @@ int get_ssid(const char *ifname, char* ssid) {
     printf("SSID: %s\n", ssid);
     return 0;
 }
+
+int get_channel_utilization(const char *ifname) {
+    const struct iwinfo_ops *iw;
+    struct iwinfo_survey_entry survey_entry;
+
+    iw = iwinfo_backend(ifname);
+    if (iw->survey(ifname, &survey_entry))
+    {
+        printf("GOT SURVEY INFO!\n");
+    }
+    return 0;
+}
