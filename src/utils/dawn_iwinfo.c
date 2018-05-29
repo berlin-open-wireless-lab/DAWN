@@ -263,23 +263,22 @@ int get_bssid(const char *ifname, uint8_t *bssid_addr) {
 
 int get_ssid(const char *ifname, char* ssid) {
     const struct iwinfo_ops *iw;
-
     char buf[IWINFO_ESSID_MAX_SIZE+1] = { 0 };
+
     iw = iwinfo_backend(ifname);
     if (iw->ssid(ifname, buf))
         memset(buf, 0, sizeof(buf));
-    printf("SSID: %s\n", buf);
+
     memcpy(ssid, buf, (SSID_MAX_LEN) * sizeof(char));
     strcpy(ssid, buf);
-    printf("SSID: %s\n", ssid);
     return 0;
 }
 
 int get_channel_utilization(const char *ifname, uint64_t *last_channel_time, uint64_t *last_channel_time_busy) {
-    printf("GETTING UTILKIATUION FOR : %s\n", ifname);
 
     const struct iwinfo_ops *iw;
     struct iwinfo_survey_entry survey_entry;
+    int ret = 0;
 
     iw = iwinfo_backend(ifname);
     if (iw->survey(ifname, &survey_entry))
@@ -289,14 +288,7 @@ int get_channel_utilization(const char *ifname, uint64_t *last_channel_time, uin
     uint64_t divisor =  survey_entry.channel_time - *last_channel_time;
     *last_channel_time = survey_entry.channel_time;
     *last_channel_time_busy = survey_entry.channel_time_busy;
-    printf("dvidend: %llu\n", dividend);
-    printf("divisior: %llu\n", divisor);
 
-    printf("last_channel_time: %llu\n", *last_channel_time);
-    printf("last_channel_time_busy: %llu\n", *last_channel_time_busy);
-
-    printf("GOT SURVEY INFO!\n");
-    int ret = 0;
     if(divisor)
         ret = (int)(dividend * 255 / divisor);
     iwinfo_finish();
