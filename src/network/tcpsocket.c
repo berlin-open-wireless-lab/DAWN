@@ -193,7 +193,6 @@ void print_tcp_entry(struct network_con_s entry) {
 }
 
 void send_tcp(char *msg) {
-    printf("SENDING TCP!\n");
     pthread_mutex_lock(&tcp_array_mutex);
 
     if (network_config.use_symm_enc) {

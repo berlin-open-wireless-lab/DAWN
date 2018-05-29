@@ -259,9 +259,7 @@ void add_client_update_timer(time_t time) {
 
 struct hostapd_sock_entry* hostapd_array_get_entry_by_object_id(uint32_t id) {
     for (int i = 0; i <= hostapd_sock_last; i++) {
-        printf("%d: Object ID: %d\n",i,hostapd_sock_arr[i]->subscriber.obj.id);
         if (hostapd_sock_arr[i]->subscriber.obj.id == id) {
-            printf("FOUND ENTRY!\n");
             return hostapd_sock_arr[i];
         }
     }
@@ -270,9 +268,7 @@ struct hostapd_sock_entry* hostapd_array_get_entry_by_object_id(uint32_t id) {
 
 struct hostapd_sock_entry* hostapd_array_get_entry(uint32_t id) {
     for (int i = 0; i <= hostapd_sock_last; i++) {
-        printf("%d: ID: %d\n",i,hostapd_sock_arr[i]->id);
         if (hostapd_sock_arr[i]->id == id) {
-            printf("FOUND ENTRY!\n");
             return hostapd_sock_arr[i];
         }
     }
@@ -297,7 +293,6 @@ void hostapd_array_insert(struct hostapd_sock_entry* entry) {
     for (int i = 0; i <= hostapd_sock_last; i++) {
         printf("%d: %d\n", i, hostapd_sock_arr[i]->id);
     }
-    printf("ADDED HOSTAPD!\n");
 }
 
 void hostapd_array_delete(uint32_t id) {
@@ -337,8 +332,6 @@ void blobmsg_add_macaddr(struct blob_buf *buf, const char *name, const uint8_t *
 
 
 static int decide_function(probe_entry *prob_req, int req_type) {
-    printf("COUNTER: %d\n", prob_req->counter);
-
     if (mac_in_maclist(prob_req->client_addr)) {
         return 1;
     }
@@ -667,7 +660,6 @@ int send_blob_attr_via_network(struct blob_attr *msg, char *method) {
 static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
                           struct ubus_request_data *req, const char *method,
                           struct blob_attr *msg) {
-    printf("NOTIFYYYY!!!\n");
     char *str;
     str = blobmsg_format_json(msg, true);
     printf("METHOD new: %s : %s\n", method, str);
@@ -978,16 +970,13 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     blobmsg_add_u32(&b_domain, "collision_domain", network_config.collision_domain);
     blobmsg_add_u32(&b_domain, "bandwidth", network_config.bandwidth);
 
-
-
-    printf("SEARCHING FOR: %d\n", req->peer);
     struct hostapd_sock_entry *entry = hostapd_array_get_entry(req->peer);
     if(entry->id != req->peer)
     {
-        printf("WRONG ENTRY!!!\n");
+        fprintf(stderr, "Failed to find hostapd sock entry in callback with id %d\n", req->peer);
         return;
-        //return;
     }
+
     blobmsg_add_macaddr(&b_domain, "bssid", entry->bssid_addr);
     blobmsg_add_string(&b_domain, "ssid", entry->ssid);
     blobmsg_add_u8(&b_domain, "ht_supported", entry->ht);
@@ -995,9 +984,6 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
 
     //int channel_util = get_channel_utilization(entry->iface_name, &entry->last_channel_time, &entry->last_channel_time_busy);
     blobmsg_add_u32(&b_domain, "channel_utilization", entry->chan_util_average);
-
-    char* collision_string = blobmsg_format_json(b_domain.head, 1);
-    printf("COLLISION STRING: %s\n", collision_string);
 
     send_blob_attr_via_network(b_domain.head, "clients");
     parse_to_clients(b_domain.head, 1, req->peer);
