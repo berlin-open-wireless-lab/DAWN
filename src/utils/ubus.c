@@ -348,7 +348,7 @@ static int decide_function(probe_entry *prob_req, int req_type) {
         return 1;
     }
 
-    if (req_type == REQ_TYPE_AUTH && !dawn_metric.eval_assoc_req) {
+    if (req_type == REQ_TYPE_ASSOC && !dawn_metric.eval_assoc_req) {
         return 1;
     }
 
