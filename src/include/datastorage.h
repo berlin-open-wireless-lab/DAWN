@@ -61,6 +61,7 @@ struct probe_metric_s {
     int use_driver_recog;
     int min_kick_count;
     int chan_util_avg_period;
+    int kicking;
 };
 
 struct time_config_s {

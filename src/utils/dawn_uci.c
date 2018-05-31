@@ -49,6 +49,7 @@ struct probe_metric_s uci_get_dawn_metric() {
         struct uci_section *s = uci_to_section(e);
 
         if (strcmp(s->type, "metric") == 0) {
+            ret.kicking = uci_lookup_option_int(uci_ctx, s, "kicking");
             ret.ht_support = uci_lookup_option_int(uci_ctx, s, "ht_support");
             ret.vht_support = uci_lookup_option_int(uci_ctx, s, "vht_support");
             ret.no_ht_support = uci_lookup_option_int(uci_ctx, s, "no_ht_support");

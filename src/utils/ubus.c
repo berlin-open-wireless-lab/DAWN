@@ -952,7 +952,7 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
 
         insert_to_ap_array(ap_entry);
 
-        if (do_kick) {
+        if (do_kick && dawn_metric.kicking) {
             kick_clients(ap_entry.bssid_addr, id);
         }
     }
