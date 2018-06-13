@@ -798,7 +798,7 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
     if (network_config.network_option == 2)
         run_server(network_config.tcp_port);
 
-    subscribe_to_hostapd_interfaces(hostapd_dir_glob);
+    //subscribe_to_hostapd_interfaces(hostapd_dir_glob);
 
     uloop_run();
 
@@ -1035,7 +1035,7 @@ void start_umdns_update() {
 }
 
 void update_hostapd_sockets(struct uloop_timeout *t) {
-    //subscribe_to_hostapd_interfaces(hostapd_dir_glob);
+    subscribe_to_hostapd_interfaces(hostapd_dir_glob);
     uloop_timeout_set(&hostapd_timer, timeout_config.update_hostapd * 1000);
 }
 
