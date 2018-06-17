@@ -1,3 +1,5 @@
+![DAWN PICTURE](https://image.ibb.co/nbmNfJ/dawn_bla.png)
+
 # DAWN
 Decentralized WiFi Controller
 
