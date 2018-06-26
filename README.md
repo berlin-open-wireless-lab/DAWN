@@ -1,3 +1,10 @@
+IMPORTANT NOTICE:
+
+Daemon can not easily be installed!
+I'm working that everything DAWN need get's upstream.
+DAWN still need a Hostapd Ubus merge (for ht and vht flags)
+And DAWN has to extend libiwinfo (hopefully soon my merge requests gets merged...).
+
 ![DAWN PICTURE](https://image.ibb.co/nbmNfJ/dawn_bla.png)
 
 # DAWN
