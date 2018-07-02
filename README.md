@@ -24,7 +24,7 @@ See [installation](INSTALL.md).
 ## Setting up Routers
 
 You can find a good guide to configure your router is [here](https://gist.github.com/braian87b/bba9da3a7ac23c35b7f1eecafecdd47d).
-I setup the OpenWRT Router as dump APs.
+I setup the OpenWRT Router as dumb APs.
 
 ## Configuration
 
