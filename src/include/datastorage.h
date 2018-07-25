@@ -250,7 +250,6 @@ int ap_get_collision_count(int col_domain);
 
 // ---------------- Defines -------------------
 #define SORT_NUM 5
-#define TIME_THRESHOLD 120  // every minute
 
 // ---------------- Global variables ----------------
 char *sort_string;
@@ -258,26 +257,5 @@ char *sort_string;
 // ---------------- Functions -------------------
 int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], int automatic_kick);
 
-/* List stuff */
-
-typedef struct node {
-    probe_entry data;
-    struct node *ptr;
-} node;
-
-node *insert(node *head, probe_entry entry);
-
-void free_list(node *head);
-
-void print_list();
-
-void insert_to_list(probe_entry entry, int inc_counter);
-
-int mac_first_in_probe_list(uint8_t bssid_addr[], uint8_t client_addr[]);
-
-void *remove_thread(void *arg);
-
-pthread_mutex_t list_mutex;
-node *probe_list_head;
 
 #endif

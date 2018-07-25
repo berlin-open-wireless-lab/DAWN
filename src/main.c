@@ -27,7 +27,6 @@ void daemon_shutdown() {
 
     // free ressources
     fprintf(stdout, "Freeing mutex ressources\n");
-    pthread_mutex_destroy(&list_mutex);
     pthread_mutex_destroy(&probe_array_mutex);
     pthread_mutex_destroy(&client_array_mutex);
     pthread_mutex_destroy(&ap_array_mutex);
@@ -52,10 +51,6 @@ void signal_handler(int sig) {
 }
 
 int init_mutex() {
-    if (pthread_mutex_init(&list_mutex, NULL) != 0) {
-        fprintf(stderr, "Mutex init failed!\n");
-        return 1;
-    }
 
     if (pthread_mutex_init(&probe_array_mutex, NULL) != 0) {
         fprintf(stderr, "Mutex init failed!\n");
