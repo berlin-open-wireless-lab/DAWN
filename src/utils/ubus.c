@@ -32,6 +32,8 @@ static struct blob_buf data_buf;
 static struct blob_buf b_probe;
 static struct blob_buf b_domain;
 static struct blob_buf b_notify;
+static struct blob_buf b_clients;
+static struct blob_buf b_umdns;
 
 void update_clients(struct uloop_timeout *t);
 
@@ -700,13 +702,15 @@ static int add_subscriber(char *name) {
     struct hostapd_sock_entry *hostapd_entry;
     uint32_t id = 0;
 
-
     sprintf(subscribe_name, "hostapd.%s", name);
 
     if (ubus_lookup_id(ctx, subscribe_name, &id)) {
         fprintf(stderr, "Failed to look up test object for %s\n", subscribe_name);
         return -1;
     }
+
+    printf("Subscribing to: %s\n", subscribe_name);
+    printf("Subscriber ID: %d\n", id);
 
     if(hostapd_array_check_id(id))
     {
@@ -727,7 +731,6 @@ static int add_subscriber(char *name) {
     // actually we wanted to use an ubus call but for now we can use libiwinfo
     hostapd_entry->ht = (uint8_t) support_ht(name);
     hostapd_entry->vht = (uint8_t) support_vht(name);
-
 
     ret = ubus_register_subscriber(ctx, &hostapd_entry->subscriber);
     ret = ubus_subscribe( ctx, &hostapd_entry->subscriber, id);
@@ -772,20 +775,22 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
         return -1;
     } else {
         printf("Connected to ubus\n");
-        }
+    }
 
     ubus_add_uloop(ctx);
 
     // set dawn metric
     dawn_metric = uci_get_dawn_metric();
 
-    uloop_timeout_add(&hostapd_timer);
+    //uloop_timeout_add(&hostapd_timer);
 
     // remove probe
     uloop_add_data_cbs();
 
     // get clients
+    printf("SETTING UP CLIENT TIMER:\n");
     uloop_timeout_add(&client_timer);
+    printf("FINISHED ADDING CLIENT TIMER!\n");
 
     uloop_timeout_add(&channel_utilization_timer);
 
@@ -797,6 +802,8 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
 
     if (network_config.network_option == 2)
         run_server(network_config.tcp_port);
+
+    subscribe_to_hostapd_interfaces(hostapd_dir_glob);
 
     //subscribe_to_hostapd_interfaces(hostapd_dir_glob);
 
@@ -961,6 +968,8 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
 
 static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_attr *msg) {
 
+    printf("GOT CALLBACK!\n");
+
     if (!msg)
         return;
 
@@ -995,9 +1004,10 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
 }
 
 static int ubus_get_clients() {
+    int timeout = 1;
     for (int i = 0; i <= hostapd_sock_last; i++) {
-        int timeout = 1;
-        ubus_invoke(ctx, hostapd_sock_arr[i]->id, "get_clients", NULL, ubus_get_clients_cb, NULL, timeout * 1000);
+        blob_buf_init(&b_clients, 0);
+        ubus_invoke(ctx, hostapd_sock_arr[i]->id, "get_clients", b_clients.head, ubus_get_clients_cb, NULL, timeout * 1000);
     }
     return 0;
 }
@@ -1106,8 +1116,9 @@ int ubus_call_umdns() {
     }
 
     int timeout = 1;
-    ubus_invoke(ctx, id, "update", NULL, NULL, NULL, timeout * 1000);
-    ubus_invoke(ctx, id, "browse", NULL, ubus_umdns_cb, NULL, timeout * 1000);
+    blob_buf_init(&b_umdns, 0);
+    ubus_invoke(ctx, id, "update", b_umdns.head, NULL, NULL, timeout * 1000);
+    ubus_invoke(ctx, id, "browse", b_umdns.head, ubus_umdns_cb, NULL, timeout * 1000);
 
     return 0;
 }
