@@ -709,9 +709,6 @@ static int add_subscriber(char *name) {
         return -1;
     }
 
-    printf("Subscribing to: %s\n", subscribe_name);
-    printf("Subscriber ID: %d\n", id);
-
     if(hostapd_array_check_id(id))
     {
         // entry already existing
@@ -782,15 +779,13 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
     // set dawn metric
     dawn_metric = uci_get_dawn_metric();
 
-    //uloop_timeout_add(&hostapd_timer);
+    uloop_timeout_add(&hostapd_timer);
 
     // remove probe
     uloop_add_data_cbs();
 
     // get clients
-    printf("SETTING UP CLIENT TIMER:\n");
     uloop_timeout_add(&client_timer);
-    printf("FINISHED ADDING CLIENT TIMER!\n");
 
     uloop_timeout_add(&channel_utilization_timer);
 
@@ -805,10 +800,7 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
 
     subscribe_to_hostapd_interfaces(hostapd_dir_glob);
 
-    //subscribe_to_hostapd_interfaces(hostapd_dir_glob);
-
     uloop_run();
-
 
     close_socket();
 
@@ -967,8 +959,6 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
 }
 
 static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_attr *msg) {
-
-    printf("GOT CALLBACK!\n");
 
     if (!msg)
         return;
