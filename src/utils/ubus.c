@@ -494,7 +494,7 @@ static int handle_assoc_req(struct blob_attr *msg) {
 
     print_probe_array();
     auth_entry auth_req;
-    parse_to_auth_req(msg, &auth_req);
+    parse_to_assoc_req(msg, &auth_req);
     printf("ASSOC Entry: ");
     print_auth_entry(auth_req);
 
