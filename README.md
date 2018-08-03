@@ -14,6 +14,9 @@ Decentralized WiFi Controller
 
 See [installation](INSTALL.md).
 
+## LuCI App
+There is an luci app called [luci-app-dawn](https://github.com/berlin-open-wireless-lab/bowl-feed).
+
 ## Setting up Routers
 
 You can find a good guide to configure your router is [here](https://gist.github.com/braian87b/bba9da3a7ac23c35b7f1eecafecdd47d).
