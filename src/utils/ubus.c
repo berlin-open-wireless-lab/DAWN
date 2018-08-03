@@ -229,6 +229,10 @@ add_mac(struct ubus_context *ctx, struct ubus_object *obj,
         struct ubus_request_data *req, const char *method,
         struct blob_attr *msg);
 
+static int reload_config(struct ubus_context *ctx, struct ubus_object *obj,
+                         struct ubus_request_data *req, const char *method,
+                         struct blob_attr *msg);
+
 static int get_hearing_map(struct ubus_context *ctx, struct ubus_object *obj,
                            struct ubus_request_data *req, const char *method,
                            struct blob_attr *msg);
@@ -254,6 +258,8 @@ void hostapd_array_delete(uint32_t id);
 static void ubus_add_oject();
 
 static void respond_to_notify(uint32_t id);
+
+int handle_uci_config(struct blob_attr *msg);
 
 void add_client_update_timer(time_t time) {
     uloop_timeout_set(&client_timer, time);
@@ -609,7 +615,7 @@ int handle_network_msg(char *msg) {
         return -1;
     }
 
-    if (strlen(method) < 5) {
+    if (strlen(method) < 2) {
         return -1;
     }
 
@@ -628,6 +634,12 @@ int handle_network_msg(char *msg) {
         handle_set_probe(data_buf.head);
     } else if (strncmp(method, "addmac", 5) == 0) {
         parse_add_mac_to_file(data_buf.head);
+    } else if (strncmp(method, "uci", 2) == 0) {
+        printf("HANDLING UCI!\n");
+        handle_uci_config(data_buf.head);
+    } else
+    {
+        printf("NO METHOD FOUND!!!! FOR: %s\n", method);
     }
 
     return 0;
@@ -1166,7 +1178,8 @@ static const struct blobmsg_policy add_del_policy[__ADD_DEL_MAC_MAX] = {
 static const struct ubus_method dawn_methods[] = {
         UBUS_METHOD("add_mac", add_mac, add_del_policy),
         UBUS_METHOD_NOARG("get_hearing_map", get_hearing_map),
-        UBUS_METHOD_NOARG("get_network", get_network)
+        UBUS_METHOD_NOARG("get_network", get_network),
+        UBUS_METHOD_NOARG("reload_config", reload_config)
         //UBUS_METHOD_NOARG("get_aps");
         //UBUS_METHOD_NOARG("get_clients");
 };
@@ -1217,6 +1230,21 @@ int send_add_mac(uint8_t *client_addr) {
     return 0;
 }
 
+static int reload_config(struct ubus_context *ctx, struct ubus_object *obj,
+                           struct ubus_request_data *req, const char *method,
+                           struct blob_attr *msg) {
+    int ret;
+    blob_buf_init(&b, 0);
+    uci_reset();
+    dawn_metric = uci_get_dawn_metric();
+    timeout_config = uci_get_time_config();
+    uci_send_via_network();
+    ret = ubus_send_reply(ctx, req, b.head);
+    if (ret)
+        fprintf(stderr, "Failed to send reply: %s\n", ubus_strerror(ret));
+    return 0;
+}
+
 static int get_hearing_map(struct ubus_context *ctx, struct ubus_object *obj,
                            struct ubus_request_data *req, const char *method,
                            struct blob_attr *msg) {
@@ -1263,4 +1291,271 @@ static void respond_to_notify(uint32_t id) {
     ret = ubus_invoke(ctx, id, "notify_response", b.head, NULL, NULL, timeout * 1000);
     if (ret)
         fprintf(stderr, "Failed to invoke: %s\n", ubus_strerror(ret));
+}
+
+int uci_send_via_network()
+{
+    void *metric, *times;
+
+    blob_buf_init(&b, 0);
+    metric = blobmsg_open_table(&b, "metric");
+    blobmsg_add_u32(&b, "ht_support", dawn_metric.ht_support);
+    blobmsg_add_u32(&b, "vht_support", dawn_metric.vht_support);
+    blobmsg_add_u32(&b, "no_ht_support", dawn_metric.no_ht_support);
+    blobmsg_add_u32(&b, "no_vht_support", dawn_metric.no_vht_support);
+    blobmsg_add_u32(&b, "rssi", dawn_metric.rssi);
+    blobmsg_add_u32(&b, "low_rssi", dawn_metric.low_rssi);
+    blobmsg_add_u32(&b, "freq", dawn_metric.freq);
+    blobmsg_add_u32(&b, "chan_util", dawn_metric.chan_util);
+
+
+    blobmsg_add_u32(&b, "max_chan_util", dawn_metric.max_chan_util);
+    blobmsg_add_u32(&b, "rssi_val", dawn_metric.rssi_val);
+    blobmsg_add_u32(&b, "low_rssi_val", dawn_metric.low_rssi_val);
+    blobmsg_add_u32(&b, "chan_util_val", dawn_metric.chan_util_val);
+    blobmsg_add_u32(&b, "max_chan_util_val", dawn_metric.max_chan_util_val);
+    blobmsg_add_u32(&b, "min_probe_count", dawn_metric.min_probe_count);
+    blobmsg_add_u32(&b, "bandwith_threshold", dawn_metric.bandwith_threshold);
+    blobmsg_add_u32(&b, "use_station_count", dawn_metric.use_station_count);
+    blobmsg_add_u32(&b, "max_station_diff", dawn_metric.max_station_diff);
+    blobmsg_add_u32(&b, "eval_probe_req", dawn_metric.eval_probe_req);
+    blobmsg_add_u32(&b, "eval_auth_req", dawn_metric.eval_auth_req);
+    blobmsg_add_u32(&b, "eval_assoc_req", dawn_metric.eval_assoc_req);
+    blobmsg_add_u32(&b, "kicking", dawn_metric.kicking);
+    blobmsg_add_u32(&b, "deny_auth_reason", dawn_metric.deny_auth_reason);
+    blobmsg_add_u32(&b, "deny_assoc_reason", dawn_metric.deny_assoc_reason);
+    blobmsg_add_u32(&b, "use_driver_recog", dawn_metric.use_driver_recog);
+    blobmsg_add_u32(&b, "min_number_to_kick", dawn_metric.min_kick_count);
+    blobmsg_add_u32(&b, "chan_util_avg_period", dawn_metric.chan_util_avg_period);
+    blobmsg_close_table(&b, metric);
+
+    times = blobmsg_open_table(&b, "times");
+    blobmsg_add_u32(&b, "update_client", timeout_config.update_client);
+    blobmsg_add_u32(&b, "denied_req_threshold", timeout_config.denied_req_threshold);
+    blobmsg_add_u32(&b, "remove_client", timeout_config.remove_client);
+    blobmsg_add_u32(&b, "remove_probe", timeout_config.remove_probe);
+    blobmsg_add_u32(&b, "remove_ap", timeout_config.remove_ap);
+    blobmsg_add_u32(&b, "update_hostapd", timeout_config.update_hostapd);
+    blobmsg_add_u32(&b, "update_tcp_con", timeout_config.update_tcp_con);
+    blobmsg_add_u32(&b, "update_chan_util", timeout_config.update_chan_util);
+    blobmsg_close_table(&b, times);
+
+    send_blob_attr_via_network(b.head, "uci");
+
+    return 0;
+}
+enum {
+    UCI_TABLE_METRIC,
+    UCI_TABLE_TIMES,
+    __UCI_TABLE_MAX
+};
+
+enum {
+    UCI_HT_SUPPORT,
+    UCI_VHT_SUPPORT,
+    UCI_NO_HT_SUPPORT,
+    UCI_NO_VHT_SUPPORT,
+    UCI_RSSI,
+    UCI_LOW_RSSI,
+    UCI_FREQ,
+    UCI_CHAN_UTIL,
+    UCI_MAX_CHAN_UTIL,
+    UCI_RSSI_VAL,
+    UCI_LOW_RSSI_VAL,
+    UCI_CHAN_UTIL_VAL,
+    UCI_MAX_CHAN_UTIL_VAL,
+    UCI_MIN_PROBE_COUNT,
+    UCI_BANDWITH_THRESHOLD,
+    UCI_USE_STATION_COUNT,
+    UCI_MAX_STATION_DIFF,
+    UCI_EVAL_PROBE_REQ,
+    UCI_EVAL_AUTH_REQ,
+    UCI_EVAL_ASSOC_REQ,
+    UCI_KICKING,
+    UCI_DENY_AUTH_REASON,
+    UCI_DENY_ASSOC_REASON,
+    UCI_USE_DRIVER_RECOG,
+    UCI_MIN_NUMBER_TO_KICK,
+    UCI_CHAN_UTIL_AVG_PERIOD,
+    __UCI_METIC_MAX
+};
+
+enum {
+    UCI_UPDATE_CLIENT,
+    UCI_DENIED_REQ_THRESHOLD,
+    UCI_REMOVE_CLIENT,
+    UCI_REMOVE_PROBE,
+    UCI_REMOVE_AP,
+    UCI_UPDATE_HOSTAPD,
+    UCI_UPDATE_TCP_CON,
+    UCI_UPDATE_CHAN_UTIL,
+    __UCI_TIMES_MAX,
+};
+
+static const struct blobmsg_policy uci_table_policy[__UCI_TABLE_MAX] = {
+        [UCI_TABLE_METRIC] = {.name = "metric", .type = BLOBMSG_TYPE_TABLE},
+        [UCI_TABLE_TIMES] = {.name = "times", .type = BLOBMSG_TYPE_TABLE}
+};
+
+static const struct blobmsg_policy uci_metric_policy[__UCI_METIC_MAX] = {
+        [UCI_HT_SUPPORT] = {.name = "ht_support", .type = BLOBMSG_TYPE_INT32},
+        [UCI_VHT_SUPPORT] = {.name = "vht_support", .type = BLOBMSG_TYPE_INT32},
+        [UCI_NO_HT_SUPPORT] = {.name = "no_ht_support", .type = BLOBMSG_TYPE_INT32},
+        [UCI_NO_VHT_SUPPORT] = {.name = "no_vht_support", .type = BLOBMSG_TYPE_INT32},
+        [UCI_RSSI] = {.name = "rssi", .type = BLOBMSG_TYPE_INT32},
+        [UCI_LOW_RSSI] = {.name = "low_rssi", .type = BLOBMSG_TYPE_INT32},
+        [UCI_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
+        [UCI_CHAN_UTIL] = {.name = "chan_util", .type = BLOBMSG_TYPE_INT32},
+        [UCI_MAX_CHAN_UTIL] = {.name = "max_chan_util_val", .type = BLOBMSG_TYPE_INT32},
+        [UCI_RSSI_VAL] = {.name = "rssi_val", .type = BLOBMSG_TYPE_INT32},
+        [UCI_LOW_RSSI_VAL] = {.name = "low_rssi_val", .type = BLOBMSG_TYPE_INT32},
+        [UCI_CHAN_UTIL_VAL] = {.name = "chan_util_val", .type = BLOBMSG_TYPE_INT32},
+        [UCI_MAX_CHAN_UTIL_VAL] = {.name = "max_chan_util_val", .type = BLOBMSG_TYPE_INT32},
+        [UCI_MIN_PROBE_COUNT] = {.name = "min_probe_count", .type = BLOBMSG_TYPE_INT32},
+        [UCI_BANDWITH_THRESHOLD] = {.name = "bandwith_threshold", .type = BLOBMSG_TYPE_INT32},
+        [UCI_USE_STATION_COUNT] = {.name = "use_station_count", .type = BLOBMSG_TYPE_INT32},
+        [UCI_MAX_STATION_DIFF] = {.name = "max_station_diff", .type = BLOBMSG_TYPE_INT32},
+        [UCI_EVAL_PROBE_REQ] = {.name = "eval_probe_req", .type = BLOBMSG_TYPE_INT32},
+        [UCI_EVAL_AUTH_REQ] = {.name = "eval_auth_req", .type = BLOBMSG_TYPE_INT32},
+        [UCI_EVAL_ASSOC_REQ] = {.name = "eval_assoc_req", .type = BLOBMSG_TYPE_INT32},
+        [UCI_KICKING] = {.name = "kicking", .type = BLOBMSG_TYPE_INT32},
+        [UCI_DENY_AUTH_REASON] = {.name = "deny_auth_reason", .type = BLOBMSG_TYPE_INT32},
+        [UCI_DENY_ASSOC_REASON] = {.name = "deny_assoc_reason", .type = BLOBMSG_TYPE_INT32},
+        [UCI_USE_DRIVER_RECOG] = {.name = "use_driver_recog", .type = BLOBMSG_TYPE_INT32},
+        [UCI_MIN_NUMBER_TO_KICK] = {.name = "min_number_to_kick", .type = BLOBMSG_TYPE_INT32},
+        [UCI_CHAN_UTIL_AVG_PERIOD] = {.name = "chan_util_avg_period", .type = BLOBMSG_TYPE_INT32},
+};
+
+static const struct blobmsg_policy uci_times_policy[__UCI_TIMES_MAX] = {
+        [UCI_UPDATE_CLIENT] = {.name = "update_client", .type = BLOBMSG_TYPE_INT32},
+        [UCI_DENIED_REQ_THRESHOLD] = {.name = "denied_req_threshold", .type = BLOBMSG_TYPE_INT32},
+        [UCI_REMOVE_CLIENT] = {.name = "remove_client", .type = BLOBMSG_TYPE_INT32},
+        [UCI_REMOVE_PROBE] = {.name = "remove_probe", .type = BLOBMSG_TYPE_INT32},
+        [UCI_REMOVE_AP] = {.name = "remove_ap", .type = BLOBMSG_TYPE_INT32},
+        [UCI_UPDATE_HOSTAPD] = {.name = "update_hostapd", .type = BLOBMSG_TYPE_INT32},
+        [UCI_UPDATE_TCP_CON] = {.name = "update_tcp_con", .type = BLOBMSG_TYPE_INT32},
+        [UCI_UPDATE_CHAN_UTIL] = {.name = "update_chan_util", .type = BLOBMSG_TYPE_INT32},
+
+};
+
+int handle_uci_config(struct blob_attr *msg) {
+
+    printf("\n\nHANDLING UCI CONFIG!!!\n\n");
+
+    struct blob_attr *tb[__UCI_TABLE_MAX];
+    blobmsg_parse(uci_table_policy, __UCI_TABLE_MAX, tb, blob_data(msg), blob_len(msg));
+
+    struct blob_attr *tb_metric[__UCI_METIC_MAX];
+    blobmsg_parse(uci_metric_policy, __UCI_METIC_MAX, tb_metric, blobmsg_data(tb[UCI_TABLE_METRIC]), blobmsg_len(tb[UCI_TABLE_METRIC]));
+
+    char cmd_buffer[1024];
+    sprintf(cmd_buffer, "dawn.@metric[0].ht_support=%d", blobmsg_get_u32(tb_metric[UCI_HT_SUPPORT]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@metric[0].vht_support=%d", blobmsg_get_u32(tb_metric[UCI_VHT_SUPPORT]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@metric[0].no_ht_support=%d", blobmsg_get_u32(tb_metric[UCI_NO_HT_SUPPORT]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@metric[0].no_vht_support=%d", blobmsg_get_u32(tb_metric[UCI_NO_VHT_SUPPORT]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@metric[0].rssi=%d", blobmsg_get_u32(tb_metric[UCI_RSSI]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@metric[0].low_rssi=%d", blobmsg_get_u32(tb_metric[UCI_LOW_RSSI]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@metric[0].freq=%d", blobmsg_get_u32(tb_metric[UCI_FREQ]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@metric[0].chan_util=%d", blobmsg_get_u32(tb_metric[UCI_CHAN_UTIL]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@metric[0].rssi_val=%d", blobmsg_get_u32(tb_metric[UCI_RSSI_VAL]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@metric[0].low_rssi_val=%d", blobmsg_get_u32(tb_metric[UCI_LOW_RSSI_VAL]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@metric[0].chan_util_val=%d", blobmsg_get_u32(tb_metric[UCI_CHAN_UTIL_VAL]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@metric[0].max_chan_util_val=%d", blobmsg_get_u32(tb_metric[UCI_MAX_CHAN_UTIL_VAL]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@metric[0].min_probe_count=%d", blobmsg_get_u32(tb_metric[UCI_MIN_PROBE_COUNT]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@metric[0].bandwith_threshold=%d", blobmsg_get_u32(tb_metric[UCI_BANDWITH_THRESHOLD]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@metric[0].use_station_count=%d", blobmsg_get_u32(tb_metric[UCI_USE_STATION_COUNT]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@metric[0].max_station_diff=%d", blobmsg_get_u32(tb_metric[UCI_MAX_STATION_DIFF]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@metric[0].eval_probe_req=%d", blobmsg_get_u32(tb_metric[UCI_EVAL_PROBE_REQ]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@metric[0].eval_auth_req=%d", blobmsg_get_u32(tb_metric[UCI_EVAL_AUTH_REQ]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@metric[0].eval_assoc_req=%d", blobmsg_get_u32(tb_metric[UCI_EVAL_ASSOC_REQ]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@metric[0].kicking=%d", blobmsg_get_u32(tb_metric[UCI_KICKING]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@metric[0].deny_auth_reason=%d", blobmsg_get_u32(tb_metric[UCI_DENY_AUTH_REASON]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@metric[0].deny_assoc_reason=%d", blobmsg_get_u32(tb_metric[UCI_DENY_ASSOC_REASON]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@metric[0].use_driver_recog=%d", blobmsg_get_u32(tb_metric[UCI_USE_DRIVER_RECOG]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@metric[0].min_number_to_kick=%d", blobmsg_get_u32(tb_metric[UCI_MIN_NUMBER_TO_KICK]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@metric[0].chan_util_avg_period=%d", blobmsg_get_u32(tb_metric[UCI_CHAN_UTIL_AVG_PERIOD]));
+    uci_set_network(cmd_buffer);
+
+    struct blob_attr *tb_times[__UCI_TIMES_MAX];
+    blobmsg_parse(uci_times_policy, __UCI_TIMES_MAX, tb_times, blobmsg_data(tb[UCI_TABLE_TIMES]), blobmsg_len(tb[UCI_TABLE_TIMES]));
+
+    sprintf(cmd_buffer, "dawn.@times[0].update_client=%d", blobmsg_get_u32(tb_times[UCI_UPDATE_CLIENT]));
+    uci_set_network(cmd_buffer);
+    printf("UPDATING CLIENT TO TIMER TO: %d\n\n\n\n", blobmsg_get_u32(tb_times[UCI_UPDATE_CLIENT]));
+
+
+    sprintf(cmd_buffer, "dawn.@times[0].denied_req_threshold=%d", blobmsg_get_u32(tb_times[UCI_DENIED_REQ_THRESHOLD]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@mtimes[0].remove_client=%d", blobmsg_get_u32(tb_times[UCI_REMOVE_CLIENT]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@times[0].remove_probe=%d", blobmsg_get_u32(tb_times[UCI_REMOVE_PROBE]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@times[0].remove_ap=%d", blobmsg_get_u32(tb_times[UCI_REMOVE_AP]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@times[0].update_hostapd=%d", blobmsg_get_u32(tb_times[UCI_UPDATE_HOSTAPD]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@times[0].update_tcp_con=%d", blobmsg_get_u32(tb_times[UCI_UPDATE_TCP_CON]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@times[0].update_chan_util=%d", blobmsg_get_u32(tb_times[UCI_UPDATE_CHAN_UTIL]));
+    uci_set_network(cmd_buffer);
+
+    uci_reset();
+    dawn_metric = uci_get_dawn_metric();
+    timeout_config = uci_get_time_config();
+
+    return 0;
 }

@@ -160,4 +160,6 @@ int send_set_probe(uint8_t client_addr[]);
  */
 int send_add_mac(uint8_t *client_addr);
 
+int uci_send_via_network();
+
 #endif

@@ -26,6 +26,7 @@ struct time_config_s uci_get_time_config() {
 
         if (strcmp(s->type, "times") == 0) {
             ret.update_client = uci_lookup_option_int(uci_ctx, s, "update_client");
+            printf("\n\nUPDATE CLIEEEEEEEEEENT VALUE: %d\n\n", uci_lookup_option_int(uci_ctx, s, "update_client"));
             ret.remove_client = uci_lookup_option_int(uci_ctx, s, "remove_client");
             ret.remove_probe = uci_lookup_option_int(uci_ctx, s, "remove_probe");
             ret.update_hostapd = uci_lookup_option_int(uci_ctx, s, "update_hostapd");
@@ -134,6 +135,16 @@ const char *uci_get_dawn_sort_order() {
     return NULL;
 }
 
+int uci_reset()
+{
+    printf("UNLOADING PACKAGE!\n");
+    uci_unload(uci_ctx, uci_pkg);
+    printf("RELOADING DAWN PACKAGE!\n");
+    uci_load(uci_ctx, "dawn", &uci_pkg);
+
+    return 0;
+}
+
 int uci_init() {
     struct uci_context *ctx = uci_ctx;
 
@@ -163,4 +174,31 @@ int uci_clear() {
         uci_free_context(uci_ctx);
     }
     return 1;
+}
+
+int uci_set_network(char* uci_cmd)
+{
+    struct uci_ptr ptr;
+    int ret = UCI_OK;
+    struct uci_context *ctx;
+
+    ctx = uci_alloc_context();
+    ctx->flags |= UCI_FLAG_STRICT;
+
+    if (uci_lookup_ptr(ctx, &ptr, uci_cmd, 1) != UCI_OK) {
+        return 1;
+    }
+
+    ret = uci_set(ctx, &ptr);
+
+
+    if (uci_lookup_ptr(ctx, &ptr, "dawn", 1) != UCI_OK) {
+        return 1;
+    }
+
+    if (uci_commit(ctx, &ptr.p, 0) != UCI_OK) {
+        printf("FAILED TO COMMIT!\n");
+    }
+
+    return ret;
 }

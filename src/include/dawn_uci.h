@@ -43,4 +43,8 @@ const char *uci_get_dawn_hostapd_dir();
  */
 const char *uci_get_dawn_sort_order();
 
+int uci_set_network(char* uci_cmd);
+
+int uci_reset();
+
 #endif //DAWN_UCI_H_H
