@@ -63,8 +63,8 @@ struct hostapd_sock_entry{
     char iface_name[MAX_INTERFACE_NAME];
     uint8_t bssid_addr[ETH_ALEN];
     char ssid[SSID_MAX_LEN];
-    uint8_t ht;
-    uint8_t vht;
+    uint8_t ht_support;
+    uint8_t vht_support;
     uint64_t last_channel_time;
     uint64_t last_channel_time_busy;
     int chan_util_samples_sum;
@@ -121,8 +121,8 @@ enum {
     PROB_TARGET_ADDR,
     PROB_SIGNAL,
     PROB_FREQ,
-    PROB_HT_SUPPORT,
-    PROB_VHT_SUPPORT,
+    PROB_HT_CAPABILITIES,
+    PROB_VHT_CAPABILITIES,
     __PROB_MAX,
 };
 
@@ -132,8 +132,8 @@ static const struct blobmsg_policy prob_policy[__PROB_MAX] = {
         [PROB_TARGET_ADDR] = {.name = "target", .type = BLOBMSG_TYPE_STRING},
         [PROB_SIGNAL] = {.name = "signal", .type = BLOBMSG_TYPE_INT32},
         [PROB_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
-        [PROB_HT_SUPPORT] = {.name = "ht_support", .type = BLOBMSG_TYPE_INT8},
-        [PROB_VHT_SUPPORT] = {.name = "vht_support", .type = BLOBMSG_TYPE_INT8},
+        [PROB_HT_CAPABILITIES] = {.name = "ht_capabilities", .type = BLOBMSG_TYPE_TABLE},
+        [PROB_VHT_CAPABILITIES] = {.name = "vht_capabilities", .type = BLOBMSG_TYPE_TABLE},
 };
 
 enum {
@@ -438,12 +438,18 @@ int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req) {
         prob_req->freq = blobmsg_get_u32(tb[PROB_FREQ]);
     }
 
-    if (tb[PROB_HT_SUPPORT]) {
-        prob_req->ht_support = blobmsg_get_u8(tb[PROB_HT_SUPPORT]);
+    if (tb[PROB_HT_CAPABILITIES]) {
+        prob_req->ht_capabilities = true;
+    } else
+    {
+        prob_req->ht_capabilities = false;
     }
 
-    if (tb[PROB_VHT_SUPPORT]) {
-        prob_req->vht_support = blobmsg_get_u8(tb[PROB_VHT_SUPPORT]);
+    if (tb[PROB_VHT_CAPABILITIES]) {
+        prob_req->vht_capabilities = true;
+    } else
+    {
+        prob_req->vht_capabilities = false;
     }
 
     return 0;
@@ -726,8 +732,8 @@ static int add_subscriber(char *name) {
 
     // TODO: here we need to add ht and vht supported!!!
     // actually we wanted to use an ubus call but for now we can use libiwinfo
-    hostapd_entry->ht = (uint8_t) support_ht(name);
-    hostapd_entry->vht = (uint8_t) support_vht(name);
+    hostapd_entry->ht_support = (uint8_t) support_ht(name);
+    hostapd_entry->vht_support = (uint8_t) support_vht(name);
 
     ret = ubus_register_subscriber(ctx, &hostapd_entry->subscriber);
     ret = ubus_subscribe( ctx, &hostapd_entry->subscriber, id);
@@ -912,16 +918,16 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
         ap_entry.freq = blobmsg_get_u32(tb[CLIENT_TABLE_FREQ]);
 
         if(tb[CLIENT_TABLE_HT]){
-            ap_entry.ht = blobmsg_get_u8(tb[CLIENT_TABLE_HT]);
+            ap_entry.ht_support = blobmsg_get_u8(tb[CLIENT_TABLE_HT]);
         } else {
-            ap_entry.ht = false;
+            ap_entry.ht_support = false;
         }
 
         if(tb[CLIENT_TABLE_VHT]){
-            ap_entry.vht = blobmsg_get_u8(tb[CLIENT_TABLE_VHT]);
+            ap_entry.vht_support = blobmsg_get_u8(tb[CLIENT_TABLE_VHT]);
         } else
         {
-            ap_entry.vht = false;
+            ap_entry.vht_support = false;
         }
 
         if(tb[CLIENT_TABLE_CHAN_UTIL]) {
@@ -978,8 +984,8 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
 
     blobmsg_add_macaddr(&b_domain, "bssid", entry->bssid_addr);
     blobmsg_add_string(&b_domain, "ssid", entry->ssid);
-    blobmsg_add_u8(&b_domain, "ht_supported", entry->ht);
-    blobmsg_add_u8(&b_domain, "vht_supported", entry->vht);
+    blobmsg_add_u8(&b_domain, "ht_supported", entry->ht_support);
+    blobmsg_add_u8(&b_domain, "vht_supported", entry->vht_support);
 
     //int channel_util = get_channel_utilization(entry->iface_name, &entry->last_channel_time, &entry->last_channel_time_busy);
     blobmsg_add_u32(&b_domain, "channel_utilization", entry->chan_util_average);
@@ -1113,6 +1119,7 @@ int ubus_call_umdns() {
     return 0;
 }
 
+//TODO: ADD STUFF HERE!!!!
 int ubus_send_probe_via_network(struct probe_entry_s probe_entry) {
     blob_buf_init(&b_probe, 0);
     blobmsg_add_macaddr(&b_probe, "bssid", probe_entry.bssid_addr);
@@ -1120,8 +1127,17 @@ int ubus_send_probe_via_network(struct probe_entry_s probe_entry) {
     blobmsg_add_macaddr(&b_probe, "target", probe_entry.target_addr);
     blobmsg_add_u32(&b_probe, "signal", probe_entry.signal);
     blobmsg_add_u32(&b_probe, "freq", probe_entry.freq);
-    blobmsg_add_u8(&b_probe, "ht_support", probe_entry.ht_support);
-    blobmsg_add_u8(&b_probe, "vht_support", probe_entry.vht_support);
+
+    if(probe_entry.ht_capabilities)
+    {
+        void *ht_cap = blobmsg_open_table(&b, "ht_capabilities");
+        blobmsg_close_table(&b, ht_cap);
+    }
+
+    if(probe_entry.vht_capabilities) {
+        void *vht_cap = blobmsg_open_table(&b, "vht_capabilities");
+        blobmsg_close_table(&b, vht_cap);
+    }
 
     send_blob_attr_via_network(b_probe.head, "probe");
 

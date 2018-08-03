@@ -105,8 +105,8 @@ typedef struct probe_entry_s {
     uint8_t target_addr[ETH_ALEN];
     uint32_t signal;
     uint32_t freq;
-    uint8_t ht_support;
-    uint8_t vht_support;
+    uint8_t ht_capabilities;
+    uint8_t vht_capabilities;
     time_t time;
     int counter;
     int deny_counter;
@@ -190,8 +190,8 @@ typedef struct client_s {
 typedef struct ap_s {
     uint8_t bssid_addr[ETH_ALEN];
     uint32_t freq;
-    uint8_t ht;
-    uint8_t vht;
+    uint8_t ht_support;
+    uint8_t vht_support;
     uint32_t channel_utilization;
     time_t time;
     uint32_t station_count;

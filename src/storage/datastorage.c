@@ -151,15 +151,15 @@ int build_hearing_map_sort_client(struct blob_buf *b) {
                 ap_list = blobmsg_open_table(b, ap_mac_buf);
                 blobmsg_add_u32(b, "signal", probe_array[k].signal);
                 blobmsg_add_u32(b, "freq", probe_array[k].freq);
-                blobmsg_add_u8(b, "ht_support", probe_array[k].ht_support);
-                blobmsg_add_u8(b, "vht_support", probe_array[k].vht_support);
+                blobmsg_add_u8(b, "ht_capabilities", probe_array[k].ht_capabilities);
+                blobmsg_add_u8(b, "vht_capabilities", probe_array[k].vht_capabilities);
 
 
                 // check if ap entry is available
                 blobmsg_add_u32(b, "channel_utilization", ap_entry.channel_utilization);
                 blobmsg_add_u32(b, "num_sta", ap_entry.station_count);
-                blobmsg_add_u32(b, "ht", ap_entry.ht);
-                blobmsg_add_u32(b, "vht", ap_entry.vht);
+                blobmsg_add_u8(b, "ht_support", ap_entry.ht_support);
+                blobmsg_add_u8(b, "vht_support", ap_entry.vht_support);
 
                 blobmsg_add_u32(b, "score", eval_probe_metric(probe_array[k]));
                 blobmsg_close_table(b, ap_list);
@@ -211,8 +211,8 @@ int build_network_overview(struct blob_buf *b) {
                 sprintf(client_mac_buf, MACSTR, MAC2STR(client_array[k].client_addr));
                 client_list = blobmsg_open_table(b, client_mac_buf);
                 blobmsg_add_u32(b, "freq", client_array[k].freq);
-                blobmsg_add_u32(b, "ht", client_array[k].ht);
-                blobmsg_add_u32(b, "vht", client_array[k].vht);
+                blobmsg_add_u8(b, "ht", client_array[k].ht);
+                blobmsg_add_u8(b, "vht", client_array[k].vht);
                 blobmsg_add_u32(b, "collision_count", ap_get_collision_count(ap_array[m].collision_domain));
                 blobmsg_close_table(b, client_list);
             }
@@ -231,15 +231,15 @@ int eval_probe_metric(struct probe_entry_s probe_entry) {
 
     // check if ap entry is available
     if (mac_is_equal(ap_entry.bssid_addr, probe_entry.bssid_addr)) {
-        score += probe_entry.ht_support && ap_entry.ht ? dawn_metric.ht_support : 0;
-        score += !probe_entry.ht_support && !ap_entry.ht ? dawn_metric.no_ht_support : 0;
+        score += probe_entry.ht_capabilities && ap_entry.ht_support ? dawn_metric.ht_support : 0;
+        score += !probe_entry.ht_capabilities && !ap_entry.ht_support ? dawn_metric.no_ht_support : 0;
 
         // performance anomaly?
         if (network_config.bandwidth >= 1000 || network_config.bandwidth == -1) {
-            score += probe_entry.vht_support && ap_entry.vht ? dawn_metric.vht_support : 0;
+            score += probe_entry.vht_capabilities && ap_entry.vht_support ? dawn_metric.vht_support : 0;
         }
 
-        score += !probe_entry.vht_support && !ap_entry.vht ? dawn_metric.no_vht_support : 0;
+        score += !probe_entry.vht_capabilities && !ap_entry.vht_support ? dawn_metric.no_vht_support : 0;
         score += ap_entry.channel_utilization <= dawn_metric.chan_util_val ? dawn_metric.chan_util : 0;
         score += ap_entry.channel_utilization > dawn_metric.max_chan_util_val ? dawn_metric.max_chan_util : 0;
     }
@@ -1207,7 +1207,7 @@ void print_probe_entry(probe_entry entry) {
     printf(
             "bssid_addr: %s, client_addr: %s, signal: %d, freq: "
             "%d, counter: %d, vht: %d, min_rate: %d, max_rate: %d\n",
-            mac_buf_ap, mac_buf_client, entry.signal, entry.freq, entry.counter, entry.vht_support,
+            mac_buf_ap, mac_buf_client, entry.signal, entry.freq, entry.counter, entry.vht_capabilities,
             entry.min_supp_datarate, entry.max_supp_datarate);
 }
 
@@ -1252,7 +1252,7 @@ void print_ap_entry(ap entry) {
 
     sprintf(mac_buf_ap, MACSTR, MAC2STR(entry.bssid_addr));
     printf("ssid: %s, bssid_addr: %s, freq: %d, ht: %d, vht: %d, chan_utilz: %d, col_d: %d, bandwidth: %d, col_count: %d\n",
-           entry.ssid, mac_buf_ap, entry.freq, entry.ht, entry.vht,
+           entry.ssid, mac_buf_ap, entry.freq, entry.ht_support, entry.vht_support,
            entry.channel_utilization, entry.collision_domain, entry.bandwidth,
            ap_get_collision_count(entry.collision_domain)
     );
