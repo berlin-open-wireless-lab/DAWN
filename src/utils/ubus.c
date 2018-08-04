@@ -1406,7 +1406,7 @@ static const struct blobmsg_policy uci_metric_policy[__UCI_METIC_MAX] = {
         [UCI_LOW_RSSI] = {.name = "low_rssi", .type = BLOBMSG_TYPE_INT32},
         [UCI_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
         [UCI_CHAN_UTIL] = {.name = "chan_util", .type = BLOBMSG_TYPE_INT32},
-        [UCI_MAX_CHAN_UTIL] = {.name = "max_chan_util_val", .type = BLOBMSG_TYPE_INT32},
+        [UCI_MAX_CHAN_UTIL] = {.name = "max_chan_util", .type = BLOBMSG_TYPE_INT32},
         [UCI_RSSI_VAL] = {.name = "rssi_val", .type = BLOBMSG_TYPE_INT32},
         [UCI_LOW_RSSI_VAL] = {.name = "low_rssi_val", .type = BLOBMSG_TYPE_INT32},
         [UCI_CHAN_UTIL_VAL] = {.name = "chan_util_val", .type = BLOBMSG_TYPE_INT32},
@@ -1482,6 +1482,9 @@ int handle_uci_config(struct blob_attr *msg) {
     sprintf(cmd_buffer, "dawn.@metric[0].chan_util_val=%d", blobmsg_get_u32(tb_metric[UCI_CHAN_UTIL_VAL]));
     uci_set_network(cmd_buffer);
 
+    sprintf(cmd_buffer, "dawn.@metric[0].max_chan_util=%d", blobmsg_get_u32(tb_metric[UCI_MAX_CHAN_UTIL]));
+    uci_set_network(cmd_buffer);
+
     sprintf(cmd_buffer, "dawn.@metric[0].max_chan_util_val=%d", blobmsg_get_u32(tb_metric[UCI_MAX_CHAN_UTIL_VAL]));
     uci_set_network(cmd_buffer);
 
@@ -1531,11 +1534,10 @@ int handle_uci_config(struct blob_attr *msg) {
     uci_set_network(cmd_buffer);
     printf("UPDATING CLIENT TO TIMER TO: %d\n\n\n\n", blobmsg_get_u32(tb_times[UCI_UPDATE_CLIENT]));
 
-
     sprintf(cmd_buffer, "dawn.@times[0].denied_req_threshold=%d", blobmsg_get_u32(tb_times[UCI_DENIED_REQ_THRESHOLD]));
     uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@mtimes[0].remove_client=%d", blobmsg_get_u32(tb_times[UCI_REMOVE_CLIENT]));
+    sprintf(cmd_buffer, "dawn.@times[0].remove_client=%d", blobmsg_get_u32(tb_times[UCI_REMOVE_CLIENT]));
     uci_set_network(cmd_buffer);
 
     sprintf(cmd_buffer, "dawn.@times[0].remove_probe=%d", blobmsg_get_u32(tb_times[UCI_REMOVE_PROBE]));
