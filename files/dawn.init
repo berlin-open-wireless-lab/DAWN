@@ -8,6 +8,20 @@ STOP=50
 PROG=/usr/sbin/dawn
 NAME=dawn
 
+reload_service()
+{
+	if service_running; then
+		ubus call dawn reload_config
+	else
+		start
+	fi
+}
+
+service_triggers()
+{
+	procd_add_reload_trigger "dawn"
+}
+
 start_service()
 {
     local _tcp_buffer
