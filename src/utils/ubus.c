@@ -1440,8 +1440,6 @@ static const struct blobmsg_policy uci_times_policy[__UCI_TIMES_MAX] = {
 
 int handle_uci_config(struct blob_attr *msg) {
 
-    printf("\n\nHANDLING UCI CONFIG!!!\n\n");
-
     struct blob_attr *tb[__UCI_TABLE_MAX];
     blobmsg_parse(uci_table_policy, __UCI_TABLE_MAX, tb, blob_data(msg), blob_len(msg));
 
@@ -1506,7 +1504,7 @@ int handle_uci_config(struct blob_attr *msg) {
     sprintf(cmd_buffer, "dawn.@metric[0].eval_auth_req=%d", blobmsg_get_u32(tb_metric[UCI_EVAL_AUTH_REQ]));
     uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].eval_assoc_req=%d", blobmsg_get_u32(tb_metric[UCI_EVAL_ASSOC_REQ]));
+    sprintf(cmd_buffer, "dawn.@metric[0].evalcd_assoc_req=%d", blobmsg_get_u32(tb_metric[UCI_EVAL_ASSOC_REQ]));
     uci_set_network(cmd_buffer);
 
     sprintf(cmd_buffer, "dawn.@metric[0].kicking=%d", blobmsg_get_u32(tb_metric[UCI_KICKING]));
@@ -1532,7 +1530,6 @@ int handle_uci_config(struct blob_attr *msg) {
 
     sprintf(cmd_buffer, "dawn.@times[0].update_client=%d", blobmsg_get_u32(tb_times[UCI_UPDATE_CLIENT]));
     uci_set_network(cmd_buffer);
-    printf("UPDATING CLIENT TO TIMER TO: %d\n\n\n\n", blobmsg_get_u32(tb_times[UCI_UPDATE_CLIENT]));
 
     sprintf(cmd_buffer, "dawn.@times[0].denied_req_threshold=%d", blobmsg_get_u32(tb_times[UCI_DENIED_REQ_THRESHOLD]));
     uci_set_network(cmd_buffer);
