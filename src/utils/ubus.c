@@ -57,9 +57,12 @@ struct uloop_timeout channel_utilization_timer = {
 #define MAX_HOSTAPD_SOCKETS 10
 #define MAX_INTERFACE_NAME 64
 
-struct hostapd_sock_entry{
+LIST_HEAD(hostapd_sock_list);
+
+struct hostapd_sock_entry {
+    struct list_head list;
+
     uint32_t id;
-    uint32_t obj_id;
     char iface_name[MAX_INTERFACE_NAME];
     uint8_t bssid_addr[ETH_ALEN];
     char ssid[SSID_MAX_LEN];
@@ -71,6 +74,8 @@ struct hostapd_sock_entry{
     int chan_util_num_sample_periods;
     int chan_util_average;
     struct ubus_subscriber subscriber;
+    struct ubus_event_handler wait_handler;
+    bool subscribed;
 };
 
 struct hostapd_sock_entry* hostapd_sock_arr[MAX_HOSTAPD_SOCKETS];
@@ -713,73 +718,6 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
     return 0;
 }
 
-static int add_subscriber(char *name) {
-
-    char subscribe_name[300];
-    int ret;
-    struct hostapd_sock_entry *hostapd_entry;
-    uint32_t id = 0;
-
-    sprintf(subscribe_name, "hostapd.%s", name);
-
-    if (ubus_lookup_id(ctx, subscribe_name, &id)) {
-        fprintf(stderr, "Failed to look up test object for %s\n", subscribe_name);
-        return -1;
-    }
-
-    if(hostapd_array_check_id(id))
-    {
-        // entry already existing
-        return 0;
-    }
-
-    hostapd_entry = calloc(1, sizeof(struct hostapd_sock_entry));
-    hostapd_entry->id = id;
-    hostapd_entry->subscriber.remove_cb = hostapd_handle_remove;
-    hostapd_entry->subscriber.cb = hostapd_notify;
-
-    strcpy(hostapd_entry->iface_name, name);
-    get_bssid(name, hostapd_entry->bssid_addr);
-    get_ssid(name, hostapd_entry->ssid);
-
-    // TODO: here we need to add ht and vht supported!!!
-    // actually we wanted to use an ubus call but for now we can use libiwinfo
-    hostapd_entry->ht_support = (uint8_t) support_ht(name);
-    hostapd_entry->vht_support = (uint8_t) support_vht(name);
-
-    ret = ubus_register_subscriber(ctx, &hostapd_entry->subscriber);
-    ret = ubus_subscribe( ctx, &hostapd_entry->subscriber, id);
-
-    hostapd_array_insert(hostapd_entry);
-    fprintf(stderr, "Watching object %08x: %s\n", id, ubus_strerror(ret));
-
-    respond_to_notify(id);
-
-    return 0;
-}
-
-static int subscribe_to_hostapd_interfaces(const char *hostapd_dir) {
-    DIR *dirp;
-    struct dirent *entry;
-
-    if (ctx == NULL) {
-        return 0;
-    }
-
-    dirp = opendir(hostapd_dir);  // error handling?
-    if (!dirp) {
-        fprintf(stderr, "[SUBSCRIBING] No hostapd sockets!\n");
-        return -1;
-    }
-    while ((entry = readdir(dirp)) != NULL) {
-        if (entry->d_type == DT_SOCK) {
-            add_subscriber(entry->d_name);
-        }
-    }
-    closedir(dirp);
-    return 0;
-}
-
 int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
     uloop_init();
     signal(SIGPIPE, SIG_IGN);
@@ -816,7 +754,7 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
     if (network_config.network_option == 2)
         run_server(network_config.tcp_port);
 
-    subscribe_to_hostapd_interfaces(hostapd_dir_glob);
+    subscribe_to_new_interfaces(hostapd_dir_glob);
 
     uloop_run();
 
@@ -1013,9 +951,13 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
 
 static int ubus_get_clients() {
     int timeout = 1;
-    for (int i = 0; i <= hostapd_sock_last; i++) {
-        blob_buf_init(&b_clients, 0);
-        ubus_invoke(ctx, hostapd_sock_arr[i]->id, "get_clients", b_clients.head, ubus_get_clients_cb, NULL, timeout * 1000);
+    struct hostapd_sock_entry *sub;
+    list_for_each_entry(sub, &hostapd_sock_list, list)
+    {
+        if (sub->subscribed) {
+            blob_buf_init(&b_clients, 0);
+            ubus_invoke(ctx, sub->id, "get_clients", b_clients.head, ubus_get_clients_cb, NULL, timeout * 1000);
+        }
     }
     return 0;
 }
@@ -1053,24 +995,30 @@ void start_umdns_update() {
 }
 
 void update_hostapd_sockets(struct uloop_timeout *t) {
-    subscribe_to_hostapd_interfaces(hostapd_dir_glob);
+    subscribe_to_new_interfaces(hostapd_dir_glob);
     uloop_timeout_set(&hostapd_timer, timeout_config.update_hostapd * 1000);
 }
 
 void del_client_all_interfaces(const uint8_t *client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time) {
+    struct hostapd_sock_entry *sub;
+
     blob_buf_init(&b, 0);
     blobmsg_add_macaddr(&b, "addr", client_addr);
     blobmsg_add_u32(&b, "reason", reason);
     blobmsg_add_u8(&b, "deauth", deauth);
     blobmsg_add_u32(&b, "ban_time", ban_time);
 
-    for (int i = 0; i <= hostapd_sock_last; i++) {
-        int timeout = 1;
-        ubus_invoke(ctx, hostapd_sock_arr[i]->id, "del_client", b.head, NULL, NULL, timeout * 1000);
+    list_for_each_entry(sub, &hostapd_sock_list, list)
+    {
+        if (sub->subscribed) {
+            int timeout = 1;
+            ubus_invoke(ctx, sub->id, "del_client", b.head, NULL, NULL, timeout * 1000);
+        }
     }
 }
 
 void del_client_interface(uint32_t id, const uint8_t *client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time) {
+    struct hostapd_sock_entry *sub;
 
     blob_buf_init(&b, 0);
     blobmsg_add_macaddr(&b, "addr", client_addr);
@@ -1078,8 +1026,15 @@ void del_client_interface(uint32_t id, const uint8_t *client_addr, uint32_t reas
     blobmsg_add_u8(&b, "deauth", deauth);
     blobmsg_add_u32(&b, "ban_time", ban_time);
 
-    int timeout = 1;
-    ubus_invoke(ctx, id, "del_client", b.head, NULL, NULL, timeout * 1000);
+
+    list_for_each_entry(sub, &hostapd_sock_list, list)
+    {
+        if (sub->subscribed) {
+            int timeout = 1;
+            ubus_invoke(ctx, id, "del_client", b.head, NULL, NULL, timeout * 1000);
+        }
+    }
+
 }
 
 static void ubus_umdns_cb(struct ubus_request *req, int type, struct blob_attr *msg) {
@@ -1293,6 +1248,118 @@ static void respond_to_notify(uint32_t id) {
         fprintf(stderr, "Failed to invoke: %s\n", ubus_strerror(ret));
 }
 
+
+
+
+
+static void hostapd_handle_remove(struct ubus_context *ctx,
+                                  struct ubus_subscriber *s, uint32_t id) {
+    fprintf(stdout, "Object %08x went away\n", id);
+    struct hostapd_sock_entry *hostapd_sock = container_of(s,
+    struct hostapd_sock_entry, subscriber);
+
+    if (hostapd_sock->id != id) {
+        printf("ID NOT THE SAME!\n");
+        return;
+    }
+    //ret= ubus_unsubscribe(ctx, s, id);
+    //if (ret)
+    //    fprintf(stderr, "Removing object %08x: %s\n", id, ubus_strerror(ret));
+
+    hostapd_sock->subscribed = false;
+    subscription_wait(&hostapd_sock->wait_handler);
+
+}
+
+bool subscriber_to_interface(const char *ifname) {
+
+    struct hostapd_sock_entry *hostapd_entry;
+
+    hostapd_entry = calloc(1, sizeof(struct hostapd_sock_entry));
+    strcpy(hostapd_entry->iface_name, ifname);
+    hostapd_entry->subscriber.cb = hostapd_notify;
+    hostapd_entry->subscriber.remove_cb = hostapd_handle_remove;
+    hostapd_entry->wait_handler.cb = wait_cb;
+
+    hostapd_entry->subscribed = false;
+
+    if (ubus_register_subscriber(ctx, &hostapd_entry->subscriber)) {
+        fprintf(stderr, "Failed to register subscriber!");
+        return false;
+    }
+
+    list_add(&hostapd_entry->list, &hostapd_sock_list);
+
+    return subscribe(hostapd_entry);
+}
+
+bool subscribe(struct hostapd_sock_entry *hostapd_entry) {
+    char subscribe_name[sizeof("hostapd.") + MAX_INTERFACE_NAME + 1];
+
+    if (hostapd_entry->subscribed)
+        return false;
+
+    sprintf(subscribe_name, "hostapd.%s", hostapd_entry->iface_name);
+
+    if (ubus_lookup_id(ctx, subscribe_name, &hostapd_entry->id)) {
+        fprintf(stdout, "Failed to lookup ID!");
+        subscription_wait(&hostapd_entry->wait_handler);
+        return false;
+    }
+
+    if (ubus_subscribe(ctx, &hostapd_entry->subscriber, hostapd_entry->id)) {
+        fprintf(stdout, "Failed to register subscriber!");
+        subscription_wait(&hostapd_entry->wait_handler);
+        return false;
+    }
+
+    hostapd_entry->subscribed = true;
+
+    get_bssid(hostapd_entry->iface_name, hostapd_entry->bssid_addr);
+    get_ssid(hostapd_entry->iface_name, hostapd_entry->ssid);
+
+    hostapd_entry->ht_support = (uint8_t) support_ht(hostapd_entry->iface_name);
+    hostapd_entry->vht_support = (uint8_t) support_vht(hostapd_entry->iface_name);
+
+    printf("Subscribed to: %s\n", hostapd_entry->iface_name);
+
+    return true;
+}
+
+void subscribe_to_new_interfaces(const char *hostapd_sock_path) {
+    DIR *dirp;
+    struct dirent *entry;
+    struct hostapd_sock_entry *sub = NULL;
+
+    if (ctx == NULL) {
+        return;
+    }
+
+    dirp = opendir(hostapd_sock_path);  // error handling?
+    if (!dirp) {
+        fprintf(stderr, "[SUBSCRIBING] No hostapd sockets!\n");
+        return;
+    }
+    while ((entry = readdir(dirp)) != NULL) {
+        if (entry->d_type == DT_SOCK) {
+            bool do_subscribe = true;
+            list_for_each_entry(sub, &hostapd_sock_list, list)
+            {
+                if (strncmp(sub->iface_name, entry->d_name, MAX_INTERFACE_NAME) == 0) {
+                    do_subscribe = false;
+                    break;
+                }
+            }
+            if (do_subscribe) {
+                subscriber_to_interface(entry->d_name);
+            }
+
+        }
+    }
+    closedir(dirp);
+    return;
+}
+
 int uci_send_via_network()
 {
     void *metric, *times;
@@ -1440,8 +1507,6 @@ static const struct blobmsg_policy uci_times_policy[__UCI_TIMES_MAX] = {
 
 int handle_uci_config(struct blob_attr *msg) {
 
-    printf("\n\nHANDLING UCI CONFIG!!!\n\n");
-
     struct blob_attr *tb[__UCI_TABLE_MAX];
     blobmsg_parse(uci_table_policy, __UCI_TABLE_MAX, tb, blob_data(msg), blob_len(msg));
 
@@ -1506,7 +1571,7 @@ int handle_uci_config(struct blob_attr *msg) {
     sprintf(cmd_buffer, "dawn.@metric[0].eval_auth_req=%d", blobmsg_get_u32(tb_metric[UCI_EVAL_AUTH_REQ]));
     uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].eval_assoc_req=%d", blobmsg_get_u32(tb_metric[UCI_EVAL_ASSOC_REQ]));
+    sprintf(cmd_buffer, "dawn.@metric[0].evalcd_assoc_req=%d", blobmsg_get_u32(tb_metric[UCI_EVAL_ASSOC_REQ]));
     uci_set_network(cmd_buffer);
 
     sprintf(cmd_buffer, "dawn.@metric[0].kicking=%d", blobmsg_get_u32(tb_metric[UCI_KICKING]));
@@ -1532,7 +1597,6 @@ int handle_uci_config(struct blob_attr *msg) {
 
     sprintf(cmd_buffer, "dawn.@times[0].update_client=%d", blobmsg_get_u32(tb_times[UCI_UPDATE_CLIENT]));
     uci_set_network(cmd_buffer);
-    printf("UPDATING CLIENT TO TIMER TO: %d\n\n\n\n", blobmsg_get_u32(tb_times[UCI_UPDATE_CLIENT]));
 
     sprintf(cmd_buffer, "dawn.@times[0].denied_req_threshold=%d", blobmsg_get_u32(tb_times[UCI_DENIED_REQ_THRESHOLD]));
     uci_set_network(cmd_buffer);

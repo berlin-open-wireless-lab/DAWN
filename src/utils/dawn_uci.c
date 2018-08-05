@@ -26,7 +26,6 @@ struct time_config_s uci_get_time_config() {
 
         if (strcmp(s->type, "times") == 0) {
             ret.update_client = uci_lookup_option_int(uci_ctx, s, "update_client");
-            printf("\n\nUPDATE CLIEEEEEEEEEENT VALUE: %d\n\n", uci_lookup_option_int(uci_ctx, s, "update_client"));
             ret.remove_client = uci_lookup_option_int(uci_ctx, s, "remove_client");
             ret.remove_probe = uci_lookup_option_int(uci_ctx, s, "remove_probe");
             ret.update_hostapd = uci_lookup_option_int(uci_ctx, s, "update_hostapd");
@@ -137,9 +136,7 @@ const char *uci_get_dawn_sort_order() {
 
 int uci_reset()
 {
-    printf("UNLOADING PACKAGE!\n");
     uci_unload(uci_ctx, uci_pkg);
-    printf("RELOADING DAWN PACKAGE!\n");
     uci_load(uci_ctx, "dawn", &uci_pkg);
 
     return 0;
