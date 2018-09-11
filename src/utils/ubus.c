@@ -218,14 +218,9 @@ static const struct blobmsg_policy dawn_umdns_policy[__DAWN_UMDNS_MAX] = {
 };
 
 /* Function Definitions */
-static void hostapd_handle_remove(struct ubus_context *ctx,
-                                  struct ubus_subscriber *s, uint32_t id);
-
 static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
                           struct ubus_request_data *req, const char *method,
                           struct blob_attr *msg);
-
-static int add_subscriber(char *name);
 
 static int ubus_get_clients();
 
@@ -250,89 +245,25 @@ static int handle_set_probe(struct blob_attr *msg);
 
 static int parse_add_mac_to_file(struct blob_attr *msg);
 
-int hostapd_array_check_id(uint32_t id);
-
-void hostapd_array_insert(struct hostapd_sock_entry* entry);
-
-struct hostapd_sock_entry* hostapd_array_get_entry(uint32_t id);
-
-struct hostapd_sock_entry* hostapd_array_get_entry_by_object_id(uint32_t id);
-
-void hostapd_array_delete(uint32_t id);
-
 static void ubus_add_oject();
 
 static void respond_to_notify(uint32_t id);
 
 int handle_uci_config(struct blob_attr *msg);
 
+void subscribe_to_new_interfaces(const char *hostapd_sock_path);
+
+bool subscriber_to_interface(const char *ifname);
+
+bool subscribe(struct hostapd_sock_entry *hostapd_entry);
+
 void add_client_update_timer(time_t time) {
     uloop_timeout_set(&client_timer, time);
 }
 
-struct hostapd_sock_entry* hostapd_array_get_entry_by_object_id(uint32_t id) {
-    for (int i = 0; i <= hostapd_sock_last; i++) {
-        if (hostapd_sock_arr[i]->subscriber.obj.id == id) {
-            return hostapd_sock_arr[i];
-        }
-    }
-    return NULL;
-}
-
-struct hostapd_sock_entry* hostapd_array_get_entry(uint32_t id) {
-    for (int i = 0; i <= hostapd_sock_last; i++) {
-        if (hostapd_sock_arr[i]->id == id) {
-            return hostapd_sock_arr[i];
-        }
-    }
-    return NULL;
-}
-
-int hostapd_array_check_id(uint32_t id) {
-    for (int i = 0; i <= hostapd_sock_last; i++) {
-        if (hostapd_sock_arr[i]->id == id) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
-void hostapd_array_insert(struct hostapd_sock_entry* entry) {
-    if (hostapd_sock_last < MAX_HOSTAPD_SOCKETS) {
-        hostapd_sock_last++;
-        hostapd_sock_arr[hostapd_sock_last] = entry;
-    }
-
-    for (int i = 0; i <= hostapd_sock_last; i++) {
-        printf("%d: %d\n", i, hostapd_sock_arr[i]->id);
-    }
-}
-
-void hostapd_array_delete(uint32_t id) {
-    int i = 0;
-    int found_in_array = 0;
-
-    if (hostapd_sock_last == -1) {
-        return;
-    }
-
-    for (i = 0; i <= hostapd_sock_last; i++) {
-        if (hostapd_sock_arr[i]->id == id) {
-            found_in_array = 1;
-
-            // in thisfunction we are freeing the struct
-            free(hostapd_sock_arr[i]);
-            break;
-        }
-    }
-
-    for (int j = i; j <= hostapd_sock_last; j++) {
-        hostapd_sock_arr[j] = hostapd_sock_arr[j + 1];
-    }
-
-    if (hostapd_sock_last > -1 && found_in_array) {
-        hostapd_sock_last--;
-    }
+static inline int
+subscription_wait(struct ubus_event_handler *handler) {
+    return ubus_register_event_handler(ctx, handler, "ubus.object.add");
 }
 
 void blobmsg_add_macaddr(struct blob_buf *buf, const char *name, const uint8_t *addr) {
@@ -342,7 +273,6 @@ void blobmsg_add_macaddr(struct blob_buf *buf, const char *name, const uint8_t *
     sprintf(s, MACSTR, MAC2STR(addr));
     blobmsg_add_string_buffer(buf);
 }
-
 
 static int decide_function(probe_entry *prob_req, int req_type) {
     if (mac_in_maclist(prob_req->client_addr)) {
@@ -370,18 +300,6 @@ static int decide_function(probe_entry *prob_req, int req_type) {
     }
 
     return 1;
-}
-
-
-static void hostapd_handle_remove(struct ubus_context *ctx,
-                                  struct ubus_subscriber *s, uint32_t id) {
-    int ret;
-    fprintf(stderr, "Object %08x went away\n", id);
-    ret= ubus_unsubscribe(ctx, s, id);
-    if (ret)
-        fprintf(stderr, "Removing object %08x: %s\n", id, ubus_strerror(ret));
-
-    hostapd_array_delete(id);
 }
 
 int parse_to_hostapd_notify(struct blob_attr *msg, hostapd_notify_entry *notify_req) {
@@ -915,6 +833,7 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
 }
 
 static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_attr *msg) {
+    struct hostapd_sock_entry *sub, *entry = NULL;
 
     if (!msg)
         return;
@@ -925,10 +844,20 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     blobmsg_add_u32(&b_domain, "collision_domain", network_config.collision_domain);
     blobmsg_add_u32(&b_domain, "bandwidth", network_config.bandwidth);
 
-    struct hostapd_sock_entry *entry = hostapd_array_get_entry(req->peer);
-    if(entry->id != req->peer)
+    list_for_each_entry(sub, &hostapd_sock_list, list)
     {
-        fprintf(stderr, "Failed to find hostapd sock entry in callback with id %d\n", req->peer);
+        if (sub->id == req->peer) {
+            entry = sub;
+        }
+    }
+
+    if (entry == NULL) {
+        fprintf(stderr, "Failed to find interface!\n");
+        return;
+    }
+
+    if (!entry->subscribed) {
+        fprintf(stderr, "Interface %s is not subscribed!\n", entry->iface_name);
         return;
     }
 
@@ -947,6 +876,8 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     print_ap_array();
 
     free(data_str);
+
+
 }
 
 static int ubus_get_clients() {
@@ -969,16 +900,21 @@ void update_clients(struct uloop_timeout *t) {
 }
 
 void update_channel_utilization(struct uloop_timeout *t) {
-    for (int i = 0; i <= hostapd_sock_last; i++) {
+    struct hostapd_sock_entry *sub;
 
-        hostapd_sock_arr[i]->chan_util_samples_sum += get_channel_utilization(hostapd_sock_arr[i]->iface_name, &hostapd_sock_arr[i]->last_channel_time, &hostapd_sock_arr[i]->last_channel_time_busy);
-        hostapd_sock_arr[i]->chan_util_num_sample_periods++;
+    list_for_each_entry(sub, &hostapd_sock_list, list)
+    {
 
-        if(hostapd_sock_arr[i]->chan_util_num_sample_periods > dawn_metric.chan_util_avg_period)
-        {
-            hostapd_sock_arr[i]->chan_util_average = hostapd_sock_arr[i]->chan_util_samples_sum / hostapd_sock_arr[i]->chan_util_num_sample_periods;
-            hostapd_sock_arr[i]->chan_util_samples_sum = 0;
-            hostapd_sock_arr[i]->chan_util_num_sample_periods = 0;
+        if (sub->subscribed) {
+            sub->chan_util_samples_sum += get_channel_utilization(sub->iface_name, &sub->last_channel_time,
+                                                                  &sub->last_channel_time_busy);
+            sub->chan_util_num_sample_periods++;
+
+            if (sub->chan_util_num_sample_periods > dawn_metric.chan_util_avg_period) {
+                sub->chan_util_average = sub->chan_util_samples_sum / sub->chan_util_num_sample_periods;
+                sub->chan_util_samples_sum = 0;
+                sub->chan_util_num_sample_periods = 0;
+            }
         }
     }
     uloop_timeout_set(&channel_utilization_timer, timeout_config.update_chan_util * 1000);
@@ -1248,10 +1184,6 @@ static void respond_to_notify(uint32_t id) {
         fprintf(stderr, "Failed to invoke: %s\n", ubus_strerror(ret));
 }
 
-
-
-
-
 static void hostapd_handle_remove(struct ubus_context *ctx,
                                   struct ubus_subscriber *s, uint32_t id) {
     fprintf(stdout, "Object %08x went away\n", id);
@@ -1262,35 +1194,10 @@ static void hostapd_handle_remove(struct ubus_context *ctx,
         printf("ID NOT THE SAME!\n");
         return;
     }
-    //ret= ubus_unsubscribe(ctx, s, id);
-    //if (ret)
-    //    fprintf(stderr, "Removing object %08x: %s\n", id, ubus_strerror(ret));
-
+    
     hostapd_sock->subscribed = false;
     subscription_wait(&hostapd_sock->wait_handler);
 
-}
-
-bool subscriber_to_interface(const char *ifname) {
-
-    struct hostapd_sock_entry *hostapd_entry;
-
-    hostapd_entry = calloc(1, sizeof(struct hostapd_sock_entry));
-    strcpy(hostapd_entry->iface_name, ifname);
-    hostapd_entry->subscriber.cb = hostapd_notify;
-    hostapd_entry->subscriber.remove_cb = hostapd_handle_remove;
-    hostapd_entry->wait_handler.cb = wait_cb;
-
-    hostapd_entry->subscribed = false;
-
-    if (ubus_register_subscriber(ctx, &hostapd_entry->subscriber)) {
-        fprintf(stderr, "Failed to register subscriber!");
-        return false;
-    }
-
-    list_add(&hostapd_entry->list, &hostapd_sock_list);
-
-    return subscribe(hostapd_entry);
 }
 
 bool subscribe(struct hostapd_sock_entry *hostapd_entry) {
@@ -1321,9 +1228,64 @@ bool subscribe(struct hostapd_sock_entry *hostapd_entry) {
     hostapd_entry->ht_support = (uint8_t) support_ht(hostapd_entry->iface_name);
     hostapd_entry->vht_support = (uint8_t) support_vht(hostapd_entry->iface_name);
 
+    respond_to_notify(hostapd_entry->id);
+
     printf("Subscribed to: %s\n", hostapd_entry->iface_name);
 
     return true;
+}
+
+static void
+wait_cb(struct ubus_context *ctx, struct ubus_event_handler *ev_handler,
+        const char *type, struct blob_attr *msg) {
+    static const struct blobmsg_policy wait_policy = {
+            "path", BLOBMSG_TYPE_STRING
+    };
+
+    struct blob_attr *attr;
+    const char *path;
+    struct hostapd_sock_entry *sub = container_of(ev_handler,
+    struct hostapd_sock_entry, wait_handler);
+
+    if (strcmp(type, "ubus.object.add"))
+        return;
+
+    blobmsg_parse(&wait_policy, 1, &attr, blob_data(msg), blob_len(msg));
+    if (!attr)
+        return;
+
+    path = blobmsg_data(attr);
+
+    path = strchr(path, '.');
+    if (!path)
+        return;
+
+    if (strcmp(sub->iface_name, path + 1))
+        return;
+
+    subscribe(sub);
+}
+
+bool subscriber_to_interface(const char *ifname) {
+
+    struct hostapd_sock_entry *hostapd_entry;
+
+    hostapd_entry = calloc(1, sizeof(struct hostapd_sock_entry));
+    strcpy(hostapd_entry->iface_name, ifname);
+    hostapd_entry->subscriber.cb = hostapd_notify;
+    hostapd_entry->subscriber.remove_cb = hostapd_handle_remove;
+    hostapd_entry->wait_handler.cb = wait_cb;
+
+    hostapd_entry->subscribed = false;
+
+    if (ubus_register_subscriber(ctx, &hostapd_entry->subscriber)) {
+        fprintf(stderr, "Failed to register subscriber!");
+        return false;
+    }
+
+    list_add(&hostapd_entry->list, &hostapd_sock_list);
+
+    return subscribe(hostapd_entry);
 }
 
 void subscribe_to_new_interfaces(const char *hostapd_sock_path) {
