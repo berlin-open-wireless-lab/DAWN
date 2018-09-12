@@ -11,8 +11,7 @@
 #include "ubus.h"
 #include "crypto.h"
 
-// based on:
-// https://github.com/xfguo/libubox/blob/master/examples/ustream-example.c
+LIST_HEAD(tcp_sock_list);
 
 int tcp_array_insert(struct network_con_s entry);
 
@@ -21,6 +20,8 @@ int tcp_array_delete(struct sockaddr_in entry);
 int tcp_array_contains_address_help(struct sockaddr_in entry);
 
 void print_tcp_entry(struct network_con_s entry);
+
+int tcp_list_contains_address(struct sockaddr_in entry);
 
 int tcp_entry_last = -1;
 
@@ -36,18 +37,11 @@ struct client {
 };
 
 static void client_close(struct ustream *s) {
-    struct client *cl = container_of(s,
-    struct client, s.stream);
+    struct client *cl = container_of(s, struct client, s.stream);
 
     fprintf(stderr, "Connection closed\n");
     ustream_free(s);
     close(cl->s.fd.fd);
-
-    // remove from tcp array
-    pthread_mutex_lock(&tcp_array_mutex);
-    tcp_array_delete(cl->sin);
-    pthread_mutex_unlock(&tcp_array_mutex);
-
     free(cl);
 }
 
@@ -67,6 +61,29 @@ static void client_notify_state(struct ustream *s) {
     // TODO: REMOVE CLIENT FROM LIST! OR NOT?
     if (!s->w.data_bytes)
         return client_close(s);
+
+}
+
+static void client_to_server_close(struct ustream *s) {
+    struct network_con_s *con = container_of(s, struct network_con_s , stream.stream);
+
+    fprintf(stderr, "Connection to SERVER closed\n");
+    ustream_free(s);
+    close(con->fd.fd);
+    list_del(&con->list);
+    free(con);
+}
+
+static void client_to_server_state(struct ustream *s) {
+    struct client *cl = container_of(s, struct client, s.stream);
+
+    if (!s->eof)
+        return;
+
+    fprintf(stderr, "eof!, pending: %d, total: %d\n", s->w.data_bytes, cl->ctr);
+
+    if (!s->w.data_bytes)
+        return client_to_server_close(s);
 
 }
 
@@ -144,8 +161,35 @@ int run_server(int port) {
     return 0;
 }
 
+static void client_not_be_used_read_cb(struct ustream *s, int bytes) {
+    size_t len;
+    char buf[2048];
+
+    len = ustream_read(s, buf, sizeof(buf));
+    buf[len] = '\0';
+    printf("Read %d bytes from SSL connection: %s\n", len, buf);
+}
+
+static void connect_cb(struct uloop_fd *f, unsigned int events) {
+    if (f->eof || f->error) {
+        fprintf(stderr, "Connection failed\n");
+        return;
+    }
+
+    struct network_con_s *entry = container_of(f, struct network_con_s, fd);
+
+    fprintf(stderr, "Connection established\n");
+    uloop_fd_delete(&entry->fd);
+
+    entry->stream.stream.notify_read = client_not_be_used_read_cb;
+    entry->stream.stream.notify_state = client_to_server_state;
+
+    ustream_fd_init(&entry->stream, entry->fd.fd);
+    entry->connected = 1;
+    printf("NEW TCP CONNECTION!!!\n");
+}
+
 int add_tcp_conncection(char *ipv4, int port) {
-    //int sockfd;
     struct sockaddr_in serv_addr;
 
     char port_str[12];
@@ -156,25 +200,24 @@ int add_tcp_conncection(char *ipv4, int port) {
     serv_addr.sin_addr.s_addr = inet_addr(ipv4);
     serv_addr.sin_port = htons(port);
 
-    print_tcp_array();
-
-    if (tcp_array_contains_address(serv_addr)) {
+    if (tcp_list_contains_address(serv_addr)) {
         return 0;
     }
 
-    int sockfd = usock(USOCK_TCP | USOCK_NONBLOCK, ipv4, port_str);
-    struct network_con_s tmp =
-            {
-                    .sock_addr = serv_addr,
-                    .sockfd = sockfd
-            };
-    //tmp.s.fd.fd = usock(USOCK_TCP | USOCK_NONBLOCK, ipv4, port_str);
-    //uloop_fd_add(&tmp.s.fd, ULOOP_WRITE);
-    //tmp.sockfd = tmp.s.fd.fd;
+    struct network_con_s *tcp_entry = calloc(1, sizeof(struct network_con_s));
+    tcp_entry->fd.fd = usock(USOCK_TCP | USOCK_NONBLOCK, ipv4, port_str);
+    tcp_entry->sock_addr = serv_addr;
 
-    insert_to_tcp_array(tmp);
+    if (tcp_entry->fd.fd < 0) {
+        free(tcp_entry);
+        return -1;
+    }
+    printf("Trying to add tcp socket to ULOOP!\n");
+    tcp_entry->fd.cb = connect_cb;
+    uloop_fd_add(&tcp_entry->fd, ULOOP_WRITE | ULOOP_EDGE_TRIGGER);
 
     printf("NEW TCP CONNECTION!!! to %s:%d\n", ipv4, port);
+    list_add(&tcp_entry->list, &tcp_sock_list);
 
     return 0;
 }
@@ -202,38 +245,39 @@ void send_tcp(char *msg) {
 
         char *base64_enc_str = malloc(B64_ENCODE_LEN(length_enc));
         size_t base64_enc_length = b64_encode(enc, length_enc, base64_enc_str, B64_ENCODE_LEN(length_enc));
+        struct network_con_s *con;
 
-        for (int i = 0; i <= tcp_entry_last; i++) {
-            if (send(network_array[i].sockfd, base64_enc_str, base64_enc_length, 0) < 0) {
-                close(network_array->sockfd);
-                printf("Removing bad TCP connection!\n");
-                for (int j = i; j < tcp_entry_last; j++) {
-                    network_array[j] = network_array[j + 1];
-                }
-
-                if (tcp_entry_last > -1) {
-                    tcp_entry_last--;
+        list_for_each_entry(con, &tcp_sock_list, list)
+        {
+            printf("TRYING TO SEND!\n");
+            if(con->connected) {
+                //if(ustream_printf(&con->stream.stream, "%s", base64_enc_str) == 0) {
+                if(ustream_write(&con->stream.stream, base64_enc_str, base64_enc_length, 0) == 0) {
+                    //TODO: ERROR HANDLING!
                 }
             }
+
         }
+
         free(base64_enc_str);
         free(enc);
     } else {
         for (int i = 0; i <= tcp_entry_last; i++) {
-            if (send(network_array[i].sockfd, msg, strlen(msg), 0) < 0) {
-                close(network_array->sockfd);
-                printf("Removing bad TCP connection!\n");
-                for (int j = i; j < tcp_entry_last; j++) {
-                    network_array[j] = network_array[j + 1];
-                }
+            //if (send(network_array[i].sockfd, msg, strlen(msg), 0) < 0) {
+            struct network_con_s *con;
 
-                if (tcp_entry_last > -1) {
-                    tcp_entry_last--;
+            list_for_each_entry(con, &tcp_sock_list, list)
+            {
+                printf("TRYING TO SEND!\n");
+                if(con->connected)
+                {
+                    if(ustream_printf(&con->stream.stream, "%s", msg) == 0) {
+                        //TODO: ERROR HANDLING!
+                    }
                 }
             }
         }
     }
-
     pthread_mutex_unlock(&tcp_array_mutex);
 }
 
@@ -307,6 +351,21 @@ int tcp_array_contains_address(struct sockaddr_in entry) {
     pthread_mutex_unlock(&tcp_array_mutex);
 
     return ret;
+}
+
+int tcp_list_contains_address(struct sockaddr_in entry) {
+    struct network_con_s *con;
+
+    list_for_each_entry(con, &tcp_sock_list, list)
+    {
+        if(entry.sin_addr.s_addr == con->sock_addr.sin_addr.s_addr)
+        {
+            printf("FOUND TCP ENTRY!!!\n");
+            return 1;
+        }
+        printf("NOT FOUND!!!\n");
+    }
+    return 0;
 }
 
 int tcp_array_contains_address_help(struct sockaddr_in entry) {

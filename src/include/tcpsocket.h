@@ -8,9 +8,12 @@
 #define ARRAY_NETWORK_LEN 50
 
 struct network_con_s {
-    int sockfd;
+    struct list_head list;
+
+    struct uloop_fd fd;
+    struct ustream_fd stream;
     struct sockaddr_in sock_addr;
-    struct ustream_fd s;
+    int connected;
 };
 
 struct network_con_s network_array[ARRAY_NETWORK_LEN];
