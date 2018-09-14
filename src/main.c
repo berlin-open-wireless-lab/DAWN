@@ -30,7 +30,6 @@ void daemon_shutdown() {
     pthread_mutex_destroy(&probe_array_mutex);
     pthread_mutex_destroy(&client_array_mutex);
     pthread_mutex_destroy(&ap_array_mutex);
-    pthread_mutex_destroy(&tcp_array_mutex);
 }
 
 void signal_handler(int sig) {
@@ -64,11 +63,6 @@ int init_mutex() {
 
     if (pthread_mutex_init(&ap_array_mutex, NULL) != 0) {
         printf("\n mutex init failed\n");
-        return 1;
-    }
-
-    if (pthread_mutex_init(&tcp_array_mutex, NULL) != 0) {
-        fprintf(stderr, "Mutex init failed!\n");
         return 1;
     }
 

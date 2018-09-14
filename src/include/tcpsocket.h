@@ -16,10 +16,6 @@ struct network_con_s {
     int connected;
 };
 
-struct network_con_s network_array[ARRAY_NETWORK_LEN];
-
-pthread_mutex_t tcp_array_mutex;
-
 /**
  * Add tcp connection.
  * @param ipv4
@@ -34,20 +30,6 @@ int add_tcp_conncection(char *ipv4, int port);
  * @return
  */
 int run_server(int port);
-
-/**
- * Insert tcp connection to tcp array.
- * @param entry
- * @return
- */
-int insert_to_tcp_array(struct network_con_s entry);
-
-/**
- * Checks if a tcp address is already contained in the database.
- * @param entry
- * @return
- */
-int tcp_array_contains_address(struct sockaddr_in entry);
 
 /**
  * Send message via tcp to all other hosts.
