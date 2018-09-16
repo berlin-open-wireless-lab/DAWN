@@ -5,6 +5,15 @@
 Add [bowlfeed](https://github.com/berlin-open-wireless-lab/bowl-feed.git) to feeds.conf
 
     src-git bowlfeed git@github.com:berlin-open-wireless-lab/bowl-feed.git
+    
+Update Feeds
+
+    ./scripts/feeds update -a
+    
+Install DAWN
+
+    ./scripts/feeds install dawn
+
 
 Select dawn under
 
