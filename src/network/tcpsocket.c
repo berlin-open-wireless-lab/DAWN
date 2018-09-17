@@ -13,7 +13,7 @@
 
 LIST_HEAD(tcp_sock_list);
 
-int tcp_list_contains_address(struct sockaddr_in entry);
+struct network_con_s *tcp_list_contains_address(struct sockaddr_in entry);
 
 static struct uloop_fd server;
 struct client *next_client = NULL;
@@ -160,13 +160,17 @@ static void client_not_be_used_read_cb(struct ustream *s, int bytes) {
 }
 
 static void connect_cb(struct uloop_fd *f, unsigned int events) {
-    if (f->eof || f->error) {
-        fprintf(stderr, "Connection failed\n");
-        return;
-    }
 
     struct network_con_s *entry = container_of(f,
     struct network_con_s, fd);
+
+    if (f->eof || f->error) {
+        fprintf(stderr, "Connection failed\n");
+        close(entry->fd.fd);
+        list_del(&entry->list);
+        free(entry);
+        return;
+    }
 
     fprintf(stderr, "Connection established\n");
     uloop_fd_delete(&entry->fd);
@@ -189,8 +193,17 @@ int add_tcp_conncection(char *ipv4, int port) {
     serv_addr.sin_addr.s_addr = inet_addr(ipv4);
     serv_addr.sin_port = htons(port);
 
-    if (tcp_list_contains_address(serv_addr)) {
-        return 0;
+    struct network_con_s *tmp = tcp_list_contains_address(serv_addr);
+    if (tmp != NULL) {
+        if(tmp->connected == true)
+        {
+            return 0;
+        } else{
+            // Delete already existing entry
+            close(tmp->fd.fd);
+            list_del(&tmp->list);
+            free(tmp);
+        }
     }
 
     struct network_con_s *tcp_entry = calloc(1, sizeof(struct network_con_s));
@@ -211,6 +224,7 @@ int add_tcp_conncection(char *ipv4, int port) {
 }
 
 void send_tcp(char *msg) {
+    print_tcp_array();
     if (network_config.use_symm_enc) {
         int length_enc;
         size_t msglen = strlen(msg);
@@ -219,11 +233,12 @@ void send_tcp(char *msg) {
         char *base64_enc_str = malloc(B64_ENCODE_LEN(length_enc));
         size_t base64_enc_length = b64_encode(enc, length_enc, base64_enc_str, B64_ENCODE_LEN(length_enc));
         struct network_con_s *con;
-
         list_for_each_entry(con, &tcp_sock_list, list)
         {
             if (con->connected) {
-                if (ustream_write(&con->stream.stream, base64_enc_str, base64_enc_length, 0) == 0) {
+                int len_ustream = ustream_write(&con->stream.stream, base64_enc_str, base64_enc_length, 0);
+                printf("USTRAM SEND: %d\n", len_ustream);
+                if (len_ustream <= 0) {
                     fprintf(stderr,"USTREAM ERROR!\n");
                     //TODO: ERROR HANDLING!
                 }
@@ -248,17 +263,17 @@ void send_tcp(char *msg) {
     }
 }
 
-int tcp_list_contains_address(struct sockaddr_in entry) {
+struct network_con_s* tcp_list_contains_address(struct sockaddr_in entry) {
     struct network_con_s *con;
 
     list_for_each_entry(con, &tcp_sock_list, list)
     {
         if(entry.sin_addr.s_addr == con->sock_addr.sin_addr.s_addr)
         {
-            return 1;
+            return con;
         }
     }
-    return 0;
+    return NULL;
 }
 
 void print_tcp_array() {
