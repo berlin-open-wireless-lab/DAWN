@@ -224,6 +224,7 @@ void send_tcp(char *msg) {
         {
             if (con->connected) {
                 if (ustream_write(&con->stream.stream, base64_enc_str, base64_enc_length, 0) == 0) {
+                    fprintf(stderr,"USTREAM ERROR!\n");
                     //TODO: ERROR HANDLING!
                 }
             }
@@ -240,6 +241,7 @@ void send_tcp(char *msg) {
             if (con->connected) {
                 if (ustream_printf(&con->stream.stream, "%s", msg) == 0) {
                     //TODO: ERROR HANDLING!
+                    fprintf(stderr,"USTREAM ERROR!\n");
                 }
             }
         }

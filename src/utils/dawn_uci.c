@@ -194,7 +194,7 @@ int uci_set_network(char* uci_cmd)
     }
 
     if (uci_commit(ctx, &ptr.p, 0) != UCI_OK) {
-        printf("FAILED TO COMMIT!\n");
+        fprintf(stderr, "Failed to commit UCI cmd: %s\n", uci_cmd);
     }
 
     return ret;

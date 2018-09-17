@@ -33,7 +33,7 @@ int compare_essid_iwinfo(__uint8_t *bssid_addr, __uint8_t *bssid_addr_to_compare
     struct dirent *entry;
     dirp = opendir(hostapd_dir_glob);  // error handling?
     if (!dirp) {
-        fprintf(stderr, "[COMPARE ESSID] No hostapd sockets!\n");
+        fprintf(stderr, "[COMPARE ESSID] Failed to open %s\n", hostapd_dir_glob);
         return 0;
     }
 
@@ -87,7 +87,7 @@ int get_bandwidth_iwinfo(__uint8_t *client_addr, float *rx_rate, float *tx_rate)
     struct dirent *entry;
     dirp = opendir(hostapd_dir_glob);  // error handling?
     if (!dirp) {
-        fprintf(stderr, "[BANDWITH INFO]No hostapd sockets!\n");
+        fprintf(stderr, "[BANDWITH INFO] Failed to open %s\n", hostapd_dir_glob);
         return 0;
     }
 
@@ -115,11 +115,11 @@ int get_bandwidth(const char *ifname, uint8_t *client_addr, float *rx_rate, floa
     iw = iwinfo_backend(ifname);
 
     if (iw->assoclist(ifname, buf, &len)) {
-        printf("No information available\n");
+        fprintf(stderr, "No information available\n");
         iwinfo_finish();
         return 0;
     } else if (len <= 0) {
-        printf("No station connected\n");
+        fprintf(stderr, "No station connected\n");
         iwinfo_finish();
         return 0;
     }
@@ -170,11 +170,11 @@ int get_rssi(const char *ifname, uint8_t *client_addr) {
     iw = iwinfo_backend(ifname);
 
     if (iw->assoclist(ifname, buf, &len)) {
-        printf("No information available\n");
+        fprintf(stderr, "No information available\n");
         iwinfo_finish();
         return INT_MIN;
     } else if (len <= 0) {
-        printf("No station connected\n");
+        fprintf(stderr, "No station connected\n");
         iwinfo_finish();
         return INT_MIN;
     }
@@ -196,7 +196,7 @@ int get_expected_throughput_iwinfo(__uint8_t *client_addr) {
     struct dirent *entry;
     dirp = opendir(hostapd_dir_glob);  // error handling?
     if (!dirp) {
-        fprintf(stderr, "[RSSI INFO] No hostapd sockets!\n");
+        fprintf(stderr, "[RSSI INFO] Failed to open dir:%s\n", hostapd_dir_glob);
         return INT_MIN;
     }
 
@@ -223,10 +223,10 @@ int get_expected_throughput(const char *ifname, uint8_t *client_addr) {
     iw = iwinfo_backend(ifname);
 
     if (iw->assoclist(ifname, buf, &len)) {
-        printf("No information available\n");
+        fprintf(stderr, "No information available\n");
         return INT_MIN;
     } else if (len <= 0) {
-        printf("No station connected\n");
+        fprintf(stderr, "No station connected\n");
         return INT_MIN;
     }
 
@@ -244,11 +244,7 @@ int get_expected_throughput(const char *ifname, uint8_t *client_addr) {
 int get_bssid(const char *ifname, uint8_t *bssid_addr) {
     const struct iwinfo_ops *iw;
 
-    printf("GETTING BSSID OF: %s\n", ifname);
-
     iw = iwinfo_backend(ifname);
-
-    printf("IW TYPE: %s\n", iwinfo_type(ifname));
 
     static char buf[18] = { 0 };
 
@@ -292,12 +288,12 @@ int get_channel_utilization(const char *ifname, uint64_t *last_channel_time, uin
 
     if (iw->survey(ifname, buf, &len))
     {
-        printf("Survey not possible!\n\n");
+        fprintf(stderr, "Survey not possible!\n\n");
         return 0;
     }
     else if (len <= 0)
     {
-        printf("No survey results\n\n");
+        fprintf(stderr, "No survey results\n\n");
         return 0;
     }
 
@@ -349,7 +345,7 @@ int support_vht(const char *ifname) {
 
     if (iw->htmodelist(ifname, &htmodes))
     {
-        printf("No VHT mode information available\n");
+        fprintf(stderr, "No VHT mode information available\n");
         return 0;
     }
 
