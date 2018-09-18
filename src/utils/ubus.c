@@ -557,6 +557,8 @@ int handle_network_msg(char *msg) {
         handle_set_probe(data_buf.head);
     } else if (strncmp(method, "addmac", 5) == 0) {
         parse_add_mac_to_file(data_buf.head);
+    } else if (strncmp(method, "macfile", 5) == 0) {
+        parse_add_mac_to_file(data_buf.head);
     } else if (strncmp(method, "uci", 2) == 0) {
         printf("HANDLING UCI!\n");
         handle_uci_config(data_buf.head);
@@ -1063,7 +1065,7 @@ enum {
 };
 
 static const struct blobmsg_policy add_del_policy[__ADD_DEL_MAC_MAX] = {
-        [MAC_ADDR] = {"addr", BLOBMSG_TYPE_STRING},
+        [MAC_ADDR] = {"addrs", BLOBMSG_TYPE_ARRAY},
 };
 
 static const struct ubus_method dawn_methods[] = {
@@ -1071,8 +1073,6 @@ static const struct ubus_method dawn_methods[] = {
         UBUS_METHOD_NOARG("get_hearing_map", get_hearing_map),
         UBUS_METHOD_NOARG("get_network", get_network),
         UBUS_METHOD_NOARG("reload_config", reload_config)
-        //UBUS_METHOD_NOARG("get_aps");
-        //UBUS_METHOD_NOARG("get_clients");
 };
 
 static struct ubus_object_type dawn_object_type =
@@ -1084,6 +1084,31 @@ static struct ubus_object dawn_object = {
         .methods = dawn_methods,
         .n_methods = ARRAY_SIZE(dawn_methods),
 };
+
+static int parse_add_mac_to_file(struct blob_attr *msg) {
+    struct blob_attr *tb[__ADD_DEL_MAC_MAX];
+    struct blob_attr *attr;
+    uint8_t addr[ETH_ALEN];
+
+    blobmsg_parse(add_del_policy, __ADD_DEL_MAC_MAX, tb, blob_data(msg), blob_len(msg));
+
+    if (!tb[MAC_ADDR])
+        return UBUS_STATUS_INVALID_ARGUMENT;
+
+    int len = blobmsg_data_len(tb[BLACKLIST_CLIENT_ARRAY]);
+
+    __blob_for_each_attr(attr, blobmsg_data(tb[MAC_ADDR]), len)
+    {
+        uint8_t hdwr_addr[ETH_ALEN];
+        hwaddr_aton(blobmsg_data(blobmsg_data(attr), hdwr_addr);
+
+        if (insert_to_maclist(addr) == 0) {
+            write_mac_to_file("/etc/dawn/mac_list", addr);
+        }
+    }
+
+    return 0;
+}
 
 static int parse_add_mac_to_file(struct blob_attr *msg) {
     struct blob_attr *tb[__ADD_DEL_MAC_MAX];
