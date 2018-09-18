@@ -1088,43 +1088,28 @@ static struct ubus_object dawn_object = {
 static int parse_add_mac_to_file(struct blob_attr *msg) {
     struct blob_attr *tb[__ADD_DEL_MAC_MAX];
     struct blob_attr *attr;
-    uint8_t addr[ETH_ALEN];
+    
+    printf("PASRING MAC!\n");
 
     blobmsg_parse(add_del_policy, __ADD_DEL_MAC_MAX, tb, blob_data(msg), blob_len(msg));
 
     if (!tb[MAC_ADDR])
         return UBUS_STATUS_INVALID_ARGUMENT;
 
-    int len = blobmsg_data_len(tb[BLACKLIST_CLIENT_ARRAY]);
+    int len = blobmsg_data_len(tb[MAC_ADDR]);
+    printf("LEN of array maclist: %d\n", len);
 
     __blob_for_each_attr(attr, blobmsg_data(tb[MAC_ADDR]), len)
     {
-        uint8_t hdwr_addr[ETH_ALEN];
-        hwaddr_aton(blobmsg_data(blobmsg_data(attr), hdwr_addr);
+        printf("ITERATION THOUGH MACLIST!\n");
+        uint8_t addr[ETH_ALEN];
+        hwaddr_aton(blobmsg_data(attr), addr);
 
         if (insert_to_maclist(addr) == 0) {
             write_mac_to_file("/etc/dawn/mac_list", addr);
         }
     }
 
-    return 0;
-}
-
-static int parse_add_mac_to_file(struct blob_attr *msg) {
-    struct blob_attr *tb[__ADD_DEL_MAC_MAX];
-    uint8_t addr[ETH_ALEN];
-
-    blobmsg_parse(add_del_policy, __ADD_DEL_MAC_MAX, tb, blob_data(msg), blob_len(msg));
-
-    if (!tb[MAC_ADDR])
-        return UBUS_STATUS_INVALID_ARGUMENT;
-
-    if (hwaddr_aton(blobmsg_data(tb[MAC_ADDR]), addr))
-        return UBUS_STATUS_INVALID_ARGUMENT;
-
-    if (insert_to_maclist(addr) == 0) {
-        write_mac_to_file("/etc/dawn/mac_list", addr);
-    }
     return 0;
 }
 
