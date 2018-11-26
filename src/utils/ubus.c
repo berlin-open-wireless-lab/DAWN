@@ -152,6 +152,7 @@ enum {
     CLIENT_TABLE_NUM_STA,
     CLIENT_TABLE_COL_DOMAIN,
     CLIENT_TABLE_BANDWIDTH,
+    CLIENT_TABLE_WEIGHT,
     __CLIENT_TABLE_MAX,
 };
 
@@ -166,6 +167,7 @@ static const struct blobmsg_policy client_table_policy[__CLIENT_TABLE_MAX] = {
         [CLIENT_TABLE_NUM_STA] = {.name = "num_sta", .type = BLOBMSG_TYPE_INT32},
         [CLIENT_TABLE_COL_DOMAIN] = {.name = "collision_domain", .type = BLOBMSG_TYPE_INT32},
         [CLIENT_TABLE_BANDWIDTH] = {.name = "bandwidth", .type = BLOBMSG_TYPE_INT32},
+        [CLIENT_TABLE_WEIGHT] = {.name = "ap_weight", .type = BLOBMSG_TYPE_INT32},
 };
 
 enum {
@@ -825,6 +827,12 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
 
         ap_entry.station_count = num_stations;
 
+        if (tb[CLIENT_TABLE_WEIGHT]) {
+            ap_entry.ap_weight = blobmsg_get_u32(tb[CLIENT_TABLE_WEIGHT]);
+        } else {
+            ap_entry.ap_weight = 0;
+        }
+
         insert_to_ap_array(ap_entry);
 
         if (do_kick && dawn_metric.kicking) {
@@ -868,6 +876,8 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     blobmsg_add_u8(&b_domain, "ht_supported", entry->ht_support);
     blobmsg_add_u8(&b_domain, "vht_supported", entry->vht_support);
 
+    blobmsg_add_u32(&b_domain, "ap_weight", dawn_metric.ap_weight);
+
     //int channel_util = get_channel_utilization(entry->iface_name, &entry->last_channel_time, &entry->last_channel_time_busy);
     blobmsg_add_u32(&b_domain, "channel_utilization", entry->chan_util_average);
 
@@ -878,8 +888,6 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     print_ap_array();
 
     free(data_str);
-
-
 }
 
 static int ubus_get_clients() {

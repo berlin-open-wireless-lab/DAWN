@@ -242,6 +242,8 @@ int eval_probe_metric(struct probe_entry_s probe_entry) {
         score += !probe_entry.vht_capabilities && !ap_entry.vht_support ? dawn_metric.no_vht_support : 0;
         score += ap_entry.channel_utilization <= dawn_metric.chan_util_val ? dawn_metric.chan_util : 0;
         score += ap_entry.channel_utilization > dawn_metric.max_chan_util_val ? dawn_metric.max_chan_util : 0;
+
+        score += ap_entry.ap_weight;
     }
 
     score += (probe_entry.freq > 5000) ? dawn_metric.freq : 0;

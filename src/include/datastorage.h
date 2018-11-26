@@ -36,6 +36,7 @@ struct probe_metric_s dawn_metric;
 
 // ---------------- Structs ----------------
 struct probe_metric_s {
+    int ap_weight;
     int ht_support;
     int vht_support;
     int no_ht_support;
@@ -198,6 +199,7 @@ typedef struct ap_s {
     uint8_t ssid[SSID_MAX_LEN];
     uint32_t collision_domain;
     uint32_t bandwidth;
+    uint32_t ap_weight;
 } ap;
 
 // ---------------- Defines ----------------
