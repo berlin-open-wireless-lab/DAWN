@@ -156,7 +156,7 @@ static void client_not_be_used_read_cb(struct ustream *s, int bytes) {
 
     len = ustream_read(s, buf, sizeof(buf));
     buf[len] = '\0';
-    printf("Read %ld bytes from SSL connection: %s\n", len, buf);
+    printf("Read %zd bytes from SSL connection: %s\n", len, buf);
 }
 
 static void connect_cb(struct uloop_fd *f, unsigned int events) {
