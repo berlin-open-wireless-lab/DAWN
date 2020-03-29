@@ -21,7 +21,7 @@ int get_bandwidth(const char *ifname, uint8_t *client_addr, float *rx_rate, floa
 
 #define IWINFO_ESSID_MAX_SIZE    32
 
-int compare_essid_iwinfo(__uint8_t *bssid_addr, __uint8_t *bssid_addr_to_compare) {
+int compare_essid_iwinfo(uint8_t *bssid_addr, uint8_t *bssid_addr_to_compare) {
     const struct iwinfo_ops *iw;
 
     char mac_buf[20];
@@ -81,7 +81,7 @@ int compare_essid_iwinfo(__uint8_t *bssid_addr, __uint8_t *bssid_addr_to_compare
     return -1;
 }
 
-int get_bandwidth_iwinfo(__uint8_t *client_addr, float *rx_rate, float *tx_rate) {
+int get_bandwidth_iwinfo(uint8_t *client_addr, float *rx_rate, float *tx_rate) {
 
     DIR *dirp;
     struct dirent *entry;
@@ -137,7 +137,7 @@ int get_bandwidth(const char *ifname, uint8_t *client_addr, float *rx_rate, floa
     return 0;
 }
 
-int get_rssi_iwinfo(__uint8_t *client_addr) {
+int get_rssi_iwinfo(uint8_t *client_addr) {
 
     DIR *dirp;
     struct dirent *entry;
@@ -190,7 +190,7 @@ int get_rssi(const char *ifname, uint8_t *client_addr) {
     return INT_MIN;
 }
 
-int get_expected_throughput_iwinfo(__uint8_t *client_addr) {
+int get_expected_throughput_iwinfo(uint8_t *client_addr) {
 
     DIR *dirp;
     struct dirent *entry;

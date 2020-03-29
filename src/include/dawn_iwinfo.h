@@ -13,7 +13,7 @@
  * @param client_addr - mac adress of the client
  * @return The RSSI of the client if successful. INT_MIN if client was not found.
  */
-int get_rssi_iwinfo(__uint8_t *client_addr);
+int get_rssi_iwinfo(uint8_t *client_addr);
 
 /**
  * Get expected throughut using the mac adress of the client.
@@ -34,7 +34,7 @@ int get_expected_throughput_iwinfo(uint8_t *client_addr);
  * @param tx_rate - float pointer for returning the tx rate
  * @return 0 if successful 1 otherwise.
  */
-int get_bandwidth_iwinfo(__uint8_t *client_addr, float *rx_rate, float *tx_rate);
+int get_bandwidth_iwinfo(uint8_t *client_addr, float *rx_rate, float *tx_rate);
 
 /**
  * Function checks if two bssid adresses have the same essid.
@@ -43,7 +43,7 @@ int get_bandwidth_iwinfo(__uint8_t *client_addr, float *rx_rate, float *tx_rate)
  * @param bssid_addr_to_compares
  * @return 1 if the bssid adresses have the same essid.
  */
-int compare_essid_iwinfo(__uint8_t *bssid_addr, __uint8_t *bssid_addr_to_compare);
+int compare_essid_iwinfo(uint8_t *bssid_addr, uint8_t *bssid_addr_to_compare);
 
 /**
  * Function returns the expected throughput using the interface and the client address.
