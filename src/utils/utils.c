@@ -78,3 +78,8 @@ void write_mac_to_file(char *path, uint8_t addr[]) {
 
     fclose(f);
 }
+
+int rcpi_to_rssi(int rcpi)
+{
+    return rcpi / 2 - 110;
+}

@@ -103,6 +103,8 @@ void del_client_interface(uint32_t id, const uint8_t *client_addr, uint32_t reas
  */
 void del_client_all_interfaces(const uint8_t *client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time);
 
+void wnm_disassoc_imminent(uint32_t id, const uint8_t *client_addr, char* dest_ap, uint32_t duration);
+
 /**
  * Send probe message via the network.
  * @param probe_entry
@@ -161,5 +163,7 @@ int send_set_probe(uint8_t client_addr[]);
 int send_add_mac(uint8_t *client_addr);
 
 int uci_send_via_network();
+
+void ubus_send_beacon_report(uint8_t client[], int id);
 
 #endif

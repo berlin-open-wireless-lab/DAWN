@@ -63,6 +63,10 @@ struct probe_metric_s {
     int min_kick_count;
     int chan_util_avg_period;
     int kicking;
+    int op_class;
+    int duration;
+    int mode;
+    int scan_channel;
 };
 
 struct time_config_s {
@@ -74,6 +78,7 @@ struct time_config_s {
     time_t update_tcp_con;
     time_t denied_req_threshold;
     time_t update_chan_util;
+    time_t update_beacon_reports;
 };
 
 struct network_config_s {
@@ -113,6 +118,8 @@ typedef struct probe_entry_s {
     int deny_counter;
     uint8_t max_supp_datarate;
     uint8_t min_supp_datarate;
+    uint32_t rcpi;
+    uint32_t rsni;
 } probe_entry;
 
 typedef struct auth_entry_s {
@@ -142,13 +149,14 @@ auth_entry insert_to_denied_req_array(auth_entry entry, int inc_counter);
 #define PROBE_ARRAY_LEN 1000
 
 #define SSID_MAX_LEN 32
+#define NEIGHBOR_REPORT_LEN 200
 
 // ---------------- Global variables ----------------
 struct probe_entry_s probe_array[PROBE_ARRAY_LEN];
 pthread_mutex_t probe_array_mutex;
 
 // ---------------- Functions ----------------
-probe_entry insert_to_array(probe_entry entry, int inc_counter);
+probe_entry insert_to_array(probe_entry entry, int inc_counter, int save_80211k);
 
 void probe_array_insert(probe_entry entry);
 
@@ -201,6 +209,7 @@ typedef struct ap_s {
     time_t time;
     uint32_t station_count;
     uint8_t ssid[SSID_MAX_LEN];
+    char neighbor_report[NEIGHBOR_REPORT_LEN];
     uint32_t collision_domain;
     uint32_t bandwidth;
     uint32_t ap_weight;
@@ -225,6 +234,10 @@ int mac_is_equal(uint8_t addr1[], uint8_t addr2[]);
 int mac_is_greater(uint8_t addr1[], uint8_t addr2[]);
 
 // ---------------- Functions ----------------
+
+int probe_array_update_rssi(uint8_t bssid_addr[], uint8_t client_addr[], uint32_t rssi, int send_network);
+
+int probe_array_update_rcpi_rsni(uint8_t bssid_addr[], uint8_t client_addr[], uint32_t rcpi, uint32_t rsni, int send_network);
 
 void insert_client_to_array(client entry);
 
@@ -252,6 +265,8 @@ int probe_array_set_all_probe_count(uint8_t client_addr[], uint32_t probe_count)
 
 int ap_get_collision_count(int col_domain);
 
+void send_beacon_reports(uint8_t bssid[], int id);
+
 /* Utils */
 
 // ---------------- Defines -------------------
@@ -261,7 +276,6 @@ int ap_get_collision_count(int col_domain);
 char *sort_string;
 
 // ---------------- Functions -------------------
-int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], int automatic_kick);
-
+int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], char* neighbor_report, int automatic_kick);
 
 #endif
