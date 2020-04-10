@@ -1374,7 +1374,7 @@ int uci_send_via_network()
     blobmsg_add_u32(&b, "chan_util_val", dawn_metric.chan_util_val);
     blobmsg_add_u32(&b, "max_chan_util_val", dawn_metric.max_chan_util_val);
     blobmsg_add_u32(&b, "min_probe_count", dawn_metric.min_probe_count);
-    blobmsg_add_u32(&b, "bandwith_threshold", dawn_metric.bandwith_threshold);
+    blobmsg_add_u32(&b, "bandwidth_threshold", dawn_metric.bandwidth_threshold);
     blobmsg_add_u32(&b, "use_station_count", dawn_metric.use_station_count);
     blobmsg_add_u32(&b, "max_station_diff", dawn_metric.max_station_diff);
     blobmsg_add_u32(&b, "eval_probe_req", dawn_metric.eval_probe_req);
@@ -1424,7 +1424,7 @@ enum {
     UCI_CHAN_UTIL_VAL,
     UCI_MAX_CHAN_UTIL_VAL,
     UCI_MIN_PROBE_COUNT,
-    UCI_BANDWITH_THRESHOLD,
+    UCI_BANDWIDTH_THRESHOLD,
     UCI_USE_STATION_COUNT,
     UCI_MAX_STATION_DIFF,
     UCI_EVAL_PROBE_REQ,
@@ -1471,7 +1471,7 @@ static const struct blobmsg_policy uci_metric_policy[__UCI_METIC_MAX] = {
         [UCI_CHAN_UTIL_VAL] = {.name = "chan_util_val", .type = BLOBMSG_TYPE_INT32},
         [UCI_MAX_CHAN_UTIL_VAL] = {.name = "max_chan_util_val", .type = BLOBMSG_TYPE_INT32},
         [UCI_MIN_PROBE_COUNT] = {.name = "min_probe_count", .type = BLOBMSG_TYPE_INT32},
-        [UCI_BANDWITH_THRESHOLD] = {.name = "bandwith_threshold", .type = BLOBMSG_TYPE_INT32},
+        [UCI_BANDWIDTH_THRESHOLD] = {.name = "bandwidth_threshold", .type = BLOBMSG_TYPE_INT32},
         [UCI_USE_STATION_COUNT] = {.name = "use_station_count", .type = BLOBMSG_TYPE_INT32},
         [UCI_MAX_STATION_DIFF] = {.name = "max_station_diff", .type = BLOBMSG_TYPE_INT32},
         [UCI_EVAL_PROBE_REQ] = {.name = "eval_probe_req", .type = BLOBMSG_TYPE_INT32},
@@ -1548,7 +1548,7 @@ int handle_uci_config(struct blob_attr *msg) {
     sprintf(cmd_buffer, "dawn.@metric[0].min_probe_count=%d", blobmsg_get_u32(tb_metric[UCI_MIN_PROBE_COUNT]));
     uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].bandwith_threshold=%d", blobmsg_get_u32(tb_metric[UCI_BANDWITH_THRESHOLD]));
+    sprintf(cmd_buffer, "dawn.@metric[0].bandwidth_threshold=%d", blobmsg_get_u32(tb_metric[UCI_BANDWIDTH_THRESHOLD]));
     uci_set_network(cmd_buffer);
 
     sprintf(cmd_buffer, "dawn.@metric[0].use_station_count=%d", blobmsg_get_u32(tb_metric[UCI_USE_STATION_COUNT]));

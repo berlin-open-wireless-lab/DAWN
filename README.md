@@ -41,7 +41,7 @@ I setup the OpenWRT Router as dumb APs.
 |chan_util_val      |  '140'  |Threshold for an good channel utilization.|
 |max_chan_util_val  |  '170'  |Threshold for a bad channel utilization.|
 |min_probe_count    |  '2'    |Minimum number of probe requests aftrer calculating if AP is best and sending a probe response.|
-|bandwith_threshold |  '6'    |Threshold for the receiving bit rate indicating if a client is in an active transmission.|
+|bandwidth_threshold |  '6'    |Threshold for the receiving bit rate indicating if a client is in an active transmission.|
 |use_station_count  |  '1'    |Use station count as metric.|
 |max_station_diff   |  '1'    |Maximal station difference that is allowed.|
 |eval_probe_req     |  '1'    |Evaluate the incoming probe requests.|

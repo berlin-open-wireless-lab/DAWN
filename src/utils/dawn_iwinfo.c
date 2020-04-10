@@ -87,7 +87,7 @@ int get_bandwidth_iwinfo(uint8_t *client_addr, float *rx_rate, float *tx_rate) {
     struct dirent *entry;
     dirp = opendir(hostapd_dir_glob);  // error handling?
     if (!dirp) {
-        fprintf(stderr, "[BANDWITH INFO] Failed to open %s\n", hostapd_dir_glob);
+        fprintf(stderr, "[BANDWIDTH INFO] Failed to open %s\n", hostapd_dir_glob);
         return 0;
     }
 

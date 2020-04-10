@@ -403,7 +403,7 @@ int kick_client(struct client_s client_entry) {
 void kick_clients(uint8_t bssid[], uint32_t id) {
     pthread_mutex_lock(&client_array_mutex);
     pthread_mutex_lock(&probe_array_mutex);
-    printf("-------- KICKING CLIENS!!!---------\n");
+    printf("-------- KICKING CLIENTS!!!---------\n");
     char mac_buf_ap[20];
     sprintf(mac_buf_ap, MACSTR, MAC2STR(bssid));
     printf("EVAL %s\n", mac_buf_ap);
@@ -427,7 +427,7 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
         int rssi = get_rssi_iwinfo(client_array[j].client_addr);
         int exp_thr = get_expected_throughput_iwinfo(client_array[j].client_addr);
         double exp_thr_tmp = iee80211_calculate_expected_throughput_mbit(exp_thr);
-        printf("Expectd throughput %f Mbit/sec\n", exp_thr_tmp);
+        printf("Expected throughput %f Mbit/sec\n", exp_thr_tmp);
 
         if (rssi != INT_MIN) {
             pthread_mutex_unlock(&probe_array_mutex);
@@ -465,7 +465,7 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
                 // only use rx_rate for indicating if transmission is going on
                 // <= 6MBits <- probably no transmission
                 // tx_rate has always some weird value so don't use ist
-                if (rx_rate > dawn_metric.bandwith_threshold) {
+                if (rx_rate > dawn_metric.bandwidth_threshold) {
                     printf("Client is probably in active transmisison. Don't kick! RxRate is: %f\n", rx_rate);
                     continue;
                 }
@@ -961,7 +961,7 @@ void denied_req_array_cb(struct uloop_timeout *t) {
 
             // client is not connected for a given time threshold!
             if (!is_connected_somehwere(denied_req_array[i].client_addr)) {
-                printf("Client has propaly a bad driver!\n");
+                printf("Client has probably a bad driver!\n");
 
                 // problem that somehow station will land into this list
                 // maybe delete again?

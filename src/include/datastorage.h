@@ -51,7 +51,7 @@ struct probe_metric_s {
     int chan_util_val;
     int max_chan_util_val;
     int min_probe_count;
-    int bandwith_threshold;
+    int bandwidth_threshold;
     int use_station_count;
     int max_station_diff;
     int eval_probe_req;

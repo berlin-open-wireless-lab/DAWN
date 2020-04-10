@@ -25,8 +25,8 @@ void daemon_shutdown() {
     uci_clear();
     uloop_cancelled = true;
 
-    // free ressources
-    fprintf(stdout, "Freeing mutex ressources\n");
+    // free resources
+    fprintf(stdout, "Freeing mutex resources\n");
     pthread_mutex_destroy(&probe_array_mutex);
     pthread_mutex_destroy(&client_array_mutex);
     pthread_mutex_destroy(&ap_array_mutex);

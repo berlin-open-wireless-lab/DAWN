@@ -65,7 +65,7 @@ struct probe_metric_s uci_get_dawn_metric() {
             ret.min_probe_count = uci_lookup_option_int(uci_ctx, s, "min_probe_count");
             ret.low_rssi = uci_lookup_option_int(uci_ctx, s, "low_rssi");
             ret.low_rssi_val = uci_lookup_option_int(uci_ctx, s, "low_rssi_val");
-            ret.bandwith_threshold = uci_lookup_option_int(uci_ctx, s, "bandwith_threshold");
+            ret.bandwidth_threshold = uci_lookup_option_int(uci_ctx, s, "bandwidth_threshold");
             ret.use_station_count = uci_lookup_option_int(uci_ctx, s, "use_station_count");
             ret.eval_probe_req = uci_lookup_option_int(uci_ctx, s, "eval_probe_req");
             ret.eval_auth_req = uci_lookup_option_int(uci_ctx, s, "eval_auth_req");
