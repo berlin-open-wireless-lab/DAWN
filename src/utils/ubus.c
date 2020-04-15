@@ -41,6 +41,8 @@ void update_tcp_connections(struct uloop_timeout *t);
 
 void update_channel_utilization(struct uloop_timeout *t);
 
+void run_server_update(struct uloop_timeout *t);
+
 struct uloop_timeout client_timer = {
         .cb = update_clients
 };
@@ -52,6 +54,9 @@ struct uloop_timeout umdns_timer = {
 };
 struct uloop_timeout channel_utilization_timer = {
         .cb = update_channel_utilization
+};
+struct uloop_timeout usock_timer = {
+        .cb = run_server_update
 };
 
 #define MAX_HOSTAPD_SOCKETS 10
@@ -669,14 +674,15 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
 
     uloop_timeout_add(&channel_utilization_timer);
 
-    ubus_call_umdns();
-
     ubus_add_oject();
 
     start_umdns_update();
 
     if (network_config.network_option == 2)
-        run_server(network_config.tcp_port);
+    {
+        if(run_server(network_config.tcp_port))
+           uloop_timeout_set(&usock_timer, 1 * 1000);
+    }
 
     subscribe_to_new_interfaces(hostapd_dir_glob);
 
@@ -917,6 +923,11 @@ void update_clients(struct uloop_timeout *t) {
     ubus_get_clients();
     // maybe to much?! don't set timer again...
     uloop_timeout_set(&client_timer, timeout_config.update_client * 1000);
+}
+
+void run_server_update(struct uloop_timeout *t) {
+    if(run_server(network_config.tcp_port))
+        uloop_timeout_set(&usock_timer, 1 * 1000);
 }
 
 void update_channel_utilization(struct uloop_timeout *t) {

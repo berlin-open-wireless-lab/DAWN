@@ -135,6 +135,7 @@ static void server_cb(struct uloop_fd *fd, unsigned int events) {
 }
 
 int run_server(int port) {
+    printf("Adding socket!\n");
     char port_str[12];
     sprintf(port_str, "%d", port);
 
