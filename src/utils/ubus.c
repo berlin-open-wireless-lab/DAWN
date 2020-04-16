@@ -796,7 +796,8 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
     uloop_timeout_add(&channel_utilization_timer);
 
     // request beacon reports
-    uloop_timeout_add(&beacon_reports_timer);
+    if(timeout_config.update_beacon_reports) // allow setting timeout to 0
+        uloop_timeout_add(&beacon_reports_timer);
 
     ubus_add_oject();
 
@@ -1155,6 +1156,10 @@ void ubus_send_beacon_report(uint8_t client[], int id)
 }
 
 void update_beacon_reports(struct uloop_timeout *t) {
+    if(!timeout_config.update_beacon_reports) // if 0 just return
+    {
+        return;
+    }
     printf("Sending beacon report!\n");
     struct hostapd_sock_entry *sub;
     list_for_each_entry(sub, &hostapd_sock_list, list)
@@ -1412,6 +1417,10 @@ static int reload_config(struct ubus_context *ctx, struct ubus_object *obj,
     timeout_config = uci_get_time_config();
     hostapd_dir_glob = uci_get_dawn_hostapd_dir();
     sort_string = (char *) uci_get_dawn_sort_order();
+
+    if(timeout_config.update_beacon_reports) // allow setting timeout to 0
+        uloop_timeout_add(&beacon_reports_timer);
+
     uci_send_via_network();
     ret = ubus_send_reply(ctx, req, b.head);
     if (ret)
