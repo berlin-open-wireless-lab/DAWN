@@ -115,11 +115,11 @@ int get_bandwidth(const char *ifname, uint8_t *client_addr, float *rx_rate, floa
     iw = iwinfo_backend(ifname);
 
     if (iw->assoclist(ifname, buf, &len)) {
-        fprintf(stderr, "No information available\n");
+        fprintf(stdout, "No information available\n");
         iwinfo_finish();
         return 0;
     } else if (len <= 0) {
-        fprintf(stderr, "No station connected\n");
+        fprintf(stdout, "No station connected\n");
         iwinfo_finish();
         return 0;
     }
@@ -170,11 +170,11 @@ int get_rssi(const char *ifname, uint8_t *client_addr) {
     iw = iwinfo_backend(ifname);
 
     if (iw->assoclist(ifname, buf, &len)) {
-        fprintf(stderr, "No information available\n");
+        fprintf(stdout, "No information available\n");
         iwinfo_finish();
         return INT_MIN;
     } else if (len <= 0) {
-        fprintf(stderr, "No station connected\n");
+        fprintf(stdout, "No station connected\n");
         iwinfo_finish();
         return INT_MIN;
     }
@@ -223,10 +223,10 @@ int get_expected_throughput(const char *ifname, uint8_t *client_addr) {
     iw = iwinfo_backend(ifname);
 
     if (iw->assoclist(ifname, buf, &len)) {
-        fprintf(stderr, "No information available\n");
+        fprintf(stdout, "No information available\n");
         return INT_MIN;
     } else if (len <= 0) {
-        fprintf(stderr, "No station connected\n");
+        fprintf(stdout, "No station connected\n");
         return INT_MIN;
     }
 
