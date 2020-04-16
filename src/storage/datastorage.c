@@ -894,6 +894,37 @@ ap insert_to_ap_array(ap entry) {
     return entry;
 }
 
+
+int ap_get_nr(struct blob_buf *b_local, uint8_t own_bssid_addr[]) {
+
+    pthread_mutex_lock(&ap_array_mutex);
+    int i;
+
+    void* nbs = blobmsg_open_array(b_local, "list");
+
+    for (i = 0; i <= ap_entry_last; i++) {
+        if (mac_is_equal(own_bssid_addr, ap_array[i].bssid_addr)) {
+            continue; //TODO: Skip own entry?!
+        }
+
+        void* nr_entry = blobmsg_open_array(b_local, NULL);
+
+        char mac_buf[20];
+        sprintf(mac_buf, MACSTRLOWER, MAC2STR(ap_array[i].bssid_addr));
+        blobmsg_add_string(b_local, NULL, mac_buf);
+
+        blobmsg_add_string(b_local, NULL, (char *) ap_array[i].ssid);
+        blobmsg_add_string(b_local, NULL, ap_array[i].neighbor_report);
+        blobmsg_close_array(b_local, nr_entry);
+
+    }
+    blobmsg_close_array(b_local, nbs);
+
+    pthread_mutex_unlock(&ap_array_mutex);
+
+    return 0;
+}
+
 int ap_get_collision_count(int col_domain) {
 
     int ret_sta_count = 0;

@@ -62,6 +62,7 @@ struct probe_metric_s {
     int use_driver_recog;
     int min_kick_count;
     int chan_util_avg_period;
+    int set_hostapd_nr;
     int kicking;
     int op_class;
     int duration;
@@ -266,6 +267,8 @@ int probe_array_set_all_probe_count(uint8_t client_addr[], uint32_t probe_count)
 int ap_get_collision_count(int col_domain);
 
 void send_beacon_reports(uint8_t bssid[], int id);
+
+int ap_get_nr(struct blob_buf *b, uint8_t own_bssid_addr[]);
 
 /* Utils */
 

@@ -8,6 +8,7 @@
 #define STR2MAC(a) &(a)[0], &(a)[1], &(a)[2], &(a)[3], &(a)[4], &(a)[5]
 
 #define MACSTR "%02X:%02X:%02X:%02X:%02X:%02X"
+#define MACSTRLOWER "%02x:%02x:%02x:%02x:%02x:%02x"
 
 /**
  * Convert char to binary.

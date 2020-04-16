@@ -35,6 +35,7 @@ static struct blob_buf b_notify;
 static struct blob_buf b_clients;
 static struct blob_buf b_umdns;
 static struct blob_buf b_beacon;
+static struct blob_buf b_nr;
 
 void update_clients(struct uloop_timeout *t);
 
@@ -324,6 +325,8 @@ bool subscriber_to_interface(const char *ifname);
 bool subscribe(struct hostapd_sock_entry *hostapd_entry);
 
 int parse_to_beacon_rep(struct blob_attr *msg, probe_entry *beacon_rep);
+
+void ubus_set_nr();
 
 void add_client_update_timer(time_t time) {
     uloop_timeout_set(&client_timer, time);
@@ -1108,6 +1111,8 @@ static int ubus_get_rrm() {
 
 void update_clients(struct uloop_timeout *t) {
     ubus_get_clients();
+    if(dawn_metric.set_hostapd_nr)
+        ubus_set_nr();
     // maybe to much?! don't set timer again...
     uloop_timeout_set(&client_timer, timeout_config.update_client * 1000);
 }
@@ -1187,6 +1192,21 @@ void update_hostapd_sockets(struct uloop_timeout *t) {
     uloop_timeout_set(&hostapd_timer, timeout_config.update_hostapd * 1000);
 }
 
+void ubus_set_nr(){
+    struct hostapd_sock_entry *sub;
+
+
+    list_for_each_entry(sub, &hostapd_sock_list, list)
+    {
+        if (sub->subscribed) {
+            int timeout = 1;
+            blob_buf_init(&b_nr, 0);
+            ap_get_nr(&b_nr, sub->bssid_addr);
+            ubus_invoke(ctx, sub->id, "rrm_nr_set", b_nr.head, NULL, NULL, timeout * 1000);
+        }
+    }
+}
+
 void del_client_all_interfaces(const uint8_t *client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time) {
     struct hostapd_sock_entry *sub;
 
@@ -1226,7 +1246,7 @@ void del_client_interface(uint32_t id, const uint8_t *client_addr, uint32_t reas
 }
 
 void wnm_disassoc_imminent(uint32_t id, const uint8_t *client_addr, char* dest_ap, uint32_t duration) {
-        struct hostapd_sock_entry *sub;
+    struct hostapd_sock_entry *sub;
 
     blob_buf_init(&b, 0);
     blobmsg_add_macaddr(&b, "addr", client_addr);
@@ -1245,7 +1265,7 @@ void wnm_disassoc_imminent(uint32_t id, const uint8_t *client_addr, char* dest_a
     list_for_each_entry(sub, &hostapd_sock_list, list)
     {
         if (sub->subscribed) {
-            int timeout = 1;
+            int timeout = 1; //TDO: Maybe ID is wrong?! OR CHECK HERE ID
             ubus_invoke(ctx, id, "wnm_disassoc_imminent", b.head, NULL, NULL, timeout * 1000);
         }
     }
@@ -1664,6 +1684,7 @@ int uci_send_via_network()
     blobmsg_add_u32(&b, "use_driver_recog", dawn_metric.use_driver_recog);
     blobmsg_add_u32(&b, "min_number_to_kick", dawn_metric.min_kick_count);
     blobmsg_add_u32(&b, "chan_util_avg_period", dawn_metric.chan_util_avg_period);
+    blobmsg_add_u32(&b, "set_hostapd_nr", dawn_metric.set_hostapd_nr);
     blobmsg_add_u32(&b, "op_class", dawn_metric.op_class);
     blobmsg_add_u32(&b, "duration", dawn_metric.duration);
     blobmsg_add_u32(&b, "mode", dawn_metric.mode);
@@ -1719,6 +1740,7 @@ enum {
     UCI_USE_DRIVER_RECOG,
     UCI_MIN_NUMBER_TO_KICK,
     UCI_CHAN_UTIL_AVG_PERIOD,
+    UCI_SET_HOSTAPD_NR,
     UCI_OP_CLASS,
     UCI_DURATION,
     UCI_MODE,
@@ -1771,6 +1793,7 @@ static const struct blobmsg_policy uci_metric_policy[__UCI_METIC_MAX] = {
         [UCI_USE_DRIVER_RECOG] = {.name = "use_driver_recog", .type = BLOBMSG_TYPE_INT32},
         [UCI_MIN_NUMBER_TO_KICK] = {.name = "min_number_to_kick", .type = BLOBMSG_TYPE_INT32},
         [UCI_CHAN_UTIL_AVG_PERIOD] = {.name = "chan_util_avg_period", .type = BLOBMSG_TYPE_INT32},
+        [UCI_SET_HOSTAPD_NR] = {.name = "set_hostapd_nr", .type = BLOBMSG_TYPE_INT32},
         [UCI_OP_CLASS] = {.name = "op_class", .type = BLOBMSG_TYPE_INT32},
         [UCI_DURATION] = {.name = "duration", .type = BLOBMSG_TYPE_INT32},
         [UCI_MODE] = {.name = "mode", .type = BLOBMSG_TYPE_INT32},
@@ -1874,6 +1897,9 @@ int handle_uci_config(struct blob_attr *msg) {
     uci_set_network(cmd_buffer);
 
     sprintf(cmd_buffer, "dawn.@metric[0].chan_util_avg_period=%d", blobmsg_get_u32(tb_metric[UCI_CHAN_UTIL_AVG_PERIOD]));
+    uci_set_network(cmd_buffer);
+
+    sprintf(cmd_buffer, "dawn.@metric[0].set_hostapd_nr=%d", blobmsg_get_u32(tb_metric[UCI_SET_HOSTAPD_NR]));
     uci_set_network(cmd_buffer);
 
     sprintf(cmd_buffer, "dawn.@metric[0].op_class=%d", blobmsg_get_u32(tb_metric[UCI_OP_CLASS]));
