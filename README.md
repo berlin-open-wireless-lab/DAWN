@@ -3,13 +3,6 @@
 # DAWN
 Decentralized WiFi Controller
 
-## Related
-
-|Repro             |Content                   |
-|------------------|--------------------------|
-|[patches-pending](https://github.com/berlin-open-wireless-lab/patches-pending)|Pending OpenWrt Patches DAWN is depending on|
-|[bowl-feed](https://github.com/berlin-open-wireless-lab/bowl-feed)|Feed for DAWN|
-
 ## Installation
 
 See [installation](INSTALL.md).
@@ -42,14 +35,21 @@ I setup the OpenWRT Router as dumb APs.
 |max_chan_util_val  |  '170'  |Threshold for a bad channel utilization.|
 |min_probe_count    |  '2'    |Minimum number of probe requests aftrer calculating if AP is best and sending a probe response.|
 |bandwidth_threshold |  '6'    |Threshold for the receiving bit rate indicating if a client is in an active transmission.|
-|use_station_count  |  '1'    |Use station count as metric.|
-|max_station_diff   |  '1'    |Maximal station difference that is allowed.|
-|eval_probe_req     |  '1'    |Evaluate the incoming probe requests.|
-|eval_auth_req      |  '1'    |Evaluate the incomning authentication reqeuests.|
-|eval_assoc_req     |  '1'    |Evaluate the incoming association requests.|
-|deny_auth_reason   |  '1'    |Status code for denying authentications.|
-|deny_assoc_reason  |  '17'   |Status code for denying associations.|
-|use_driver_recog   |  '1'    |Allow drivers to connect after a certain time.|
+|use_station_count  | '1'    |Use station count as metric.|
+|max_station_diff   | '1'    |Maximal station difference that is allowed.|
+|eval_probe_req     | '1'    |Evaluate the incoming probe requests.|
+|eval_auth_req      | '1'    |Evaluate the incomning authentication reqeuests.|
+|eval_assoc_req     | '1'    |Evaluate the incoming association requests.|
+|deny_auth_reason   | '1'    |Status code for denying authentications.|
+|deny_assoc_reason  | '17'   |Status code for denying associations.|
+|use_driver_recog   | '1'    |Allow drivers to connect after a certain time.|
+| min_number_to_kick | '3' | How often a clients needs to be evaluated as bad before kicking. |
+| chan_util_avg_period | '3' | Channel Utilization Averaging |
+| set_hostapd_nr       | '1' | Feed Hostapd With NR-Reports |
+| op_class             | '0' | 802.11k beacon request parameters |
+| duration             | '0' | 802.11k beacon request parameters |
+| mode                 | '0' | 802.11k beacon request parameters |
+| scan_channel         | '0' | 802.11k beacon request parameters |
 
 
 ## ubus interface
