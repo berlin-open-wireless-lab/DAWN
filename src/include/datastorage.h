@@ -157,7 +157,7 @@ struct probe_entry_s probe_array[PROBE_ARRAY_LEN];
 pthread_mutex_t probe_array_mutex;
 
 // ---------------- Functions ----------------
-probe_entry insert_to_array(probe_entry entry, int inc_counter, int save_80211k);
+probe_entry insert_to_array(probe_entry entry, int inc_counter, int save_80211k, int is_beacon);
 
 void probe_array_insert(probe_entry entry);
 

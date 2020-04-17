@@ -853,7 +853,7 @@ void print_probe_array() {
     printf("------------------\n");
 }
 
-probe_entry insert_to_array(probe_entry entry, int inc_counter, int save_80211k) {
+probe_entry insert_to_array(probe_entry entry, int inc_counter, int save_80211k, int is_beacon) {
     pthread_mutex_lock(&probe_array_mutex);
 
     entry.time = time(0);
@@ -866,8 +866,10 @@ probe_entry insert_to_array(probe_entry entry, int inc_counter, int save_80211k)
 
         if(save_80211k)
         {
-            entry.rcpi = tmp.rcpi;
-            entry.rsni = tmp.rsni;
+            if (tmp.rcpi != -1)
+                entry.rcpi = tmp.rcpi;
+            if (tmp.rsni != -1)
+                entry.rsni = tmp.rsni;
         }
     }
 
