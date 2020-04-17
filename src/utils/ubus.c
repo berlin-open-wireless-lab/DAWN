@@ -195,20 +195,6 @@ static const struct blobmsg_policy beacon_rep_policy[__BEACON_REP_MAX] = {
         [BEACON_REP_PARENT_TSF] = {.name = "parent-tsf", .type = BLOBMSG_TYPE_INT16},
 };
 
-static const struct blobmsg_policy beacon_rep_network_policy[__BEACON_REP_MAX] = {
-        [BEACON_REP_ADDR] = {.name = "address", .type = BLOBMSG_TYPE_STRING},
-        [BEACON_REP_OP_CLASS] = {.name = "op-class", .type = BLOBMSG_TYPE_INT32},
-        [BEACON_REP_CHANNEL] = {.name = "channel", .type = BLOBMSG_TYPE_INT64},
-        [BEACON_REP_START_TIME] = {.name = "start-time", .type = BLOBMSG_TYPE_INT32},
-        [BEACON_REP_DURATION] = {.name = "duration", .type = BLOBMSG_TYPE_INT32},
-        [BEACON_REP_REPORT_INFO] = {.name = "report-info", .type = BLOBMSG_TYPE_INT32},
-        [BEACON_REP_RCPI] = {.name = "rcpi", .type = BLOBMSG_TYPE_INT32},
-        [BEACON_REP_RSNI] = {.name = "rsni", .type = BLOBMSG_TYPE_INT32},
-        [BEACON_REP_BSSID] = {.name = "bssid", .type = BLOBMSG_TYPE_STRING},
-        [BEACON_REP_ANTENNA_ID] = {.name = "antenna-id", .type = BLOBMSG_TYPE_INT32},
-        [BEACON_REP_PARENT_TSF] = {.name = "parent-tsf", .type = BLOBMSG_TYPE_INT32},
-};
-
 enum {
     CLIENT_TABLE,
     CLIENT_TABLE_BSSID,
@@ -342,7 +328,7 @@ bool subscriber_to_interface(const char *ifname);
 
 bool subscribe(struct hostapd_sock_entry *hostapd_entry);
 
-int parse_to_beacon_rep(struct blob_attr *msg, probe_entry *beacon_rep, int network);
+int parse_to_beacon_rep(struct blob_attr *msg, probe_entry *beacon_rep);
 
 void ubus_set_nr();
 
@@ -485,25 +471,15 @@ int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req) {
     return 0;
 }
 
-int parse_to_beacon_rep(struct blob_attr *msg, probe_entry *beacon_rep, int network) {
+int parse_to_beacon_rep(struct blob_attr *msg, probe_entry *beacon_rep) {
     struct blob_attr *tb[__BEACON_REP_MAX];
 
-    printf("In Parsing Function!\n");
+    blobmsg_parse(beacon_rep_policy, __BEACON_REP_MAX, tb, blob_data(msg), blob_len(msg));
 
-    if(network)
-    {
-        blobmsg_parse(beacon_rep_network_policy, __BEACON_REP_MAX, tb, blob_data(msg), blob_len(msg));
-    } else {
-        blobmsg_parse(beacon_rep_policy, __BEACON_REP_MAX, tb, blob_data(msg), blob_len(msg));
-    }
-
-    printf("Check is something is missing!\n");
     if(!tb[BEACON_REP_BSSID] || !tb[BEACON_REP_ADDR])
     {
-        printf("Beacon Report is missing MAC Adresses!\n");
         return -1;
     }
-    printf("Nothing is missing!\n");
 
     if (hwaddr_aton(blobmsg_data(tb[BEACON_REP_BSSID]), beacon_rep->bssid_addr))
         return UBUS_STATUS_INVALID_ARGUMENT;
@@ -514,7 +490,6 @@ int parse_to_beacon_rep(struct blob_attr *msg, probe_entry *beacon_rep, int netw
         fprintf(stderr, "Received NULL MAC! Client is strange!\n");
         return -1;
     }
-    printf("Parsing Beacon Report!\n");
 
     ap ap_entry_rep = ap_array_get_ap(beacon_rep->bssid_addr);
 
@@ -522,30 +497,18 @@ int parse_to_beacon_rep(struct blob_attr *msg, probe_entry *beacon_rep, int netw
     if (!mac_is_equal(ap_entry_rep.bssid_addr, beacon_rep->bssid_addr)) {
         return -1; //TODO: Check this
     }
-    printf("Checking beacon report address!\n");
 
     if (hwaddr_aton(blobmsg_data(tb[BEACON_REP_ADDR]), beacon_rep->client_addr))
         return UBUS_STATUS_INVALID_ARGUMENT;
 
     int rcpi = 0;
     int rsni = 0;
-    if(network)
-    {
-        printf("Checking RCPI!\n");
-        rcpi = blobmsg_get_u32(tb[BEACON_REP_RCPI]);
-        printf("Checking RSNI!\n");
-        rsni = blobmsg_get_u32(tb[BEACON_REP_RSNI]);
-    } else
-    {
-        printf("Checking RCPI!\n");
-        rcpi = blobmsg_get_u16(tb[BEACON_REP_RCPI]);
-        printf("Checking RSNI!\n");
-        rsni = blobmsg_get_u16(tb[BEACON_REP_RSNI]);
-    }
+    rcpi = blobmsg_get_u16(tb[BEACON_REP_RCPI]);
+    rsni = blobmsg_get_u16(tb[BEACON_REP_RSNI]);
 
 
     // HACKY WORKAROUND!
-    printf("Try update rssi for beacon report!\n");
+    printf("Try update RCPI and RSNI for beacon report!\n");
     if(!probe_array_update_rcpi_rsni(beacon_rep->bssid_addr, beacon_rep->client_addr, rcpi, rsni, true))
     {
         printf("Beacon: No Probe Entry Existing!\n");
@@ -663,7 +626,7 @@ static int handle_probe_req(struct blob_attr *msg) {
 static int handle_beacon_rep(struct blob_attr *msg) {
     probe_entry beacon_rep;
 
-    if (parse_to_beacon_rep(msg, &beacon_rep, false) == 0) {
+    if (parse_to_beacon_rep(msg, &beacon_rep) == 0) {
         printf("Inserting beacon Report!\n");
         // insert_to_array(beacon_rep, 1);
         printf("Sending via network!\n");
@@ -761,8 +724,10 @@ int handle_network_msg(char *msg) {
         printf("HANDLING UCI!\n");
         handle_uci_config(data_buf.head);
     } else if (strncmp(method, "beacon-report", 12) == 0) {
-        printf("HANDLING BEACON REPORT NETWORK!\n");
-        printf("The Method for beacon-report is: %s\n", method);
+        // TODO: Check beacon report stuff
+
+        //printf("HANDLING BEACON REPORT NETWORK!\n");
+        //printf("The Method for beacon-report is: %s\n", method);
         // ignore beacon reports send via network!, use probe functions for it
         //probe_entry entry; // for now just stay at probe entry stuff...
         //parse_to_beacon_rep(data_buf.head, &entry, true);
@@ -839,8 +804,6 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
         send_blob_attr_via_network(b_notify.head, "deauth");
         return handle_deauth_req(b_notify.head);
     } else if (strncmp(method, "beacon-report", 12) == 0) {
-        printf("HANDLING BEACON REPORT HOSTAPD!\n");
-        printf("The Method for beacon-report is: %s\n", method);
         return handle_beacon_rep(b_notify.head);
     }
     return 0;

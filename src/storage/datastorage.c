@@ -96,7 +96,6 @@ void send_beacon_reports(uint8_t bssid[], int id) {
         if (mac_is_equal(client_array[i].bssid_addr, bssid)) {
             break;
         }
-        printf("Found BSSID\n");
     }
 
     // Go threw clients
@@ -105,7 +104,6 @@ void send_beacon_reports(uint8_t bssid[], int id) {
         if (!mac_is_equal(client_array[j].bssid_addr, bssid)) {
             break;
         }
-        printf("Sending Beacon Report for client %d\n",j);
         ubus_send_beacon_report(client_array[j].client_addr, id);
     }
     pthread_mutex_unlock(&client_array_mutex);
