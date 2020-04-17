@@ -5,6 +5,8 @@ Decentralized WiFi Controller
 
 ## Installation
 
+**You need full wpad installation and not wpad-basic**.
+
 See [installation](INSTALL.md).
 
 ## LuCI App
