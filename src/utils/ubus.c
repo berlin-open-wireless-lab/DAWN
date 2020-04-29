@@ -842,12 +842,11 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
 
     ubus_add_oject();
 
-    start_umdns_update();
-
     if (network_config.network_option == 2)
     {
+        start_umdns_update();
         if(run_server(network_config.tcp_port))
-           uloop_timeout_set(&usock_timer, 1 * 1000);
+            uloop_timeout_set(&usock_timer, 1 * 1000);
     }
 
     subscribe_to_new_interfaces(hostapd_dir_glob);
