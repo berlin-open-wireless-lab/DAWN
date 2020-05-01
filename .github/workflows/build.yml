@@ -1,0 +1,32 @@
+name: Build DAWN
+on:
+  push:
+  pull_request:
+    types: [opened, synchronize, reopened]
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+        with:
+          path: dawn
+      - name: Install dependencies
+        run: sudo apt install git subversion build-essential python gawk unzip libncurses5-dev zlib1g-dev libssl-dev wget time libncurses-dev
+      - name: Download OpenWrt SDK
+        run: curl -o openwrt-sdk.tar.xz https://downloads.openwrt.org/snapshots/targets/ath79/generic/openwrt-sdk-ath79-generic_gcc-8.4.0_musl.Linux-x86_64.tar.xz
+      - name: Extract OpenWrt SDK
+        run: tar xf openwrt-sdk.tar.xz && mv openwrt-sdk-ath79-generic_gcc-8.4.0_musl.Linux-x86_64 sdk
+      - name: Create config
+        run: make -C sdk defconfig
+      - name: Update package feed
+        run: ./sdk/scripts/feeds update -a && ./sdk/scripts/feeds install -a
+      - name: Link DAWN source
+        run: ln -s dawn/.git sdk/feeds/packages/net/dawn/git-src
+      - name: Compile DAWN
+        run: make -C sdk package/dawn/{clean,compile} V=s
+      - name: Archive build output
+        uses: actions/upload-artifact@v1
+        with:
+          name: output
+          path: sdk/bin/packages/mips_24kc/packages
