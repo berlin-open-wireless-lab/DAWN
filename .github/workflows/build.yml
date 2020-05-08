@@ -18,7 +18,7 @@ jobs:
       - name: Extract OpenWrt SDK
         run: tar xf openwrt-sdk.tar.xz && mv openwrt-sdk-ath79-generic_gcc-8.4.0_musl.Linux-x86_64 sdk
       - name: Create config
-        run: make -C sdk defconfig
+        run: make -C sdk defconfig && echo "CONFIG_SRC_TREE_OVERRIDE=y" >> sdk/.config
       - name: Update package feed
         run: ./sdk/scripts/feeds update -a && ./sdk/scripts/feeds install -a
       - name: Link DAWN source
