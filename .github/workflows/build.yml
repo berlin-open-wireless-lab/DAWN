@@ -22,7 +22,7 @@ jobs:
       - name: Update package feed
         run: ./sdk/scripts/feeds update -a && ./sdk/scripts/feeds install -a
       - name: Link DAWN source
-        run: ln -s dawn/.git sdk/feeds/packages/net/dawn/git-src
+        run: ln -s $GITHUB_WORKSPACE/dawn/.git sdk/feeds/packages/net/dawn/git-src
       - name: Compile DAWN
         run: make -C sdk package/dawn/{clean,compile} V=s
       - name: Archive build output
