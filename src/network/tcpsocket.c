@@ -283,7 +283,7 @@ void print_tcp_array() {
     printf("--------Connections------\n");
     list_for_each_entry(con, &tcp_sock_list, list)
     {
-        printf("Conenctin to Port: %d, Connected: %s\n", con->sock_addr.sin_port, con->connected ? "True" : "False");
+        printf("Connecting to Port: %d, Connected: %s\n", ntohs(con->sock_addr.sin_port), con->connected ? "True" : "False");
     }
     printf("------------------\n");
 }
