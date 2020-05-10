@@ -224,9 +224,11 @@ int get_expected_throughput(const char *ifname, uint8_t *client_addr) {
 
     if (iw->assoclist(ifname, buf, &len)) {
         fprintf(stdout, "No information available\n");
+        iwinfo_finish();
         return INT_MIN;
     } else if (len <= 0) {
         fprintf(stdout, "No station connected\n");
+        iwinfo_finish();
         return INT_MIN;
     }
 
