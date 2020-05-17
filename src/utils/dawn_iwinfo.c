@@ -66,6 +66,7 @@ int compare_essid_iwinfo(uint8_t *bssid_addr, uint8_t *bssid_addr_to_compare) {
                     memset(buf_essid_to_compare, 0, sizeof(buf_essid_to_compare));
                 essid_to_compare = buf_essid_to_compare;
             }
+            iwinfo_finish();
         }
     }
     closedir(dirp);
@@ -133,10 +134,11 @@ int get_bandwidth(const char *ifname, uint8_t *client_addr, float *rx_rate, floa
         if (mac_is_equal(client_addr, e->mac)) {
             *rx_rate = e->rx_rate.rate / 1000;
             *tx_rate = e->tx_rate.rate / 1000;
+            iwinfo_finish();
             return 1;
         }
     }
-
+    iwinfo_finish();
     return 0;
 }
 
@@ -186,8 +188,10 @@ int get_rssi(const char *ifname, uint8_t *client_addr) {
     for (i = 0; i < len; i += sizeof(struct iwinfo_assoclist_entry)) {
         e = (struct iwinfo_assoclist_entry *) &buf[i];
 
-        if (mac_is_equal(client_addr, e->mac))
+        if (mac_is_equal(client_addr, e->mac)) {
+            iwinfo_finish();
             return e->signal;
+        }    
     }
 
     iwinfo_finish();
@@ -240,8 +244,10 @@ int get_expected_throughput(const char *ifname, uint8_t *client_addr) {
     for (i = 0; i < len; i += sizeof(struct iwinfo_assoclist_entry)) {
         e = (struct iwinfo_assoclist_entry *) &buf[i];
 
-        if (mac_is_equal(client_addr, e->mac))
+        if (mac_is_equal(client_addr, e->mac)) {
+            iwinfo_finish();
             return e->thr;
+        }
     }
     iwinfo_finish();
 
@@ -276,6 +282,7 @@ int get_ssid(const char *ifname, char* ssid) {
 
     memcpy(ssid, buf, (SSID_MAX_LEN) * sizeof(char));
     strcpy(ssid, buf);
+    iwinfo_finish();
     return 0;
 }
 
@@ -293,17 +300,20 @@ int get_channel_utilization(const char *ifname, uint64_t *last_channel_time, uin
     int freq;
     if (iw->frequency(ifname, &freq))
     {
+        iwinfo_finish();
         return 0;
     }
 
     if (iw->survey(ifname, buf, &len))
     {
         fprintf(stderr, "Survey not possible!\n\n");
+        iwinfo_finish();
         return 0;
     }
     else if (len <= 0)
     {
         fprintf(stderr, "No survey results\n\n");
+        iwinfo_finish();
         return 0;
     }
 
@@ -339,6 +349,7 @@ int support_ht(const char *ifname) {
     if (iw->htmodelist(ifname, &htmodes))
     {
         printf("No HT mode information available\n");
+        iwinfo_finish();
         return 0;
     }
 
@@ -358,6 +369,7 @@ int support_vht(const char *ifname) {
     if (iw->htmodelist(ifname, &htmodes))
     {
         fprintf(stderr, "No VHT mode information available\n");
+        iwinfo_finish();
         return 0;
     }
 
