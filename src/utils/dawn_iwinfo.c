@@ -45,7 +45,7 @@ int compare_essid_iwinfo(uint8_t *bssid_addr, uint8_t *bssid_addr_to_compare) {
 
     while ((entry = readdir(dirp)) != NULL && (essid == NULL || essid_to_compare == NULL)) {
         if (entry->d_type == DT_SOCK) {
-            if (strcmp(entry->d_name, "global") == 0) 
+            if (strcmp(entry->d_name, "global") == 0)
                 continue;
 
             iw = iwinfo_backend(entry->d_name);
@@ -114,7 +114,7 @@ int get_bandwidth(const char *ifname, uint8_t *client_addr, float *rx_rate, floa
     char buf[IWINFO_BUFSIZE];
     struct iwinfo_assoclist_entry *e;
     const struct iwinfo_ops *iw;
-    if (strcmp(ifname, "global") == 0) 
+    if (strcmp(ifname, "global") == 0)
         return 0;
     iw = iwinfo_backend(ifname);
 
@@ -171,7 +171,7 @@ int get_rssi(const char *ifname, uint8_t *client_addr) {
     char buf[IWINFO_BUFSIZE];
     struct iwinfo_assoclist_entry *e;
     const struct iwinfo_ops *iw;
-    if (strcmp(ifname, "global") == 0) 
+    if (strcmp(ifname, "global") == 0)
         return INT_MIN;
     iw = iwinfo_backend(ifname);
 
@@ -191,7 +191,7 @@ int get_rssi(const char *ifname, uint8_t *client_addr) {
         if (mac_is_equal(client_addr, e->mac)) {
             iwinfo_finish();
             return e->signal;
-        }    
+        }
     }
 
     iwinfo_finish();
@@ -227,7 +227,7 @@ int get_expected_throughput(const char *ifname, uint8_t *client_addr) {
     char buf[IWINFO_BUFSIZE];
     struct iwinfo_assoclist_entry *e;
     const struct iwinfo_ops *iw;
-    if (strcmp(ifname, "global") == 0) 
+    if (strcmp(ifname, "global") == 0)
         return INT_MIN;
     iw = iwinfo_backend(ifname);
 
@@ -256,7 +256,7 @@ int get_expected_throughput(const char *ifname, uint8_t *client_addr) {
 
 int get_bssid(const char *ifname, uint8_t *bssid_addr) {
     const struct iwinfo_ops *iw;
-    if (strcmp(ifname, "global") == 0) 
+    if (strcmp(ifname, "global") == 0)
         return 0;
     iw = iwinfo_backend(ifname);
 
@@ -274,7 +274,7 @@ int get_bssid(const char *ifname, uint8_t *bssid_addr) {
 int get_ssid(const char *ifname, char* ssid) {
     const struct iwinfo_ops *iw;
     char buf[IWINFO_ESSID_MAX_SIZE+1] = { 0 };
-    if (strcmp(ifname, "global") == 0) 
+    if (strcmp(ifname, "global") == 0)
         return 0;
     iw = iwinfo_backend(ifname);
     if (iw->ssid(ifname, buf))
@@ -293,7 +293,7 @@ int get_channel_utilization(const char *ifname, uint64_t *last_channel_time, uin
     char buf[IWINFO_BUFSIZE];
     struct iwinfo_survey_entry *e;
     int ret = 0;
-    if (strcmp(ifname, "global") == 0) 
+    if (strcmp(ifname, "global") == 0)
         return 0;
     iw = iwinfo_backend(ifname);
 
@@ -341,7 +341,7 @@ int get_channel_utilization(const char *ifname, uint64_t *last_channel_time, uin
 
 int support_ht(const char *ifname) {
     const struct iwinfo_ops *iw;
-    if (strcmp(ifname, "global") == 0) 
+    if (strcmp(ifname, "global") == 0)
         return 0;
     iw = iwinfo_backend(ifname);
     int htmodes = 0;
@@ -361,7 +361,7 @@ int support_ht(const char *ifname) {
 
 int support_vht(const char *ifname) {
     const struct iwinfo_ops *iw;
-    if (strcmp(ifname, "global") == 0) 
+    if (strcmp(ifname, "global") == 0)
         return 0;
     iw = iwinfo_backend(ifname);
     int htmodes = 0;
