@@ -45,8 +45,8 @@ int compare_essid_iwinfo(uint8_t *bssid_addr, uint8_t *bssid_addr_to_compare) {
 
     while ((entry = readdir(dirp)) != NULL && (essid == NULL || essid_to_compare == NULL)) {
         if (entry->d_type == DT_SOCK) {
-			if (strcmp(entry->d_name, "global") == 0) 
-				continue;
+            if (strcmp(entry->d_name, "global") == 0) 
+                continue;
 
             iw = iwinfo_backend(entry->d_name);
 
