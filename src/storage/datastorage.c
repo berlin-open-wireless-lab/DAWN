@@ -427,7 +427,7 @@ int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], char* neigh
             //return 1;
         }
 
-        if (dawn_metric.use_station_count && own_score == score_to_compare && score_to_compare > max_score) {
+        if (dawn_metric.use_station_count > 0 && own_score == score_to_compare && score_to_compare > max_score) {
 
             // only compare if score is bigger or equal 0
             if (own_score >= 0) {
