@@ -358,15 +358,15 @@ static int decide_function(probe_entry *prob_req, int req_type) {
         return 0;
     }
 
-    if (req_type == REQ_TYPE_PROBE && !dawn_metric.eval_probe_req) {
+    if (req_type == REQ_TYPE_PROBE && dawn_metric.eval_probe_req <= 0) {
         return 1;
     }
 
-    if (req_type == REQ_TYPE_AUTH && !dawn_metric.eval_auth_req) {
+    if (req_type == REQ_TYPE_AUTH && dawn_metric.eval_auth_req <= 0) {
         return 1;
     }
 
-    if (req_type == REQ_TYPE_ASSOC && !dawn_metric.eval_assoc_req) {
+    if (req_type == REQ_TYPE_ASSOC && dawn_metric.eval_assoc_req <= 0) {
         return 1;
     }
 
