@@ -1673,6 +1673,8 @@ void subscribe_to_new_interfaces(const char *hostapd_sock_path) {
     while ((entry = readdir(dirp)) != NULL) {
         if (entry->d_type == DT_SOCK) {
             bool do_subscribe = true;
+            if (strcmp(entry->d_name, "global") == 0)
+                continue;
             list_for_each_entry(sub, &hostapd_sock_list, list)
             {
                 if (strncmp(sub->iface_name, entry->d_name, MAX_INTERFACE_NAME) == 0) {
