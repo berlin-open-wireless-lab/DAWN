@@ -8,7 +8,6 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include <libubox/blobmsg_json.h>
 
 #ifndef ETH_ALEN
 #define ETH_ALEN 6
@@ -101,6 +100,7 @@ struct time_config_s timeout_config;
 
 // ---------------- Global variables ----------------
 struct probe_metric_s dawn_metric;
+extern int probe_entry_last;
 
 
 /* Probe, Auth, Assoc */
@@ -155,6 +155,8 @@ auth_entry insert_to_denied_req_array(auth_entry entry, int inc_counter);
 // ---------------- Global variables ----------------
 struct probe_entry_s probe_array[PROBE_ARRAY_LEN];
 pthread_mutex_t probe_array_mutex;
+extern int denied_req_last;
+auth_entry denied_req_array_delete(auth_entry entry);
 
 // ---------------- Functions ----------------
 probe_entry insert_to_array(probe_entry entry, int inc_counter, int save_80211k, int is_beacon);
@@ -175,7 +177,6 @@ void uloop_add_data_cbs();
 
 /* AP, Client */
 
-// blobmsg_alloc_string_buffer(&b, "signature", 1024);
 #define SIGNATURE_LEN 1024
 
 // ---------------- Structs ----------------
@@ -229,6 +230,8 @@ struct client_s client_array[ARRAY_CLIENT_LEN];
 pthread_mutex_t client_array_mutex;
 struct ap_s ap_array[ARRAY_AP_LEN];
 pthread_mutex_t ap_array_mutex;
+extern int ap_entry_last;
+extern int client_entry_last;
 
 int mac_is_equal(uint8_t addr1[], uint8_t addr2[]);
 
@@ -258,17 +261,11 @@ void print_ap_array();
 
 ap ap_array_get_ap(uint8_t bssid_addr[]);
 
-int build_hearing_map_sort_client(struct blob_buf *b);
-
-int build_network_overview(struct blob_buf *b);
-
 int probe_array_set_all_probe_count(uint8_t client_addr[], uint32_t probe_count);
 
 int ap_get_collision_count(int col_domain);
 
 void send_beacon_reports(uint8_t bssid[], int id);
-
-int ap_get_nr(struct blob_buf *b, uint8_t own_bssid_addr[]);
 
 /* Utils */
 
@@ -280,5 +277,15 @@ char *sort_string;
 
 // ---------------- Functions -------------------
 int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], char* neighbor_report, int automatic_kick);
+
+int is_connected_somehwere(uint8_t client_addr[]);
+
+void remove_old_probe_entries(time_t current_time, long long int threshold);
+
+void remove_old_client_entries(time_t current_time, long long int threshold);
+
+void remove_old_ap_entries(time_t current_time, long long int threshold);
+
+int eval_probe_metric(struct probe_entry_s probe_entry);
 
 #endif

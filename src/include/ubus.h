@@ -4,6 +4,7 @@
 #include <libubox/blobmsg_json.h>
 #include <libubox/uloop.h>
 
+
 #include "datastorage.h"
 
 // 802.11 Status codes
@@ -165,5 +166,11 @@ int send_add_mac(uint8_t *client_addr);
 int uci_send_via_network();
 
 void ubus_send_beacon_report(uint8_t client[], int id);
+
+int build_hearing_map_sort_client(struct blob_buf *b);
+
+int build_network_overview(struct blob_buf *b);
+
+int ap_get_nr(struct blob_buf *b, uint8_t own_bssid_addr[]);
 
 #endif
