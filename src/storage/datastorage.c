@@ -200,46 +200,47 @@ int build_network_overview(struct blob_buf *b) {
     blob_buf_init(b, 0);
     int m;
     for (m = 0; m <= ap_entry_last; m++) {
-        if (m > 0) {
-            if (strcmp((char *) ap_array[m].ssid, (char *) ap_array[m - 1].ssid) == 0) {
-                continue;
-            }
+        bool add_ssid = false;
+        bool close_ssid = false;
+
+        if (m == 0 || strcmp((char *) ap_array[m].ssid, (char *) ap_array[m - 1].ssid) != 0) {
+            add_ssid = true;
         }
 
-        ssid_list = blobmsg_open_table(b, (char *) ap_array[m].ssid);
+        if (m >= ap_entry_last || strcmp((char *) ap_array[m].ssid, (char *) ap_array[m + 1].ssid) != 0) {
+            close_ssid = true;
+        }
 
-        int i;
-        for (i = 0; i <= client_entry_last; i++) {
-            ap ap_entry_i = ap_array_get_ap(client_array[i].bssid_addr);
+        if(add_ssid)
+        {
+            ssid_list = blobmsg_open_table(b, (char *) ap_array[m].ssid);
+        }
+        sprintf(ap_mac_buf, MACSTR, MAC2STR(ap_array[m].bssid_addr));
+        ap_list = blobmsg_open_table(b, ap_mac_buf);
 
-            if (strcmp((char *) ap_entry_i.ssid, (char *) ap_array[m].ssid) != 0) {
-                continue;
+        blobmsg_add_u32(b, "freq", ap_array[m].freq);
+        blobmsg_add_u32(b, "channel_utilization", ap_array[m].channel_utilization);
+        blobmsg_add_u32(b, "num_sta", ap_array[m].station_count);
+        blobmsg_add_u8(b, "ht_support", ap_array[m].ht_support);
+        blobmsg_add_u8(b, "vht_support", ap_array[m].vht_support);
+
+        char *nr;
+        nr = blobmsg_alloc_string_buffer(b, "neighbor_report", NEIGHBOR_REPORT_LEN);
+        sprintf(nr, "%s", ap_array[m].neighbor_report);
+        blobmsg_add_string_buffer(b);
+
+        int k;
+        for (k = 0; k <= client_entry_last; k++) {
+
+            if (mac_is_greater(ap_array[m].bssid_addr, client_array[k].bssid_addr))
+            {
+                break;
             }
-            int k;
-            sprintf(ap_mac_buf, MACSTR, MAC2STR(client_array[i].bssid_addr));
-            ap_list = blobmsg_open_table(b, ap_mac_buf);
 
-            blobmsg_add_u32(b, "freq", ap_entry_i.freq);
-            blobmsg_add_u32(b, "channel_utilization", ap_entry_i.channel_utilization);
-            blobmsg_add_u32(b, "num_sta", ap_entry_i.station_count);
-            blobmsg_add_u8(b, "ht_support", ap_entry_i.ht_support);
-            blobmsg_add_u8(b, "vht_support", ap_entry_i.vht_support);
-
-            char *nr;
-            nr = blobmsg_alloc_string_buffer(b, "neighbor_report", NEIGHBOR_REPORT_LEN);
-            sprintf(nr, "%s", ap_entry_i.neighbor_report);
-            blobmsg_add_string_buffer(b);
-
-            for (k = i; k <= client_entry_last; k++) {
-                if (!mac_is_equal(client_array[k].bssid_addr, client_array[i].bssid_addr)) {
-                    i = k - 1;
-                    break;
-                } else if (k == client_entry_last) {
-                    i = k;
-                }
-
+            if (mac_is_equal(ap_array[m].bssid_addr, client_array[k].bssid_addr)) {
                 sprintf(client_mac_buf, MACSTR, MAC2STR(client_array[k].client_addr));
                 client_list = blobmsg_open_table(b, client_mac_buf);
+
                 if(strlen(client_array[k].signature) != 0)
                 {
                     char *s;
@@ -262,9 +263,12 @@ int build_network_overview(struct blob_buf *b) {
                 }
                 blobmsg_close_table(b, client_list);
             }
-            blobmsg_close_table(b, ap_list);
         }
-        blobmsg_close_table(b, ssid_list);
+        blobmsg_close_table(b, ap_list);
+        if(close_ssid)
+        {
+            blobmsg_close_table(b, ssid_list);
+        }
     }
     return 0;
 }
