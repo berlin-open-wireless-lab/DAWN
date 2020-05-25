@@ -13,6 +13,9 @@ SET(SOURCES
         storage/datastorage.c
         include/datastorage.h
 
+        storage/uface.c
+        include/uface.h
+
         network/networksocket.c
         include/networksocket.h
 
@@ -43,10 +46,25 @@ SET(SOURCES
         utils/ieee80211_utils.c
         include/ieee80211_utils.h)
 
+SET(SOURCES_TEST_STORAGE
+        test/test_storage.c
+
+        include/uface.h
+
+        utils/utils.c
+        include/utils.h
+
+        storage/datastorage.c
+        include/datastorage.h
+
+        utils/ieee80211_utils.c
+        include/ieee80211_utils.h)
+
 SET(LIBS
         ubox ubus json-c blobmsg_json uci gcrypt iwinfo)
 
 ADD_EXECUTABLE(dawn ${SOURCES})
+ADD_EXECUTABLE(test_storage ${SOURCES_TEST_STORAGE})
 
 TARGET_LINK_LIBRARIES(dawn ${LIBS})
 
