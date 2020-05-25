@@ -4,36 +4,6 @@
 #include "ubus.h"
 #include "uface.h"
 
-void send_beacon_report(uint8_t client[], int id)
-{
-    ubus_send_beacon_report(client, id);
-}
-
-int send_set_probe(uint8_t client_addr[])
-{
-    return send_set_probe(client_addr);
-}
-
-void wnm_disassoc_imminent(uint32_t id, const uint8_t *client_addr, char* dest_ap, uint32_t duration)
-{
-    wnm_disassoc_imminent(id, client_addr, dest_ap, duration);
-}
-
-void add_client_update_timer(time_t time)
-{
-    add_client_update_timer(time);
-}
-
-void del_client_interface(uint32_t id, const uint8_t *client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time)
-{
-    del_client_interface(id, client_addr, reason, deauth, ban_time);
-}
-
-int send_probe_via_network(struct probe_entry_s probe_entry)
-{
-    return ubus_send_probe_via_network(probe_entry);
-}
-
 void remove_probe_array_cb(struct uloop_timeout *t);
 
 struct uloop_timeout probe_timeout = {
@@ -113,6 +83,8 @@ void denied_req_array_cb(struct uloop_timeout *t) {
                 // maybe delete again?
                 if (insert_to_maclist(denied_req_array[i].client_addr) == 0) {
                     send_add_mac(denied_req_array[i].client_addr);
+// TODO: File can grow arbitarily large.  Resource consumption risk.
+// TODO: Consolidate use of file across source: shared resource for name, single point of access?
                     write_mac_to_file("/tmp/dawn_mac_list", denied_req_array[i].client_addr);
                 }
             }

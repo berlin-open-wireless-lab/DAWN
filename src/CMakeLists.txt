@@ -47,12 +47,12 @@ SET(SOURCES
         include/ieee80211_utils.h)
 
 SET(SOURCES_TEST_STORAGE
-        test/storage_test.c
+        test/test_storage.c
 
         include/uface.h
 
-        include/utils.h
         utils/utils.c
+        include/utils.h
 
         storage/datastorage.c
         include/datastorage.h

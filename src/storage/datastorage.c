@@ -68,10 +68,13 @@ void send_beacon_reports(uint8_t bssid[], int id) {
         if (!mac_is_equal(client_array[j].bssid_addr, bssid)) {
             break;
         }
-        send_beacon_report(client_array[j].client_addr, id);
+        ubus_send_beacon_report(client_array[j].client_addr, id);
     }
     pthread_mutex_unlock(&client_array_mutex);
 }
+
+// TODO: Can metric be cached once calculated? Add score_fresh indicator and reset when signal changes
+// TODO: as rest of values look to be static fr any given entry.
 int eval_probe_metric(struct probe_entry_s probe_entry) {
 
     int score = 0;
@@ -583,7 +586,7 @@ int probe_array_update_rssi(uint8_t bssid_addr[], uint8_t client_addr[], uint32_
             updated = 1;
             if(send_network)
             {
-                send_probe_via_network(probe_array[i]);
+                ubus_send_probe_via_network(probe_array[i]);
             }
             break;
             //TODO: break?!
@@ -612,7 +615,7 @@ int probe_array_update_rcpi_rsni(uint8_t bssid_addr[], uint8_t client_addr[], ui
             updated = 1;
             if(send_network)
             {
-                send_probe_via_network(probe_array[i]);
+                ubus_send_probe_via_network(probe_array[i]);
             }
             break;
             //TODO: break?!
@@ -841,6 +844,7 @@ void insert_macs_from_file() {
     size_t len = 0;
     ssize_t read;
 
+// TODO: Loading to array is not constrained by array checks.  Buffer overrun can occur.
     fp = fopen("/tmp/dawn_mac_list", "r");
     if (fp == NULL)
         exit(EXIT_FAILURE);

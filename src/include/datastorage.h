@@ -18,7 +18,7 @@
 // ---------------- Defines -------------------
 #define MAC_LIST_LENGTH 100
 
-// ---------------- Structs ----------------
+// ---------------- Global variables ----------------
 uint8_t mac_list[MAC_LIST_LENGTH][ETH_ALEN];
 
 // ---------------- Functions ----------
@@ -28,10 +28,11 @@ int insert_to_maclist(uint8_t mac[]);
 
 int mac_in_maclist(uint8_t mac[]);
 
+int mac_is_equal(uint8_t addr1[], uint8_t addr2[]);
+
+int mac_is_greater(uint8_t addr1[], uint8_t addr2[]);
 
 /* Metric */
-
-struct probe_metric_s dawn_metric;
 
 // ---------------- Structs ----------------
 struct probe_metric_s {
@@ -95,13 +96,11 @@ struct network_config_s {
     int bandwidth;
 };
 
+// ---------------- Global variables ----------------
 struct network_config_s network_config;
 struct time_config_s timeout_config;
 
-// ---------------- Global variables ----------------
 struct probe_metric_s dawn_metric;
-extern int probe_entry_last;
-
 
 /* Probe, Auth, Assoc */
 
@@ -140,23 +139,21 @@ typedef struct hostapd_notify_entry_s {
 
 typedef struct auth_entry_s assoc_entry;
 
-#define DENY_REQ_ARRAY_LEN 100
-struct auth_entry_s denied_req_array[DENY_REQ_ARRAY_LEN];
-pthread_mutex_t denied_array_mutex;
-
-auth_entry insert_to_denied_req_array(auth_entry entry, int inc_counter);
-
 // ---------------- Defines ----------------
+#define DENY_REQ_ARRAY_LEN 100
 #define PROBE_ARRAY_LEN 1000
 
 #define SSID_MAX_LEN 32
 #define NEIGHBOR_REPORT_LEN 200
 
 // ---------------- Global variables ----------------
-struct probe_entry_s probe_array[PROBE_ARRAY_LEN];
-pthread_mutex_t probe_array_mutex;
+struct auth_entry_s denied_req_array[DENY_REQ_ARRAY_LEN];
 extern int denied_req_last;
-auth_entry denied_req_array_delete(auth_entry entry);
+pthread_mutex_t denied_array_mutex;
+
+struct probe_entry_s probe_array[PROBE_ARRAY_LEN];
+extern int probe_entry_last;
+pthread_mutex_t probe_array_mutex;
 
 // ---------------- Functions ----------------
 probe_entry insert_to_array(probe_entry entry, int inc_counter, int save_80211k, int is_beacon);
@@ -167,13 +164,19 @@ probe_entry probe_array_delete(probe_entry entry);
 
 probe_entry probe_array_get_entry(uint8_t bssid_addr[], uint8_t client_addr[]);
 
+void remove_old_probe_entries(time_t current_time, long long int threshold);
+
 void print_probe_array();
 
 void print_probe_entry(probe_entry entry);
 
-void print_auth_entry(auth_entry entry);
+int eval_probe_metric(struct probe_entry_s probe_entry);
 
-void uloop_add_data_cbs();
+auth_entry denied_req_array_delete(auth_entry entry);
+
+auth_entry insert_to_denied_req_array(auth_entry entry, int inc_counter);
+
+void print_auth_entry(auth_entry entry);
 
 /* AP, Client */
 
@@ -226,22 +229,21 @@ typedef struct ap_s {
 #define TIME_THRESHOLD_CLIENT_KICK 60
 
 // ---------------- Global variables ----------------
-struct client_s client_array[ARRAY_CLIENT_LEN];
-pthread_mutex_t client_array_mutex;
 struct ap_s ap_array[ARRAY_AP_LEN];
-pthread_mutex_t ap_array_mutex;
 extern int ap_entry_last;
+pthread_mutex_t ap_array_mutex;
+
+struct client_s client_array[ARRAY_CLIENT_LEN];
 extern int client_entry_last;
-
-int mac_is_equal(uint8_t addr1[], uint8_t addr2[]);
-
-int mac_is_greater(uint8_t addr1[], uint8_t addr2[]);
+pthread_mutex_t client_array_mutex;
 
 // ---------------- Functions ----------------
 
 int probe_array_update_rssi(uint8_t bssid_addr[], uint8_t client_addr[], uint32_t rssi, int send_network);
 
 int probe_array_update_rcpi_rsni(uint8_t bssid_addr[], uint8_t client_addr[], uint32_t rcpi, uint32_t rsni, int send_network);
+
+void remove_old_client_entries(time_t current_time, long long int threshold);
 
 void insert_client_to_array(client entry);
 
@@ -255,7 +257,11 @@ void print_client_array();
 
 void print_client_entry(client entry);
 
+int is_connected_somehwere(uint8_t client_addr[]);
+
 ap insert_to_ap_array(ap entry);
+
+void remove_old_ap_entries(time_t current_time, long long int threshold);
 
 void print_ap_array();
 
@@ -277,15 +283,5 @@ char *sort_string;
 
 // ---------------- Functions -------------------
 int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], char* neighbor_report, int automatic_kick);
-
-int is_connected_somehwere(uint8_t client_addr[]);
-
-void remove_old_probe_entries(time_t current_time, long long int threshold);
-
-void remove_old_client_entries(time_t current_time, long long int threshold);
-
-void remove_old_ap_entries(time_t current_time, long long int threshold);
-
-int eval_probe_metric(struct probe_entry_s probe_entry);
 
 #endif

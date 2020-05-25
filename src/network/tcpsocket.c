@@ -162,11 +162,10 @@ static void client_not_be_used_read_cb(struct ustream *s, int bytes) {
 
 static void connect_cb(struct uloop_fd *f, unsigned int events) {
 
-    struct network_con_s *entry = container_of(f,
-    struct network_con_s, fd);
+    struct network_con_s *entry = container_of(f, struct network_con_s, fd);
 
     if (f->eof || f->error) {
-        fprintf(stderr, "Connection failed\n");
+        fprintf(stderr, "Connection failed (%s)\n", f->eof ? "EOF" : "ERROR");
         close(entry->fd.fd);
         list_del(&entry->list);
         free(entry);
@@ -219,6 +218,7 @@ int add_tcp_conncection(char *ipv4, int port) {
     uloop_fd_add(&tcp_entry->fd, ULOOP_WRITE | ULOOP_EDGE_TRIGGER);
 
     printf("New TCP connection to %s:%d\n", ipv4, port);
+    fprintf(stderr, "New TCP connection to %s:%d\n", ipv4, port);
     list_add(&tcp_entry->list, &tcp_sock_list);
 
     return 0;

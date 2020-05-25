@@ -17,15 +17,16 @@
 #define REQ_TYPE_AUTH 1
 #define REQ_TYPE_ASSOC 2
 
-#include "ubus.h"
-
 #include "networksocket.h"
 #include "utils.h"
 #include "dawn_uci.h"
 #include "dawn_iwinfo.h"
-#include "datastorage.h"
 #include "tcpsocket.h"
 #include "ieee80211_utils.h"
+
+#include "datastorage.h"
+#include "uface.h"
+#include "ubus.h"
 
 static struct ubus_context *ctx = NULL;
 
@@ -707,6 +708,7 @@ int handle_network_msg(char *msg) {
 
     // add inactive death...
 
+// TODO: strncmp() look wrong - should all tests be for n = 5 characters? Shorthand checks?
     if (strncmp(method, "probe", 5) == 0) {
         probe_entry entry;
         if (parse_to_probe_req(data_buf.head, &entry) == 0) {
@@ -1446,6 +1448,8 @@ static int parse_add_mac_to_file(struct blob_attr *msg) {
         hwaddr_aton(blobmsg_data(attr), addr);
 
         if (insert_to_maclist(addr) == 0) {
+// TODO: File can grow arbitarily large.  Resource consumption risk.
+// TODO: Consolidate use of file across source: shared resource for name, single point of access?
             write_mac_to_file("/tmp/dawn_mac_list", addr);
         }
     }
