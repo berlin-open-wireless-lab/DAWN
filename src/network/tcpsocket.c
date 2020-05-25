@@ -218,7 +218,6 @@ int add_tcp_conncection(char *ipv4, int port) {
     uloop_fd_add(&tcp_entry->fd, ULOOP_WRITE | ULOOP_EDGE_TRIGGER);
 
     printf("New TCP connection to %s:%d\n", ipv4, port);
-    fprintf(stderr, "New TCP connection to %s:%d\n", ipv4, port);
     list_add(&tcp_entry->list, &tcp_sock_list);
 
     return 0;

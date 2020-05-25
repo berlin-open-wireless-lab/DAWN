@@ -116,17 +116,13 @@ struct network_config_s uci_get_dawn_network() {
 }
 
 const char *uci_get_dawn_hostapd_dir() {
-const char *ret = NULL;
-
     struct uci_element *e;
     uci_foreach_element(&uci_pkg->sections, e)
     {
         struct uci_section *s = uci_to_section(e);
 
         if (strcmp(s->type, "hostapd") == 0) {
-            ret = uci_lookup_option_string(uci_ctx, s, "hostapd_dir");
-	    fprintf(stderr, "Found hostapd_dir = %s\n", ret);
-            return ret;
+            return uci_lookup_option_string(uci_ctx, s, "hostapd_dir");
         }
     }
     return NULL;

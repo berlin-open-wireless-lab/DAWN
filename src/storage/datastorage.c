@@ -62,7 +62,7 @@ void send_beacon_reports(uint8_t bssid[], int id) {
         }
     }
 
-    // Go through clients
+    // Go threw clients
     int j;
     for (j = i; j <= client_entry_last; j++) {
         if (!mac_is_equal(client_array[j].bssid_addr, bssid)) {
@@ -283,7 +283,7 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
         }
     }
 
-    // Go through clients
+    // Go threw clients
     int j;
     for (j = i; j <= client_entry_last; j++) {
         if (!mac_is_equal(client_array[j].bssid_addr, bssid)) {
