@@ -1,13 +1,13 @@
+#include <iwinfo.h>
+#include <limits.h>
+
+#include "mac_utils.h"
+#include "datastorage.h"
 #include "dawn_iwinfo.h"
 
-#include <limits.h>
-#include <iwinfo.h>
-#include <dirent.h>
-
-#include "utils.h"
-#include "ubus.h"
-
 #define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
+
+char hostapd_dir_glob[HOSTAPD_DIR_LEN];
 
 int call_iwinfo(char *client_addr);
 
@@ -271,7 +271,7 @@ int get_bssid(const char *ifname, uint8_t *bssid_addr) {
     return 0;
 }
 
-int get_ssid(const char *ifname, char* ssid) {
+int get_ssid(const char *ifname, char* ssid, size_t ssidmax) {
     const struct iwinfo_ops *iw;
     char buf[IWINFO_ESSID_MAX_SIZE+1] = { 0 };
     if (strcmp(ifname, "global") == 0)
@@ -280,7 +280,7 @@ int get_ssid(const char *ifname, char* ssid) {
     if (iw->ssid(ifname, buf))
         memset(buf, 0, sizeof(buf));
 
-    memcpy(ssid, buf, (SSID_MAX_LEN) * sizeof(char));
+    memcpy(ssid, buf, ssidmax);
     strcpy(ssid, buf);
     iwinfo_finish();
     return 0;
@@ -373,6 +373,7 @@ int support_vht(const char *ifname) {
         return 0;
     }
 
+    // TODO: 1 << 2 duplicated here, and also appears as HT mode mask
     uint32_t vht_support_bitmask = (1 << 2) | (1 << 2) | (1 << 3) | (1 << 4) | (1 << 5) | (1 << 6);
     int ret = htmodes & vht_support_bitmask ? 1 : 0;
     iwinfo_finish();

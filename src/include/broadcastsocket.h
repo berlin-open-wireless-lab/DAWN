@@ -1,6 +1,7 @@
 #ifndef __DAWN_BROADCASTSOCKET_H
 #define __DAWN_BROADCASTSOCKET_H
 
+#include <arpa/inet.h>
 
 /**
  * Function that setups a broadcast socket.

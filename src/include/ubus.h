@@ -4,7 +4,6 @@
 #include <libubox/blobmsg_json.h>
 #include <libubox/uloop.h>
 
-
 #include "datastorage.h"
 
 // 802.11 Status codes
@@ -16,9 +15,6 @@
 // Disassociation Reason
 #define UNSPECIFIED_REASON 0
 #define NO_MORE_STAS 5
-
-#define HOSTAPD_DIR_LEN 200
-char hostapd_dir_glob[HOSTAPD_DIR_LEN];
 
 /**
  * Init ubus.
@@ -42,14 +38,6 @@ void start_umdns_update();
 int ubus_call_umdns();
 
 /**
- * Parse to probe request.
- * @param msg
- * @param prob_req
- * @return
- */
-int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req);
-
-/**
  * Parse to authentication request.
  * @param msg
  * @param auth_req
@@ -64,27 +52,6 @@ int parse_to_auth_req(struct blob_attr *msg, auth_entry *auth_req);
  * @return
  */
 int parse_to_assoc_req(struct blob_attr *msg, assoc_entry *assoc_req);
-
-/**
- * Dump a client array into the database.
- * @param msg - message to parse.
- * @param do_kick - use the automatic kick function when updating the clients.
- * @param id - ubus id.
- * @return
- */
-int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id);
-
-/**
- * Parse to hostapd notify.
- * Notify are such notifications like:
- * + Disassociation
- * + Deauthentication
- * + ...
- * @param msg
- * @param notify_req
- * @return
- */
-int parse_to_hostapd_notify(struct blob_attr *msg, hostapd_notify_entry *notify_req);
 
 /**
  * Kick client from all hostapd interfaces.
@@ -102,19 +69,34 @@ void del_client_all_interfaces(const uint8_t *client_addr, uint32_t reason, uint
 void update_hostapd_sockets(struct uloop_timeout *t);
 
 /**
- * Handle network messages.
- * @param msg
+ * Send control message to all hosts to add the mac to a don't control list.
+ * @param client_addr
  * @return
  */
-int handle_network_msg(char *msg);
+int send_add_mac(uint8_t *client_addr);
+
+void ubus_send_beacon_report(uint8_t client[], int id);
+
+void uloop_add_data_cbs();
+
+int uci_send_via_network();
+
+int build_hearing_map_sort_client(struct blob_buf* b);
+
+int build_network_overview(struct blob_buf* b);
+
+int ap_get_nr(struct blob_buf* b, uint8_t own_bssid_addr[]);
+
+int parse_add_mac_to_file(struct blob_attr* msg);
+
+int handle_auth_req(struct blob_attr* msg);
 
 /**
- * Send message via network.
- * @param msg
- * @param method
+ * Send probe message via the network.
+ * @param probe_entry
  * @return
  */
-int send_blob_attr_via_network(struct blob_attr *msg, char *method);
+int ubus_send_probe_via_network(struct probe_entry_s probe_entry);
 
 /**
  * Add mac to a list that contains addresses of clients that can not be controlled.
@@ -125,18 +107,45 @@ int send_blob_attr_via_network(struct blob_attr *msg, char *method);
 void blobmsg_add_macaddr(struct blob_buf *buf, const char *name, const uint8_t *addr);
 
 /**
- * Send control message to all hosts to add the mac to a don't control list.
+ * Send message via network.
+ * @param msg
+ * @param method
+ * @return
+ */
+int send_blob_attr_via_network(struct blob_attr* msg, char* method);
+
+/**
+ * Set client timer for updating the clients.
+ * @param time
+ */
+void add_client_update_timer(time_t time);
+
+/**
+ * Kick client from hostapd interface.
+ * @param id - the ubus id.
+ * @param client_addr - the client adress of the client to kick.
+ * @param reason - the reason to kick the client.
+ * @param deauth - if the client should be deauthenticated.
+ * @param ban_time - the ban time the client is not allowed to connect again.
+ */
+void del_client_interface(uint32_t id, const uint8_t* client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time);
+
+/**
+ * Function to set the probe counter to the min probe request.
+ * This allows that the client is able to connect directly without sending multiple probe requests to the Access Point.
  * @param client_addr
  * @return
  */
-int send_add_mac(uint8_t *client_addr);
+int send_set_probe(uint8_t client_addr[]);
 
-int uci_send_via_network();
-
-int build_hearing_map_sort_client(struct blob_buf *b);
-
-int build_network_overview(struct blob_buf *b);
-
-int ap_get_nr(struct blob_buf *b, uint8_t own_bssid_addr[]);
+/**
+ * Function to tell a client that it is about to be disconnected.
+ * @param id
+ * @param client_addr
+ * @param dest_ap
+ * @param duration
+ * @return - 0 = asynchronous (client has been told to remove itself, and caller should manage arrays); 1 = synchronous (caller should assume arrays are updated)
+ */
+int wnm_disassoc_imminent(uint32_t id, const uint8_t* client_addr, char* dest_ap, uint32_t duration);
 
 #endif

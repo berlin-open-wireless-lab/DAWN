@@ -3,7 +3,6 @@
 
 #include <libubox/ustream.h>
 #include <netinet/in.h>
-#include <pthread.h>
 
 #define ARRAY_NETWORK_LEN 50
 

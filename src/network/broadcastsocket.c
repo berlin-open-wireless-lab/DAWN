@@ -1,11 +1,7 @@
-#include <arpa/inet.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <sys/socket.h>
 #include <unistd.h>
 
-#include "networksocket.h"
 #include "broadcastsocket.h"
 
 int setup_broadcast_socket(const char *_broadcast_ip, unsigned short _broadcast_port, struct sockaddr_in *addr) {

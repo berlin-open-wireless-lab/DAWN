@@ -1,28 +1,29 @@
-#include <arpa/inet.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <libubox/blobmsg_json.h>
 
-#include "networksocket.h"
-#include "datastorage.h"
 #include "multicastsocket.h"
 #include "broadcastsocket.h"
-#include "ubus.h"
+#include "msghandler.h"
 #include "crypto.h"
+#include "datastorage.h"
+#include "networksocket.h"
+
 
 /* Network Defines */
 #define MAX_RECV_STRING 2048
 
 /* Network Attributes */
-int sock;
-struct sockaddr_in addr;
-const char *ip;
-unsigned short port;
-char recv_string[MAX_RECV_STRING + 1];
-int recv_string_len;
-int multicast_socket;
+static int sock;
+static struct sockaddr_in addr;
+static const char *ip;
+static unsigned short port;
+static char recv_string[MAX_RECV_STRING + 1];
+static int recv_string_len;
+static int multicast_socket;
+
+static pthread_mutex_t send_mutex;
 
 void *receive_msg(void *args);
 
@@ -102,7 +103,7 @@ void *receive_msg_enc(void *args) {
         if (!base64_dec_str){
             fprintf(stderr, "Received network error: not enought memory\n");
             return 0;
-        } 
+        }
         int base64_dec_length = b64_decode(recv_string, base64_dec_str, B64_DECODE_LEN(strlen(recv_string)));
         char *dec = gcrypt_decrypt_msg(base64_dec_str, base64_dec_length);
         if (!dec){
@@ -147,7 +148,7 @@ int send_string_enc(char *msg) {
         fprintf(stderr, "sendto() error: not enought memory\n");
         pthread_mutex_unlock(&send_mutex);
         exit(EXIT_FAILURE);
-    } 
+    }
 
     char *base64_enc_str = malloc(B64_ENCODE_LEN(length_enc));
     if (!base64_enc_str){
@@ -155,7 +156,7 @@ int send_string_enc(char *msg) {
         fprintf(stderr, "sendto() error: not enought memory\n");
         pthread_mutex_unlock(&send_mutex);
         exit(EXIT_FAILURE);
-    } 
+    }
     size_t base64_enc_length = b64_encode(enc, length_enc, base64_enc_str, B64_ENCODE_LEN(length_enc));
 
     if (sendto(sock,

@@ -1,7 +1,7 @@
 #ifndef DAWN_CRYPTO_H
 #define DAWN_CRYPTO_H
 
-#include <stdlib.h>
+#include <stddef.h>
 
 /**
  * Initialize gcrypt.

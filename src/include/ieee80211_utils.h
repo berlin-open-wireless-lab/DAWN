@@ -17,4 +17,11 @@ double iee80211_calculate_bitrate(uint8_t supp_rate_val);
  */
 double iee80211_calculate_expected_throughput_mbit(int exp_thr);
 
+/**
+ * Convert 802.11k RCPI value to RSSI dB
+ * @param rcpi
+ * @return
+ */
+int rcpi_to_rssi(int rcpi);
+
 #endif //DAWN_IEEE80211_UTILS_H

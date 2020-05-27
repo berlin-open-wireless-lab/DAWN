@@ -3,8 +3,6 @@
 
 #include <pthread.h>
 
-pthread_mutex_t send_mutex;
-
 /**
  * Init a socket using the runopts.
  * @param _ip - ip to use.

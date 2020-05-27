@@ -1,6 +1,9 @@
 #ifndef DAWN_UCI_H
 #define DAWN_UCI_H
 
+#include <time.h>
+#include <stdbool.h>
+
 /**
  * Init uci. Call this function before using the other functions!
  * @return if call was successful.
