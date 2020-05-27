@@ -1,15 +1,14 @@
 #include <libubox/usock.h>
-#include <libubox/ustream.h>
-#include <libubox/uloop.h>
-#include <libubox/utils.h> // base64 encoding
-#include <netinet/in.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include "tcpsocket.h"
 #include <arpa/inet.h>
-#include "ubus.h"
+#include <inttypes.h>
+
+#include "msghandler.h"
 #include "crypto.h"
+#include "datastorage.h"
+#include "tcpsocket.h"
+
+#define STR_EVAL(x) #x
+#define STR_QUOTE(x) STR_EVAL(x)
 
 LIST_HEAD(tcp_sock_list);
 
@@ -82,39 +81,43 @@ static void client_to_server_state(struct ustream *s) {
 static void client_read_cb(struct ustream *s, int bytes) {
     char *str, *str_tmp;
     int len = 0;
-    uint32_t final_len = sizeof(uint32_t);
+    uint32_t final_len = sizeof(uint32_t); // big enough to get msg length
     str = malloc(final_len);
     if (!str) {
-        fprintf(stderr,"not enough memory\n");
+        fprintf(stderr,"not enough memory (" STR_QUOTE(__LINE__) ")\n");
         goto nofree;
     }
-    
+
     if ((len = ustream_pending_data(s, false)) < final_len){//ensure recv sizeof(uint32_t).
         fprintf(stdout,"not complete msg, len:%d, expected len:%u\n", len, final_len);
         goto out;
     }
-    ustream_read(s, str, final_len);
-    
-    final_len = ntohl(*(uint32_t *)str) - sizeof(uint32_t);//the final_len in headder includes header itself
+    if (ustream_read(s, str, final_len) != final_len) // read msg length bytes
+    {
+        fprintf(stdout,"msg length read failed\n");
+        goto out;
+    }	
+
+    final_len = ntohl(*(uint32_t *)str) - final_len;//the final_len in headder includes header itself
     str_tmp = realloc(str, final_len);
     if (!str_tmp) {
-        fprintf(stderr,"not enough memory\n");
-        goto out;//On failure, realloc returns a null pointer. The original pointer str remains valid 
+        fprintf(stderr,"not enough memory (%" PRIu32 " @ " STR_QUOTE(__LINE__) ")\n", final_len);
+        goto out;//On failure, realloc returns a null pointer. The original pointer str remains valid
                  //and may need to be deallocated with free() or realloc().
     }
     str = str_tmp;
-    
+
     if ((len = ustream_pending_data(s, false)) < final_len){//ensure recv final_len bytes.
         fprintf(stdout,"not complete msg, len:%d, expected len:%u\n", len, final_len);
         goto out;
     }
     ustream_read(s, str, final_len);
-    if (network_config.use_symm_enc) {        
-        char *dec = gcrypt_decrypt_msg(str, final_len);//len of str is final_len     
+    if (network_config.use_symm_enc) {
+        char *dec = gcrypt_decrypt_msg(str, final_len);//len of str is final_len
         if (!dec) {
-            fprintf(stderr,"not enough memory\n");
+            fprintf(stderr,"not enough memory (" STR_QUOTE(__LINE__) ")\n");
             goto out;
-        }        
+        }
         handle_network_msg(dec);
         free(dec);
     } else {
@@ -247,17 +250,17 @@ void send_tcp(char *msg) {
         size_t msglen = strlen(msg)+1;
         char *enc = gcrypt_encrypt_msg(msg, msglen, &length_enc);
         if (!enc){
-            fprintf(stderr, "Ustream error: not enought memory\n");
+            fprintf(stderr, "Ustream error: not enought memory (" STR_QUOTE(__LINE__) ")\n");
             return;
-        } 
+        }
 
         uint32_t final_len = length_enc + sizeof(final_len);
         char *final_str = malloc(final_len);
         if (!final_str){
             free(enc);
-            fprintf(stderr, "Ustream error: not enought memory\n");
+            fprintf(stderr, "Ustream error: not enought memory (" STR_QUOTE(__LINE__) ")\n");
             return;
-        }            
+        }
         uint32_t *msg_header = (uint32_t *)final_str;
         *msg_header = htonl(final_len);
         memcpy(final_str+sizeof(final_len), enc, length_enc);
@@ -267,14 +270,14 @@ void send_tcp(char *msg) {
                 int len_ustream = ustream_write(&con->stream.stream, final_str, final_len, 0);
                 printf("Ustream send: %d\n", len_ustream);
                 if (len_ustream <= 0) {
-                    fprintf(stderr,"Ustream error!\n");
+                    fprintf(stderr,"Ustream error(" STR_QUOTE(__LINE__) ")!\n");
                     //ERROR HANDLING!
                     if (con->stream.stream.write_error) {
                         ustream_free(&con->stream.stream);
                         close(con->fd.fd);
                         list_del(&con->list);
                         free(con);
-                    } 
+                    }
                 }
             }
 
@@ -287,9 +290,9 @@ void send_tcp(char *msg) {
         uint32_t final_len = msglen + sizeof(final_len);
         char *final_str = malloc(final_len);
         if (!final_str){
-            fprintf(stderr, "Ustream error: not enought memory\n");
+            fprintf(stderr, "Ustream error: not enought memory (" STR_QUOTE(__LINE__) ")\n");
             return;
-        } 
+        }
         uint32_t *msg_header = (uint32_t *)final_str;
         *msg_header = htonl(final_len);
         memcpy(final_str+sizeof(final_len), msg, msglen);
@@ -301,13 +304,13 @@ void send_tcp(char *msg) {
                 printf("Ustream send: %d\n", len_ustream);
                 if (len_ustream <= 0) {
                     //ERROR HANDLING!
-                    fprintf(stderr,"Ustream error!\n");
+                    fprintf(stderr,"Ustream error(" STR_QUOTE(__LINE__) ")!\n");
                     if (con->stream.stream.write_error) {
                         ustream_free(&con->stream.stream);
                         close(con->fd.fd);
                         list_del(&con->list);
                         free(con);
-                    } 
+                    }
                 }
             }
         }

@@ -1,39 +1,24 @@
-#include <limits.h>
-
-
-#include <ctype.h>
 #include <dirent.h>
-#include <libubox/blobmsg_json.h>
-#include <libubox/uloop.h>
 #include <libubus.h>
-#include <sys/types.h>
-#include <stdbool.h>
 
-#ifndef ETH_ALEN
-#define ETH_ALEN 6
-#endif
+#include "networksocket.h"
+#include "tcpsocket.h"
+#include "dawn_uci.h"
+#include "dawn_iwinfo.h"
+#include "datastorage.h"
+#include "ubus.h"
+#include "msghandler.h"
+
 
 #define REQ_TYPE_PROBE 0
 #define REQ_TYPE_AUTH 1
 #define REQ_TYPE_ASSOC 2
 
-#include "networksocket.h"
-#include "utils.h"
-#include "dawn_uci.h"
-#include "dawn_iwinfo.h"
-#include "tcpsocket.h"
-#include "ieee80211_utils.h"
-
-#include "datastorage.h"
-#include "uface.h"
-#include "ubus.h"
 
 static struct ubus_context *ctx = NULL;
 
 static struct blob_buf b;
 static struct blob_buf b_send_network;
-static struct blob_buf network_buf;
-static struct blob_buf data_buf;
 static struct blob_buf b_probe;
 static struct blob_buf b_domain;
 static struct blob_buf b_notify;
@@ -65,6 +50,31 @@ struct uloop_timeout channel_utilization_timer = {
         .cb = update_channel_utilization
 };
 
+void remove_ap_array_cb(struct uloop_timeout* t);
+
+void denied_req_array_cb(struct uloop_timeout* t);
+
+void remove_client_array_cb(struct uloop_timeout* t);
+
+void remove_probe_array_cb(struct uloop_timeout* t);
+
+struct uloop_timeout probe_timeout = {
+        .cb = remove_probe_array_cb
+};
+
+struct uloop_timeout client_timeout = {
+        .cb = remove_client_array_cb
+};
+
+struct uloop_timeout ap_timeout = {
+        .cb = remove_ap_array_cb
+};
+
+struct uloop_timeout denied_req_timeout = {
+        .cb = denied_req_array_cb
+};
+
+// TODO: Never scheduled?
 struct uloop_timeout usock_timer = {
         .cb = run_server_update
 };
@@ -91,7 +101,7 @@ struct hostapd_sock_entry {
     uint64_t last_channel_time_busy;
     int chan_util_samples_sum;
     int chan_util_num_sample_periods;
-    int chan_util_average;
+    int chan_util_average; //TODO: Never evaluated?
 
     // add neighbor report string
     /*
@@ -108,28 +118,6 @@ struct hostapd_sock_entry* hostapd_sock_arr[MAX_HOSTAPD_SOCKETS];
 int hostapd_sock_last = -1;
 
 enum {
-    NETWORK_METHOD,
-    NETWORK_DATA,
-    __NETWORK_MAX,
-};
-
-static const struct blobmsg_policy network_policy[__NETWORK_MAX] = {
-        [NETWORK_METHOD] = {.name = "method", .type = BLOBMSG_TYPE_STRING},
-        [NETWORK_DATA] = {.name = "data", .type = BLOBMSG_TYPE_STRING},
-};
-
-enum {
-    HOSTAPD_NOTIFY_BSSID_ADDR,
-    HOSTAPD_NOTIFY_CLIENT_ADDR,
-    __HOSTAPD_NOTIFY_MAX,
-};
-
-static const struct blobmsg_policy hostapd_notify_policy[__HOSTAPD_NOTIFY_MAX] = {
-        [HOSTAPD_NOTIFY_BSSID_ADDR] = {.name = "bssid", .type = BLOBMSG_TYPE_STRING},
-        [HOSTAPD_NOTIFY_CLIENT_ADDR] = {.name = "address", .type = BLOBMSG_TYPE_STRING},
-};
-
-enum {
     AUTH_BSSID_ADDR,
     AUTH_CLIENT_ADDR,
     AUTH_TARGET_ADDR,
@@ -144,31 +132,6 @@ static const struct blobmsg_policy auth_policy[__AUTH_MAX] = {
         [AUTH_TARGET_ADDR] = {.name = "target", .type = BLOBMSG_TYPE_STRING},
         [AUTH_SIGNAL] = {.name = "signal", .type = BLOBMSG_TYPE_INT32},
         [AUTH_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
-};
-
-enum {
-    PROB_BSSID_ADDR,
-    PROB_CLIENT_ADDR,
-    PROB_TARGET_ADDR,
-    PROB_SIGNAL,
-    PROB_FREQ,
-    PROB_HT_CAPABILITIES,
-    PROB_VHT_CAPABILITIES,
-    PROB_RCPI,
-    PROB_RSNI,
-    __PROB_MAX,
-};
-
-static const struct blobmsg_policy prob_policy[__PROB_MAX] = {
-        [PROB_BSSID_ADDR] = {.name = "bssid", .type = BLOBMSG_TYPE_STRING},
-        [PROB_CLIENT_ADDR] = {.name = "address", .type = BLOBMSG_TYPE_STRING},
-        [PROB_TARGET_ADDR] = {.name = "target", .type = BLOBMSG_TYPE_STRING},
-        [PROB_SIGNAL] = {.name = "signal", .type = BLOBMSG_TYPE_INT32},
-        [PROB_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
-        [PROB_HT_CAPABILITIES] = {.name = "ht_capabilities", .type = BLOBMSG_TYPE_TABLE},
-        [PROB_VHT_CAPABILITIES] = {.name = "vht_capabilities", .type = BLOBMSG_TYPE_TABLE},
-        [PROB_RCPI] = {.name = "rcpi", .type = BLOBMSG_TYPE_INT32},
-        [PROB_RSNI] = {.name = "rsni", .type = BLOBMSG_TYPE_INT32},
 };
 
 enum {
@@ -198,74 +161,6 @@ static const struct blobmsg_policy beacon_rep_policy[__BEACON_REP_MAX] = {
         [BEACON_REP_BSSID] = {.name = "bssid", .type = BLOBMSG_TYPE_STRING},
         [BEACON_REP_ANTENNA_ID] = {.name = "antenna-id", .type = BLOBMSG_TYPE_INT16},
         [BEACON_REP_PARENT_TSF] = {.name = "parent-tsf", .type = BLOBMSG_TYPE_INT16},
-};
-
-enum {
-    CLIENT_TABLE,
-    CLIENT_TABLE_BSSID,
-    CLIENT_TABLE_SSID,
-    CLIENT_TABLE_FREQ,
-    CLIENT_TABLE_HT,
-    CLIENT_TABLE_VHT,
-    CLIENT_TABLE_CHAN_UTIL,
-    CLIENT_TABLE_NUM_STA,
-    CLIENT_TABLE_COL_DOMAIN,
-    CLIENT_TABLE_BANDWIDTH,
-    CLIENT_TABLE_WEIGHT,
-    CLIENT_TABLE_NEIGHBOR,
-    CLIENT_TABLE_IFACE,
-    CLIENT_TABLE_HOSTNAME,
-    __CLIENT_TABLE_MAX,
-};
-
-static const struct blobmsg_policy client_table_policy[__CLIENT_TABLE_MAX] = {
-        [CLIENT_TABLE] = {.name = "clients", .type = BLOBMSG_TYPE_TABLE},
-        [CLIENT_TABLE_BSSID] = {.name = "bssid", .type = BLOBMSG_TYPE_STRING},
-        [CLIENT_TABLE_SSID] = {.name = "ssid", .type = BLOBMSG_TYPE_STRING},
-        [CLIENT_TABLE_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
-        [CLIENT_TABLE_HT] = {.name = "ht_supported", .type = BLOBMSG_TYPE_INT8},
-        [CLIENT_TABLE_VHT] = {.name = "vht_supported", .type = BLOBMSG_TYPE_INT8},
-        [CLIENT_TABLE_CHAN_UTIL] = {.name = "channel_utilization", .type = BLOBMSG_TYPE_INT32},
-        [CLIENT_TABLE_NUM_STA] = {.name = "num_sta", .type = BLOBMSG_TYPE_INT32},
-        [CLIENT_TABLE_COL_DOMAIN] = {.name = "collision_domain", .type = BLOBMSG_TYPE_INT32},
-        [CLIENT_TABLE_BANDWIDTH] = {.name = "bandwidth", .type = BLOBMSG_TYPE_INT32},
-        [CLIENT_TABLE_WEIGHT] = {.name = "ap_weight", .type = BLOBMSG_TYPE_INT32},
-        [CLIENT_TABLE_NEIGHBOR] = {.name = "neighbor_report", .type = BLOBMSG_TYPE_STRING},
-        [CLIENT_TABLE_IFACE] = {.name = "iface", .type = BLOBMSG_TYPE_STRING},
-        [CLIENT_TABLE_HOSTNAME] = {.name = "hostname", .type = BLOBMSG_TYPE_STRING},
-};
-
-enum {
-    CLIENT_SIGNATURE,
-    CLIENT_AUTH,
-    CLIENT_ASSOC,
-    CLIENT_AUTHORIZED,
-    CLIENT_PREAUTH,
-    CLIENT_WDS,
-    CLIENT_WMM,
-    CLIENT_HT,
-    CLIENT_VHT,
-    CLIENT_WPS,
-    CLIENT_MFP,
-    CLIENT_AID,
-    CLIENT_RRM,
-    __CLIENT_MAX,
-};
-
-static const struct blobmsg_policy client_policy[__CLIENT_MAX] = {
-        [CLIENT_SIGNATURE] = {.name = "signature", .type = BLOBMSG_TYPE_STRING},
-        [CLIENT_AUTH] = {.name = "auth", .type = BLOBMSG_TYPE_INT8},
-        [CLIENT_ASSOC] = {.name = "assoc", .type = BLOBMSG_TYPE_INT8},
-        [CLIENT_AUTHORIZED] = {.name = "authorized", .type = BLOBMSG_TYPE_INT8},
-        [CLIENT_PREAUTH] = {.name = "preauth", .type = BLOBMSG_TYPE_INT8},
-        [CLIENT_WDS] = {.name = "wds", .type = BLOBMSG_TYPE_INT8},
-        [CLIENT_WMM] = {.name = "wmm", .type = BLOBMSG_TYPE_INT8},
-        [CLIENT_HT] = {.name = "ht", .type = BLOBMSG_TYPE_INT8},
-        [CLIENT_VHT] = {.name = "vht", .type = BLOBMSG_TYPE_INT8},
-        [CLIENT_WPS] = {.name = "wps", .type = BLOBMSG_TYPE_INT8},
-        [CLIENT_MFP] = {.name = "mfp", .type = BLOBMSG_TYPE_INT8},
-        [CLIENT_AID] = {.name = "aid", .type = BLOBMSG_TYPE_INT32},
-        [CLIENT_RRM] = {.name = "rrm", .type = BLOBMSG_TYPE_ARRAY},
 };
 
 enum {
@@ -321,15 +216,11 @@ static int get_network(struct ubus_context *ctx, struct ubus_object *obj,
                        struct ubus_request_data *req, const char *method,
                        struct blob_attr *msg);
 
-static int handle_set_probe(struct blob_attr *msg);
-
-static int parse_add_mac_to_file(struct blob_attr *msg);
-
 static void ubus_add_oject();
 
 static void respond_to_notify(uint32_t id);
 
-int handle_uci_config(struct blob_attr *msg);
+//static int handle_uci_config(struct blob_attr *msg);
 
 void subscribe_to_new_interfaces(const char *hostapd_sock_path);
 
@@ -386,20 +277,6 @@ static int decide_function(probe_entry *prob_req, int req_type) {
     return 1;
 }
 
-int parse_to_hostapd_notify(struct blob_attr *msg, hostapd_notify_entry *notify_req) {
-    struct blob_attr *tb[__HOSTAPD_NOTIFY_MAX];
-
-    blobmsg_parse(hostapd_notify_policy, __HOSTAPD_NOTIFY_MAX, tb, blob_data(msg), blob_len(msg));
-
-    if (hwaddr_aton(blobmsg_data(tb[HOSTAPD_NOTIFY_BSSID_ADDR]), notify_req->bssid_addr))
-        return UBUS_STATUS_INVALID_ARGUMENT;
-
-    if (hwaddr_aton(blobmsg_data(tb[HOSTAPD_NOTIFY_CLIENT_ADDR]), notify_req->client_addr))
-        return UBUS_STATUS_INVALID_ARGUMENT;
-
-    return 0;
-}
-
 int parse_to_auth_req(struct blob_attr *msg, auth_entry *auth_req) {
     struct blob_attr *tb[__AUTH_MAX];
 
@@ -414,11 +291,11 @@ int parse_to_auth_req(struct blob_attr *msg, auth_entry *auth_req) {
     if (hwaddr_aton(blobmsg_data(tb[AUTH_TARGET_ADDR]), auth_req->target_addr))
         return UBUS_STATUS_INVALID_ARGUMENT;
 
-    if (tb[PROB_SIGNAL]) {
+    if (tb[AUTH_SIGNAL]) {
         auth_req->signal = blobmsg_get_u32(tb[AUTH_SIGNAL]);
     }
 
-    if (tb[PROB_FREQ]) {
+    if (tb[AUTH_FREQ]) {
         auth_req->freq = blobmsg_get_u32(tb[AUTH_FREQ]);
     }
 
@@ -427,57 +304,6 @@ int parse_to_auth_req(struct blob_attr *msg, auth_entry *auth_req) {
 
 int parse_to_assoc_req(struct blob_attr *msg, assoc_entry *assoc_req) {
     return (parse_to_auth_req(msg, assoc_req));
-}
-
-int parse_to_probe_req(struct blob_attr *msg, probe_entry *prob_req) {
-    struct blob_attr *tb[__PROB_MAX];
-
-    blobmsg_parse(prob_policy, __PROB_MAX, tb, blob_data(msg), blob_len(msg));
-
-    if (hwaddr_aton(blobmsg_data(tb[PROB_BSSID_ADDR]), prob_req->bssid_addr))
-        return UBUS_STATUS_INVALID_ARGUMENT;
-
-    if (hwaddr_aton(blobmsg_data(tb[PROB_CLIENT_ADDR]), prob_req->client_addr))
-        return UBUS_STATUS_INVALID_ARGUMENT;
-
-    if (hwaddr_aton(blobmsg_data(tb[PROB_TARGET_ADDR]), prob_req->target_addr))
-        return UBUS_STATUS_INVALID_ARGUMENT;
-
-    if (tb[PROB_SIGNAL]) {
-        prob_req->signal = blobmsg_get_u32(tb[PROB_SIGNAL]);
-    }
-
-    if (tb[PROB_FREQ]) {
-        prob_req->freq = blobmsg_get_u32(tb[PROB_FREQ]);
-    }
-
-    if (tb[PROB_RCPI]) {
-        prob_req->rcpi = blobmsg_get_u32(tb[PROB_RCPI]);
-    } else {
-        prob_req->rcpi = -1;
-    }
-
-    if (tb[PROB_RSNI]) {
-        prob_req->rsni = blobmsg_get_u32(tb[PROB_RSNI]);
-    } else {
-        prob_req->rsni = -1;
-    }
-
-    if (tb[PROB_HT_CAPABILITIES]) {
-        prob_req->ht_capabilities = true;
-    } else
-    {
-        prob_req->ht_capabilities = false;
-    }
-
-    if (tb[PROB_VHT_CAPABILITIES]) {
-        prob_req->vht_capabilities = true;
-    } else
-    {
-        prob_req->vht_capabilities = false;
-    }
-
-    return 0;
 }
 
 int parse_to_beacon_rep(struct blob_attr *msg, probe_entry *beacon_rep) {
@@ -522,7 +348,7 @@ int parse_to_beacon_rep(struct blob_attr *msg, probe_entry *beacon_rep) {
     {
         printf("Beacon: No Probe Entry Existing!\n");
         beacon_rep->counter = dawn_metric.min_probe_count;
-        hwaddr_aton(blobmsg_data(tb[PROB_BSSID_ADDR]), beacon_rep->target_addr);
+        hwaddr_aton(blobmsg_data(tb[BEACON_REP_ADDR]), beacon_rep->target_addr);  // TODO: Should this be ->bssid_addr?
         beacon_rep->signal = 0;
         beacon_rep->freq = ap_entry_rep.freq;
         beacon_rep->rcpi = rcpi;
@@ -531,13 +357,14 @@ int parse_to_beacon_rep(struct blob_attr *msg, probe_entry *beacon_rep) {
         beacon_rep->ht_capabilities = false; // that is very problematic!!!
         beacon_rep->vht_capabilities = false; // that is very problematic!!!
         printf("Inserting to array!\n");
+        beacon_rep->time = time(0);
         insert_to_array(*beacon_rep, false, false, true);
         ubus_send_probe_via_network(*beacon_rep);
     }
     return 0;
 }
 
-static int handle_auth_req(struct blob_attr *msg) {
+int handle_auth_req(struct blob_attr* msg) {
 
     print_probe_array();
     auth_entry auth_req;
@@ -560,6 +387,7 @@ static int handle_auth_req(struct blob_attr *msg) {
         printf("Deny authentication!\n");
 
         if (dawn_metric.use_driver_recog) {
+            auth_req.time = time(0);
             insert_to_denied_req_array(auth_req, 1);
         }
         return dawn_metric.deny_auth_reason;
@@ -568,6 +396,7 @@ static int handle_auth_req(struct blob_attr *msg) {
     if (!decide_function(&tmp, REQ_TYPE_AUTH)) {
         printf("Deny authentication\n");
         if (dawn_metric.use_driver_recog) {
+            auth_req.time = time(0);
             insert_to_denied_req_array(auth_req, 1);
         }
         return dawn_metric.deny_auth_reason;
@@ -599,6 +428,7 @@ static int handle_assoc_req(struct blob_attr *msg) {
     if (!(mac_is_equal(tmp.bssid_addr, auth_req.bssid_addr) && mac_is_equal(tmp.client_addr, auth_req.client_addr))) {
         printf("Deny associtation!\n");
         if (dawn_metric.use_driver_recog) {
+            auth_req.time = time(0);
             insert_to_denied_req_array(auth_req, 1);
         }
         return dawn_metric.deny_assoc_reason;
@@ -607,6 +437,7 @@ static int handle_assoc_req(struct blob_attr *msg) {
     if (!decide_function(&tmp, REQ_TYPE_ASSOC)) {
         printf("Deny association\n");
         if (dawn_metric.use_driver_recog) {
+            auth_req.time = time(0);
             insert_to_denied_req_array(auth_req, 1);
         }
         return dawn_metric.deny_assoc_reason;
@@ -621,7 +452,8 @@ static int handle_probe_req(struct blob_attr *msg) {
     probe_entry tmp_prob_req;
 
     if (parse_to_probe_req(msg, &prob_req) == 0) {
-        tmp_prob_req = insert_to_array(prob_req, 1, true, false);
+        prob_req.time = time(0);
+        tmp_prob_req = insert_to_array(prob_req, 1, true, false); // TODO: Chnage 1 to true?
         ubus_send_probe_via_network(tmp_prob_req);
         //send_blob_attr_via_network(msg, "probe");
     }
@@ -641,111 +473,6 @@ static int handle_beacon_rep(struct blob_attr *msg) {
         printf("Sending via network!\n");
         // send_blob_attr_via_network(msg, "beacon-report");
     }
-    return 0;
-}
-
-static int handle_deauth_req(struct blob_attr *msg) {
-
-    hostapd_notify_entry notify_req;
-    parse_to_hostapd_notify(msg, &notify_req);
-
-    client client_entry;
-    memcpy(client_entry.bssid_addr, notify_req.bssid_addr, sizeof(uint8_t) * ETH_ALEN);
-    memcpy(client_entry.client_addr, notify_req.client_addr, sizeof(uint8_t) * ETH_ALEN);
-
-    pthread_mutex_lock(&client_array_mutex);
-    client_array_delete(client_entry);
-    pthread_mutex_unlock(&client_array_mutex);
-
-    printf("[WC] Deauth: %s\n", "deauth");
-
-    return 0;
-}
-
-static int handle_set_probe(struct blob_attr *msg) {
-
-    hostapd_notify_entry notify_req;
-    parse_to_hostapd_notify(msg, &notify_req);
-
-    client client_entry;
-    memcpy(client_entry.bssid_addr, notify_req.bssid_addr, sizeof(uint8_t) * ETH_ALEN);
-    memcpy(client_entry.client_addr, notify_req.client_addr, sizeof(uint8_t) * ETH_ALEN);
-
-    probe_array_set_all_probe_count(client_entry.client_addr, dawn_metric.min_probe_count);
-
-    return 0;
-}
-
-int handle_network_msg(char *msg) {
-    struct blob_attr *tb[__NETWORK_MAX];
-    char *method;
-    char *data;
-
-    blob_buf_init(&network_buf, 0);
-    blobmsg_add_json_from_string(&network_buf, msg);
-
-    blobmsg_parse(network_policy, __NETWORK_MAX, tb, blob_data(network_buf.head), blob_len(network_buf.head));
-
-    if (!tb[NETWORK_METHOD] || !tb[NETWORK_DATA]) {
-        return -1;
-    }
-
-    method = blobmsg_data(tb[NETWORK_METHOD]);
-    data = blobmsg_data(tb[NETWORK_DATA]);
-
-    printf("Network Method new: %s : %s\n", method, msg);
-
-    blob_buf_init(&data_buf, 0);
-    blobmsg_add_json_from_string(&data_buf, data);
-
-    if (!data_buf.head) {
-        return -1;
-    }
-
-    if (blob_len(data_buf.head) <= 0) {
-        return -1;
-    }
-
-    if (strlen(method) < 2) {
-        return -1;
-    }
-
-    // add inactive death...
-
-// TODO: strncmp() look wrong - should all tests be for n = 5 characters? Shorthand checks?
-    if (strncmp(method, "probe", 5) == 0) {
-        probe_entry entry;
-        if (parse_to_probe_req(data_buf.head, &entry) == 0) {
-            insert_to_array(entry, 0, false, false); // use 802.11k values
-        }
-    } else if (strncmp(method, "clients", 5) == 0) {
-        parse_to_clients(data_buf.head, 0, 0);
-    } else if (strncmp(method, "deauth", 5) == 0) {
-        printf("METHOD DEAUTH\n");
-        handle_deauth_req(data_buf.head);
-    } else if (strncmp(method, "setprobe", 5) == 0) {
-        printf("HANDLING SET PROBE!\n");
-        handle_set_probe(data_buf.head);
-    } else if (strncmp(method, "addmac", 5) == 0) {
-        parse_add_mac_to_file(data_buf.head);
-    } else if (strncmp(method, "macfile", 5) == 0) {
-        parse_add_mac_to_file(data_buf.head);
-    } else if (strncmp(method, "uci", 2) == 0) {
-        printf("HANDLING UCI!\n");
-        handle_uci_config(data_buf.head);
-    } else if (strncmp(method, "beacon-report", 12) == 0) {
-        // TODO: Check beacon report stuff
-
-        //printf("HANDLING BEACON REPORT NETWORK!\n");
-        //printf("The Method for beacon-report is: %s\n", method);
-        // ignore beacon reports send via network!, use probe functions for it
-        //probe_entry entry; // for now just stay at probe entry stuff...
-        //parse_to_beacon_rep(data_buf.head, &entry, true);
-    } else
-    {
-        printf("No method fonud for: %s\n", method);
-    }
-
     return 0;
 }
 
@@ -836,19 +563,19 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
     // set dawn metric
     dawn_metric = uci_get_dawn_metric();
 
-    uloop_timeout_add(&hostapd_timer);
+    uloop_timeout_add(&hostapd_timer);  // callback = update_hostapd_sockets
 
-    // remove probe
+    // set up callbacks to remove aged data
     uloop_add_data_cbs();
 
     // get clients
-    uloop_timeout_add(&client_timer);
+    uloop_timeout_add(&client_timer);  // callback = update_clients
 
-    uloop_timeout_add(&channel_utilization_timer);
+    uloop_timeout_add(&channel_utilization_timer);  // callback = update_channel_utilization
 
     // request beacon reports
     if(timeout_config.update_beacon_reports) // allow setting timeout to 0
-        uloop_timeout_add(&beacon_reports_timer);
+        uloop_timeout_add(&beacon_reports_timer); // callback = update_beacon_reports
 
     ubus_add_oject();
 
@@ -867,223 +594,6 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
 
     ubus_free(ctx);
     uloop_done();
-    return 0;
-}
-
-static uint8_t dump_rrm_data(void *data, int len, int type) //modify from examples/blobmsg-example.c in libubox
-{
-    uint32_t ret = 0;
-    switch(type) {
-    case BLOBMSG_TYPE_INT32:
-        ret = *(uint32_t *)data;
-        break;
-    default:
-        fprintf(stderr, "wrong type of rrm array\n");
-    }
-    return (uint8_t)ret;
-}
-
-static uint8_t
-dump_rrm_table(struct blob_attr *head, int len) //modify from examples/blobmsg-example.c in libubox
-{
-    struct blob_attr *attr;
-    uint8_t ret = 0;
-
-    __blob_for_each_attr(attr, head, len) {
-        ret = dump_rrm_data(blobmsg_data(attr), blobmsg_data_len(attr), blob_id(attr));
-        return ret;// get the first rrm byte
-    }
-    return ret;
-}
-
-// TOOD: Refactor this!
-static void
-dump_client(struct blob_attr **tb, uint8_t client_addr[], const char *bssid_addr, uint32_t freq, uint8_t ht_supported,
-            uint8_t vht_supported) {
-    client client_entry;
-
-    hwaddr_aton(bssid_addr, client_entry.bssid_addr);
-    memcpy(client_entry.client_addr, client_addr, ETH_ALEN * sizeof(uint8_t));
-    client_entry.freq = freq;
-    client_entry.ht_supported = ht_supported;
-    client_entry.vht_supported = vht_supported;
-
-    if (tb[CLIENT_AUTH]) {
-        client_entry.auth = blobmsg_get_u8(tb[CLIENT_AUTH]);
-    }
-    if (tb[CLIENT_ASSOC]) {
-        client_entry.assoc = blobmsg_get_u8(tb[CLIENT_ASSOC]);
-    }
-    if (tb[CLIENT_AUTHORIZED]) {
-        client_entry.authorized = blobmsg_get_u8(tb[CLIENT_AUTHORIZED]);
-    }
-    if (tb[CLIENT_PREAUTH]) {
-        client_entry.preauth = blobmsg_get_u8(tb[CLIENT_PREAUTH]);
-    }
-    if (tb[CLIENT_WDS]) {
-        client_entry.wds = blobmsg_get_u8(tb[CLIENT_WDS]);
-    }
-    if (tb[CLIENT_WMM]) {
-        client_entry.wmm = blobmsg_get_u8(tb[CLIENT_WMM]);
-    }
-    if (tb[CLIENT_HT]) {
-        client_entry.ht = blobmsg_get_u8(tb[CLIENT_HT]);
-    }
-    if (tb[CLIENT_VHT]) {
-        client_entry.vht = blobmsg_get_u8(tb[CLIENT_VHT]);
-    }
-    if (tb[CLIENT_WPS]) {
-        client_entry.wps = blobmsg_get_u8(tb[CLIENT_WPS]);
-    }
-    if (tb[CLIENT_MFP]) {
-        client_entry.mfp = blobmsg_get_u8(tb[CLIENT_MFP]);
-    }
-    if (tb[CLIENT_AID]) {
-        client_entry.aid = blobmsg_get_u32(tb[CLIENT_AID]);
-    }
-        /* RRM Caps */
-    if (tb[CLIENT_RRM]) {
-        client_entry.rrm_enabled_capa = dump_rrm_table(blobmsg_data(tb[CLIENT_RRM]),
-                                            blobmsg_data_len(tb[CLIENT_RRM]));// get the first byte from rrm array
-        //ap_entry.ap_weight = blobmsg_get_u32(tb[CLIENT_TABLE_RRM]);
-    } else {
-        client_entry.rrm_enabled_capa = 0;
-        //ap_entry.ap_weight = 0;
-    }
-
-    // copy signature
-    if (tb[CLIENT_SIGNATURE]) {
-        memcpy(client_entry.signature, blobmsg_data(tb[CLIENT_SIGNATURE]), SIGNATURE_LEN * sizeof(char));
-    } else
-    {
-        memset(client_entry.signature, 0, 1024);
-    }
-
-    insert_client_to_array(client_entry);
-}
-
-static int
-dump_client_table(struct blob_attr *head, int len, const char *bssid_addr, uint32_t freq, uint8_t ht_supported,
-                  uint8_t vht_supported) {
-    struct blob_attr *attr;
-    struct blobmsg_hdr *hdr;
-    int station_count = 0;
-
-    __blob_for_each_attr(attr, head, len)
-    {
-        hdr = blob_data(attr);
-
-        struct blob_attr *tb[__CLIENT_MAX];
-        blobmsg_parse(client_policy, __CLIENT_MAX, tb, blobmsg_data(attr), blobmsg_len(attr));
-        //char* str = blobmsg_format_json_indent(attr, true, -1);
-
-        int tmp_int_mac[ETH_ALEN];
-        uint8_t tmp_mac[ETH_ALEN];
-        sscanf((char *) hdr->name, MACSTR, STR2MAC(tmp_int_mac));
-        for (int i = 0; i < ETH_ALEN; ++i)
-            tmp_mac[i] = (uint8_t) tmp_int_mac[i];
-
-        dump_client(tb, tmp_mac, bssid_addr, freq, ht_supported, vht_supported);
-        station_count++;
-    }
-    return station_count;
-}
-
-int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
-    struct blob_attr *tb[__CLIENT_TABLE_MAX];
-
-    if (!msg) {
-        return -1;
-    }
-
-    if (!blob_data(msg)) {
-        return -1;
-    }
-
-    if (blob_len(msg) <= 0) {
-        return -1;
-    }
-
-    blobmsg_parse(client_table_policy, __CLIENT_TABLE_MAX, tb, blob_data(msg), blob_len(msg));
-
-    if (tb[CLIENT_TABLE] && tb[CLIENT_TABLE_BSSID] && tb[CLIENT_TABLE_FREQ]) {
-        int num_stations = 0;
-         num_stations = dump_client_table(blobmsg_data(tb[CLIENT_TABLE]), blobmsg_data_len(tb[CLIENT_TABLE]),
-                          blobmsg_data(tb[CLIENT_TABLE_BSSID]), blobmsg_get_u32(tb[CLIENT_TABLE_FREQ]),
-                          blobmsg_get_u8(tb[CLIENT_TABLE_HT]), blobmsg_get_u8(tb[CLIENT_TABLE_VHT]));
-        ap ap_entry;
-        hwaddr_aton(blobmsg_data(tb[CLIENT_TABLE_BSSID]), ap_entry.bssid_addr);
-        ap_entry.freq = blobmsg_get_u32(tb[CLIENT_TABLE_FREQ]);
-
-        if(tb[CLIENT_TABLE_HT]){
-            ap_entry.ht_support = blobmsg_get_u8(tb[CLIENT_TABLE_HT]);
-        } else {
-            ap_entry.ht_support = false;
-        }
-
-        if(tb[CLIENT_TABLE_VHT]){
-            ap_entry.vht_support = blobmsg_get_u8(tb[CLIENT_TABLE_VHT]);
-        } else
-        {
-            ap_entry.vht_support = false;
-        }
-
-        if(tb[CLIENT_TABLE_CHAN_UTIL]) {
-            ap_entry.channel_utilization = blobmsg_get_u32(tb[CLIENT_TABLE_CHAN_UTIL]);
-        } else // if this is not existing set to 0?
-        {
-            ap_entry.channel_utilization = 0;
-        }
-
-        if(tb[CLIENT_TABLE_SSID]) {
-            strcpy((char *) ap_entry.ssid, blobmsg_get_string(tb[CLIENT_TABLE_SSID]));
-        }
-
-        if (tb[CLIENT_TABLE_COL_DOMAIN]) {
-            ap_entry.collision_domain = blobmsg_get_u32(tb[CLIENT_TABLE_COL_DOMAIN]);
-        } else {
-            ap_entry.collision_domain = -1;
-        }
-
-        if (tb[CLIENT_TABLE_BANDWIDTH]) {
-            ap_entry.bandwidth = blobmsg_get_u32(tb[CLIENT_TABLE_BANDWIDTH]);
-        } else {
-            ap_entry.bandwidth = -1;
-        }
-
-        ap_entry.station_count = num_stations;
-
-        if (tb[CLIENT_TABLE_WEIGHT]) {
-            ap_entry.ap_weight = blobmsg_get_u32(tb[CLIENT_TABLE_WEIGHT]);
-        } else {
-            ap_entry.ap_weight = 0;
-        }
-
-
-        if (tb[CLIENT_TABLE_NEIGHBOR]) {
-            strncpy(ap_entry.neighbor_report, blobmsg_get_string(tb[CLIENT_TABLE_NEIGHBOR]), NEIGHBOR_REPORT_LEN);
-        } else {
-            ap_entry.neighbor_report[0] = '\0';
-        }
-
-        if (tb[CLIENT_TABLE_IFACE]) {
-            strncpy(ap_entry.iface, blobmsg_get_string(tb[CLIENT_TABLE_IFACE]), MAX_INTERFACE_NAME);
-        } else {
-            ap_entry.iface[0] = '\0';
-        }
-
-        if (tb[CLIENT_TABLE_HOSTNAME]) {
-            strncpy(ap_entry.hostname, blobmsg_get_string(tb[CLIENT_TABLE_HOSTNAME]), HOST_NAME_MAX);
-        } else {
-            ap_entry.hostname[0] = '\0';
-        }
-
-        insert_to_ap_array(ap_entry);
-
-        if (do_kick && dawn_metric.kicking) {
-            kick_clients(ap_entry.bssid_addr, id);
-        }
-    }
     return 0;
 }
 
@@ -1134,6 +644,7 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     blobmsg_add_string(&b_domain, "hostname", entry->hostname);
 
     send_blob_attr_via_network(b_domain.head, "clients");
+    // TODO: Have we just bit-packed data to send to something locally to unpack it again?  Performance / scalability?
     parse_to_clients(b_domain.head, 1, req->peer);
 
     print_client_array();
@@ -1279,7 +790,7 @@ void update_tcp_connections(struct uloop_timeout *t) {
 
 void start_umdns_update() {
     // update connections
-    uloop_timeout_add(&umdns_timer);
+    uloop_timeout_add(&umdns_timer); // callback = update_tcp_connections
 }
 
 void update_hostapd_sockets(struct uloop_timeout *t) {
@@ -1340,7 +851,7 @@ void del_client_interface(uint32_t id, const uint8_t *client_addr, uint32_t reas
 
 }
 
-void wnm_disassoc_imminent(uint32_t id, const uint8_t *client_addr, char* dest_ap, uint32_t duration) {
+int wnm_disassoc_imminent(uint32_t id, const uint8_t *client_addr, char *dest_ap, uint32_t duration) {
     struct hostapd_sock_entry *sub;
 
     blob_buf_init(&b, 0);
@@ -1350,7 +861,7 @@ void wnm_disassoc_imminent(uint32_t id, const uint8_t *client_addr, char* dest_a
 
     // ToDo: maybe exchange to a list of aps
     void* nbs = blobmsg_open_array(&b, "neighbors");
-    if(dest_ap!=NULL)
+    if (dest_ap != NULL)
     {
         blobmsg_add_string(&b, NULL, dest_ap);
         printf("BSS TRANSITION TO %s\n", dest_ap);
@@ -1364,6 +875,8 @@ void wnm_disassoc_imminent(uint32_t id, const uint8_t *client_addr, char* dest_a
             ubus_invoke(ctx, id, "wnm_disassoc_imminent", b.head, NULL, NULL, timeout * 1000);
         }
     }
+
+    return 0;
 }
 
 static void ubus_umdns_cb(struct ubus_request *req, int type, struct blob_attr *msg) {
@@ -1427,13 +940,13 @@ int ubus_send_probe_via_network(struct probe_entry_s probe_entry) {
     blobmsg_add_u32(&b_probe, "rcpi", probe_entry.rcpi);
     blobmsg_add_u32(&b_probe, "rsni", probe_entry.rsni);
 
-    if(probe_entry.ht_capabilities)
+    if (probe_entry.ht_capabilities)
     {
         void *ht_cap = blobmsg_open_table(&b, "ht_capabilities");
         blobmsg_close_table(&b, ht_cap);
     }
 
-    if(probe_entry.vht_capabilities) {
+    if (probe_entry.vht_capabilities) {
         void *vht_cap = blobmsg_open_table(&b, "vht_capabilities");
         blobmsg_close_table(&b, vht_cap);
     }
@@ -1479,10 +992,10 @@ static struct ubus_object dawn_object = {
         .n_methods = ARRAY_SIZE(dawn_methods),
 };
 
-static int parse_add_mac_to_file(struct blob_attr *msg) {
+int parse_add_mac_to_file(struct blob_attr *msg) {
     struct blob_attr *tb[__ADD_DEL_MAC_MAX];
     struct blob_attr *attr;
-    
+
     printf("Parsing MAC!\n");
 
     blobmsg_parse(add_del_policy, __ADD_DEL_MAC_MAX, tb, blob_data(msg), blob_len(msg));
@@ -1500,8 +1013,8 @@ static int parse_add_mac_to_file(struct blob_attr *msg) {
         hwaddr_aton(blobmsg_data(attr), addr);
 
         if (insert_to_maclist(addr) == 0) {
-// TODO: File can grow arbitarily large.  Resource consumption risk.
-// TODO: Consolidate use of file across source: shared resource for name, single point of access?
+            // TODO: File can grow arbitarily large.  Resource consumption risk.
+            // TODO: Consolidate use of file across source: shared resource for name, single point of access?
             write_mac_to_file("/tmp/dawn_mac_list", addr);
         }
     }
@@ -1539,7 +1052,7 @@ static int reload_config(struct ubus_context *ctx, struct ubus_object *obj,
     uci_get_dawn_sort_order();
 
     if(timeout_config.update_beacon_reports) // allow setting timeout to 0
-        uloop_timeout_add(&beacon_reports_timer);
+        uloop_timeout_add(&beacon_reports_timer); // callback = update_beacon_reports
 
     uci_send_via_network();
     ret = ubus_send_reply(ctx, req, b.head);
@@ -1602,7 +1115,7 @@ static void enable_rrm(uint32_t id) {
     blob_buf_init(&b, 0);
     blobmsg_add_u8(&b, "neighbor_report", 1);
     blobmsg_add_u8(&b, "beacon_report", 1);
-    blobmsg_add_u8(&b, "bss_transition", 1);    
+    blobmsg_add_u8(&b, "bss_transition", 1);
 
     int timeout = 1;
     ret = ubus_invoke(ctx, id, "bss_mgmt_enable", b.head, NULL, NULL, timeout * 1000);
@@ -1620,7 +1133,7 @@ static void hostapd_handle_remove(struct ubus_context *ctx,
         printf("ID is not the same!\n");
         return;
     }
-    
+
     hostapd_sock->subscribed = false;
     subscription_wait(&hostapd_sock->wait_handler);
 
@@ -1649,7 +1162,7 @@ bool subscribe(struct hostapd_sock_entry *hostapd_entry) {
     hostapd_entry->subscribed = true;
 
     get_bssid(hostapd_entry->iface_name, hostapd_entry->bssid_addr);
-    get_ssid(hostapd_entry->iface_name, hostapd_entry->ssid);
+    get_ssid(hostapd_entry->iface_name, hostapd_entry->ssid, (SSID_MAX_LEN) * sizeof(char));
 
     hostapd_entry->ht_support = (uint8_t) support_ht(hostapd_entry->iface_name);
     hostapd_entry->vht_support = (uint8_t) support_vht(hostapd_entry->iface_name);
@@ -1673,7 +1186,7 @@ wait_cb(struct ubus_context *ctx, struct ubus_event_handler *ev_handler,
     struct blob_attr *attr;
     const char *path;
     struct hostapd_sock_entry *sub = container_of(ev_handler,
-    struct hostapd_sock_entry, wait_handler);
+            struct hostapd_sock_entry, wait_handler);
 
     if (strcmp(type, "ubus.object.add"))
         return;
@@ -1813,250 +1326,6 @@ int uci_send_via_network()
 
     return 0;
 }
-enum {
-    UCI_TABLE_METRIC,
-    UCI_TABLE_TIMES,
-    __UCI_TABLE_MAX
-};
-
-enum {
-    UCI_HT_SUPPORT,
-    UCI_VHT_SUPPORT,
-    UCI_NO_HT_SUPPORT,
-    UCI_NO_VHT_SUPPORT,
-    UCI_RSSI,
-    UCI_LOW_RSSI,
-    UCI_FREQ,
-    UCI_CHAN_UTIL,
-    UCI_MAX_CHAN_UTIL,
-    UCI_RSSI_VAL,
-    UCI_LOW_RSSI_VAL,
-    UCI_CHAN_UTIL_VAL,
-    UCI_MAX_CHAN_UTIL_VAL,
-    UCI_MIN_PROBE_COUNT,
-    UCI_BANDWIDTH_THRESHOLD,
-    UCI_USE_STATION_COUNT,
-    UCI_MAX_STATION_DIFF,
-    UCI_EVAL_PROBE_REQ,
-    UCI_EVAL_AUTH_REQ,
-    UCI_EVAL_ASSOC_REQ,
-    UCI_KICKING,
-    UCI_DENY_AUTH_REASON,
-    UCI_DENY_ASSOC_REASON,
-    UCI_USE_DRIVER_RECOG,
-    UCI_MIN_NUMBER_TO_KICK,
-    UCI_CHAN_UTIL_AVG_PERIOD,
-    UCI_SET_HOSTAPD_NR,
-    UCI_OP_CLASS,
-    UCI_DURATION,
-    UCI_MODE,
-    UCI_SCAN_CHANNEL,
-    __UCI_METIC_MAX
-};
-
-enum {
-    UCI_UPDATE_CLIENT,
-    UCI_DENIED_REQ_THRESHOLD,
-    UCI_REMOVE_CLIENT,
-    UCI_REMOVE_PROBE,
-    UCI_REMOVE_AP,
-    UCI_UPDATE_HOSTAPD,
-    UCI_UPDATE_TCP_CON,
-    UCI_UPDATE_CHAN_UTIL,
-    UCI_UPDATE_BEACON_REPORTS,
-    __UCI_TIMES_MAX,
-};
-
-static const struct blobmsg_policy uci_table_policy[__UCI_TABLE_MAX] = {
-        [UCI_TABLE_METRIC] = {.name = "metric", .type = BLOBMSG_TYPE_TABLE},
-        [UCI_TABLE_TIMES] = {.name = "times", .type = BLOBMSG_TYPE_TABLE}
-};
-
-static const struct blobmsg_policy uci_metric_policy[__UCI_METIC_MAX] = {
-        [UCI_HT_SUPPORT] = {.name = "ht_support", .type = BLOBMSG_TYPE_INT32},
-        [UCI_VHT_SUPPORT] = {.name = "vht_support", .type = BLOBMSG_TYPE_INT32},
-        [UCI_NO_HT_SUPPORT] = {.name = "no_ht_support", .type = BLOBMSG_TYPE_INT32},
-        [UCI_NO_VHT_SUPPORT] = {.name = "no_vht_support", .type = BLOBMSG_TYPE_INT32},
-        [UCI_RSSI] = {.name = "rssi", .type = BLOBMSG_TYPE_INT32},
-        [UCI_LOW_RSSI] = {.name = "low_rssi", .type = BLOBMSG_TYPE_INT32},
-        [UCI_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
-        [UCI_CHAN_UTIL] = {.name = "chan_util", .type = BLOBMSG_TYPE_INT32},
-        [UCI_MAX_CHAN_UTIL] = {.name = "max_chan_util", .type = BLOBMSG_TYPE_INT32},
-        [UCI_RSSI_VAL] = {.name = "rssi_val", .type = BLOBMSG_TYPE_INT32},
-        [UCI_LOW_RSSI_VAL] = {.name = "low_rssi_val", .type = BLOBMSG_TYPE_INT32},
-        [UCI_CHAN_UTIL_VAL] = {.name = "chan_util_val", .type = BLOBMSG_TYPE_INT32},
-        [UCI_MAX_CHAN_UTIL_VAL] = {.name = "max_chan_util_val", .type = BLOBMSG_TYPE_INT32},
-        [UCI_MIN_PROBE_COUNT] = {.name = "min_probe_count", .type = BLOBMSG_TYPE_INT32},
-        [UCI_BANDWIDTH_THRESHOLD] = {.name = "bandwidth_threshold", .type = BLOBMSG_TYPE_INT32},
-        [UCI_USE_STATION_COUNT] = {.name = "use_station_count", .type = BLOBMSG_TYPE_INT32},
-        [UCI_MAX_STATION_DIFF] = {.name = "max_station_diff", .type = BLOBMSG_TYPE_INT32},
-        [UCI_EVAL_PROBE_REQ] = {.name = "eval_probe_req", .type = BLOBMSG_TYPE_INT32},
-        [UCI_EVAL_AUTH_REQ] = {.name = "eval_auth_req", .type = BLOBMSG_TYPE_INT32},
-        [UCI_EVAL_ASSOC_REQ] = {.name = "eval_assoc_req", .type = BLOBMSG_TYPE_INT32},
-        [UCI_KICKING] = {.name = "kicking", .type = BLOBMSG_TYPE_INT32},
-        [UCI_DENY_AUTH_REASON] = {.name = "deny_auth_reason", .type = BLOBMSG_TYPE_INT32},
-        [UCI_DENY_ASSOC_REASON] = {.name = "deny_assoc_reason", .type = BLOBMSG_TYPE_INT32},
-        [UCI_USE_DRIVER_RECOG] = {.name = "use_driver_recog", .type = BLOBMSG_TYPE_INT32},
-        [UCI_MIN_NUMBER_TO_KICK] = {.name = "min_number_to_kick", .type = BLOBMSG_TYPE_INT32},
-        [UCI_CHAN_UTIL_AVG_PERIOD] = {.name = "chan_util_avg_period", .type = BLOBMSG_TYPE_INT32},
-        [UCI_SET_HOSTAPD_NR] = {.name = "set_hostapd_nr", .type = BLOBMSG_TYPE_INT32},
-        [UCI_OP_CLASS] = {.name = "op_class", .type = BLOBMSG_TYPE_INT32},
-        [UCI_DURATION] = {.name = "duration", .type = BLOBMSG_TYPE_INT32},
-        [UCI_MODE] = {.name = "mode", .type = BLOBMSG_TYPE_INT32},
-        [UCI_SCAN_CHANNEL] = {.name = "mode", .type = BLOBMSG_TYPE_INT32},
-};
-
-static const struct blobmsg_policy uci_times_policy[__UCI_TIMES_MAX] = {
-        [UCI_UPDATE_CLIENT] = {.name = "update_client", .type = BLOBMSG_TYPE_INT32},
-        [UCI_DENIED_REQ_THRESHOLD] = {.name = "denied_req_threshold", .type = BLOBMSG_TYPE_INT32},
-        [UCI_REMOVE_CLIENT] = {.name = "remove_client", .type = BLOBMSG_TYPE_INT32},
-        [UCI_REMOVE_PROBE] = {.name = "remove_probe", .type = BLOBMSG_TYPE_INT32},
-        [UCI_REMOVE_AP] = {.name = "remove_ap", .type = BLOBMSG_TYPE_INT32},
-        [UCI_UPDATE_HOSTAPD] = {.name = "update_hostapd", .type = BLOBMSG_TYPE_INT32},
-        [UCI_UPDATE_TCP_CON] = {.name = "update_tcp_con", .type = BLOBMSG_TYPE_INT32},
-        [UCI_UPDATE_CHAN_UTIL] = {.name = "update_chan_util", .type = BLOBMSG_TYPE_INT32},
-        [UCI_UPDATE_BEACON_REPORTS] = {.name = "update_beacon_reports", .type = BLOBMSG_TYPE_INT32},
-};
-
-int handle_uci_config(struct blob_attr *msg) {
-
-    struct blob_attr *tb[__UCI_TABLE_MAX];
-    blobmsg_parse(uci_table_policy, __UCI_TABLE_MAX, tb, blob_data(msg), blob_len(msg));
-
-    struct blob_attr *tb_metric[__UCI_METIC_MAX];
-    blobmsg_parse(uci_metric_policy, __UCI_METIC_MAX, tb_metric, blobmsg_data(tb[UCI_TABLE_METRIC]), blobmsg_len(tb[UCI_TABLE_METRIC]));
-
-    char cmd_buffer[1024];
-    sprintf(cmd_buffer, "dawn.@metric[0].ht_support=%d", blobmsg_get_u32(tb_metric[UCI_HT_SUPPORT]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].vht_support=%d", blobmsg_get_u32(tb_metric[UCI_VHT_SUPPORT]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].no_ht_support=%d", blobmsg_get_u32(tb_metric[UCI_NO_HT_SUPPORT]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].no_vht_support=%d", blobmsg_get_u32(tb_metric[UCI_NO_VHT_SUPPORT]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].rssi=%d", blobmsg_get_u32(tb_metric[UCI_RSSI]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].low_rssi=%d", blobmsg_get_u32(tb_metric[UCI_LOW_RSSI]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].freq=%d", blobmsg_get_u32(tb_metric[UCI_FREQ]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].chan_util=%d", blobmsg_get_u32(tb_metric[UCI_CHAN_UTIL]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].rssi_val=%d", blobmsg_get_u32(tb_metric[UCI_RSSI_VAL]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].low_rssi_val=%d", blobmsg_get_u32(tb_metric[UCI_LOW_RSSI_VAL]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].chan_util_val=%d", blobmsg_get_u32(tb_metric[UCI_CHAN_UTIL_VAL]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].max_chan_util=%d", blobmsg_get_u32(tb_metric[UCI_MAX_CHAN_UTIL]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].max_chan_util_val=%d", blobmsg_get_u32(tb_metric[UCI_MAX_CHAN_UTIL_VAL]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].min_probe_count=%d", blobmsg_get_u32(tb_metric[UCI_MIN_PROBE_COUNT]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].bandwidth_threshold=%d", blobmsg_get_u32(tb_metric[UCI_BANDWIDTH_THRESHOLD]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].use_station_count=%d", blobmsg_get_u32(tb_metric[UCI_USE_STATION_COUNT]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].max_station_diff=%d", blobmsg_get_u32(tb_metric[UCI_MAX_STATION_DIFF]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].eval_probe_req=%d", blobmsg_get_u32(tb_metric[UCI_EVAL_PROBE_REQ]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].eval_auth_req=%d", blobmsg_get_u32(tb_metric[UCI_EVAL_AUTH_REQ]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].evalcd_assoc_req=%d", blobmsg_get_u32(tb_metric[UCI_EVAL_ASSOC_REQ]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].kicking=%d", blobmsg_get_u32(tb_metric[UCI_KICKING]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].deny_auth_reason=%d", blobmsg_get_u32(tb_metric[UCI_DENY_AUTH_REASON]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].deny_assoc_reason=%d", blobmsg_get_u32(tb_metric[UCI_DENY_ASSOC_REASON]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].use_driver_recog=%d", blobmsg_get_u32(tb_metric[UCI_USE_DRIVER_RECOG]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].min_number_to_kick=%d", blobmsg_get_u32(tb_metric[UCI_MIN_NUMBER_TO_KICK]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].chan_util_avg_period=%d", blobmsg_get_u32(tb_metric[UCI_CHAN_UTIL_AVG_PERIOD]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].set_hostapd_nr=%d", blobmsg_get_u32(tb_metric[UCI_SET_HOSTAPD_NR]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].op_class=%d", blobmsg_get_u32(tb_metric[UCI_OP_CLASS]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].duration=%d", blobmsg_get_u32(tb_metric[UCI_DURATION]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].mode=%d", blobmsg_get_u32(tb_metric[UCI_MODE]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].scan_channel=%d", blobmsg_get_u32(tb_metric[UCI_SCAN_CHANNEL]));
-    uci_set_network(cmd_buffer);
-
-    struct blob_attr *tb_times[__UCI_TIMES_MAX];
-    blobmsg_parse(uci_times_policy, __UCI_TIMES_MAX, tb_times, blobmsg_data(tb[UCI_TABLE_TIMES]), blobmsg_len(tb[UCI_TABLE_TIMES]));
-
-    sprintf(cmd_buffer, "dawn.@times[0].update_client=%d", blobmsg_get_u32(tb_times[UCI_UPDATE_CLIENT]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@times[0].denied_req_threshold=%d", blobmsg_get_u32(tb_times[UCI_DENIED_REQ_THRESHOLD]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@times[0].remove_client=%d", blobmsg_get_u32(tb_times[UCI_REMOVE_CLIENT]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@times[0].remove_probe=%d", blobmsg_get_u32(tb_times[UCI_REMOVE_PROBE]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@times[0].remove_ap=%d", blobmsg_get_u32(tb_times[UCI_REMOVE_AP]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@times[0].update_hostapd=%d", blobmsg_get_u32(tb_times[UCI_UPDATE_HOSTAPD]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@times[0].update_tcp_con=%d", blobmsg_get_u32(tb_times[UCI_UPDATE_TCP_CON]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@times[0].update_chan_util=%d", blobmsg_get_u32(tb_times[UCI_UPDATE_CHAN_UTIL]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@times[0].update_beacon_reports=%d", blobmsg_get_u32(tb_times[UCI_UPDATE_BEACON_REPORTS]));
-    uci_set_network(cmd_buffer);
-
-    uci_reset();
-    dawn_metric = uci_get_dawn_metric();
-    timeout_config = uci_get_time_config();
-
-    return 0;
-}
-
 int build_hearing_map_sort_client(struct blob_buf *b) {
     print_probe_array();
     pthread_mutex_lock(&probe_array_mutex);
@@ -2184,7 +1453,7 @@ int build_network_overview(struct blob_buf *b) {
 
         char *nr;
         nr = blobmsg_alloc_string_buffer(b, "neighbor_report", NEIGHBOR_REPORT_LEN);
-        sprintf(nr, "%s", ap_array[m].neighbor_report);
+        sprintf(nr, "%s", ap_array[m].neighbor_report); // TODO: Why not strcpy()
         blobmsg_add_string_buffer(b);
 
         char *iface;
@@ -2265,3 +1534,86 @@ int ap_get_nr(struct blob_buf *b_local, uint8_t own_bssid_addr[]) {
 
     return 0;
 }
+
+void uloop_add_data_cbs() {
+    uloop_timeout_add(&probe_timeout);  //  callback = remove_probe_array_cb
+    uloop_timeout_add(&client_timeout);  //  callback = remove_client_array_cb
+    uloop_timeout_add(&ap_timeout);  //  callback = remove_ap_array_cb
+
+    if (dawn_metric.use_driver_recog) {
+        uloop_timeout_add(&denied_req_timeout);  //  callback = denied_req_array_cb
+    }
+}
+
+// TODO: Move mutex handling to remove_??? function to make test harness simpler?
+// Or not needed as test harness not threaded?
+void remove_probe_array_cb(struct uloop_timeout* t) {
+    pthread_mutex_lock(&probe_array_mutex);
+    printf("[Thread] : Removing old probe entries!\n");
+    remove_old_probe_entries(time(0), timeout_config.remove_probe);
+    printf("[Thread] : Removing old entries finished!\n");
+    pthread_mutex_unlock(&probe_array_mutex);
+    uloop_timeout_set(&probe_timeout, timeout_config.remove_probe * 1000);
+}
+
+// TODO: Move mutex handling to remove_??? function to make test harness simpler?
+// Or not needed as test harness not threaded?
+void remove_client_array_cb(struct uloop_timeout* t) {
+    pthread_mutex_lock(&client_array_mutex);
+    printf("[Thread] : Removing old client entries!\n");
+    remove_old_client_entries(time(0), timeout_config.update_client);
+    pthread_mutex_unlock(&client_array_mutex);
+    uloop_timeout_set(&client_timeout, timeout_config.update_client * 1000);
+}
+
+// TODO: Move mutex handling to remove_??? function to make test harness simpler?
+// Or not needed as test harness not threaded?
+void remove_ap_array_cb(struct uloop_timeout* t) {
+    pthread_mutex_lock(&ap_array_mutex);
+    printf("[ULOOP] : Removing old ap entries!\n");
+    remove_old_ap_entries(time(0), timeout_config.remove_ap);
+    pthread_mutex_unlock(&ap_array_mutex);
+    uloop_timeout_set(&ap_timeout, timeout_config.remove_ap * 1000);
+}
+
+// TODO: Move mutex handling to (new) remove_??? function to make test harness simpler?
+// Or not needed as test harness not threaded?
+void denied_req_array_cb(struct uloop_timeout* t) {
+    pthread_mutex_lock(&denied_array_mutex);
+    printf("[ULOOP] : Processing denied authentication!\n");
+
+    time_t current_time = time(0);
+
+    int i = 0;
+    while (i <= denied_req_last) {
+        // check counter
+
+        //check timer
+        if (denied_req_array[i].time < current_time - timeout_config.denied_req_threshold) {
+
+            // client is not connected for a given time threshold!
+            if (!is_connected_somehwere(denied_req_array[i].client_addr)) {
+                printf("Client has probably a bad driver!\n");
+
+                // problem that somehow station will land into this list
+                // maybe delete again?
+                if (insert_to_maclist(denied_req_array[i].client_addr) == 0) {
+                    send_add_mac(denied_req_array[i].client_addr);
+                    // TODO: File can grow arbitarily large.  Resource consumption risk.
+                    // TODO: Consolidate use of file across source: shared resource for name, single point of access?
+                    write_mac_to_file("/tmp/dawn_mac_list", denied_req_array[i].client_addr);
+                }
+            }
+            denied_req_array_delete(denied_req_array[i]);
+        }
+        else
+        {
+            i++;
+        }
+    }
+    pthread_mutex_unlock(&denied_array_mutex);
+    uloop_timeout_set(&denied_req_timeout, timeout_config.denied_req_threshold * 1000);
+}
+
+
+

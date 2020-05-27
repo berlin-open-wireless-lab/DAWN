@@ -1,6 +1,8 @@
 #ifndef __DAWN_MULTICASTSTSOCKET_H
 #define __DAWN_MULTICASTSSOCKET_H
 
+#include <arpa/inet.h>
+
 /**
  * Setup a multicast socket.
  * Setup permissions. Join the multicast group, etc. ...

@@ -1,11 +1,9 @@
 // based on:
 // https://github.com/vedantk/gcrypt-example/blob/master/gcry.cc
 
-#include "crypto.h"
-
-#include <stdio.h>
 #include <gcrypt.h>
-#include <stdint.h>
+
+#include "crypto.h"
 
 #define GCRY_CIPHER GCRY_CIPHER_AES128   // Pick the cipher here
 #define GCRY_C_MODE GCRY_CIPHER_MODE_ECB // Pick the cipher mode here
@@ -70,7 +68,7 @@ char *gcrypt_encrypt_msg(char *msg, size_t msg_length, int *out_length) {
     if (!out){
         fprintf(stderr, "gcry_cipher_encrypt error: not enought memory\n");
         return NULL;
-    } 
+    }
     gcry_error_handle = gcry_cipher_encrypt(gcry_cipher_hd, out, msg_length, msg, msg_length);
     if (gcry_error_handle) {
         fprintf(stderr, "gcry_cipher_encrypt failed:  %s/%s\n",
@@ -91,7 +89,7 @@ char *gcrypt_decrypt_msg(char *msg, size_t msg_length) {
     if (!out_buffer){
         fprintf(stderr, "gcry_cipher_decrypt error: not enought memory\n");
         return NULL;
-    } 
+    }
     gcry_error_handle = gcry_cipher_decrypt(gcry_cipher_hd, out_buffer, msg_length, msg, msg_length);
     if (gcry_error_handle) {
         fprintf(stderr, "gcry_cipher_decrypt failed:  %s/%s\n",

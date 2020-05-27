@@ -1,27 +1,23 @@
-#include <limits.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <stdio.h>
+#include <inttypes.h>
+#include <ctype.h>
 
 #include "dawn_iwinfo.h"
-#include "utils.h"
-#include "ieee80211_utils.h"
 
 #include "datastorage.h"
-#include "uface.h"
-
-/*** SUT functions we use that are not in header files (like "friend" functions) ***/
-void ap_array_insert(ap entry);
-ap ap_array_delete(ap entry);
+#include "msghandler.h"
+#include "ubus.h"
+#include "test_storage.h"
 
 /*** Testing structures, etc ***/
+// pac_a_mac allows a 6-byte (48-bit) MAC address to be efficiently handled as a 64-bit integer
+#define MAC_MASK_PACKED_U64 0xFFFFFFFFFFFF0000
 union __attribute__((__packed__)) pac_a_mac
 {
     struct {
-        uint8_t pos[6]; 
-        uint8_t packing[2];
-    } u8;
-    uint64_t u64;
+        uint8_t u8[6];
+        uint8_t packing[2];  // Not strictly needed as compiler will allocated space for largest member of union
+    } unpacked;
+    uint64_t packed_u64;
 };
 
 /*** Test Stub Functions - Called by SUT ***/
@@ -36,9 +32,26 @@ int send_set_probe(uint8_t client_addr[])
     return 0;
 }
 
-void wnm_disassoc_imminent(uint32_t id, const uint8_t* client_addr, char* dest_ap, uint32_t duration)
+int wnm_disassoc_imminent(uint32_t id, const uint8_t* client_addr, char* dest_ap, uint32_t duration)
 {
+int ret = 0;
+
     printf("wnm_disassoc_imminent() was called...\n");
+
+    if (dest_ap != NULL)
+    {
+        // Fake a client being disassociated and then rejoining on the recommended neoghbor
+        client mc = client_array_get_client(client_addr);
+        mc = client_array_delete(mc);
+        hwaddr_aton(dest_ap, mc.bssid_addr);
+        client_array_insert(mc);
+        printf("BSS TRANSITION TO %s\n", dest_ap);
+
+        // Tell caller not to change the arrays any further
+        ret = 1;
+    }
+
+    return ret;
 }
 
 void add_client_update_timer(time_t time)
@@ -71,11 +84,16 @@ int get_expected_throughput_iwinfo(uint8_t* client_addr)
 
 int get_bandwidth_iwinfo(uint8_t* client_addr, float* rx_rate, float* tx_rate)
 {
-    printf("get_bandwidth_iwinfo() was called...\n");
+    *rx_rate = 0.0;
+    *tx_rate = 0.0;
+
+    printf("get_bandwidth_iwinfo() was called.  Returning rx=%1f, tx=%1f...\n", (double)*rx_rate, (double)*tx_rate);
     return 0;
 }
 
-/*** Local Function Prototypes ***/
+/*** Local Function Prototypes and Related Constants ***/
+static int array_auto_helper(int action, int i0, int i1);
+
 #define HELPER_ACTION_ADD 0x0000
 #define HELPER_ACTION_DEL 0x1000
 #define HELPER_ACTION_MASK 0x1000
@@ -85,65 +103,70 @@ int get_bandwidth_iwinfo(uint8_t* client_addr, float* rx_rate, float* tx_rate)
 #define HELPER_AUTH_ENTRY 0x0004
 #define HELPER_PROBE_ARRAY 0x0008
 
-int array_auto_helper(int action, int i0, int i1);
-int client_array_auto_helper(int action, int i0, int i1);
-int auth_entry_array_auto_helper(int action, int i0, int i1);
-int probe_array_auto_helper(int action, int i0, int i1);
+/*** Local globals ***/
+static double base_time;
+static double last_time;
+static bool first_time = true;
 
-/*** Test narness code */
-int array_auto_helper(int action, int i0, int i1)
+static time_t faketime = 1000;
+static bool faketime_auto = true; // true = increment every command; false = scripted updates
+
+/*** Test harness code */
+static int array_auto_helper(int action, int i0, int i1)
 {
     int m = i0;
     int step = (i0 > i1) ? -1 : 1;
     int ret = 0;
 
+    srand(time(0)); // For faketime incrementing
+
     int cont = 1;
     while (cont) {
         union pac_a_mac this_mac;
 
-        this_mac.u64 = m;
+        this_mac.packed_u64 = m;
         switch (action & ~HELPER_ACTION_MASK)
         {
         case HELPER_AP:
             ; // Empty statement to allow label before declaration
             ap ap0;
-            memcpy(ap0.bssid_addr, &this_mac.u8.pos[0], sizeof(ap0.bssid_addr));
+            memcpy(ap0.bssid_addr, &this_mac.unpacked.u8[0], sizeof(ap0.bssid_addr));
 
             if ((action & HELPER_ACTION_MASK) == HELPER_ACTION_ADD)
-                ap_array_insert(ap0);
+                insert_to_ap_array(ap0);
             else
                 ap_array_delete(ap0);
             break;
         case HELPER_CLIENT:
             ; // Empty statement to allow label before declaration
             client client0;
-            memcpy(client0.bssid_addr, &this_mac.u8.pos[0], sizeof(client0.bssid_addr));
-            memcpy(client0.client_addr, &this_mac.u8.pos[0], sizeof(client0.client_addr));
+            memcpy(client0.bssid_addr, &this_mac.unpacked.u8[0], sizeof(client0.bssid_addr));
+            memcpy(client0.client_addr, &this_mac.unpacked.u8[0], sizeof(client0.client_addr));
 
             if ((action & HELPER_ACTION_MASK) == HELPER_ACTION_ADD)
-                client_array_insert(client0);
+                insert_client_to_array(client0);
             else
                 client_array_delete(client0);
             break;
         case HELPER_PROBE_ARRAY:
             ; // Empty statement to allow label before declaration
             probe_entry probe0;
-            memcpy(probe0.bssid_addr, &this_mac.u8.pos[0], sizeof(probe0.bssid_addr));
-            memcpy(probe0.client_addr, &this_mac.u8.pos[0], sizeof(probe0.client_addr));
+            memcpy(probe0.bssid_addr, &this_mac.unpacked.u8[0], sizeof(probe0.bssid_addr));
+            memcpy(probe0.client_addr, &this_mac.unpacked.u8[0], sizeof(probe0.client_addr));
 
             if ((action & HELPER_ACTION_MASK) == HELPER_ACTION_ADD)
-                probe_array_insert(probe0);
+                insert_to_array(probe0, true, true, true); // TODO: Check bool flags
             else
                 probe_array_delete(probe0);
             break;
         case HELPER_AUTH_ENTRY:
             ; // Empty statement to allow label before declaration
             auth_entry auth_entry0;
-            memcpy(auth_entry0.bssid_addr, &this_mac.u8.pos[0], sizeof(auth_entry0.bssid_addr));
-            memcpy(auth_entry0.client_addr, &this_mac.u8.pos[0], sizeof(auth_entry0.client_addr));
+            memcpy(auth_entry0.bssid_addr, &this_mac.unpacked.u8[0], sizeof(auth_entry0.bssid_addr));
+            memcpy(auth_entry0.client_addr, &this_mac.unpacked.u8[0], sizeof(auth_entry0.client_addr));
 
             if ((action & HELPER_ACTION_MASK) == HELPER_ACTION_ADD)
-                denied_req_array_insert(auth_entry0);
+                insert_to_denied_req_array(auth_entry0, true); // TODO: Check bool flags
             else
                 denied_req_array_delete(auth_entry0);
             break;
@@ -161,9 +184,67 @@ int array_auto_helper(int action, int i0, int i1)
     return ret;
 }
 
-int consume_actions(int argc, char* argv[]);
+static int load_u8(uint8_t* v, char* s);
+static int load_u8(uint8_t* v, char* s)
+{
+    int ret = 0;
+    sscanf(s, "%" SCNu8, v);
+    return ret;
+}
 
-int consume_actions(int argc, char* argv[])
+static int load_u32(uint32_t* v, char* s);
+static int load_u32(uint32_t* v, char* s)
+{
+    int ret = 0;
+    sscanf(s, "%" SCNu32, v);
+    return ret;
+}
+
+static int load_int(int* v, char* s);
+static int load_int(int* v, char* s)
+{
+    int ret = 0;
+    sscanf(s, "%" "d", v);
+    return ret;
+}
+
+static int load_string(size_t l, char* v, char* s);
+static int load_string(size_t l, char* v, char* s)
+{
+    int ret = 0;
+    strncpy(v, s, l);
+    return ret;
+}
+
+static int load_ssid(uint8_t* v, char* s);
+static int load_ssid(uint8_t* v, char* s)
+{
+    int ret = 0;
+    strncpy((char*)v, s, SSID_MAX_LEN);
+    return ret;
+}
+
+static int load_time(time_t* v, char* s);
+static int load_time(time_t* v, char* s)
+{
+    int ret = 0;
+    sscanf(s, "%" "li", v);  // TODO: Check making portable for target SoC environemnts?
+    return ret;
+}
+
+static int load_mac(uint8_t* v, char* s);
+static int load_mac(uint8_t* v, char* s)
+{
+    int ret = 0;
+    //printf("Loading mac from: %s\n", s);
+    sscanf(s, "%" SCNx8 ":%" SCNx8 ":%" SCNx8 ":%" SCNx8 ":%" SCNx8 ":%" SCNx8, &v[0], &v[1], &v[2], &v[3], &v[4], &v[5]);
+    return ret;
+}
+
+
+static int consume_actions(int argc, char* argv[]);
+
+static int consume_actions(int argc, char* argv[])
 {
     int ret = 0;
     int args_required = 0; // Suppress compiler warming by assigning initial value
@@ -172,12 +253,74 @@ int consume_actions(int argc, char* argv[])
 
     while (curr_arg < argc && ret == 0)
     {
-        if (strcmp(*argv, "probe_sort") == 0)
+        if ((strcmp(*argv, "time") == 0) || (strcmp(*argv, "elapsed") == 0)) // "time" is deprecated to avoid confusion with "faketime" commands
+        {
+            struct timespec spec;
+            double curr_time;
+
+            args_required = 1;
+
+            //TODO: Check portability for SoC devices when benchmarking?
+            clock_gettime(CLOCK_REALTIME, &spec);
+            curr_time = spec.tv_sec * 1000.0 + spec.tv_nsec / 1000000.0;
+
+            // First call sets base time for script
+            // Later calls report elapsed time since base, and from previous call
+            if (first_time)
+            {
+                first_time = false;
+                base_time = curr_time;
+                last_time = curr_time;
+            }
+
+            printf("Elapsed time: base=%fms, last=%fms\n", curr_time - base_time, curr_time - last_time);
+
+            last_time = curr_time;
+        }
+        else if (strcmp(*argv, "probe_sort") == 0)
         {
             args_required = 2;
             if (curr_arg + args_required <= argc)
             {
+                // sort_string is a datastorage.c global used for sorting probe entries
                 strcpy(sort_string, argv[1]);
+            }
+        }
+        else if (strcmp(*argv, "faketime") == 0)
+        {
+            args_required = 2;
+            if (curr_arg + args_required <= argc)
+            {
+                if (strcmp(*(argv + 1), "auto") == 0)
+                {
+                    faketime_auto = true;
+                }
+                else if (strcmp(*(argv + 1), "show") == 0)
+                {
+                    printf("FAKETIME is currently: %ld\n", faketime);
+                }
+                else
+                {
+                    args_required = 3;
+                    if (curr_arg + args_required <= argc)
+                    {
+                        if (strcmp(*(argv + 1), "set") == 0)
+                        {
+                            faketime_auto = false;
+                            faketime = atol(argv[2]);
+                        }
+                        else if (strcmp(*(argv + 1), "add") == 0)
+                        {
+                            faketime_auto = false;
+                            faketime += atol(argv[2]);
+                        }
+                        else
+                        {
+                            printf("FAKETIME \"%s\": Unknown or mangled - stopping!\n", *(argv + 1));
+                            ret = -1;
+                        }
+                    }
+                }
             }
         }
         else if (strcmp(*argv, "ap_show") == 0)
@@ -272,6 +415,436 @@ int consume_actions(int argc, char* argv[])
                 ret = array_auto_helper(HELPER_AUTH_ENTRY | HELPER_ACTION_DEL, atoi(*(argv + 1)), atoi(*(argv + 2)));
             }
         }
+        else if (strcmp(*argv, "remove_old_ap_entries") == 0)
+        {
+            args_required = 2;
+            if (curr_arg + args_required <= argc)
+            {
+                remove_old_ap_entries(faketime, atol(argv[1]));
+            }
+        }
+        else if (strcmp(*argv, "remove_old_client_entries") == 0)
+        {
+            args_required = 2;
+            if (curr_arg + args_required <= argc)
+            {
+                remove_old_client_entries(faketime, atol(argv[1]));
+            }
+        }
+        else if (strcmp(*argv, "remove_old_probe_entries") == 0)
+        {
+            args_required = 2;
+            if (curr_arg + args_required <= argc)
+            {
+                remove_old_probe_entries(faketime, atol(argv[1]));
+            }
+        }
+        else if (strcmp(*argv, "dawn") == 0) // Load metrics that configure DAWN
+        {
+            args_required = 1;
+            while (ret == 0 && curr_arg + args_required < argc)
+            {
+                char* fn = *(argv + args_required);
+
+                if (!strcmp(fn, "default"))
+                {
+                    dawn_metric.ap_weight = 0; // Sum component
+                    dawn_metric.ht_support = 10; // Sum component
+                    dawn_metric.vht_support = 100; // Sum component
+                    dawn_metric.no_ht_support = 0; // Sum component
+                    dawn_metric.no_vht_support = 0; // Sum component
+                    dawn_metric.rssi = 10; // Sum component
+                    dawn_metric.low_rssi = -500; // Sum component
+                    dawn_metric.freq = 100; // Sum component
+                    dawn_metric.chan_util = 0; // Sum component
+                    dawn_metric.max_chan_util = -500; // Sum component
+                    dawn_metric.rssi_val = -60;
+                    dawn_metric.low_rssi_val = -80;
+                    dawn_metric.chan_util_val = 140;
+                    dawn_metric.max_chan_util_val = 170;
+                    dawn_metric.min_probe_count = 2;
+                    dawn_metric.bandwidth_threshold = 6;
+                    dawn_metric.use_station_count = 1;
+                    dawn_metric.max_station_diff = 1;
+                    dawn_metric.eval_probe_req = 1;
+                    dawn_metric.eval_auth_req = 1;
+                    dawn_metric.eval_assoc_req = 1;
+                    dawn_metric.deny_auth_reason = 1;
+                    dawn_metric.deny_assoc_reason = 17;
+                    dawn_metric.use_driver_recog = 1;
+                    dawn_metric.min_kick_count = 3;
+                    dawn_metric.chan_util_avg_period = 3;
+                    dawn_metric.set_hostapd_nr = 1;
+                    dawn_metric.kicking = 0;
+                    dawn_metric.op_class = 0;
+                    dawn_metric.duration = 0;
+                    dawn_metric.mode = 0;
+                    dawn_metric.scan_channel = 0;
+                }
+                else if (!strncmp(fn, "ap_weight=", 10)) load_int(&dawn_metric.ap_weight, fn + 10);
+                else if (!strncmp(fn, "ht_support=", 11)) load_int(&dawn_metric.ht_support, fn + 11);
+                else if (!strncmp(fn, "vht_support=", 12)) load_int(&dawn_metric.vht_support, fn + 12);
+                else if (!strncmp(fn, "no_ht_support=", 14)) load_int(&dawn_metric.no_ht_support, fn + 14);
+                else if (!strncmp(fn, "no_vht_support=", 15)) load_int(&dawn_metric.no_vht_support, fn + 15);
+                else if (!strncmp(fn, "rssi=", 5)) load_int(&dawn_metric.rssi, fn + 5);
+                else if (!strncmp(fn, "low_rssi=", 9)) load_int(&dawn_metric.low_rssi, fn + 9);
+                else if (!strncmp(fn, "freq=", 5)) load_int(&dawn_metric.freq, fn + 5);
+                else if (!strncmp(fn, "chan_util=", 10)) load_int(&dawn_metric.chan_util, fn + 10);
+                else if (!strncmp(fn, "max_chan_util=", 14)) load_int(&dawn_metric.max_chan_util, fn + 14);
+                else if (!strncmp(fn, "rssi_val=", 9)) load_int(&dawn_metric.rssi_val, fn + 9);
+                else if (!strncmp(fn, "low_rssi_val=", 13)) load_int(&dawn_metric.low_rssi_val, fn + 13);
+                else if (!strncmp(fn, "chan_util_val=", 14)) load_int(&dawn_metric.chan_util_val, fn + 14);
+                else if (!strncmp(fn, "max_chan_util_val=", 18)) load_int(&dawn_metric.max_chan_util_val, fn + 18);
+                else if (!strncmp(fn, "min_probe_count=", 16)) load_int(&dawn_metric.min_probe_count, fn + 16);
+                else if (!strncmp(fn, "bandwidth_threshold=", 20)) load_int(&dawn_metric.bandwidth_threshold, fn + 20);
+                else if (!strncmp(fn, "use_station_count=", 18)) load_int(&dawn_metric.use_station_count, fn + 18);
+                else if (!strncmp(fn, "max_station_diff=", 17)) load_int(&dawn_metric.max_station_diff, fn + 17);
+                else if (!strncmp(fn, "eval_probe_req=", 15)) load_int(&dawn_metric.eval_probe_req, fn + 15);
+                else if (!strncmp(fn, "eval_auth_req=", 14)) load_int(&dawn_metric.eval_auth_req, fn + 14);
+                else if (!strncmp(fn, "eval_assoc_req=", 15)) load_int(&dawn_metric.eval_assoc_req, fn + 15);
+                else if (!strncmp(fn, "deny_auth_reason=", 17)) load_int(&dawn_metric.deny_auth_reason, fn + 17);
+                else if (!strncmp(fn, "deny_assoc_reason=", 18)) load_int(&dawn_metric.deny_assoc_reason, fn + 18);
+                else if (!strncmp(fn, "use_driver_recog=", 17)) load_int(&dawn_metric.use_driver_recog, fn + 17);
+                else if (!strncmp(fn, "min_kick_count=", 15)) load_int(&dawn_metric.min_kick_count, fn + 15);
+                else if (!strncmp(fn, "chan_util_avg_period=", 21)) load_int(&dawn_metric.chan_util_avg_period, fn + 21);
+                else if (!strncmp(fn, "set_hostapd_nr=", 15)) load_int(&dawn_metric.set_hostapd_nr, fn + 15);
+                else if (!strncmp(fn, "kicking=", 8)) load_int(&dawn_metric.kicking, fn + 8);
+                else if (!strncmp(fn, "op_class=", 9)) load_int(&dawn_metric.op_class, fn + 9);
+                else if (!strncmp(fn, "duration=", 9)) load_int(&dawn_metric.duration, fn + 9);
+                else if (!strncmp(fn, "mode=", 5)) load_int(&dawn_metric.mode, fn + 5);
+                else if (!strncmp(fn, "scan_channel=", 13)) load_int(&dawn_metric.scan_channel, fn + 13);
+                else {
+                    printf("ERROR: Loading DAWN control metrics, but don't recognise assignment \"%s\"\n", fn);
+                    ret = 1;
+                }
+
+                if (ret == 0)
+                    args_required++;
+            }
+        }
+        else if (strcmp(*argv, "macadd") == 0)
+        {
+
+            args_required = 2;
+            if (curr_arg + args_required <= argc)
+            {
+                uint8_t mac0[ETH_ALEN];
+
+                load_mac(mac0, argv[1]);
+                insert_to_maclist(mac0);
+            }
+        }
+        else if (strcmp(*argv, "macget") == 0)
+        {
+
+            args_required = 2;
+            if (curr_arg + args_required <= argc)
+            {
+                uint8_t mac0[ETH_ALEN];
+
+                load_mac(mac0, argv[1]);
+                printf("Looking for MAC %s - result %d\n", argv[1], mac_in_maclist(mac0));
+            }
+        }
+        else if (strcmp(*argv, "ap") == 0)
+        {
+            ap ap0;
+
+            memset(ap0.bssid_addr, 0, ETH_ALEN);
+            ap0.freq = 0;
+            ap0.ht_support = 0;
+            ap0.vht_support = 0;
+            ap0.channel_utilization = 0;
+            ap0.time = faketime;
+            ap0.station_count = 0;
+            memset(ap0.ssid, '*', SSID_MAX_LEN);
+            ap0.ssid[SSID_MAX_LEN - 1] = '\0';
+            ap0.neighbor_report[0] = 0;
+            ap0.collision_domain = 0;
+            ap0.bandwidth = 0;
+            ap0.ap_weight = 0;
+
+            args_required = 1;
+            while (ret == 0 && curr_arg + args_required < argc)
+            {
+                char* fn = *(argv + args_required);
+
+                //TODO: Somehwat hacky parsing of value strings to get us going...
+                if (false);  // Hack to allow easy paste of generated code
+                else if (!strncmp(fn, "bssid=", 6)) load_mac(ap0.bssid_addr, fn + 6);
+                else if (!strncmp(fn, "freq=", 5)) load_u32(&ap0.freq, fn + 5);
+                else if (!strncmp(fn, "ht_sup=", 7)) load_u8(&ap0.ht_support, fn + 7);
+                else if (!strncmp(fn, "vht_sup=", 8)) load_u8(&ap0.vht_support, fn + 8);
+                else if (!strncmp(fn, "util=", 5)) load_u32(&ap0.channel_utilization, fn + 5);
+                else if (!strncmp(fn, "time=", 5)) load_time(&ap0.time, fn + 5);
+                else if (!strncmp(fn, "stations=", 9)) load_u32(&ap0.station_count, fn + 9);
+                else if (!strncmp(fn, "ssid=", 5)) load_ssid(ap0.ssid, fn + 5);
+                else if (!strncmp(fn, "neighbors=", 10)) load_string(NEIGHBOR_REPORT_LEN, ap0.neighbor_report, fn + 10);
+                else if (!strncmp(fn, "col_d=", 6)) load_u32(&ap0.collision_domain, fn + 6);
+                else if (!strncmp(fn, "bandwidth=", 10)) load_u32(&ap0.bandwidth, fn + 10);
+                else if (!strncmp(fn, "weight=", 7)) load_u32(&ap0.ap_weight, fn + 7);
+                else {
+                    printf("ERROR: Loading AP, but don't recognise assignment \"%s\"\n", fn);
+                    ret = 1;
+                }
+
+                if (ret == 0)
+                {
+                    args_required++;
+                }
+            }
+
+            if (ret == 0)
+            {
+                insert_to_ap_array(ap0);
+            }
+        }
+        else if (strcmp(*argv, "client") == 0)
+        {
+            client cl0;
+
+            memset(cl0.bssid_addr, 0, ETH_ALEN);
+            memset(cl0.client_addr, 0, ETH_ALEN);
+            memset(cl0.signature, 0, SIGNATURE_LEN);
+            cl0.ht_supported = 0;
+            cl0.vht_supported = 0;
+            cl0.freq = 0;
+            cl0.auth = 0;
+            cl0.assoc = 0;
+            cl0.authorized = 0;
+            cl0.preauth = 0;
+            cl0.wds = 0;
+            cl0.wmm = 0;
+            cl0.ht = 0;
+            cl0.vht = 0;
+            cl0.wps = 0;
+            cl0.mfp = 0;
+            cl0.time = faketime;
+            cl0.aid = 0;
+            cl0.kick_count = 0;
+
+            args_required = 1;
+            while (ret == 0 && curr_arg + args_required < argc)
+            {
+                char* fn = *(argv + args_required);
+
+                //TODO: Somewhat hacky parsing of value strings to get us going...
+                if (false);  // Hack to allow easy paste of generated code
+                else if (!strncmp(fn, "bssid=", 6)) load_mac(cl0.bssid_addr, fn + 6);
+                else if (!strncmp(fn, "client=", 7)) load_mac(cl0.client_addr, fn + 7);
+                else if (!strncmp(fn, "sig=", 4)) load_string(SIGNATURE_LEN, cl0.signature, fn + 4);
+                else if (!strncmp(fn, "ht_sup=", 7)) load_u8(&cl0.ht_supported, fn + 7);
+                else if (!strncmp(fn, "vht_sup=", 8)) load_u8(&cl0.vht_supported, fn + 8);
+                else if (!strncmp(fn, "freq=", 5)) load_u32(&cl0.freq, fn + 5);
+                else if (!strncmp(fn, "auth=", 5)) load_u8(&cl0.auth, fn + 5);
+                else if (!strncmp(fn, "assoc=", 6)) load_u8(&cl0.assoc, fn + 6);
+                else if (!strncmp(fn, "authz=", 6)) load_u8(&cl0.authorized, fn + 6);
+                else if (!strncmp(fn, "preauth=", 8)) load_u8(&cl0.preauth, fn + 8);
+                else if (!strncmp(fn, "wds=", 4)) load_u8(&cl0.wds, fn + 4);
+                else if (!strncmp(fn, "wmm=", 4)) load_u8(&cl0.wmm, fn + 4);
+                else if (!strncmp(fn, "ht_cap=", 3)) load_u8(&cl0.ht, fn + 3);
+                else if (!strncmp(fn, "vht_cap=", 4)) load_u8(&cl0.vht, fn + 4);
+                else if (!strncmp(fn, "wps=", 4)) load_u8(&cl0.wps, fn + 4);
+                else if (!strncmp(fn, "mfp=", 4)) load_u8(&cl0.mfp, fn + 4);
+                else if (!strncmp(fn, "time=", 5)) load_time(&cl0.time, fn + 5);
+                else if (!strncmp(fn, "aid=", 4)) load_u32(&cl0.aid, fn + 4);
+                else if (!strncmp(fn, "kick=", 5)) load_u32(&cl0.kick_count, fn + 5);
+                else {
+                    printf("ERROR: Loading CLIENT, but don't recognise assignment \"%s\"\n", fn);
+                    ret = 1;
+                }
+
+                if (ret == 0)
+                    args_required++;
+            }
+
+            if (ret == 0)
+            {
+                insert_client_to_array(cl0);
+            }
+        }
+        else if (strcmp(*argv, "probe") == 0)
+        {
+            probe_entry pr0;
+
+            memset(pr0.bssid_addr, 0, ETH_ALEN);
+            memset(pr0.client_addr, 0, ETH_ALEN);
+            memset(pr0.target_addr, 0, ETH_ALEN);
+            pr0.signal = 0;
+            pr0.freq = 0;
+            pr0.ht_capabilities = 0;
+            pr0.vht_capabilities = 0;
+            pr0.time = faketime;
+            pr0.counter = 0;
+#ifndef DAWN_NO_OUTPUT
+            pr0.deny_counter = 0;
+            pr0.max_supp_datarate = 0;
+            pr0.min_supp_datarate = 0;
+#endif
+            pr0.rcpi = 0;
+            pr0.rsni = 0;
+
+            args_required = 1;
+            while (ret == 0 && curr_arg + args_required < argc)
+            {
+                char* fn = *(argv + args_required);
+
+                //TODO: Somewhat hacky parsing of value strings to get us going...
+                if (false);  // Hack to allow easy paste of generated code
+                else if (!strncmp(fn, "bssid=", 6)) load_mac(pr0.bssid_addr, fn + 6);
+                else if (!strncmp(fn, "client=", 7)) load_mac(pr0.client_addr, fn + 7);
+                else if (!strncmp(fn, "target=", 7)) load_mac(pr0.target_addr, fn + 7);
+                else if (!strncmp(fn, "signal=", 7)) load_u32(&pr0.signal, fn + 7);
+                else if (!strncmp(fn, "freq=", 5)) load_u32(&pr0.freq, fn + 5);
+                else if (!strncmp(fn, "ht_cap=", 7)) load_u8(&pr0.ht_capabilities, fn + 7);
+                else if (!strncmp(fn, "vht_cap=", 8)) load_u8(&pr0.vht_capabilities, fn + 8);
+                else if (!strncmp(fn, "time=", 5)) load_time(&pr0.time, fn + 5);
+                else if (!strncmp(fn, "counter=", 8)) load_int(&pr0.counter, fn + 8);
+#ifndef DAWN_NO_OUTPUT
+                else if (!strncmp(fn, "deny=", 5)) load_int(&pr0.deny_counter, fn + 5);
+                else if (!strncmp(fn, "max_rate=", 9)) load_u8(&pr0.max_supp_datarate, fn + 9);
+                else if (!strncmp(fn, "min_rate=", 9)) load_u8(&pr0.min_supp_datarate, fn + 9);
+#endif
+                else if (!strncmp(fn, "rcpi=", 5)) load_u32(&pr0.rcpi, fn + 5);
+                else if (!strncmp(fn, "rsni=", 5)) load_u32(&pr0.rsni, fn + 5);
+                else {
+                    printf("ERROR: Loading PROBE, but don't recognise assignment \"%s\"\n", fn);
+                    ret = 1;
+                }
+
+                if (ret == 0)
+                    args_required++;
+            }
+
+            if (ret == 0)
+            {
+                insert_to_array(pr0, true, true, true);
+            }
+        }
+        else if (strcmp(*argv, "auth_entry") == 0)
+        {
+            auth_entry au0;
+
+            memset(au0.bssid_addr, 0, ETH_ALEN);
+            memset(au0.client_addr, 0, ETH_ALEN);
+            memset(au0.target_addr, 0, ETH_ALEN);
+            au0.signal = 0;
+            au0.freq = 0;
+            au0.time = faketime;
+            au0.counter = 0;
+
+            args_required = 1;
+            while (ret == 0 && curr_arg + args_required < argc)
+            {
+                char* fn = *(argv + args_required);
+
+                //TODO: Somewhat hacky parsing of value strings to get us going...
+                if (false);  // Hack to allow easy paste of generated code
+                else if (!strncmp(fn, "bssid=", 6)) load_mac(au0.bssid_addr, fn + 6);
+                else if (!strncmp(fn, "client=", 7)) load_mac(au0.client_addr, fn + 7);
+                else if (!strncmp(fn, "target=", 7)) load_mac(au0.target_addr, fn + 7);
+                else if (!strncmp(fn, "signal=", 7)) load_u32(&au0.signal, fn + 7);
+                else if (!strncmp(fn, "freq=", 5)) load_u32(&au0.freq, fn + 5);
+                else if (!strncmp(fn, "time=", 5)) load_time(&au0.time, fn + 5);
+                else if (!strncmp(fn, "counter=", 8)) load_int(&au0.counter, fn + 8);
+                else {
+                    printf("ERROR: Loading AUTH, but don't recognise assignment \"%s\"\n", fn);
+                    ret = 1;
+                }
+
+                if (ret == 0)
+                    args_required++;
+            }
+
+            if (ret == 0)
+            {
+                insert_to_denied_req_array(au0, true);
+            }
+        }
+        else if (strcmp(*argv, "kick") == 0) // Perform kicking evaluation
+        {
+            args_required = 3;
+            if (curr_arg + args_required <= argc)
+            {
+                int safety_count = 1000;
+
+                uint32_t kick_id;
+                uint8_t kick_mac[ETH_ALEN];
+
+                load_mac(kick_mac, argv[1]);
+                load_u32(&kick_id, argv[2]);
+
+                while ((kick_clients(kick_mac, kick_id) != 0) && safety_count--);
+            }
+        }
+        else if (strcmp(*argv, "better_ap_available") == 0)
+        {
+            args_required = 4;
+            if (curr_arg + args_required <= argc)
+            {
+                uint8_t bssid_mac[ETH_ALEN];
+                uint8_t client_mac[ETH_ALEN];
+                uint32_t autokick;
+
+                int tr = 9999; // Tamper evident value
+
+                load_mac(bssid_mac, argv[1]);
+                load_mac(client_mac, argv[2]);
+                load_u32(&autokick, argv[3]);
+
+                char nb[NEIGHBOR_REPORT_LEN] = "TAMPER EVIDENT NEIGHBOR REPORT INITIALISATION STRING";
+
+                if (curr_arg + 5 <= argc)
+                {
+                    args_required = 5;
+
+                    if (strcmp(argv[4], "\0") == 0) // Provide a way to set an empty string
+                    {
+                        strcpy(nb, "");
+                    }
+                    else
+                    {
+                        strcpy(nb, argv[4]);
+                    }
+
+                    tr = better_ap_available(bssid_mac, client_mac, nb, autokick);
+                }
+                else
+                {
+                    tr = better_ap_available(bssid_mac, client_mac, NULL, autokick);
+                }
+
+                printf("better_ap_available returned %d (with neighbour report %s)\n", tr, nb);
+            }
+        }
+        else if (strcmp(*argv, "eval_probe_metric") == 0)
+        {
+            args_required = 3;
+            if (curr_arg + args_required <= argc)
+            {
+                uint8_t bssid_mac[ETH_ALEN];
+                uint8_t client_mac[ETH_ALEN];
+
+                load_mac(bssid_mac, argv[1]);
+                load_mac(client_mac, argv[2]);
+
+                probe_entry probe0 = probe_array_get_entry(bssid_mac, client_mac);
+
+                union pac_a_mac test_mac;
+                memcpy(test_mac.unpacked.u8, probe0.bssid_addr, sizeof(probe0.bssid_addr));
+
+                if ((test_mac.packed_u64 & MAC_MASK_PACKED_U64) == 0 )
+                {
+                    printf("eval_probe_metric: Can't find probe entry!\n");
+                }
+                else
+                {
+                    int this_metric = eval_probe_metric(probe0);
+                    printf("eval_probe_metric: Returned %d\n", this_metric);
+                }
+
+            }
+        }
         else
 	    {
             args_required = 1;
@@ -285,6 +858,17 @@ int consume_actions(int argc, char* argv[])
         {
             // Still need to continue consuming args
             argv += args_required;
+
+            // Sometimes move fake time on a second - about 1 in 5 chance
+            if (faketime_auto && ((rand() & 0xFF) > 200))
+            {
+                faketime += 1;
+
+                if (!(faketime & 1))
+                    printf("Faketime: tick %ld...\n", faketime);
+                else
+                    printf("Faketime: tock %ld...\n", faketime);
+            }
         }
         else
         {
@@ -297,26 +881,29 @@ int consume_actions(int argc, char* argv[])
     return ret;
 }
 
-int process_script_line(char* line, size_t len);
-#define MAX_LINE_ARGS 5
-int process_script_line(char* line, size_t len)
+#define MAX_LINE_ARGS 20
+static int process_script_line(char* line, size_t len);
+static int process_script_line(char* line, size_t len)
 {
     int argc = 0;
     char* argv[MAX_LINE_ARGS];
     bool in_white = true;
-    bool force_blank = false;
-    
+    bool force_nul = false;
+
     int ret = 0;
 
     //printf("%lu: \"%s\"\n", len, line);
     while (len > 0 && !ret)
     {
-        if (isblank(*line) || (*line == '\n') || (*line == '\r') || (*line == '#') || force_blank)
+        if (isblank(*line) || (*line == '\n') || (*line == '\r') || (*line == '#') || force_nul)
         {
             if (*line == '#')
             {
                 //printf("Blanking 0x%02X...\n", *line);
-                force_blank = true;
+                force_nul = true;
+
+                // Untested - might bring parsing to faster end...
+                // len = 1;
             }
 
             //printf("Zapping 0x%02X...\n", *line);
@@ -355,7 +942,7 @@ int process_script_line(char* line, size_t len)
 
 int main(int argc, char* argv[])
 {
-    FILE* fp;
+    FILE* fp = NULL;
     char* line = NULL;
     size_t len = 0;
     ssize_t read;
@@ -377,6 +964,9 @@ int main(int argc, char* argv[])
     }
     else
     {
+        strcpy(sort_string, "bcfs");
+        init_mutex();
+
         // Step past command name on args, ie argv[0]
         argc--;
         argv++;
@@ -422,11 +1012,17 @@ int main(int argc, char* argv[])
                             read = getline(&line, &len, fp);
                     }
 
-                    if (fp != stdin)
+                    if (fp && fp != stdin)
+                    {
                         fclose(fp);
+                        fp = NULL;
+                    }
 
                     if (line)
+                    {
                         free(line);
+                        line = NULL;
+                    }
                 }
 
                 argc--;
@@ -438,6 +1034,8 @@ int main(int argc, char* argv[])
             // Take direct input on command line
             ret = consume_actions(argc, argv);
         }
+
+        destroy_mutex();
     }
     printf("\nDAWN datastorage.c test harness - finshed.  \n");
 

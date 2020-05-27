@@ -1,11 +1,12 @@
 #ifndef DAWN_RSSI_H
 #define DAWN_RSSI_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
+#include <stddef.h>
 #include <stdint.h>
+
+// ---------------- Global variables ----------------
+#define HOSTAPD_DIR_LEN 200
+extern char hostapd_dir_glob[];
 
 /**
  * Get RSSI using the mac adress of the client.
@@ -58,7 +59,7 @@ int get_expected_throughput(const char *ifname, uint8_t *client_addr);
 
 int get_bssid(const char *ifname, uint8_t *bssid_addr);
 
-int get_ssid(const char *ifname, char *ssid);
+int get_ssid(const char *ifname, char *ssid, size_t ssidmax);
 
 int get_channel_utilization(const char *ifname, uint64_t *last_channel_time, uint64_t *last_channel_time_busy);
 
