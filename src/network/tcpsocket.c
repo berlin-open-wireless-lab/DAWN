@@ -162,11 +162,10 @@ static void client_not_be_used_read_cb(struct ustream *s, int bytes) {
 
 static void connect_cb(struct uloop_fd *f, unsigned int events) {
 
-    struct network_con_s *entry = container_of(f,
-    struct network_con_s, fd);
+    struct network_con_s *entry = container_of(f, struct network_con_s, fd);
 
     if (f->eof || f->error) {
-        fprintf(stderr, "Connection failed\n");
+        fprintf(stderr, "Connection failed (%s)\n", f->eof ? "EOF" : "ERROR");
         close(entry->fd.fd);
         list_del(&entry->list);
         free(entry);
