@@ -4,6 +4,7 @@
 #include <libubox/blobmsg_json.h>
 #include <libubox/uloop.h>
 
+
 #include "datastorage.h"
 
 // 802.11 Status codes
@@ -85,16 +86,6 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id);
 int parse_to_hostapd_notify(struct blob_attr *msg, hostapd_notify_entry *notify_req);
 
 /**
- * Kick client from hostapd interface.
- * @param id - the ubus id.
- * @param client_addr - the client adress of the client to kick.
- * @param reason - the reason to kick the client.
- * @param deauth - if the client should be deauthenticated.
- * @param ban_time - the ban time the client is not allowed to connect again.
- */
-void del_client_interface(uint32_t id, const uint8_t *client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time);
-
-/**
  * Kick client from all hostapd interfaces.
  * @param client_addr - the client adress of the client to kick.
  * @param reason - the reason to kick the client.
@@ -103,26 +94,11 @@ void del_client_interface(uint32_t id, const uint8_t *client_addr, uint32_t reas
  */
 void del_client_all_interfaces(const uint8_t *client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time);
 
-void wnm_disassoc_imminent(uint32_t id, const uint8_t *client_addr, char* dest_ap, uint32_t duration);
-
-/**
- * Send probe message via the network.
- * @param probe_entry
- * @return
- */
-int ubus_send_probe_via_network(struct probe_entry_s probe_entry);
-
 /**
  * Update the hostapd sockets.
  * @param t
  */
 void update_hostapd_sockets(struct uloop_timeout *t);
-
-/**
- * Set client timer for updating the clients.
- * @param time
- */
-void add_client_update_timer(time_t time);
 
 /**
  * Handle network messages.
@@ -148,14 +124,6 @@ int send_blob_attr_via_network(struct blob_attr *msg, char *method);
 void blobmsg_add_macaddr(struct blob_buf *buf, const char *name, const uint8_t *addr);
 
 /**
- * Function to set the probe counter to the min probe request.
- * This allows that the client is able to connect directly without sending multiple probe requests to the Access Point.
- * @param client_addr
- * @return
- */
-int send_set_probe(uint8_t client_addr[]);
-
-/**
  * Send control message to all hosts to add the mac to a don't control list.
  * @param client_addr
  * @return
@@ -164,6 +132,10 @@ int send_add_mac(uint8_t *client_addr);
 
 int uci_send_via_network();
 
-void ubus_send_beacon_report(uint8_t client[], int id);
+int build_hearing_map_sort_client(struct blob_buf *b);
+
+int build_network_overview(struct blob_buf *b);
+
+int ap_get_nr(struct blob_buf *b, uint8_t own_bssid_addr[]);
 
 #endif
