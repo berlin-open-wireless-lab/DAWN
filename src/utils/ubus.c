@@ -2088,6 +2088,7 @@ int build_network_overview(struct blob_buf *b) {
     void *client_list, *ap_list, *ssid_list;
     char ap_mac_buf[20];
     char client_mac_buf[20];
+    struct hostapd_sock_entry *sub;
 
     blob_buf_init(b, 0);
     int m;
@@ -2115,6 +2116,15 @@ int build_network_overview(struct blob_buf *b) {
         blobmsg_add_u32(b, "num_sta", ap_array[m].station_count);
         blobmsg_add_u8(b, "ht_support", ap_array[m].ht_support);
         blobmsg_add_u8(b, "vht_support", ap_array[m].vht_support);
+
+        bool local_ap = false;
+        list_for_each_entry(sub, &hostapd_sock_list, list)
+        {
+            if (mac_is_equal(ap_array[m].bssid_addr, sub->bssid_addr)) {
+                local_ap = true;
+            }
+        }
+        blobmsg_add_u8(b, "local", local_ap);
 
         char *nr;
         nr = blobmsg_alloc_string_buffer(b, "neighbor_report", NEIGHBOR_REPORT_LEN);
