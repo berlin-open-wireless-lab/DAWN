@@ -2124,11 +2124,6 @@ int build_network_overview(struct blob_buf *b) {
         int k;
         for (k = 0; k <= client_entry_last; k++) {
 
-            if (mac_is_greater(ap_array[m].bssid_addr, client_array[k].bssid_addr))
-            {
-                break;
-            }
-
             if (mac_is_equal(ap_array[m].bssid_addr, client_array[k].bssid_addr)) {
                 sprintf(client_mac_buf, MACSTR, MAC2STR(client_array[k].client_addr));
                 client_list = blobmsg_open_table(b, client_mac_buf);
