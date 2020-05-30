@@ -17,7 +17,8 @@
 #define UNSPECIFIED_REASON 0
 #define NO_MORE_STAS 5
 
-const char *hostapd_dir_glob;
+#define HOSTAPD_DIR_LEN 200
+char hostapd_dir_glob[HOSTAPD_DIR_LEN];
 
 /**
  * Init ubus.

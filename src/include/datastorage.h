@@ -82,15 +82,16 @@ struct time_config_s {
     time_t update_beacon_reports;
 };
 
+#define MAX_IP_LENGTH 46
+#define MAX_KEY_LENGTH 65
+
 struct network_config_s {
-    const char *broadcast_ip;
+    char broadcast_ip[MAX_IP_LENGTH];
     int broadcast_port;
     int tcp_port;
     int network_option;
-    const char *multicast;
-    const char *shared_key;
-    const char *iv;
-    int bool_multicast;
+    char shared_key[MAX_KEY_LENGTH];
+    char iv[MAX_KEY_LENGTH];
     int use_symm_enc;
     int collision_domain;
     int bandwidth;
@@ -280,7 +281,8 @@ void send_beacon_reports(uint8_t bssid[], int id);
 #define SORT_NUM 5
 
 // ---------------- Global variables ----------------
-char *sort_string;
+#define SORT_LENGTH 5
+char sort_string[SORT_LENGTH];
 
 // ---------------- Functions -------------------
 int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], char* neighbor_report, int automatic_kick);

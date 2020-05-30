@@ -1485,8 +1485,8 @@ static int reload_config(struct ubus_context *ctx, struct ubus_object *obj,
     uci_reset();
     dawn_metric = uci_get_dawn_metric();
     timeout_config = uci_get_time_config();
-    hostapd_dir_glob = uci_get_dawn_hostapd_dir();
-    sort_string = (char *) uci_get_dawn_sort_order();
+    uci_get_dawn_hostapd_dir();
+    uci_get_dawn_sort_order();
 
     if(timeout_config.update_beacon_reports) // allow setting timeout to 0
         uloop_timeout_add(&beacon_reports_timer);

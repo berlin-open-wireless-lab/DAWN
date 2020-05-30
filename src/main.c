@@ -99,8 +99,8 @@ int main(int argc, char **argv) {
     struct time_config_s time_config = uci_get_time_config();
     timeout_config = time_config; // TODO: Refactor...
 
-    hostapd_dir_glob = uci_get_dawn_hostapd_dir();
-    sort_string = (char *) uci_get_dawn_sort_order();
+    uci_get_dawn_hostapd_dir();
+    uci_get_dawn_sort_order();
 
     init_mutex();
 

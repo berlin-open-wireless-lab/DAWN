@@ -1,6 +1,7 @@
 #include <uci.h>
 #include <stdlib.h>
 #include <datastorage.h>
+#include <ubus.h>
 
 #include "dawn_uci.h"
 
@@ -91,6 +92,7 @@ struct probe_metric_s uci_get_dawn_metric() {
 
 struct network_config_s uci_get_dawn_network() {
     struct network_config_s ret;
+    memset(&ret, 0, sizeof(ret));
 
     struct uci_element *e;
     uci_foreach_element(&uci_pkg->sections, e)
@@ -98,11 +100,17 @@ struct network_config_s uci_get_dawn_network() {
         struct uci_section *s = uci_to_section(e);
 
         if (strcmp(s->type, "network") == 0) {
-            ret.broadcast_ip = uci_lookup_option_string(uci_ctx, s, "broadcast_ip");
+            const char* str_broadcast = uci_lookup_option_string(uci_ctx, s, "broadcast_ip");
+            strncpy(ret.broadcast_ip, str_broadcast, MAX_IP_LENGTH);
+
             ret.broadcast_port = uci_lookup_option_int(uci_ctx, s, "broadcast_port");
-            ret.bool_multicast = uci_lookup_option_int(uci_ctx, s, "multicast");
-            ret.shared_key = uci_lookup_option_string(uci_ctx, s, "shared_key");
-            ret.iv = uci_lookup_option_string(uci_ctx, s, "iv");
+
+            const char* str_shared_key = uci_lookup_option_string(uci_ctx, s, "shared_key");
+            strncpy(ret.shared_key, str_shared_key, MAX_KEY_LENGTH);
+
+            const char* str_iv = uci_lookup_option_string(uci_ctx, s, "iv");
+            strncpy(ret.iv, str_iv, MAX_KEY_LENGTH);
+
             ret.network_option = uci_lookup_option_int(uci_ctx, s, "network_option");
             ret.tcp_port = uci_lookup_option_int(uci_ctx, s, "tcp_port");
             ret.use_symm_enc = uci_lookup_option_int(uci_ctx, s, "use_symm_enc");
@@ -115,30 +123,34 @@ struct network_config_s uci_get_dawn_network() {
     return ret;
 }
 
-const char *uci_get_dawn_hostapd_dir() {
+bool uci_get_dawn_hostapd_dir() {
     struct uci_element *e;
     uci_foreach_element(&uci_pkg->sections, e)
     {
         struct uci_section *s = uci_to_section(e);
 
         if (strcmp(s->type, "hostapd") == 0) {
-            return uci_lookup_option_string(uci_ctx, s, "hostapd_dir");
+            const char* str = uci_lookup_option_string(uci_ctx, s, "hostapd_dir");
+            strncpy(hostapd_dir_glob, str, HOSTAPD_DIR_LEN);
+            return true;
         }
     }
-    return NULL;
+    return false;
 }
 
-const char *uci_get_dawn_sort_order() {
+bool uci_get_dawn_sort_order() {
     struct uci_element *e;
     uci_foreach_element(&uci_pkg->sections, e)
     {
         struct uci_section *s = uci_to_section(e);
 
         if (strcmp(s->type, "ordering") == 0) {
-            return uci_lookup_option_string(uci_ctx, s, "sort_order");
+            const char* str = uci_lookup_option_string(uci_ctx, s, "sort_order");
+            strncpy(sort_string, str, SORT_LENGTH);
+            return true;
         }
     }
-    return NULL;
+    return false;
 }
 
 int uci_reset()

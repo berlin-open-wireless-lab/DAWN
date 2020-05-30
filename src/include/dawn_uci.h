@@ -35,13 +35,13 @@ struct network_config_s uci_get_dawn_network();
  * Function that returns the hostapd directory reading from the config file.
  * @return the hostapd directory.
  */
-const char *uci_get_dawn_hostapd_dir();
+bool uci_get_dawn_hostapd_dir();
 
 /**
  * Function that returns the sort order.
  * @return the sort order.
  */
-const char *uci_get_dawn_sort_order();
+bool uci_get_dawn_sort_order();
 
 int uci_set_network(char* uci_cmd);
 
