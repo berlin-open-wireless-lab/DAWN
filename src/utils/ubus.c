@@ -1061,11 +1061,13 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
 
     if (entry == NULL) {
         fprintf(stderr, "Failed to find interface!\n");
+        free(data_str);
         return;
     }
 
     if (!entry->subscribed) {
         fprintf(stderr, "Interface %s is not subscribed!\n", entry->iface_name);
+        free(data_str);
         return;
     }
 
