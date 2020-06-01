@@ -10,6 +10,13 @@
 
 #define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
 
+#ifndef BIT
+#define BIT(x) (1U << (x))
+#endif
+#define WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE BIT(4)
+#define WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE BIT(5)
+#define WLAN_RRM_CAPS_BEACON_REPORT_TABLE BIT(6)
+
 int go_next_help(char sort_order[], int i, probe_entry entry,
                  probe_entry next_entry);
 
@@ -68,7 +75,11 @@ void send_beacon_reports(uint8_t bssid[], int id) {
         if (!mac_is_equal(client_array[j].bssid_addr, bssid)) {
             break;
         }
-        ubus_send_beacon_report(client_array[j].client_addr, id);
+        if (client_array[j].rrm_enabled_capa & 
+            (WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE |
+             WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE | 
+             WLAN_RRM_CAPS_BEACON_REPORT_TABLE))
+            ubus_send_beacon_report(client_array[j].client_addr, id);
     }
     pthread_mutex_unlock(&client_array_mutex);
 }

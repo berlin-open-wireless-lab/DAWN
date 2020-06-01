@@ -205,6 +205,7 @@ typedef struct client_s {
     time_t time;
     uint32_t aid;
     uint32_t kick_count;
+    uint8_t rrm_enabled_capa; //the first byte is enough
 } client;
 
 typedef struct ap_s {
