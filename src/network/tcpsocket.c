@@ -93,7 +93,7 @@ static void client_read_cb(struct ustream *s, int bytes) {
         if (network_config.use_symm_enc) {
             final_len = *(size_t*)str;
             if(len < final_len) {//not complete msg, wait for next recv
-                fprintf(stderr,"not complete msg, len:%d, expected len:%d\n", len, final_len);
+                fprintf(stderr,"not complete msg, len:%d, expected len:%zu\n", len, final_len);
                 if (tried++ == max_retry) {
                     ustream_consume(s, len);
                     return;//drop package
@@ -109,7 +109,7 @@ static void client_read_cb(struct ustream *s, int bytes) {
         } else {
             final_len = *(size_t*)str;
             if(len < final_len){
-                fprintf(stderr,"not complete msg, len:%d, expected len:%d\n", len, final_len);
+                fprintf(stderr,"not complete msg, len:%d, expected len:%zu\n", len, final_len);
                 if (tried++ == max_retry) {
                     ustream_consume(s, len);
                     return;
