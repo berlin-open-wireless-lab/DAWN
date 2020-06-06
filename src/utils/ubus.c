@@ -213,7 +213,6 @@ enum {
     CLIENT_TABLE_BANDWIDTH,
     CLIENT_TABLE_WEIGHT,
     CLIENT_TABLE_NEIGHBOR,
-    CLIENT_TABLE_RRM,
     __CLIENT_TABLE_MAX,
 };
 
@@ -230,7 +229,6 @@ static const struct blobmsg_policy client_table_policy[__CLIENT_TABLE_MAX] = {
         [CLIENT_TABLE_BANDWIDTH] = {.name = "bandwidth", .type = BLOBMSG_TYPE_INT32},
         [CLIENT_TABLE_WEIGHT] = {.name = "ap_weight", .type = BLOBMSG_TYPE_INT32},
         [CLIENT_TABLE_NEIGHBOR] = {.name = "neighbor_report", .type = BLOBMSG_TYPE_STRING},
-        [CLIENT_TABLE_RRM] = {.name = "rrm", .type = BLOBMSG_TYPE_ARRAY},
 };
 
 enum {
@@ -246,6 +244,7 @@ enum {
     CLIENT_WPS,
     CLIENT_MFP,
     CLIENT_AID,
+    CLIENT_RRM,
     __CLIENT_MAX,
 };
 
@@ -262,6 +261,7 @@ static const struct blobmsg_policy client_policy[__CLIENT_MAX] = {
         [CLIENT_WPS] = {.name = "wps", .type = BLOBMSG_TYPE_INT8},
         [CLIENT_MFP] = {.name = "mfp", .type = BLOBMSG_TYPE_INT8},
         [CLIENT_AID] = {.name = "aid", .type = BLOBMSG_TYPE_INT32},
+        [CLIENT_RRM] = {.name = "rrm", .type = BLOBMSG_TYPE_ARRAY},
 };
 
 enum {
@@ -938,9 +938,9 @@ dump_client(struct blob_attr **tb, uint8_t client_addr[], const char *bssid_addr
         client_entry.aid = blobmsg_get_u32(tb[CLIENT_AID]);
     }
         /* RRM Caps */
-    if (tb[CLIENT_TABLE_RRM]) {
-        client_entry.rrm_enabled_capa = dump_rrm_table(blobmsg_data(tb[CLIENT_TABLE_RRM]),
-                                            blobmsg_data_len(tb[CLIENT_TABLE_RRM]));// get the first byte from rrm array
+    if (tb[CLIENT_RRM]) {
+        client_entry.rrm_enabled_capa = dump_rrm_table(blobmsg_data(tb[CLIENT_RRM]),
+                                            blobmsg_data_len(tb[CLIENT_RRM]));// get the first byte from rrm array
         //ap_entry.ap_weight = blobmsg_get_u32(tb[CLIENT_TABLE_RRM]);
     } else {
         client_entry.rrm_enabled_capa = 0;
@@ -953,7 +953,7 @@ dump_client(struct blob_attr **tb, uint8_t client_addr[], const char *bssid_addr
     } else
     {
         memset(client_entry.signature, 0, 1024);
-    }    
+    }
 
     insert_client_to_array(client_entry);
 }
