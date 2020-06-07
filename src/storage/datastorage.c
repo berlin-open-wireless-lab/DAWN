@@ -44,8 +44,6 @@ int compare_station_count(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compar
 
 int compare_ssid(uint8_t *bssid_addr_own, uint8_t *bssid_addr_to_compare);
 
-void denied_req_array_insert(auth_entry entry);
-
 int denied_req_array_go_next(char sort_order[], int i, auth_entry entry,
                              auth_entry next_entry);
 
