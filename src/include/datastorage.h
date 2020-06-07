@@ -175,6 +175,8 @@ void print_probe_entry(probe_entry entry);
 
 int eval_probe_metric(struct probe_entry_s probe_entry);
 
+void denied_req_array_insert(auth_entry entry);
+
 auth_entry denied_req_array_delete(auth_entry entry);
 
 auth_entry insert_to_denied_req_array(auth_entry entry, int inc_counter);

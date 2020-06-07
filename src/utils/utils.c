@@ -42,7 +42,7 @@ int hwaddr_aton(const char *txt, uint8_t *addr) {
         b = hex_to_bin(*txt++);
         if (b < 0) return -1;
         *addr++ = (a << 4) | b;
-// TODO: Should NUL terminator be checked for? Is aa:bb:cc:dd:ee:ff00 valid input?
+        // TODO: Should NUL terminator be checked for? Is aa:bb:cc:dd:ee:ff00 valid input?
         if (i < (ETH_ALEN - 1) && *txt++ != ':') return -1;
     }
 
