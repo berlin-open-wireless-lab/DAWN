@@ -82,7 +82,7 @@ static void client_to_server_state(struct ustream *s) {
 static void client_read_cb(struct ustream *s, int bytes) {
     char *str;
     int len = 0;
-    size_t final_len;
+    uint32_t final_len;
     int max_retry = 3, tried = 0;
 
     do {
@@ -91,25 +91,25 @@ static void client_read_cb(struct ustream *s, int bytes) {
             break;
 
         if (network_config.use_symm_enc) {
-            final_len = *(size_t*)str;
+            final_len = ntohl(*(uint32_t *)str);
             if(len < final_len) {//not complete msg, wait for next recv
-                fprintf(stderr,"not complete msg, len:%d, expected len:%zu\n", len, final_len);
+                fprintf(stderr,"not complete msg, len:%d, expected len:%u\n", len, final_len);
                 if (tried++ == max_retry) {
                     ustream_consume(s, len);
                     return;//drop package
                 }
                 continue;
             }
-            char *dec = gcrypt_decrypt_msg(str+sizeof(size_t), final_len-sizeof(size_t));
+            char *dec = gcrypt_decrypt_msg(str+sizeof(final_len), final_len-sizeof(final_len));
         
             handle_network_msg(dec);
             free(dec);
             ustream_consume(s, final_len);//one msg is processed
             tried = 0;
         } else {
-            final_len = *(size_t*)str;
+            final_len = ntohl(*(uint32_t *)str);
             if(len < final_len){
-                fprintf(stderr,"not complete msg, len:%d, expected len:%zu\n", len, final_len);
+                fprintf(stderr,"not complete msg, len:%d, expected len:%u\n", len, final_len);
                 if (tried++ == max_retry) {
                     ustream_consume(s, len);
                     return;
@@ -117,7 +117,7 @@ static void client_read_cb(struct ustream *s, int bytes) {
                 continue;
             } 
             char* msg = malloc(final_len);
-            memcpy(msg, str+sizeof(size_t), final_len-sizeof(size_t));
+            memcpy(msg, str+sizeof(final_len), final_len-sizeof(final_len));
             handle_network_msg(msg);
             ustream_consume(s, final_len);//one msg is processed
             free(msg);
@@ -247,11 +247,11 @@ void send_tcp(char *msg) {
         char *enc = gcrypt_encrypt_msg(msg, msglen, &length_enc);
 
         struct network_con_s *con;
-        size_t final_len = length_enc + sizeof(size_t);
+        uint32_t final_len = length_enc + sizeof(final_len);
         char *final_str = malloc(final_len);
-        size_t *msg_header = (size_t*)final_str;
-        *msg_header = final_len;
-        memcpy(final_str+sizeof(size_t), enc, length_enc);
+        uint32_t *msg_header = (uint32_t *)final_str;
+        *msg_header = htonl(final_len);
+        memcpy(final_str+sizeof(final_len), enc, length_enc);
         list_for_each_entry(con, &tcp_sock_list, list)
         {
             if (con->connected) {
@@ -269,11 +269,11 @@ void send_tcp(char *msg) {
         free(enc);
     } else {
         size_t msglen = strlen(msg) + 1;
-        size_t final_len = msglen + sizeof(size_t);
+        uint32_t final_len = msglen + sizeof(final_len);
         char *final_str = malloc(final_len);
-        size_t *msg_header = (size_t*)final_str;
-        *msg_header = final_len;
-        memcpy(final_str+sizeof(size_t), msg, msglen);
+        uint32_t *msg_header = (uint32_t *)final_str;
+        *msg_header = htonl(final_len);
+        memcpy(final_str+sizeof(final_len), msg, msglen);
         struct network_con_s *con;
 
         list_for_each_entry(con, &tcp_sock_list, list)
