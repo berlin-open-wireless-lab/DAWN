@@ -8,6 +8,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <limits.h>
 
 #ifndef ETH_ALEN
 #define ETH_ALEN 6
@@ -183,6 +184,7 @@ void print_auth_entry(auth_entry entry);
 /* AP, Client */
 
 #define SIGNATURE_LEN 1024
+#define MAX_INTERFACE_NAME 64
 
 // ---------------- Structs ----------------
 typedef struct client_s {
@@ -221,6 +223,8 @@ typedef struct ap_s {
     uint32_t collision_domain;
     uint32_t bandwidth;
     uint32_t ap_weight;
+    char iface[MAX_INTERFACE_NAME];
+    char hostname[HOST_NAME_MAX];
 } ap;
 
 // ---------------- Defines ----------------

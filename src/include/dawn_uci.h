@@ -45,6 +45,11 @@ bool uci_get_dawn_sort_order();
 
 int uci_set_network(char* uci_cmd);
 
+/**
+ * Function that writes the hostname in the given char buffer.
+*/
+void uci_get_hostname(char* hostname);
+
 int uci_reset();
 
 #endif //DAWN_UCI_H_H

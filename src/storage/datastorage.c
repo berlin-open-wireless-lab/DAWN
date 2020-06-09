@@ -1,4 +1,3 @@
-#include <limits.h>
 #include <stdbool.h>
 
 #include "dawn_iwinfo.h"

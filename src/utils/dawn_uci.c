@@ -17,6 +17,29 @@ static int uci_lookup_option_int(struct uci_context *uci, struct uci_section *s,
     return str == NULL ? -1 : atoi(str);
 }
 
+void uci_get_hostname(char* hostname)
+{
+    char path[]= "system.@system[0].hostname";
+    struct  uci_ptr ptr;
+    struct  uci_context *c = uci_alloc_context();
+
+    if(!c){
+        return;
+    }
+
+    if ((uci_lookup_ptr(c, &ptr, path, true) != UCI_OK) || (ptr.o==NULL || ptr.o->v.string==NULL)){
+        uci_free_context(c);
+        return;
+    }
+
+    if(ptr.flags & UCI_LOOKUP_COMPLETE)
+    {
+        strncpy(hostname, ptr.o->v.string, HOST_NAME_MAX);
+    }
+
+    uci_free_context(c);
+}
+
 struct time_config_s uci_get_time_config() {
     struct time_config_s ret;
 

@@ -74,7 +74,6 @@ struct uloop_timeout beacon_reports_timer = {
 };
 
 #define MAX_HOSTAPD_SOCKETS 10
-#define MAX_INTERFACE_NAME 64
 
 LIST_HEAD(hostapd_sock_list);
 
@@ -83,6 +82,7 @@ struct hostapd_sock_entry {
 
     uint32_t id;
     char iface_name[MAX_INTERFACE_NAME];
+    char hostname[HOST_NAME_MAX];
     uint8_t bssid_addr[ETH_ALEN];
     char ssid[SSID_MAX_LEN];
     uint8_t ht_support;
@@ -213,6 +213,8 @@ enum {
     CLIENT_TABLE_BANDWIDTH,
     CLIENT_TABLE_WEIGHT,
     CLIENT_TABLE_NEIGHBOR,
+    CLIENT_TABLE_IFACE,
+    CLIENT_TABLE_HOSTNAME,
     __CLIENT_TABLE_MAX,
 };
 
@@ -229,6 +231,8 @@ static const struct blobmsg_policy client_table_policy[__CLIENT_TABLE_MAX] = {
         [CLIENT_TABLE_BANDWIDTH] = {.name = "bandwidth", .type = BLOBMSG_TYPE_INT32},
         [CLIENT_TABLE_WEIGHT] = {.name = "ap_weight", .type = BLOBMSG_TYPE_INT32},
         [CLIENT_TABLE_NEIGHBOR] = {.name = "neighbor_report", .type = BLOBMSG_TYPE_STRING},
+        [CLIENT_TABLE_IFACE] = {.name = "iface", .type = BLOBMSG_TYPE_STRING},
+        [CLIENT_TABLE_HOSTNAME] = {.name = "hostname", .type = BLOBMSG_TYPE_STRING},
 };
 
 enum {
@@ -1060,6 +1064,14 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
             strcpy(ap_entry.neighbor_report, blobmsg_get_string(tb[CLIENT_TABLE_NEIGHBOR]));
         }
 
+        if (tb[CLIENT_TABLE_IFACE]) {
+            strcpy(ap_entry.iface, blobmsg_get_string(tb[CLIENT_TABLE_IFACE]));
+        }
+
+        if (tb[CLIENT_TABLE_HOSTNAME]) {
+            strcpy(ap_entry.hostname, blobmsg_get_string(tb[CLIENT_TABLE_HOSTNAME]));
+        }
+
         insert_to_ap_array(ap_entry);
 
         if (do_kick && dawn_metric.kicking) {
@@ -1111,6 +1123,9 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     blobmsg_add_u32(&b_domain, "channel_utilization", entry->chan_util_average);
 
     blobmsg_add_string(&b_domain, "neighbor_report", entry->neighbor_report);
+
+    blobmsg_add_string(&b_domain, "iface", entry->iface_name);
+    blobmsg_add_string(&b_domain, "hostname", entry->hostname);
 
     send_blob_attr_via_network(b_domain.head, "clients");
     parse_to_clients(b_domain.head, 1, req->peer);
@@ -1679,6 +1694,10 @@ bool subscriber_to_interface(const char *ifname) {
 
     hostapd_entry = calloc(1, sizeof(struct hostapd_sock_entry));
     strcpy(hostapd_entry->iface_name, ifname);
+
+    // add hostname
+    uci_get_hostname(hostapd_entry->hostname);
+
     hostapd_entry->subscriber.cb = hostapd_notify;
     hostapd_entry->subscriber.remove_cb = hostapd_handle_remove;
     hostapd_entry->wait_handler.cb = wait_cb;
@@ -2160,6 +2179,16 @@ int build_network_overview(struct blob_buf *b) {
         char *nr;
         nr = blobmsg_alloc_string_buffer(b, "neighbor_report", NEIGHBOR_REPORT_LEN);
         sprintf(nr, "%s", ap_array[m].neighbor_report);
+        blobmsg_add_string_buffer(b);
+
+        char *iface;
+        iface = blobmsg_alloc_string_buffer(b, "iface", MAX_INTERFACE_NAME);
+        sprintf(iface, "%s", ap_array[m].iface);
+        blobmsg_add_string_buffer(b);
+
+        char *hostname;
+        hostname = blobmsg_alloc_string_buffer(b, "hostname", HOST_NAME_MAX);
+        sprintf(hostname, "%s", ap_array[m].hostname);
         blobmsg_add_string_buffer(b);
 
         int k;
