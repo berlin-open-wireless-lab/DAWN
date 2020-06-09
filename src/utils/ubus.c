@@ -1061,15 +1061,21 @@ int parse_to_clients(struct blob_attr *msg, int do_kick, uint32_t id) {
 
 
         if (tb[CLIENT_TABLE_NEIGHBOR]) {
-            strcpy(ap_entry.neighbor_report, blobmsg_get_string(tb[CLIENT_TABLE_NEIGHBOR]));
+            strncpy(ap_entry.neighbor_report, blobmsg_get_string(tb[CLIENT_TABLE_NEIGHBOR]), NEIGHBOR_REPORT_LEN);
+        } else {
+            ap_entry.neighbor_report[0] = '\0';
         }
 
         if (tb[CLIENT_TABLE_IFACE]) {
-            strcpy(ap_entry.iface, blobmsg_get_string(tb[CLIENT_TABLE_IFACE]));
+            strncpy(ap_entry.iface, blobmsg_get_string(tb[CLIENT_TABLE_IFACE]), MAX_INTERFACE_NAME);
+        } else {
+            ap_entry.iface[0] = '\0';
         }
 
         if (tb[CLIENT_TABLE_HOSTNAME]) {
-            strcpy(ap_entry.hostname, blobmsg_get_string(tb[CLIENT_TABLE_HOSTNAME]));
+            strncpy(ap_entry.hostname, blobmsg_get_string(tb[CLIENT_TABLE_HOSTNAME]), HOST_NAME_MAX);
+        } else {
+            ap_entry.hostname[0] = '\0';
         }
 
         insert_to_ap_array(ap_entry);
