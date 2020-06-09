@@ -34,7 +34,14 @@ void uci_get_hostname(char* hostname)
 
     if(ptr.flags & UCI_LOOKUP_COMPLETE)
     {
-        strncpy(hostname, ptr.o->v.string, HOST_NAME_MAX);
+        char *dot = strchr(ptr.o->v.string, '.');
+        size_t len = HOST_NAME_MAX - 1;
+
+        if (dot && dot < ptr.o->v.string + len)
+        {
+            len = dot - ptr.o->v.string;
+        }
+        snprintf(hostname, HOST_NAME_MAX, "%.*s", len, ptr.o->v.string);
     }
 
     uci_free_context(c);
