@@ -234,7 +234,7 @@ int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], char* neigh
                 continue;
             }
 
-            strcpy(neighbor_report,destap.neighbor_report);
+            snprintf(neighbor_report, NEIGHBOR_REPORT_LEN, "%s", destap.neighbor_report);
 
             max_score = score_to_compare;
 
@@ -262,7 +262,7 @@ int better_ap_available(uint8_t bssid_addr[], uint8_t client_addr[], char* neigh
                         continue;
                     }
 
-                    strcpy(neighbor_report,destap.neighbor_report);
+                    snprintf(neighbor_report, NEIGHBOR_REPORT_LEN, "%s", destap.neighbor_report);
                     }
                 }
             }
@@ -314,7 +314,8 @@ void kick_clients(uint8_t bssid[], uint32_t id) {
             pthread_mutex_lock(&probe_array_mutex);
 
         }
-        char neighbor_report[NEIGHBOR_REPORT_LEN] = "";
+        char neighbor_report[NEIGHBOR_REPORT_LEN];
+        neighbor_report[0] = '\0';
         int do_kick = kick_client(client_array[j], neighbor_report);
         printf("Chosen AP %s\n",neighbor_report);
 
