@@ -41,7 +41,7 @@ void uci_get_hostname(char* hostname)
         {
             len = dot - ptr.o->v.string;
         }
-        snprintf(hostname, HOST_NAME_MAX, "%.*s", len, ptr.o->v.string);
+        snprintf(hostname, HOST_NAME_MAX, "%.*s", (int)len, ptr.o->v.string);
     }
 
     uci_free_context(c);
