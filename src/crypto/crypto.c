@@ -67,6 +67,10 @@ char *gcrypt_encrypt_msg(char *msg, size_t msg_length, int *out_length) {
         msg_length += 0x10U - (msg_length & 0xfU);
 
     char *out = malloc(msg_length);
+    if (!out){
+        fprintf(stderr, "gcry_cipher_encrypt error: not enought memory\n");
+        return NULL;
+    } 
     gcry_error_handle = gcry_cipher_encrypt(gcry_cipher_hd, out, msg_length, msg, msg_length);
     if (gcry_error_handle) {
         fprintf(stderr, "gcry_cipher_encrypt failed:  %s/%s\n",
@@ -84,15 +88,24 @@ char *gcrypt_decrypt_msg(char *msg, size_t msg_length) {
         msg_length += 0x10U - (msg_length & 0xfU);
 
     char *out_buffer = malloc(msg_length);
+    if (!out_buffer){
+        fprintf(stderr, "gcry_cipher_decrypt error: not enought memory\n");
+        return NULL;
+    } 
     gcry_error_handle = gcry_cipher_decrypt(gcry_cipher_hd, out_buffer, msg_length, msg, msg_length);
     if (gcry_error_handle) {
-        fprintf(stderr, "gcry_cipher_encrypt failed:  %s/%s\n",
+        fprintf(stderr, "gcry_cipher_decrypt failed:  %s/%s\n",
                 gcry_strsource(gcry_error_handle),
                 gcry_strerror(gcry_error_handle));
         free(out_buffer);
         return NULL;
     }
     char *out = malloc(strlen(out_buffer) + 1);
+    if (!out){
+        free(out_buffer);
+        fprintf(stderr, "gcry_cipher_decrypt error: not enought memory\n");
+        return NULL;
+    }
     strcpy(out, out_buffer);
     free(out_buffer);
     return out;
