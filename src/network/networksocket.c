@@ -99,8 +99,17 @@ void *receive_msg_enc(void *args) {
         recv_string[recv_string_len] = '\0';
 
         char *base64_dec_str = malloc(B64_DECODE_LEN(strlen(recv_string)));
+        if (!base64_dec_str){
+            fprintf(stderr, "Received network error: not enought memory\n");
+            return 0;
+        } 
         int base64_dec_length = b64_decode(recv_string, base64_dec_str, B64_DECODE_LEN(strlen(recv_string)));
         char *dec = gcrypt_decrypt_msg(base64_dec_str, base64_dec_length);
+        if (!dec){
+            free(base64_dec_str);
+            fprintf(stderr, "Received network error: not enought memory\n");
+            return 0;
+        }
 
         printf("Received network message: %s\n", dec);
         free(base64_dec_str);
@@ -134,8 +143,19 @@ int send_string_enc(char *msg) {
     int length_enc;
     size_t msglen = strlen(msg);
     char *enc = gcrypt_encrypt_msg(msg, msglen + 1, &length_enc);
+    if (!enc){
+        fprintf(stderr, "sendto() error: not enought memory\n");
+        pthread_mutex_unlock(&send_mutex);
+        exit(EXIT_FAILURE);
+    } 
 
     char *base64_enc_str = malloc(B64_ENCODE_LEN(length_enc));
+    if (!base64_enc_str){
+        free(enc);
+        fprintf(stderr, "sendto() error: not enought memory\n");
+        pthread_mutex_unlock(&send_mutex);
+        exit(EXIT_FAILURE);
+    } 
     size_t base64_enc_length = b64_encode(enc, length_enc, base64_enc_str, B64_ENCODE_LEN(length_enc));
 
     if (sendto(sock,

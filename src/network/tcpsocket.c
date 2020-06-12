@@ -80,10 +80,14 @@ static void client_to_server_state(struct ustream *s) {
 }
 
 static void client_read_cb(struct ustream *s, int bytes) {
-    char *str;
+    char *str, *str_tmp;
     int len = 0;
     uint32_t final_len = sizeof(uint32_t);
     str = malloc(final_len);
+    if (!str) {
+        fprintf(stderr,"not enough memory\n");
+        goto memory_full;
+    }
 
     if ((len = ustream_read(s, str, final_len)) < final_len){//ensure recv sizeof(uint32_t).
         fprintf(stderr,"not complete msg, len:%d, expected len:%u\n", len, final_len);
@@ -91,14 +95,24 @@ static void client_read_cb(struct ustream *s, int bytes) {
     }
     
     final_len = ntohl(*(uint32_t *)str) - sizeof(uint32_t);//the final_len in headder includes header itself
-    str = realloc(str, final_len);
+    str_tmp = realloc(str, final_len);
+    if (!str_tmp) {
+        fprintf(stderr,"not enough memory\n");
+        goto out;//On failure, realloc returns a null pointer. The original pointer str remains valid 
+                 //and may need to be deallocated with free() or realloc().
+    }
+    str = str_tmp;
     if ((len = ustream_read(s, str, final_len)) < final_len) {//ensure recv final_len bytes.
         fprintf(stderr,"not complete msg, len:%d, expected len:%u\n", len, final_len);
         goto out;
     }
 
     if (network_config.use_symm_enc) {        
-        char *dec = gcrypt_decrypt_msg(str, final_len);//len of str is final_len        
+        char *dec = gcrypt_decrypt_msg(str, final_len);//len of str is final_len     
+        if (!dec) {
+            fprintf(stderr,"not enough memory\n");
+            goto out;
+        }        
         handle_network_msg(dec);
         free(dec);
     } else {
@@ -106,6 +120,8 @@ static void client_read_cb(struct ustream *s, int bytes) {
     }
 out:
     free(str);
+memory_full:
+    return;
 }
 
 static void server_cb(struct uloop_fd *fd, unsigned int events) {
@@ -227,10 +243,19 @@ void send_tcp(char *msg) {
         int length_enc;
         size_t msglen = strlen(msg)+1;
         char *enc = gcrypt_encrypt_msg(msg, msglen, &length_enc);
+        if (!enc){
+            fprintf(stderr, "Ustream error: not enought memory\n");
+            return;
+        } 
 
         struct network_con_s *con;
         uint32_t final_len = length_enc + sizeof(final_len);
         char *final_str = malloc(final_len);
+        if (!final_str){
+            free(enc);
+            fprintf(stderr, "Ustream error: not enought memory\n");
+            return;
+        }            
         uint32_t *msg_header = (uint32_t *)final_str;
         *msg_header = htonl(final_len);
         memcpy(final_str+sizeof(final_len), enc, length_enc);
@@ -253,6 +278,10 @@ void send_tcp(char *msg) {
         size_t msglen = strlen(msg) + 1;
         uint32_t final_len = msglen + sizeof(final_len);
         char *final_str = malloc(final_len);
+        if (!final_str){
+            fprintf(stderr, "Ustream error: not enought memory\n");
+            return;
+        } 
         uint32_t *msg_header = (uint32_t *)final_str;
         *msg_header = htonl(final_len);
         memcpy(final_str+sizeof(final_len), msg, msglen);
