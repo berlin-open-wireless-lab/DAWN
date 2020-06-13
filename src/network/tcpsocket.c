@@ -86,13 +86,14 @@ static void client_read_cb(struct ustream *s, int bytes) {
     str = malloc(final_len);
     if (!str) {
         fprintf(stderr,"not enough memory\n");
-        goto memory_full;
+        goto nofree;
     }
-
-    if ((len = ustream_read(s, str, final_len)) < final_len){//ensure recv sizeof(uint32_t).
-        fprintf(stderr,"not complete msg, len:%d, expected len:%u\n", len, final_len);
+    
+    if ((len = ustream_pending_data(s, false)) < final_len){//ensure recv sizeof(uint32_t).
+        fprintf(stdout,"not complete msg, len:%d, expected len:%u\n", len, final_len);
         goto out;
     }
+    ustream_read(s, str, final_len);
     
     final_len = ntohl(*(uint32_t *)str) - sizeof(uint32_t);//the final_len in headder includes header itself
     str_tmp = realloc(str, final_len);
@@ -102,11 +103,12 @@ static void client_read_cb(struct ustream *s, int bytes) {
                  //and may need to be deallocated with free() or realloc().
     }
     str = str_tmp;
-    if ((len = ustream_read(s, str, final_len)) < final_len) {//ensure recv final_len bytes.
-        fprintf(stderr,"not complete msg, len:%d, expected len:%u\n", len, final_len);
+    
+    if ((len = ustream_pending_data(s, false)) < final_len){//ensure recv final_len bytes.
+        fprintf(stdout,"not complete msg, len:%d, expected len:%u\n", len, final_len);
         goto out;
     }
-
+    ustream_read(s, str, final_len);
     if (network_config.use_symm_enc) {        
         char *dec = gcrypt_decrypt_msg(str, final_len);//len of str is final_len     
         if (!dec) {
@@ -120,7 +122,7 @@ static void client_read_cb(struct ustream *s, int bytes) {
     }
 out:
     free(str);
-memory_full:
+nofree:
     return;
 }
 
