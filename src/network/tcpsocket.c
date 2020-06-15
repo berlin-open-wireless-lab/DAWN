@@ -241,18 +241,19 @@ int add_tcp_conncection(char *ipv4, int port) {
 
 void send_tcp(char *msg) {
     print_tcp_array();
+    struct network_con_s *con, *tmp;
     if (network_config.use_symm_enc) {
         int length_enc;
         size_t msglen = strlen(msg)+1;
         char *enc = gcrypt_encrypt_msg(msg, msglen, &length_enc);
 
-        struct network_con_s *con;
+        
         uint32_t final_len = length_enc + sizeof(final_len);
         char *final_str = malloc(final_len);
         uint32_t *msg_header = (uint32_t *)final_str;
         *msg_header = htonl(final_len);
         memcpy(final_str+sizeof(final_len), enc, length_enc);
-        list_for_each_entry(con, &tcp_sock_list, list)
+        list_for_each_entry_safe(con, tmp, &tcp_sock_list, list)
         {
             if (con->connected) {
                 int len_ustream = ustream_write(&con->stream.stream, final_str, final_len, 0);
@@ -260,6 +261,12 @@ void send_tcp(char *msg) {
                 if (len_ustream <= 0) {
                     fprintf(stderr,"Ustream error!\n");
                     //TODO: ERROR HANDLING!
+                    if (con->stream.stream.write_error) {
+                        ustream_free(&con->stream.stream);
+                        close(con->fd.fd);
+                        list_del(&con->list);
+                        free(con);
+                    } 
                 }
             }
 
@@ -274,9 +281,8 @@ void send_tcp(char *msg) {
         uint32_t *msg_header = (uint32_t *)final_str;
         *msg_header = htonl(final_len);
         memcpy(final_str+sizeof(final_len), msg, msglen);
-        struct network_con_s *con;
 
-        list_for_each_entry(con, &tcp_sock_list, list)
+        list_for_each_entry_safe(con, tmp, &tcp_sock_list, list)
         {
             if (con->connected) {
                 int len_ustream = ustream_write(&con->stream.stream, final_str, final_len, 0);
@@ -284,6 +290,12 @@ void send_tcp(char *msg) {
                 if (len_ustream <= 0) {
                     //TODO: ERROR HANDLING!
                     fprintf(stderr,"Ustream error!\n");
+                    if (con->stream.stream.write_error) {
+                        ustream_free(&con->stream.stream);
+                        close(con->fd.fd);
+                        list_del(&con->list);
+                        free(con);
+                    } 
                 }
             }
         }
