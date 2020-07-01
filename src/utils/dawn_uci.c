@@ -200,6 +200,7 @@ int uci_init() {
 
         ctx->flags &= ~UCI_FLAG_STRICT;
     } else {
+        ctx->flags &= ~UCI_FLAG_STRICT;
         // shouldn't happen?
         uci_pkg = uci_lookup_package(ctx, "dawn");
         if (uci_pkg)
@@ -226,9 +227,13 @@ int uci_set_network(char* uci_cmd)
 {
     struct uci_ptr ptr;
     int ret = UCI_OK;
-    struct uci_context *ctx;
+    struct uci_context *ctx  = uci_ctx;
 
-    ctx = uci_alloc_context();
+    if (!ctx) {
+        ctx = uci_alloc_context();
+        uci_ctx = ctx;
+    }
+
     ctx->flags |= UCI_FLAG_STRICT;
 
     if (uci_lookup_ptr(ctx, &ptr, uci_cmd, 1) != UCI_OK) {
