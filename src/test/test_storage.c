@@ -228,7 +228,7 @@ static int load_time(time_t* v, char* s);
 static int load_time(time_t* v, char* s)
 {
     int ret = 0;
-    sscanf(s, "%" "li", v);  // TODO: Check making portable for target SoC environemnts?
+    sscanf(s, "%" SCNi64, (int64_t*)v);  // TODO: Check making portable for target SoC environemnts?
     return ret;
 }
 
@@ -297,7 +297,7 @@ static int consume_actions(int argc, char* argv[])
                 }
                 else if (strcmp(*(argv + 1), "show") == 0)
                 {
-                    printf("FAKETIME is currently: %ld\n", faketime);
+                    printf("FAKETIME is currently: %" PRId64 "\n", (int64_t)faketime);
                 }
                 else
                 {
@@ -865,9 +865,9 @@ static int consume_actions(int argc, char* argv[])
                 faketime += 1;
 
                 if (!(faketime & 1))
-                    printf("Faketime: tick %ld...\n", faketime);
+                    printf("Faketime: tick %" PRId64 "...\n", (int64_t)faketime);
                 else
-                    printf("Faketime: tock %ld...\n", faketime);
+                    printf("Faketime: tock %" PRId64 "...\n", (int64_t)faketime);
             }
         }
         else
