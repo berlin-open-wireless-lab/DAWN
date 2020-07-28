@@ -1,5 +1,15 @@
+dawn default
 dawn min_kick_count=2
-ap bssid=11:22:33:44:55:66
+ap bssid=11:22:33:44:55:66 neighbors=11:22:33:44:55:66
+ap bssid=22:33:44:55:66:77 neighbors=22:33:44:55:66:77
 client bssid=11:22:33:44:55:66 client=ff:ee:dd:cc:bb:aa
+ap_show
+client_show
+kick 11:22:33:44:55:66 0
+probe bssid=11:22:33:44:55:66 client=ff:ee:dd:cc:bb:aa signal=-60
+probe bssid=22:33:44:55:66:77 client=ff:ee:dd:cc:bb:aa signal=-70
+kick 11:22:33:44:55:66 0
+kick 11:22:33:44:55:66 0
+probe bssid=11:22:33:44:55:66 client=ff:ee:dd:cc:bb:aa signal=-85
 kick 11:22:33:44:55:66 0
 kick 11:22:33:44:55:66 0

@@ -13,21 +13,21 @@ int call_iwinfo(char *client_addr);
 
 int parse_rssi(char *iwinfo_string);
 
-int get_rssi(const char *ifname, uint8_t *client_addr);
+int get_rssi(const char *ifname, struct dawn_mac client_addr);
 
-int get_bandwidth(const char *ifname, uint8_t *client_addr, float *rx_rate, float *tx_rate);
+int get_bandwidth(const char *ifname, struct dawn_mac client_addr, float *rx_rate, float *tx_rate);
 
 #define IWINFO_BUFSIZE    24 * 1024
 
 #define IWINFO_ESSID_MAX_SIZE    32
 
-int compare_essid_iwinfo(uint8_t *bssid_addr, uint8_t *bssid_addr_to_compare) {
+int compare_essid_iwinfo(struct dawn_mac bssid_addr, struct dawn_mac bssid_addr_to_compare) {
     const struct iwinfo_ops *iw;
 
     char mac_buf[20];
     char mac_buf_to_compare[20];
-    sprintf(mac_buf, MACSTR, MAC2STR(bssid_addr));
-    sprintf(mac_buf_to_compare, MACSTR, MAC2STR(bssid_addr_to_compare));
+    sprintf(mac_buf, MACSTR, MAC2STR(bssid_addr.u8));
+    sprintf(mac_buf_to_compare, MACSTR, MAC2STR(bssid_addr_to_compare.u8));
 
     DIR *dirp;
     struct dirent *entry;
@@ -84,7 +84,7 @@ int compare_essid_iwinfo(uint8_t *bssid_addr, uint8_t *bssid_addr_to_compare) {
     return -1;
 }
 
-int get_bandwidth_iwinfo(uint8_t *client_addr, float *rx_rate, float *tx_rate) {
+int get_bandwidth_iwinfo(struct dawn_mac client_addr, float *rx_rate, float *tx_rate) {
 
     DIR *dirp;
     struct dirent *entry;
@@ -108,7 +108,7 @@ int get_bandwidth_iwinfo(uint8_t *client_addr, float *rx_rate, float *tx_rate) {
     return sucess;
 }
 
-int get_bandwidth(const char *ifname, uint8_t *client_addr, float *rx_rate, float *tx_rate) {
+int get_bandwidth(const char *ifname, struct dawn_mac client_addr, float *rx_rate, float *tx_rate) {
 
     int i, len;
     char buf[IWINFO_BUFSIZE];
@@ -131,7 +131,7 @@ int get_bandwidth(const char *ifname, uint8_t *client_addr, float *rx_rate, floa
     for (i = 0; i < len; i += sizeof(struct iwinfo_assoclist_entry)) {
         e = (struct iwinfo_assoclist_entry *) &buf[i];
 
-        if (mac_is_equal(client_addr, e->mac)) {
+        if (mac_is_equal(client_addr.u8, e->mac)) {
             *rx_rate = e->rx_rate.rate / 1000;
             *tx_rate = e->tx_rate.rate / 1000;
             iwinfo_finish();
@@ -142,7 +142,7 @@ int get_bandwidth(const char *ifname, uint8_t *client_addr, float *rx_rate, floa
     return 0;
 }
 
-int get_rssi_iwinfo(uint8_t *client_addr) {
+int get_rssi_iwinfo(struct dawn_mac client_addr) {
 
     DIR *dirp;
     struct dirent *entry;
@@ -165,7 +165,7 @@ int get_rssi_iwinfo(uint8_t *client_addr) {
     return rssi;
 }
 
-int get_rssi(const char *ifname, uint8_t *client_addr) {
+int get_rssi(const char *ifname, struct dawn_mac client_addr) {
 
     int i, len;
     char buf[IWINFO_BUFSIZE];
@@ -188,7 +188,7 @@ int get_rssi(const char *ifname, uint8_t *client_addr) {
     for (i = 0; i < len; i += sizeof(struct iwinfo_assoclist_entry)) {
         e = (struct iwinfo_assoclist_entry *) &buf[i];
 
-        if (mac_is_equal(client_addr, e->mac)) {
+        if (mac_is_equal(client_addr.u8, e->mac)) {
             iwinfo_finish();
             return e->signal;
         }
@@ -198,7 +198,7 @@ int get_rssi(const char *ifname, uint8_t *client_addr) {
     return INT_MIN;
 }
 
-int get_expected_throughput_iwinfo(uint8_t *client_addr) {
+int get_expected_throughput_iwinfo(struct dawn_mac client_addr) {
 
     DIR *dirp;
     struct dirent *entry;
@@ -221,7 +221,7 @@ int get_expected_throughput_iwinfo(uint8_t *client_addr) {
     return exp_thr;
 }
 
-int get_expected_throughput(const char *ifname, uint8_t *client_addr) {
+int get_expected_throughput(const char *ifname, struct dawn_mac client_addr) {
 
     int i, len;
     char buf[IWINFO_BUFSIZE];
@@ -244,7 +244,7 @@ int get_expected_throughput(const char *ifname, uint8_t *client_addr) {
     for (i = 0; i < len; i += sizeof(struct iwinfo_assoclist_entry)) {
         e = (struct iwinfo_assoclist_entry *) &buf[i];
 
-        if (mac_is_equal(client_addr, e->mac)) {
+        if (mac_is_equal(client_addr.u8, e->mac)) {
             iwinfo_finish();
             return e->thr;
         }
@@ -254,7 +254,7 @@ int get_expected_throughput(const char *ifname, uint8_t *client_addr) {
     return INT_MIN;
 }
 
-int get_bssid(const char *ifname, uint8_t *bssid_addr) {
+int get_bssid(const char *ifname, uint8_t bssid_addr[]) {
     const struct iwinfo_ops *iw;
     if (strcmp(ifname, "global") == 0)
         return 0;
