@@ -766,13 +766,13 @@ client *client_array_get_client(const struct dawn_mac client_addr) {
     //pthread_mutex_lock(&client_array_mutex);
 
 #ifndef DAWN_CLIENT_SCAN_BC_ONLY
+    client* ret = *client_find_first_c_entry(client_addr);
+#else
     client* ret = client_set_bc;
     while (ret != NULL && !mac_is_equal_bb(client_addr, ret->client_addr))
     {
         ret = ret->next_entry_bc;
     }
-#else
-    client* ret = *client_find_first_c_entry(client_addr);
 #endif
 
     if (ret != NULL && !mac_is_equal_bb(client_addr, ret->client_addr))
