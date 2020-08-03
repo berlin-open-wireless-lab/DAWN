@@ -1370,6 +1370,7 @@ int uci_send_via_network()
 
     return 0;
 }
+
 int build_hearing_map_sort_client(struct blob_buf *b) {
     print_probe_array();
     pthread_mutex_lock(&probe_array_mutex);
@@ -1377,95 +1378,78 @@ int build_hearing_map_sort_client(struct blob_buf *b) {
     void *client_list, *ap_list, *ssid_list;
     char ap_mac_buf[20];
     char client_mac_buf[20];
-    bool new_ssid = false;
+    bool same_ssid = false;
 
     blob_buf_init(b, 0);
 
     for (ap* m = ap_set; m != NULL; m = m->next_ap) {
-        // MUSTDO: Not sure this has translated to pointers correclty.  What are we trying to do with SSID check???
-        // Looks like it is trying to make sure we only handle the first SSID found in the list, ingoring any others?
-        if (new_ssid) {
-            new_ssid = false;
-            continue;
-        }
-        ssid_list = blobmsg_open_table(b, (char*)m->ssid);
-        probe_entry* i = probe_set;
-        while (i != NULL) {
-            /*if(!mac_is_equal(ap_array[m].bssid_addr, probe_array[i].bssid_addr))
-            {
-                continue;
-            }*/
+        // MUSTDO: Ensure SSID / BSSID ordering.  Lost when switched to linked list!
+        // Scan AP list to find first of each SSID
+        if (!same_ssid) {
+            ssid_list = blobmsg_open_table(b, (char*)m->ssid);
+            probe_entry* i = probe_set;
+            while (i != NULL) {
+                ap *ap_entry_i = ap_array_get_ap(i->bssid_addr);
 
-            // TODO: Can we do this only when the BSSID changes in the probe list
-            ap *ap_entry_i = ap_array_get_ap(i->bssid_addr);
-
-            if (ap_entry_i == NULL) {
-                i = i->next_probe;
-                continue;
-            }
-
-            if (strcmp((char*)ap_entry_i->ssid, (char*)m->ssid) != 0) {
-                i = i->next_probe;
-                continue;
-            }
-
-            sprintf(client_mac_buf, MACSTR, MAC2STR(i->client_addr.u8));
-            client_list = blobmsg_open_table(b, client_mac_buf);
-            probe_entry *k;
-            for (k = i; k != NULL; k = k->next_probe) {
-                ap *ap_k = ap_array_get_ap(k->bssid_addr);
-
-                if (ap_k == NULL) {
+                if (ap_entry_i == NULL) {
+                    i = i->next_probe;
                     continue;
                 }
 
-                if (strcmp((char*)ap_k->ssid, (char*)m->ssid) != 0) {
+                if (strcmp((char*)ap_entry_i->ssid, (char*)m->ssid) != 0) {
+                    i = i->next_probe;
                     continue;
                 }
+
+                sprintf(client_mac_buf, MACSTR, MAC2STR(i->client_addr.u8));
+                client_list = blobmsg_open_table(b, client_mac_buf);
+                probe_entry *k;
+                for (k = i;
+		        k != NULL && mac_is_equal_bb(k->client_addr, i->client_addr);
+		        k = k->next_probe) {
+
+                    ap *ap_k = ap_array_get_ap(k->bssid_addr);
+
+                    if (ap_k == NULL || strcmp((char*)ap_k->ssid, (char*)m->ssid) != 0) {
+                        continue;
+                    }
+
+                    sprintf(ap_mac_buf, MACSTR, MAC2STR(k->bssid_addr.u8));
+                    ap_list = blobmsg_open_table(b, ap_mac_buf);
+                    blobmsg_add_u32(b, "signal", k->signal);
+                    blobmsg_add_u32(b, "rcpi", k->rcpi);
+                    blobmsg_add_u32(b, "rsni", k->rsni);
+                    blobmsg_add_u32(b, "freq", k->freq);
+                    blobmsg_add_u8(b, "ht_capabilities", k->ht_capabilities);
+                    blobmsg_add_u8(b, "vht_capabilities", k->vht_capabilities);
+
+
+                    // check if ap entry is available
+                    blobmsg_add_u32(b, "channel_utilization", ap_k->channel_utilization);
+                    blobmsg_add_u32(b, "num_sta", ap_k->station_count);
+                    blobmsg_add_u8(b, "ht_support", ap_k->ht_support);
+                    blobmsg_add_u8(b, "vht_support", ap_k->vht_support);
+
+                    blobmsg_add_u32(b, "score", eval_probe_metric(k, ap_k));
+                    blobmsg_close_table(b, ap_list);
+                }
+
+                blobmsg_close_table(b, client_list);
 
                 // TODO: Change this so that i and k are single loop?
-                if (!mac_is_equal_bb(k->client_addr, i->client_addr)) {
-                    i = k;
-                    break;
-                }
-                else if (k->next_probe == NULL) {
-                    i = NULL;
-                }
-                else
-                    i = i->next_probe;
-
-                sprintf(ap_mac_buf, MACSTR, MAC2STR(k->bssid_addr.u8));
-                ap_list = blobmsg_open_table(b, ap_mac_buf);
-                blobmsg_add_u32(b, "signal", k->signal);
-                blobmsg_add_u32(b, "rcpi", k->rcpi);
-                blobmsg_add_u32(b, "rsni", k->rsni);
-                blobmsg_add_u32(b, "freq", k->freq);
-                blobmsg_add_u8(b, "ht_capabilities", k->ht_capabilities);
-                blobmsg_add_u8(b, "vht_capabilities", k->vht_capabilities);
-
-
-                // check if ap entry is available
-                blobmsg_add_u32(b, "channel_utilization", ap_k->channel_utilization);
-                blobmsg_add_u32(b, "num_sta", ap_k->station_count);
-                blobmsg_add_u8(b, "ht_support", ap_k->ht_support);
-                blobmsg_add_u8(b, "vht_support", ap_k->vht_support);
-
-                blobmsg_add_u32(b, "score", eval_probe_metric(k, ap_k));
-                blobmsg_close_table(b, ap_list);
+                i = k;
             }
-            blobmsg_close_table(b, client_list);
+	}
 
-            if (k == NULL) {
-                i = NULL;
-            }
-        }
-        blobmsg_close_table(b, ssid_list);
-
-        if ((m->next_ap != NULL) && strcmp((char*)m->ssid, (char*)((m->next_ap)->ssid)) == 0)
-        {
-            new_ssid = true;
-        }
+        if ((m->next_ap == NULL) || strcmp((char*)m->ssid, (char*)((m->next_ap)->ssid)) != 0)
+	{
+	    blobmsg_close_table(b, ssid_list);
+            same_ssid = false;
+	}
+	else
+            same_ssid = true;
     }
+
     pthread_mutex_unlock(&probe_array_mutex);
     return 0;
 }

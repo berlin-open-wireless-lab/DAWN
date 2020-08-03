@@ -278,7 +278,7 @@ int probe_array_update_rcpi_rsni(struct dawn_mac bssid_addr, struct dawn_mac cli
 
 void remove_old_client_entries(time_t current_time, long long int threshold);
 
-void insert_client_to_array(client *entry);
+client *insert_client_to_array(client *entry);
 
 int kick_clients(ap* kicking_ap, uint32_t id);
 

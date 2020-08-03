@@ -8,8 +8,8 @@
 #include "dawn_uci.h"
 
 
-static struct uci_context *uci_ctx;
-static struct uci_package *uci_pkg;
+static struct uci_context *uci_ctx = NULL;
+static struct uci_package *uci_pkg = NULL;
 
 // why is this not included in uci lib...?!
 // found here: https://github.com/br101/pingcheck/blob/master/uci.c
@@ -191,7 +191,9 @@ bool uci_get_dawn_sort_order() {
 int uci_reset()
 {
     uci_unload(uci_ctx, uci_pkg);
+    dawn_unregmem(uci_pkg);
     uci_load(uci_ctx, "dawn", &uci_pkg);
+    dawn_regmem(uci_pkg);
 
     return 0;
 }
@@ -210,15 +212,17 @@ int uci_init() {
         // shouldn't happen?
         uci_pkg = uci_lookup_package(ctx, "dawn");
         if (uci_pkg)
+	{
             uci_unload(ctx, uci_pkg);
+            dawn_unregmem(uci_pkg);
+            uci_pkg = NULL;
+	}
     }
 
     if (uci_load(ctx, "dawn", &uci_pkg))
-    {
-        // TODO: Is this allocating memory?
-        dawn_regmem(uci_pkg);
         return -1;
-    }
+    else
+        dawn_regmem(uci_pkg);
 
     return 1;
 }
@@ -227,6 +231,7 @@ int uci_clear() {
     if (uci_pkg != NULL) {
         uci_unload(uci_ctx, uci_pkg);
         dawn_unregmem(uci_pkg);
+        uci_pkg = NULL;
     }
     if (uci_ctx != NULL) {
         uci_free_context(uci_ctx);

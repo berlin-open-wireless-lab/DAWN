@@ -214,7 +214,6 @@ int add_tcp_conncection(char *ipv4, int port) {
     serv_addr.sin_port = htons(port);
 
     struct network_con_s *tmp = tcp_list_contains_address(serv_addr);
-    dawn_regmem(tmp);
     if (tmp != NULL) {
         if(tmp->connected == true)
         {
@@ -223,7 +222,7 @@ int add_tcp_conncection(char *ipv4, int port) {
             // Delete already existing entry
             close(tmp->fd.fd);
             list_del(&tmp->list);
-            dawn_free(tmp);
+            // TODO: Removed free(tmp) here - was it needed?
         }
     }
 
