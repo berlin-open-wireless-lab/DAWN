@@ -3,6 +3,7 @@
 
 #include "networksocket.h"
 #include "tcpsocket.h"
+#include "mac_utils.h"
 #include "dawn_uci.h"
 #include "dawn_iwinfo.h"
 #include "datastorage.h"
@@ -93,7 +94,7 @@ struct hostapd_sock_entry {
     uint32_t id;
     char iface_name[MAX_INTERFACE_NAME];
     char hostname[HOST_NAME_MAX];
-    uint8_t bssid_addr[ETH_ALEN];
+    struct dawn_mac bssid_addr;
     char ssid[SSID_MAX_LEN];
     uint8_t ht_support;
     uint8_t vht_support;
@@ -113,9 +114,6 @@ struct hostapd_sock_entry {
     struct ubus_event_handler wait_handler;
     bool subscribed;
 };
-
-struct hostapd_sock_entry* hostapd_sock_arr[MAX_HOSTAPD_SOCKETS];
-int hostapd_sock_last = -1;
 
 enum {
     AUTH_BSSID_ADDR,
@@ -228,7 +226,7 @@ bool subscriber_to_interface(const char *ifname);
 
 bool subscribe(struct hostapd_sock_entry *hostapd_entry);
 
-int parse_to_beacon_rep(struct blob_attr *msg, probe_entry *beacon_rep);
+int parse_to_beacon_rep(struct blob_attr *msg);
 
 void ubus_set_nr();
 
@@ -241,14 +239,15 @@ subscription_wait(struct ubus_event_handler *handler) {
     return ubus_register_event_handler(ctx, handler, "ubus.object.add");
 }
 
-void blobmsg_add_macaddr(struct blob_buf *buf, const char *name, const uint8_t *addr) {
+void blobmsg_add_macaddr(struct blob_buf *buf, const char *name, const struct dawn_mac addr) {
     char *s;
 
     s = blobmsg_alloc_string_buffer(buf, name, 20);
-    sprintf(s, MACSTR, MAC2STR(addr));
+    sprintf(s, MACSTR, MAC2STR(addr.u8));
     blobmsg_add_string_buffer(buf);
 }
 
+// TODO: Is it worth having this function?  Just inline the right bits at each caller?
 static int decide_function(probe_entry *prob_req, int req_type) {
     if (mac_in_maclist(prob_req->client_addr)) {
         return 1;
@@ -270,7 +269,10 @@ static int decide_function(probe_entry *prob_req, int req_type) {
         return 1;
     }
 
-    if (better_ap_available(prob_req->bssid_addr, prob_req->client_addr, NULL, 0)) {
+    // TODO: Bug?  This results in copious "Neigbor-Report is NULL" messages!
+    // find own probe entry and calculate score
+    ap* this_ap = ap_array_get_ap(prob_req->bssid_addr);
+    if (this_ap != NULL && better_ap_available(this_ap, prob_req->client_addr, NULL)) {
         return 0;
     }
 
@@ -282,13 +284,13 @@ int parse_to_auth_req(struct blob_attr *msg, auth_entry *auth_req) {
 
     blobmsg_parse(auth_policy, __AUTH_MAX, tb, blob_data(msg), blob_len(msg));
 
-    if (hwaddr_aton(blobmsg_data(tb[AUTH_BSSID_ADDR]), auth_req->bssid_addr))
+    if (hwaddr_aton(blobmsg_data(tb[AUTH_BSSID_ADDR]), auth_req->bssid_addr.u8))
         return UBUS_STATUS_INVALID_ARGUMENT;
 
-    if (hwaddr_aton(blobmsg_data(tb[AUTH_CLIENT_ADDR]), auth_req->client_addr))
+    if (hwaddr_aton(blobmsg_data(tb[AUTH_CLIENT_ADDR]), auth_req->client_addr.u8))
         return UBUS_STATUS_INVALID_ARGUMENT;
 
-    if (hwaddr_aton(blobmsg_data(tb[AUTH_TARGET_ADDR]), auth_req->target_addr))
+    if (hwaddr_aton(blobmsg_data(tb[AUTH_TARGET_ADDR]), auth_req->target_addr.u8))
         return UBUS_STATUS_INVALID_ARGUMENT;
 
     if (tb[AUTH_SIGNAL]) {
@@ -306,8 +308,10 @@ int parse_to_assoc_req(struct blob_attr *msg, assoc_entry *assoc_req) {
     return (parse_to_auth_req(msg, assoc_req));
 }
 
-int parse_to_beacon_rep(struct blob_attr *msg, probe_entry *beacon_rep) {
+int parse_to_beacon_rep(struct blob_attr *msg) {
     struct blob_attr *tb[__BEACON_REP_MAX];
+    struct dawn_mac msg_bssid;
+    struct dawn_mac msg_client;
 
     blobmsg_parse(beacon_rep_policy, __BEACON_REP_MAX, tb, blob_data(msg), blob_len(msg));
 
@@ -316,41 +320,49 @@ int parse_to_beacon_rep(struct blob_attr *msg, probe_entry *beacon_rep) {
         return -1;
     }
 
-    if (hwaddr_aton(blobmsg_data(tb[BEACON_REP_BSSID]), beacon_rep->bssid_addr))
+    if (hwaddr_aton(blobmsg_data(tb[BEACON_REP_BSSID]), msg_bssid.u8))
         return UBUS_STATUS_INVALID_ARGUMENT;
 
-    ap check_null = {.bssid_addr = {0, 0, 0, 0, 0, 0}};
-    if(mac_is_equal(check_null.bssid_addr,beacon_rep->bssid_addr))
+    if(mac_is_null(msg_bssid.u8))
     {
         fprintf(stderr, "Received NULL MAC! Client is strange!\n");
         return -1;
     }
 
-    ap ap_entry_rep = ap_array_get_ap(beacon_rep->bssid_addr);
+    ap *ap_entry_rep = ap_array_get_ap(msg_bssid);
 
     // no client from network!!
-    if (!mac_is_equal(ap_entry_rep.bssid_addr, beacon_rep->bssid_addr)) {
+    if (ap_entry_rep == NULL) {
         return -1; //TODO: Check this
     }
 
-    if (hwaddr_aton(blobmsg_data(tb[BEACON_REP_ADDR]), beacon_rep->client_addr))
+    if (hwaddr_aton(blobmsg_data(tb[BEACON_REP_ADDR]), msg_client.u8))
         return UBUS_STATUS_INVALID_ARGUMENT;
 
-    int rcpi = 0;
-    int rsni = 0;
-    rcpi = blobmsg_get_u16(tb[BEACON_REP_RCPI]);
-    rsni = blobmsg_get_u16(tb[BEACON_REP_RSNI]);
+    int rcpi = blobmsg_get_u16(tb[BEACON_REP_RCPI]);
+    int rsni = blobmsg_get_u16(tb[BEACON_REP_RSNI]);
 
 
     // HACKY WORKAROUND!
     printf("Try update RCPI and RSNI for beacon report!\n");
-    if(!probe_array_update_rcpi_rsni(beacon_rep->bssid_addr, beacon_rep->client_addr, rcpi, rsni, true))
+    if(!probe_array_update_rcpi_rsni(msg_bssid, msg_client, rcpi, rsni, true))
     {
         printf("Beacon: No Probe Entry Existing!\n");
+
+        probe_entry* beacon_rep = malloc(sizeof(probe_entry));
+        if (beacon_rep == NULL)
+        {
+            fprintf(stderr, "malloc of probe_entry failed!\n");
+            return -1;
+        }
+
+        beacon_rep->next_probe = NULL;
+        beacon_rep->bssid_addr = msg_bssid;
+        beacon_rep->client_addr = msg_client;
         beacon_rep->counter = dawn_metric.min_probe_count;
-        hwaddr_aton(blobmsg_data(tb[BEACON_REP_ADDR]), beacon_rep->target_addr);  // TODO: Should this be ->bssid_addr?
+        hwaddr_aton(blobmsg_data(tb[BEACON_REP_ADDR]), beacon_rep->target_addr.u8);  // TODO: What is this for?
         beacon_rep->signal = 0;
-        beacon_rep->freq = ap_entry_rep.freq;
+        beacon_rep->freq = ap_entry_rep->freq;
         beacon_rep->rcpi = rcpi;
         beacon_rep->rsni = rsni;
 
@@ -358,116 +370,141 @@ int parse_to_beacon_rep(struct blob_attr *msg, probe_entry *beacon_rep) {
         beacon_rep->vht_capabilities = false; // that is very problematic!!!
         printf("Inserting to array!\n");
         beacon_rep->time = time(0);
-        insert_to_array(*beacon_rep, false, false, true);
-        ubus_send_probe_via_network(*beacon_rep);
+
+        // TODO: kept original code order here - send on network first to simplify?
+        if (beacon_rep != insert_to_array(beacon_rep, false, false, true)) // use 802.11k values  // TODO: Change 0 to false?
+        {
+            // insert found an existing entry, rather than linking in our new one
+            ubus_send_probe_via_network(beacon_rep);
+            free(beacon_rep);
+        }
+        else
+            ubus_send_probe_via_network(beacon_rep);
     }
     return 0;
 }
 
 int handle_auth_req(struct blob_attr* msg) {
+int ret = WLAN_STATUS_SUCCESS;
+bool discard_entry = true;
 
     print_probe_array();
-    auth_entry auth_req;
-    parse_to_auth_req(msg, &auth_req);
+    auth_entry *auth_req = malloc(sizeof(struct auth_entry_s));
+    if (auth_req == NULL)
+        return -1;
+
+    parse_to_auth_req(msg, auth_req);
 
     printf("Auth entry: ");
     print_auth_entry(auth_req);
 
-    if (mac_in_maclist(auth_req.client_addr)) {
-        return WLAN_STATUS_SUCCESS;
-    }
+    if (!mac_in_maclist(auth_req->client_addr)) {
+        pthread_mutex_lock(&probe_array_mutex);
 
-    probe_entry tmp = probe_array_get_entry(auth_req.bssid_addr, auth_req.client_addr);
+        probe_entry *tmp = probe_array_get_entry(auth_req->bssid_addr, auth_req->client_addr);
 
-    printf("Entry found\n");
-    print_probe_entry(tmp);
+        pthread_mutex_unlock(&probe_array_mutex);
 
-    // block if entry was not already found in probe database
-    if (!(mac_is_equal(tmp.bssid_addr, auth_req.bssid_addr) && mac_is_equal(tmp.client_addr, auth_req.client_addr))) {
-        printf("Deny authentication!\n");
+        // block if entry was not already found in probe database
+        if (tmp == NULL || !decide_function(tmp, REQ_TYPE_AUTH)) {
+            if (tmp != NULL)
+            {
+                printf("Entry found\n");
+                printf("Deny authentication!\n");
+            }
 
-        if (dawn_metric.use_driver_recog) {
-            auth_req.time = time(0);
-            insert_to_denied_req_array(auth_req, 1);
+            if (dawn_metric.use_driver_recog) {
+                auth_req->time = time(0);
+                if (auth_req == insert_to_denied_req_array(auth_req, 1))
+	        discard_entry = false;
+            }
+            ret = dawn_metric.deny_auth_reason;
         }
-        return dawn_metric.deny_auth_reason;
+	else
+            // maybe send here that the client is connected?
+            printf("Allow authentication!\n");
     }
 
-    if (!decide_function(&tmp, REQ_TYPE_AUTH)) {
-        printf("Deny authentication\n");
-        if (dawn_metric.use_driver_recog) {
-            auth_req.time = time(0);
-            insert_to_denied_req_array(auth_req, 1);
-        }
-        return dawn_metric.deny_auth_reason;
-    }
+    if (discard_entry)
+        free(auth_req);
 
-    // maybe send here that the client is connected?
-    printf("Allow authentication!\n");
-    return WLAN_STATUS_SUCCESS;
+    return ret;
 }
 
 static int handle_assoc_req(struct blob_attr *msg) {
+int ret = WLAN_STATUS_SUCCESS;
+int discard_entry = true;
 
     print_probe_array();
-    auth_entry auth_req;
-    parse_to_assoc_req(msg, &auth_req);
+    auth_entry* auth_req = malloc(sizeof(struct auth_entry_s));
+    if (auth_req == NULL)
+        return -1;
+
+    parse_to_assoc_req(msg, auth_req);
     printf("Association entry: ");
     print_auth_entry(auth_req);
 
-    if (mac_in_maclist(auth_req.client_addr)) {
-        return WLAN_STATUS_SUCCESS;
-    }
+    if (!mac_in_maclist(auth_req->client_addr)) {
+        pthread_mutex_lock(&probe_array_mutex);
 
-    probe_entry tmp = probe_array_get_entry(auth_req.bssid_addr, auth_req.client_addr);
+        probe_entry *tmp = probe_array_get_entry(auth_req->bssid_addr, auth_req->client_addr);
 
-    printf("Entry found\n");
-    print_probe_entry(tmp);
+        pthread_mutex_unlock(&probe_array_mutex);
 
-    // block if entry was not already found in probe database
-    if (!(mac_is_equal(tmp.bssid_addr, auth_req.bssid_addr) && mac_is_equal(tmp.client_addr, auth_req.client_addr))) {
-        printf("Deny associtation!\n");
-        if (dawn_metric.use_driver_recog) {
-            auth_req.time = time(0);
-            insert_to_denied_req_array(auth_req, 1);
+        // block if entry was not already found in probe database
+        if (tmp == NULL || !decide_function(tmp, REQ_TYPE_ASSOC)) {
+	    if (tmp != NULL)
+	    {
+                printf("Entry found\n");
+                print_probe_entry(tmp);
+	    }
+
+            printf("Deny associtation!\n");
+            if (dawn_metric.use_driver_recog) {
+                auth_req->time = time(0);
+                if (auth_req == insert_to_denied_req_array(auth_req, 1))
+                    discard_entry = false;
+            }
+            return dawn_metric.deny_assoc_reason;
         }
-        return dawn_metric.deny_assoc_reason;
+	else
+            printf("Allow association!\n");
     }
 
-    if (!decide_function(&tmp, REQ_TYPE_ASSOC)) {
-        printf("Deny association\n");
-        if (dawn_metric.use_driver_recog) {
-            auth_req.time = time(0);
-            insert_to_denied_req_array(auth_req, 1);
-        }
-        return dawn_metric.deny_assoc_reason;
-    }
+    if (discard_entry)
+        free(auth_req);
 
-    printf("Allow association!\n");
-    return WLAN_STATUS_SUCCESS;
+    return ret;
 }
 
 static int handle_probe_req(struct blob_attr *msg) {
-    probe_entry prob_req;
-    probe_entry tmp_prob_req;
+    // MUSTDO: Untangle malloc() and linking of probe_entry
+    probe_entry* probe_req = parse_to_probe_req(msg);
 
-    if (parse_to_probe_req(msg, &prob_req) == 0) {
-        prob_req.time = time(0);
-        tmp_prob_req = insert_to_array(prob_req, 1, true, false); // TODO: Chnage 1 to true?
-        ubus_send_probe_via_network(tmp_prob_req);
+    if (probe_req != NULL) {
+        probe_req->time = time(0);
+        if (probe_req != insert_to_array(probe_req, true, true, false))
+        {
+            // insert found an existing entry, rather than linking in our new one
+            ubus_send_probe_via_network(probe_req);
+            free(probe_req);
+        }
+        else
+            ubus_send_probe_via_network(probe_req);
+
         //send_blob_attr_via_network(msg, "probe");
+
+        if (!decide_function(probe_req, REQ_TYPE_PROBE)) {
+            return WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA; // no reason needed...
+        }
     }
 
-    if (!decide_function(&tmp_prob_req, REQ_TYPE_PROBE)) {
-        return WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA; // no reason needed...
-    }
+    // TODO: Retrun for malloc() failure?
     return WLAN_STATUS_SUCCESS;
 }
 
 static int handle_beacon_rep(struct blob_attr *msg) {
-    probe_entry beacon_rep;
-
-    if (parse_to_beacon_rep(msg, &beacon_rep) == 0) {
+    if (parse_to_beacon_rep(msg) == 0) {
         printf("Inserting beacon Report!\n");
         // insert_to_array(beacon_rep, 1);
         printf("Sending via network!\n");
@@ -749,7 +786,7 @@ void update_channel_utilization(struct uloop_timeout *t) {
     uloop_timeout_set(&channel_utilization_timer, timeout_config.update_chan_util * 1000);
 }
 
-void ubus_send_beacon_report(uint8_t client[], int id)
+void ubus_send_beacon_report(struct dawn_mac client, int id)
 {
     printf("Crafting Beacon Report\n");
     int timeout = 1;
@@ -813,7 +850,7 @@ void ubus_set_nr(){
     }
 }
 
-void del_client_all_interfaces(const uint8_t *client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time) {
+void del_client_all_interfaces(const struct dawn_mac client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time) {
     struct hostapd_sock_entry *sub;
 
     blob_buf_init(&b, 0);
@@ -831,7 +868,7 @@ void del_client_all_interfaces(const uint8_t *client_addr, uint32_t reason, uint
     }
 }
 
-void del_client_interface(uint32_t id, const uint8_t *client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time) {
+void del_client_interface(uint32_t id, const struct dawn_mac client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time) {
     struct hostapd_sock_entry *sub;
 
     blob_buf_init(&b, 0);
@@ -851,7 +888,7 @@ void del_client_interface(uint32_t id, const uint8_t *client_addr, uint32_t reas
 
 }
 
-int wnm_disassoc_imminent(uint32_t id, const uint8_t *client_addr, char *dest_ap, uint32_t duration) {
+int wnm_disassoc_imminent(uint32_t id, const struct dawn_mac client_addr, char *dest_ap, uint32_t duration) {
     struct hostapd_sock_entry *sub;
 
     blob_buf_init(&b, 0);
@@ -929,24 +966,24 @@ int ubus_call_umdns() {
 }
 
 //TODO: ADD STUFF HERE!!!!
-int ubus_send_probe_via_network(struct probe_entry_s probe_entry) {
+int ubus_send_probe_via_network(struct probe_entry_s *probe_entry) {  // TODO: probe_entry is also a typedef - fix?
     blob_buf_init(&b_probe, 0);
-    blobmsg_add_macaddr(&b_probe, "bssid", probe_entry.bssid_addr);
-    blobmsg_add_macaddr(&b_probe, "address", probe_entry.client_addr);
-    blobmsg_add_macaddr(&b_probe, "target", probe_entry.target_addr);
-    blobmsg_add_u32(&b_probe, "signal", probe_entry.signal);
-    blobmsg_add_u32(&b_probe, "freq", probe_entry.freq);
+    blobmsg_add_macaddr(&b_probe, "bssid", probe_entry->bssid_addr);
+    blobmsg_add_macaddr(&b_probe, "address", probe_entry->client_addr);
+    blobmsg_add_macaddr(&b_probe, "target", probe_entry->target_addr);
+    blobmsg_add_u32(&b_probe, "signal", probe_entry->signal);
+    blobmsg_add_u32(&b_probe, "freq", probe_entry->freq);
 
-    blobmsg_add_u32(&b_probe, "rcpi", probe_entry.rcpi);
-    blobmsg_add_u32(&b_probe, "rsni", probe_entry.rsni);
+    blobmsg_add_u32(&b_probe, "rcpi", probe_entry->rcpi);
+    blobmsg_add_u32(&b_probe, "rsni", probe_entry->rsni);
 
-    if (probe_entry.ht_capabilities)
+    if (probe_entry->ht_capabilities)
     {
         void *ht_cap = blobmsg_open_table(&b, "ht_capabilities");
         blobmsg_close_table(&b, ht_cap);
     }
 
-    if (probe_entry.vht_capabilities) {
+    if (probe_entry->vht_capabilities) {
         void *vht_cap = blobmsg_open_table(&b, "vht_capabilities");
         blobmsg_close_table(&b, vht_cap);
     }
@@ -956,7 +993,7 @@ int ubus_send_probe_via_network(struct probe_entry_s probe_entry) {
     return 0;
 }
 
-int send_set_probe(uint8_t client_addr[]) {
+int send_set_probe(struct dawn_mac client_addr) {
     blob_buf_init(&b_probe, 0);
     blobmsg_add_macaddr(&b_probe, "bssid", client_addr);
     blobmsg_add_macaddr(&b_probe, "address", client_addr);
@@ -1009,8 +1046,8 @@ int parse_add_mac_to_file(struct blob_attr *msg) {
     __blob_for_each_attr(attr, blobmsg_data(tb[MAC_ADDR]), len)
     {
         printf("Iteration through MAC-list\n");
-        uint8_t addr[ETH_ALEN];
-        hwaddr_aton(blobmsg_data(attr), addr);
+        struct dawn_mac addr;
+        hwaddr_aton(blobmsg_data(attr), addr.u8);
 
         if (insert_to_maclist(addr) == 0) {
             // TODO: File can grow arbitarily large.  Resource consumption risk.
@@ -1033,7 +1070,7 @@ static int add_mac(struct ubus_context *ctx, struct ubus_object *obj,
     return 0;
 }
 
-int send_add_mac(uint8_t *client_addr) {
+int send_add_mac(struct dawn_mac client_addr) {
     blob_buf_init(&b, 0);
     blobmsg_add_macaddr(&b, "addr", client_addr);
     send_blob_attr_via_network(b.head, "addmac");
@@ -1161,7 +1198,7 @@ bool subscribe(struct hostapd_sock_entry *hostapd_entry) {
 
     hostapd_entry->subscribed = true;
 
-    get_bssid(hostapd_entry->iface_name, hostapd_entry->bssid_addr);
+    get_bssid(hostapd_entry->iface_name, hostapd_entry->bssid_addr.u8);
     get_ssid(hostapd_entry->iface_name, hostapd_entry->ssid, (SSID_MAX_LEN) * sizeof(char));
 
     hostapd_entry->ht_support = (uint8_t) support_ht(hostapd_entry->iface_name);
@@ -1333,77 +1370,94 @@ int build_hearing_map_sort_client(struct blob_buf *b) {
     void *client_list, *ap_list, *ssid_list;
     char ap_mac_buf[20];
     char client_mac_buf[20];
+    bool new_ssid = false;
 
     blob_buf_init(b, 0);
-    int m;
-    for (m = 0; m <= ap_entry_last; m++) {
-        if (m > 0) {
-            if (strcmp((char *) ap_array[m].ssid, (char *) ap_array[m - 1].ssid) == 0) {
-                continue;
-            }
-        }
-        ssid_list = blobmsg_open_table(b, (char *) ap_array[m].ssid);
 
-        int i;
-        for (i = 0; i <= probe_entry_last; i++) {
+    for (ap* m = ap_set; m != NULL; m = m->next_ap) {
+        // MUSTDO: Not sure this has translated to pointers correclty.  What are we trying to do with SSID check???
+        // Looks like it is trying to make sure we only handle the first SSID found in the list, ingoring any others?
+        if (new_ssid) {
+            new_ssid = false;
+            continue;
+        }
+        ssid_list = blobmsg_open_table(b, (char*)m->ssid);
+        probe_entry* i = probe_set;
+        while (i != NULL) {
             /*if(!mac_is_equal(ap_array[m].bssid_addr, probe_array[i].bssid_addr))
             {
                 continue;
             }*/
 
-            ap ap_entry_i = ap_array_get_ap(probe_array[i].bssid_addr);
+            // TODO: Can we do this only when the BSSID changes in the probe list
+            ap *ap_entry_i = ap_array_get_ap(i->bssid_addr);
 
-            if (!mac_is_equal(ap_entry_i.bssid_addr, probe_array[i].bssid_addr)) {
+            if (ap_entry_i == NULL) {
+                i = i->next_probe;
                 continue;
             }
 
-            if (strcmp((char *) ap_entry_i.ssid, (char *) ap_array[m].ssid) != 0) {
+            if (strcmp((char*)ap_entry_i->ssid, (char*)m->ssid) != 0) {
+                i = i->next_probe;
                 continue;
             }
 
-            int k;
-            sprintf(client_mac_buf, MACSTR, MAC2STR(probe_array[i].client_addr));
+            sprintf(client_mac_buf, MACSTR, MAC2STR(i->client_addr.u8));
             client_list = blobmsg_open_table(b, client_mac_buf);
-            for (k = i; k <= probe_entry_last; k++) {
-                ap ap_entry = ap_array_get_ap(probe_array[k].bssid_addr);
+            probe_entry *k;
+            for (k = i; k != NULL; k = k->next_probe) {
+                ap *ap_k = ap_array_get_ap(k->bssid_addr);
 
-                if (!mac_is_equal(ap_entry.bssid_addr, probe_array[k].bssid_addr)) {
+                if (ap_k == NULL) {
                     continue;
                 }
 
-                if (strcmp((char *) ap_entry.ssid, (char *) ap_array[m].ssid) != 0) {
+                if (strcmp((char*)ap_k->ssid, (char*)m->ssid) != 0) {
                     continue;
                 }
 
-                if (!mac_is_equal(probe_array[k].client_addr, probe_array[i].client_addr)) {
-                    i = k - 1;
-                    break;
-                } else if (k == probe_entry_last) {
+                // TODO: Change this so that i and k are single loop?
+                if (!mac_is_equal_bb(k->client_addr, i->client_addr)) {
                     i = k;
+                    break;
                 }
+                else if (k->next_probe == NULL) {
+                    i = NULL;
+                }
+                else
+                    i = i->next_probe;
 
-                sprintf(ap_mac_buf, MACSTR, MAC2STR(probe_array[k].bssid_addr));
+                sprintf(ap_mac_buf, MACSTR, MAC2STR(k->bssid_addr.u8));
                 ap_list = blobmsg_open_table(b, ap_mac_buf);
-                blobmsg_add_u32(b, "signal", probe_array[k].signal);
-                blobmsg_add_u32(b, "rcpi", probe_array[k].rcpi);
-                blobmsg_add_u32(b, "rsni", probe_array[k].rsni);
-                blobmsg_add_u32(b, "freq", probe_array[k].freq);
-                blobmsg_add_u8(b, "ht_capabilities", probe_array[k].ht_capabilities);
-                blobmsg_add_u8(b, "vht_capabilities", probe_array[k].vht_capabilities);
+                blobmsg_add_u32(b, "signal", k->signal);
+                blobmsg_add_u32(b, "rcpi", k->rcpi);
+                blobmsg_add_u32(b, "rsni", k->rsni);
+                blobmsg_add_u32(b, "freq", k->freq);
+                blobmsg_add_u8(b, "ht_capabilities", k->ht_capabilities);
+                blobmsg_add_u8(b, "vht_capabilities", k->vht_capabilities);
 
 
                 // check if ap entry is available
-                blobmsg_add_u32(b, "channel_utilization", ap_entry.channel_utilization);
-                blobmsg_add_u32(b, "num_sta", ap_entry.station_count);
-                blobmsg_add_u8(b, "ht_support", ap_entry.ht_support);
-                blobmsg_add_u8(b, "vht_support", ap_entry.vht_support);
+                blobmsg_add_u32(b, "channel_utilization", ap_k->channel_utilization);
+                blobmsg_add_u32(b, "num_sta", ap_k->station_count);
+                blobmsg_add_u8(b, "ht_support", ap_k->ht_support);
+                blobmsg_add_u8(b, "vht_support", ap_k->vht_support);
 
-                blobmsg_add_u32(b, "score", eval_probe_metric(probe_array[k]));
+                blobmsg_add_u32(b, "score", eval_probe_metric(k, ap_k));
                 blobmsg_close_table(b, ap_list);
             }
             blobmsg_close_table(b, client_list);
+
+            if (k == NULL) {
+                i = NULL;
+            }
         }
         blobmsg_close_table(b, ssid_list);
+
+        if ((m->next_ap != NULL) && strcmp((char*)m->ssid, (char*)((m->next_ap)->ssid)) == 0)
+        {
+            new_ssid = true;
+        }
     }
     pthread_mutex_unlock(&probe_array_mutex);
     return 0;
@@ -1416,36 +1470,27 @@ int build_network_overview(struct blob_buf *b) {
     struct hostapd_sock_entry *sub;
 
     blob_buf_init(b, 0);
-    int m;
-    for (m = 0; m <= ap_entry_last; m++) {
-        bool add_ssid = false;
-        bool close_ssid = false;
 
-        if (m == 0 || strcmp((char *) ap_array[m].ssid, (char *) ap_array[m - 1].ssid) != 0) {
-            add_ssid = true;
-        }
-
-        if (m >= ap_entry_last || strcmp((char *) ap_array[m].ssid, (char *) ap_array[m + 1].ssid) != 0) {
-            close_ssid = true;
-        }
-
+    bool add_ssid = true;
+    for (ap* m = ap_set; m != NULL; m = m->next_ap) {
         if(add_ssid)
         {
-            ssid_list = blobmsg_open_table(b, (char *) ap_array[m].ssid);
+            ssid_list = blobmsg_open_table(b, (char *) m->ssid);
+            add_ssid = false;
         }
-        sprintf(ap_mac_buf, MACSTR, MAC2STR(ap_array[m].bssid_addr));
+        sprintf(ap_mac_buf, MACSTR, MAC2STR(m->bssid_addr.u8));
         ap_list = blobmsg_open_table(b, ap_mac_buf);
 
-        blobmsg_add_u32(b, "freq", ap_array[m].freq);
-        blobmsg_add_u32(b, "channel_utilization", ap_array[m].channel_utilization);
-        blobmsg_add_u32(b, "num_sta", ap_array[m].station_count);
-        blobmsg_add_u8(b, "ht_support", ap_array[m].ht_support);
-        blobmsg_add_u8(b, "vht_support", ap_array[m].vht_support);
+        blobmsg_add_u32(b, "freq", m->freq);
+        blobmsg_add_u32(b, "channel_utilization", m->channel_utilization);
+        blobmsg_add_u32(b, "num_sta", m->station_count);
+        blobmsg_add_u8(b, "ht_support", m->ht_support);
+        blobmsg_add_u8(b, "vht_support", m->vht_support);
 
         bool local_ap = false;
         list_for_each_entry(sub, &hostapd_sock_list, list)
         {
-            if (mac_is_equal(ap_array[m].bssid_addr, sub->bssid_addr)) {
+            if (mac_is_equal_bb(m->bssid_addr, sub->bssid_addr)) {
                 local_ap = true;
             }
         }
@@ -1453,78 +1498,87 @@ int build_network_overview(struct blob_buf *b) {
 
         char *nr;
         nr = blobmsg_alloc_string_buffer(b, "neighbor_report", NEIGHBOR_REPORT_LEN);
-        sprintf(nr, "%s", ap_array[m].neighbor_report); // TODO: Why not strcpy()
+        sprintf(nr, "%s", m->neighbor_report); // TODO: Why not strcpy()
         blobmsg_add_string_buffer(b);
 
         char *iface;
         iface = blobmsg_alloc_string_buffer(b, "iface", MAX_INTERFACE_NAME);
-        sprintf(iface, "%s", ap_array[m].iface);
+        sprintf(iface, "%s", m->iface);
         blobmsg_add_string_buffer(b);
 
         char *hostname;
         hostname = blobmsg_alloc_string_buffer(b, "hostname", HOST_NAME_MAX);
-        sprintf(hostname, "%s", ap_array[m].hostname);
+        sprintf(hostname, "%s", m->hostname);
         blobmsg_add_string_buffer(b);
 
-        int k;
-        for (k = 0; k <= client_entry_last; k++) {
+        // TODO: Could optimise this by exporting search func, but not a core process
+        client *k = client_set_bc;
+        while (k != NULL) {
 
-            if (mac_is_equal(ap_array[m].bssid_addr, client_array[k].bssid_addr)) {
-                sprintf(client_mac_buf, MACSTR, MAC2STR(client_array[k].client_addr));
+            if (mac_is_equal_bb(m->bssid_addr, k->bssid_addr)) {
+                sprintf(client_mac_buf, MACSTR, MAC2STR(k->client_addr.u8));
                 client_list = blobmsg_open_table(b, client_mac_buf);
 
-                if(strlen(client_array[k].signature) != 0)
+                if(strlen(k->signature) != 0)
                 {
                     char *s;
                     s = blobmsg_alloc_string_buffer(b, "signature", 1024);
-                    sprintf(s, "%s", client_array[k].signature);
+                    sprintf(s, "%s", k->signature);
                     blobmsg_add_string_buffer(b);
                 }
-                blobmsg_add_u8(b, "ht", client_array[k].ht);
-                blobmsg_add_u8(b, "vht", client_array[k].vht);
-                blobmsg_add_u32(b, "collision_count", ap_get_collision_count(ap_array[m].collision_domain));
+                blobmsg_add_u8(b, "ht", k->ht);
+                blobmsg_add_u8(b, "vht", k->vht);
+                blobmsg_add_u32(b, "collision_count", ap_get_collision_count(m->collision_domain));
 
-                int n;
-                for(n = 0; n <= probe_entry_last; n++)
-                {
-                    if (mac_is_equal(client_array[k].client_addr, probe_array[n].client_addr) &&
-                            mac_is_equal(client_array[k].bssid_addr, probe_array[n].bssid_addr)) {
-                        blobmsg_add_u32(b, "signal", probe_array[n].signal);
-                        break;
-                    }
+                pthread_mutex_lock(&probe_array_mutex);
+
+                probe_entry* n = probe_array_get_entry(k->bssid_addr, k->client_addr);
+                pthread_mutex_unlock(&probe_array_mutex);
+
+                if (n != NULL) {
+                    blobmsg_add_u32(b, "signal", n->signal);
                 }
                 blobmsg_close_table(b, client_list);
             }
+            k = k->next_entry_bc;
         }
         blobmsg_close_table(b, ap_list);
-        if(close_ssid)
-        {
+
+        // Rely on short-circuit of OR to protect NULL reference in 2nd clause
+        if ((m->next_ap == NULL) || strcmp((char*)m->ssid, (char*)(m->next_ap)->ssid) != 0) {
             blobmsg_close_table(b, ssid_list);
+        }
+
+        if ((m->next_ap != NULL) && strcmp((char*)m->ssid, (char*)(m->next_ap)->ssid) != 0) {
+            add_ssid = true;
         }
     }
     return 0;
 }
 
-int ap_get_nr(struct blob_buf *b_local, uint8_t own_bssid_addr[]) {
+
+// TODO: Does all APs constitute neighbor report?  How about using list of AP connected
+// clients can also see (from probe_set) to give more (physically) local set?
+int ap_get_nr(struct blob_buf *b_local, struct dawn_mac own_bssid_addr) {
 
     pthread_mutex_lock(&ap_array_mutex);
-    int i;
+    ap *i;
 
     void* nbs = blobmsg_open_array(b_local, "list");
 
-    for (i = 0; i <= ap_entry_last; i++) {
-        if (mac_is_equal(own_bssid_addr, ap_array[i].bssid_addr)) {
+    for (i = ap_set; i != NULL; i = i->next_ap) {
+        if (mac_is_equal_bb(own_bssid_addr, i->bssid_addr)) {
             continue; //TODO: Skip own entry?!
         }
 
         void* nr_entry = blobmsg_open_array(b_local, NULL);
 
         char mac_buf[20];
-        sprintf(mac_buf, MACSTRLOWER, MAC2STR(ap_array[i].bssid_addr));
+        sprintf(mac_buf, MACSTRLOWER, MAC2STR(i->bssid_addr.u8));
         blobmsg_add_string(b_local, NULL, mac_buf);
 
-        blobmsg_add_string(b_local, NULL, (char *) ap_array[i].ssid);
-        blobmsg_add_string(b_local, NULL, ap_array[i].neighbor_report);
+        blobmsg_add_string(b_local, NULL, (char *) i->ssid);
+        blobmsg_add_string(b_local, NULL, i->neighbor_report);
         blobmsg_close_array(b_local, nr_entry);
 
     }
@@ -1584,31 +1638,32 @@ void denied_req_array_cb(struct uloop_timeout* t) {
 
     time_t current_time = time(0);
 
-    int i = 0;
-    while (i <= denied_req_last) {
+    auth_entry** i = &denied_req_set;
+    while (*i != NULL) {
         // check counter
 
         //check timer
-        if (denied_req_array[i].time < current_time - timeout_config.denied_req_threshold) {
+        if ((*i)->time < (current_time - timeout_config.denied_req_threshold)) {
 
             // client is not connected for a given time threshold!
-            if (!is_connected_somehwere(denied_req_array[i].client_addr)) {
+            if (!is_connected_somehwere((*i)->client_addr)) {
                 printf("Client has probably a bad driver!\n");
 
                 // problem that somehow station will land into this list
                 // maybe delete again?
-                if (insert_to_maclist(denied_req_array[i].client_addr) == 0) {
-                    send_add_mac(denied_req_array[i].client_addr);
+                if (insert_to_maclist((*i)->client_addr) == 0) {
+                    send_add_mac((*i)->client_addr);
                     // TODO: File can grow arbitarily large.  Resource consumption risk.
                     // TODO: Consolidate use of file across source: shared resource for name, single point of access?
-                    write_mac_to_file("/tmp/dawn_mac_list", denied_req_array[i].client_addr);
+                    write_mac_to_file("/tmp/dawn_mac_list", (*i)->client_addr);
                 }
             }
-            denied_req_array_delete(denied_req_array[i]);
+            // TODO: Add unlink function to save rescan to find element
+            denied_req_array_delete(*i);
         }
         else
         {
-            i++;
+            i = &((*i)->next_auth);
         }
     }
     pthread_mutex_unlock(&denied_array_mutex);

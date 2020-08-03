@@ -60,7 +60,7 @@ int parse_to_assoc_req(struct blob_attr *msg, assoc_entry *assoc_req);
  * @param deauth - if the client should be deauthenticated.
  * @param ban_time - the ban time the client is not allowed to connect again.
  */
-void del_client_all_interfaces(const uint8_t *client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time);
+void del_client_all_interfaces(const struct dawn_mac client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time);
 
 /**
  * Update the hostapd sockets.
@@ -73,9 +73,9 @@ void update_hostapd_sockets(struct uloop_timeout *t);
  * @param client_addr
  * @return
  */
-int send_add_mac(uint8_t *client_addr);
+int send_add_mac(struct dawn_mac client_addr);
 
-void ubus_send_beacon_report(uint8_t client[], int id);
+void ubus_send_beacon_report(struct dawn_mac client, int id);
 
 void uloop_add_data_cbs();
 
@@ -85,7 +85,7 @@ int build_hearing_map_sort_client(struct blob_buf* b);
 
 int build_network_overview(struct blob_buf* b);
 
-int ap_get_nr(struct blob_buf* b, uint8_t own_bssid_addr[]);
+int ap_get_nr(struct blob_buf* b, struct dawn_mac own_bssid_addr);
 
 int parse_add_mac_to_file(struct blob_attr* msg);
 
@@ -96,7 +96,7 @@ int handle_auth_req(struct blob_attr* msg);
  * @param probe_entry
  * @return
  */
-int ubus_send_probe_via_network(struct probe_entry_s probe_entry);
+int ubus_send_probe_via_network(struct probe_entry_s *probe_entry);
 
 /**
  * Add mac to a list that contains addresses of clients that can not be controlled.
@@ -104,7 +104,7 @@ int ubus_send_probe_via_network(struct probe_entry_s probe_entry);
  * @param name
  * @param addr
  */
-void blobmsg_add_macaddr(struct blob_buf *buf, const char *name, const uint8_t *addr);
+void blobmsg_add_macaddr(struct blob_buf *buf, const char *name, const struct dawn_mac addr);
 
 /**
  * Send message via network.
@@ -128,7 +128,7 @@ void add_client_update_timer(time_t time);
  * @param deauth - if the client should be deauthenticated.
  * @param ban_time - the ban time the client is not allowed to connect again.
  */
-void del_client_interface(uint32_t id, const uint8_t* client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time);
+void del_client_interface(uint32_t id, const struct dawn_mac client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time);
 
 /**
  * Function to set the probe counter to the min probe request.
@@ -136,7 +136,7 @@ void del_client_interface(uint32_t id, const uint8_t* client_addr, uint32_t reas
  * @param client_addr
  * @return
  */
-int send_set_probe(uint8_t client_addr[]);
+int send_set_probe(struct dawn_mac client_addr);
 
 /**
  * Function to tell a client that it is about to be disconnected.
@@ -146,6 +146,6 @@ int send_set_probe(uint8_t client_addr[]);
  * @param duration
  * @return - 0 = asynchronous (client has been told to remove itself, and caller should manage arrays); 1 = synchronous (caller should assume arrays are updated)
  */
-int wnm_disassoc_imminent(uint32_t id, const uint8_t* client_addr, char* dest_ap, uint32_t duration);
+int wnm_disassoc_imminent(uint32_t id, const struct dawn_mac client_addr, char* dest_ap, uint32_t duration);
 
 #endif

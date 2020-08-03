@@ -4,6 +4,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "mac_utils.h"
+
 // ---------------- Global variables ----------------
 #define HOSTAPD_DIR_LEN 200
 extern char hostapd_dir_glob[];
@@ -14,7 +16,7 @@ extern char hostapd_dir_glob[];
  * @param client_addr - mac adress of the client
  * @return The RSSI of the client if successful. INT_MIN if client was not found.
  */
-int get_rssi_iwinfo(uint8_t *client_addr);
+int get_rssi_iwinfo(struct dawn_mac client_addr);
 
 /**
  * Get expected throughut using the mac adress of the client.
@@ -25,7 +27,7 @@ int get_rssi_iwinfo(uint8_t *client_addr);
  * + INT_MIN if client was not found.
  * + 0 if the client is not supporting this feature.
  */
-int get_expected_throughput_iwinfo(uint8_t *client_addr);
+int get_expected_throughput_iwinfo(struct dawn_mac client_addr);
 
 /**
  * Get rx and tx bandwidth using the mac of the client.
@@ -35,7 +37,7 @@ int get_expected_throughput_iwinfo(uint8_t *client_addr);
  * @param tx_rate - float pointer for returning the tx rate
  * @return 0 if successful 1 otherwise.
  */
-int get_bandwidth_iwinfo(uint8_t *client_addr, float *rx_rate, float *tx_rate);
+int get_bandwidth_iwinfo(struct dawn_mac client_addr, float *rx_rate, float *tx_rate);
 
 /**
  * Function checks if two bssid adresses have the same essid.
@@ -44,7 +46,7 @@ int get_bandwidth_iwinfo(uint8_t *client_addr, float *rx_rate, float *tx_rate);
  * @param bssid_addr_to_compares
  * @return 1 if the bssid adresses have the same essid.
  */
-int compare_essid_iwinfo(uint8_t *bssid_addr, uint8_t *bssid_addr_to_compare);
+int compare_essid_iwinfo(struct dawn_mac bssid_addr, struct dawn_mac bssid_addr_to_compare);
 
 /**
  * Function returns the expected throughput using the interface and the client address.
@@ -55,9 +57,9 @@ int compare_essid_iwinfo(uint8_t *bssid_addr, uint8_t *bssid_addr_to_compare);
  * + INT_MIN if client was not found.
  * + 0 if the client is not supporting this feature.
  */
-int get_expected_throughput(const char *ifname, uint8_t *client_addr);
+int get_expected_throughput(const char *ifname, struct dawn_mac client_addr);
 
-int get_bssid(const char *ifname, uint8_t *bssid_addr);
+int get_bssid(const char *ifname, uint8_t bssid_addr[]);
 
 int get_ssid(const char *ifname, char *ssid, size_t ssidmax);
 
