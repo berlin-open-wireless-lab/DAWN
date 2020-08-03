@@ -40,6 +40,9 @@ SET(SOURCES
         utils/mac_utils.c
         include/mac_utils.h
 
+        utils/memory_utils.c
+        include/memory_utils.h
+
         include/tcpsocket.h
         network/tcpsocket.c
 
@@ -60,6 +63,9 @@ SET(SOURCES_TEST_STORAGE
 
         utils/mac_utils.c
         include/mac_utils.h
+
+        utils/memory_utils.c
+        include/memory_utils.h
 
         storage/datastorage.c
         include/datastorage.h

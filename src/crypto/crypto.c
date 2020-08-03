@@ -3,6 +3,7 @@
 
 #include <gcrypt.h>
 
+#include "memory_utils.h"
 #include "crypto.h"
 
 #define GCRY_CIPHER GCRY_CIPHER_AES128   // Pick the cipher here
@@ -64,7 +65,7 @@ char *gcrypt_encrypt_msg(char *msg, size_t msg_length, int *out_length) {
     if (0U != (msg_length & 0xfU))
         msg_length += 0x10U - (msg_length & 0xfU);
 
-    char *out = malloc(msg_length);
+    char *out = dawn_malloc(msg_length);
     if (!out){
         fprintf(stderr, "gcry_cipher_encrypt error: not enought memory\n");
         return NULL;
@@ -85,7 +86,7 @@ char *gcrypt_decrypt_msg(char *msg, size_t msg_length) {
     if (0U != (msg_length & 0xfU))
         msg_length += 0x10U - (msg_length & 0xfU);
 
-    char *out_buffer = malloc(msg_length);
+    char *out_buffer = dawn_malloc(msg_length);
     if (!out_buffer){
         fprintf(stderr, "gcry_cipher_decrypt error: not enought memory\n");
         return NULL;
@@ -95,17 +96,17 @@ char *gcrypt_decrypt_msg(char *msg, size_t msg_length) {
         fprintf(stderr, "gcry_cipher_decrypt failed:  %s/%s\n",
                 gcry_strsource(gcry_error_handle),
                 gcry_strerror(gcry_error_handle));
-        free(out_buffer);
+        dawn_free(out_buffer);
         return NULL;
     }
-    char *out = malloc(strlen(out_buffer) + 1);
+    char *out = dawn_malloc(strlen(out_buffer) + 1);
     if (!out){
-        free(out_buffer);
+        dawn_free(out_buffer);
         fprintf(stderr, "gcry_cipher_decrypt error: not enought memory\n");
         return NULL;
     }
     strcpy(out, out_buffer);
-    free(out_buffer);
+    dawn_free(out_buffer);
     return out;
 }
 

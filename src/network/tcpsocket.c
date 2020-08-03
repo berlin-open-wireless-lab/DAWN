@@ -2,6 +2,7 @@
 #include <arpa/inet.h>
 #include <inttypes.h>
 
+#include "memory_utils.h"
 #include "msghandler.h"
 #include "crypto.h"
 #include "datastorage.h"
@@ -15,7 +16,7 @@ LIST_HEAD(tcp_sock_list);
 struct network_con_s *tcp_list_contains_address(struct sockaddr_in entry);
 
 static struct uloop_fd server;
-struct client *next_client = NULL;
+static struct client *next_client = NULL; // TODO: Why here? Only used in sever_cb()
 
 struct client {
     struct sockaddr_in sin;
@@ -26,13 +27,12 @@ struct client {
 };
 
 static void client_close(struct ustream *s) {
-    struct client *cl = container_of(s,
-    struct client, s.stream);
+    struct client *cl = container_of(s, struct client, s.stream);
 
     fprintf(stderr, "Connection closed\n");
     ustream_free(s);
     close(cl->s.fd.fd);
-    free(cl);
+    dawn_free(cl);
 }
 
 static void client_notify_write(struct ustream *s, int bytes) {
@@ -61,7 +61,7 @@ static void client_to_server_close(struct ustream *s) {
     ustream_free(s);
     close(con->fd.fd);
     list_del(&con->list);
-    free(con);
+    dawn_free(con);
 }
 
 static void client_to_server_state(struct ustream *s) {
@@ -82,7 +82,7 @@ static void client_read_cb(struct ustream *s, int bytes) {
     char *str, *str_tmp;
     int len = 0;
     uint32_t final_len = sizeof(uint32_t); // big enough to get msg length
-    str = malloc(final_len);
+    str = dawn_malloc(final_len);
     if (!str) {
         fprintf(stderr,"not enough memory (" STR_QUOTE(__LINE__) ")\n");
         goto nofree;
@@ -99,11 +99,11 @@ static void client_read_cb(struct ustream *s, int bytes) {
     }	
 
     final_len = ntohl(*(uint32_t *)str) - final_len;//the final_len in headder includes header itself
-    str_tmp = realloc(str, final_len);
+    str_tmp = dawn_realloc(str, final_len);
     if (!str_tmp) {
         fprintf(stderr,"not enough memory (%" PRIu32 " @ " STR_QUOTE(__LINE__) ")\n", final_len);
-        goto out;//On failure, realloc returns a null pointer. The original pointer str remains valid
-                 //and may need to be deallocated with free() or realloc().
+        goto out;//On failure, dawn_realloc returns a null pointer. The original pointer str remains valid
+                 //and may need to be deallocated.
     }
     str = str_tmp;
 
@@ -119,25 +119,26 @@ static void client_read_cb(struct ustream *s, int bytes) {
             goto out;
         }
         handle_network_msg(dec);
-        free(dec);
+        dawn_free(dec);
     } else {
         handle_network_msg(str);//len of str is final_len
     }
 out:
-    free(str);
+    dawn_free(str);
 nofree:
     return;
 }
 
 static void server_cb(struct uloop_fd *fd, unsigned int events) {
-    struct client *cl;
+    struct client *cl; //MUSTDO: check free() of this
     unsigned int sl = sizeof(struct sockaddr_in);
     int sfd;
 
     if (!next_client)
-        next_client = calloc(1, sizeof(*next_client));
+        next_client = dawn_calloc(1, sizeof(*next_client));
 
     cl = next_client;
+
     sfd = accept(server.fd, (struct sockaddr *) &cl->sin, &sl);
     if (sfd < 0) {
         fprintf(stderr, "Accept failed\n");
@@ -149,7 +150,7 @@ static void server_cb(struct uloop_fd *fd, unsigned int events) {
     cl->s.stream.notify_state = client_notify_state;
     cl->s.stream.notify_write = client_notify_write;
     ustream_fd_init(&cl->s, sfd);
-    next_client = NULL;
+    next_client = NULL;  // TODO: Why is this here?  To avoid resetting if above return happens?
     fprintf(stderr, "New connection\n");
 }
 
@@ -187,7 +188,7 @@ static void connect_cb(struct uloop_fd *f, unsigned int events) {
         fprintf(stderr, "Connection failed (%s)\n", f->eof ? "EOF" : "ERROR");
         close(entry->fd.fd);
         list_del(&entry->list);
-        free(entry);
+        dawn_free(entry);
         return;
     }
 
@@ -213,6 +214,7 @@ int add_tcp_conncection(char *ipv4, int port) {
     serv_addr.sin_port = htons(port);
 
     struct network_con_s *tmp = tcp_list_contains_address(serv_addr);
+    dawn_regmem(tmp);
     if (tmp != NULL) {
         if(tmp->connected == true)
         {
@@ -221,16 +223,16 @@ int add_tcp_conncection(char *ipv4, int port) {
             // Delete already existing entry
             close(tmp->fd.fd);
             list_del(&tmp->list);
-            free(tmp);
+            dawn_free(tmp);
         }
     }
 
-    struct network_con_s *tcp_entry = calloc(1, sizeof(struct network_con_s));
+    struct network_con_s *tcp_entry = dawn_calloc(1, sizeof(struct network_con_s));
     tcp_entry->fd.fd = usock(USOCK_TCP | USOCK_NONBLOCK, ipv4, port_str);
     tcp_entry->sock_addr = serv_addr;
 
     if (tcp_entry->fd.fd < 0) {
-        free(tcp_entry);
+        dawn_free(tcp_entry);
         return -1;
     }
     tcp_entry->fd.cb = connect_cb;
@@ -255,9 +257,9 @@ void send_tcp(char *msg) {
         }
 
         uint32_t final_len = length_enc + sizeof(final_len);
-        char *final_str = malloc(final_len);
+        char *final_str = dawn_malloc(final_len);
         if (!final_str){
-            free(enc);
+            dawn_free(enc);
             fprintf(stderr, "Ustream error: not enought memory (" STR_QUOTE(__LINE__) ")\n");
             return;
         }
@@ -276,19 +278,19 @@ void send_tcp(char *msg) {
                         ustream_free(&con->stream.stream);
                         close(con->fd.fd);
                         list_del(&con->list);
-                        free(con);
+                        dawn_free(con);
                     }
                 }
             }
 
         }
 
-        free(final_str);
-        free(enc);
+        dawn_free(final_str);
+        dawn_free(enc);
     } else {
         size_t msglen = strlen(msg) + 1;
         uint32_t final_len = msglen + sizeof(final_len);
-        char *final_str = malloc(final_len);
+        char *final_str = dawn_malloc(final_len);
         if (!final_str){
             fprintf(stderr, "Ustream error: not enought memory (" STR_QUOTE(__LINE__) ")\n");
             return;
@@ -309,12 +311,12 @@ void send_tcp(char *msg) {
                         ustream_free(&con->stream.stream);
                         close(con->fd.fd);
                         list_del(&con->list);
-                        free(con);
+                        dawn_free(con);
                     }
                 }
             }
         }
-        free(final_str);
+        dawn_free(final_str);
     }
 }
 

@@ -50,6 +50,8 @@ void write_mac_to_file(char* path, struct dawn_mac addr) {
     FILE* f = fopen(path, "a");
     if (f == NULL) {
         fprintf(stderr, "Error opening mac file!\n");
+
+        // TODO: Should this be an exit()?
         exit(1);
     }
 

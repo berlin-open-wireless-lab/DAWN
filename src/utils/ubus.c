@@ -1,6 +1,7 @@
 #include <dirent.h>
 #include <libubus.h>
 
+#include "memory_utils.h"
 #include "networksocket.h"
 #include "tcpsocket.h"
 #include "mac_utils.h"
@@ -349,10 +350,10 @@ int parse_to_beacon_rep(struct blob_attr *msg) {
     {
         printf("Beacon: No Probe Entry Existing!\n");
 
-        probe_entry* beacon_rep = malloc(sizeof(probe_entry));
+        probe_entry* beacon_rep = dawn_malloc(sizeof(probe_entry));
         if (beacon_rep == NULL)
         {
-            fprintf(stderr, "malloc of probe_entry failed!\n");
+            fprintf(stderr, "dawn_malloc of probe_entry failed!\n");
             return -1;
         }
 
@@ -376,7 +377,7 @@ int parse_to_beacon_rep(struct blob_attr *msg) {
         {
             // insert found an existing entry, rather than linking in our new one
             ubus_send_probe_via_network(beacon_rep);
-            free(beacon_rep);
+            dawn_free(beacon_rep);
         }
         else
             ubus_send_probe_via_network(beacon_rep);
@@ -389,7 +390,7 @@ int ret = WLAN_STATUS_SUCCESS;
 bool discard_entry = true;
 
     print_probe_array();
-    auth_entry *auth_req = malloc(sizeof(struct auth_entry_s));
+    auth_entry *auth_req = dawn_malloc(sizeof(struct auth_entry_s));
     if (auth_req == NULL)
         return -1;
 
@@ -426,7 +427,7 @@ bool discard_entry = true;
     }
 
     if (discard_entry)
-        free(auth_req);
+        dawn_free(auth_req);
 
     return ret;
 }
@@ -436,7 +437,7 @@ int ret = WLAN_STATUS_SUCCESS;
 int discard_entry = true;
 
     print_probe_array();
-    auth_entry* auth_req = malloc(sizeof(struct auth_entry_s));
+    auth_entry* auth_req = dawn_malloc(sizeof(struct auth_entry_s));
     if (auth_req == NULL)
         return -1;
 
@@ -472,13 +473,13 @@ int discard_entry = true;
     }
 
     if (discard_entry)
-        free(auth_req);
+        dawn_free(auth_req);
 
     return ret;
 }
 
 static int handle_probe_req(struct blob_attr *msg) {
-    // MUSTDO: Untangle malloc() and linking of probe_entry
+    // MUSTDO: Untangle dawn_malloc() and linking of probe_entry
     probe_entry* probe_req = parse_to_probe_req(msg);
 
     if (probe_req != NULL) {
@@ -487,7 +488,7 @@ static int handle_probe_req(struct blob_attr *msg) {
         {
             // insert found an existing entry, rather than linking in our new one
             ubus_send_probe_via_network(probe_req);
-            free(probe_req);
+            dawn_free(probe_req);
         }
         else
             ubus_send_probe_via_network(probe_req);
@@ -499,7 +500,7 @@ static int handle_probe_req(struct blob_attr *msg) {
         }
     }
 
-    // TODO: Retrun for malloc() failure?
+    // TODO: Retrun for dawn_malloc() failure?
     return WLAN_STATUS_SUCCESS;
 }
 
@@ -514,7 +515,7 @@ static int handle_beacon_rep(struct blob_attr *msg) {
 }
 
 
-int send_blob_attr_via_network(struct blob_attr *msg, char *method) {
+int send_blob_attr_via_network(struct blob_attr* msg, char* method) {
 
     if (!msg) {
         return -1;
@@ -523,11 +524,13 @@ int send_blob_attr_via_network(struct blob_attr *msg, char *method) {
     char *data_str;
     char *str;
     data_str = blobmsg_format_json(msg, true);
+    dawn_regmem(data_str);
     blob_buf_init(&b_send_network, 0);
     blobmsg_add_string(&b_send_network, "method", method);
     blobmsg_add_string(&b_send_network, "data", data_str);
 
     str = blobmsg_format_json(b_send_network.head, true);
+    dawn_regmem(str);
 
     if (network_config.network_option == 2) {
         send_tcp(str);
@@ -539,8 +542,8 @@ int send_blob_attr_via_network(struct blob_attr *msg, char *method) {
         }
     }
 
-    free(data_str);
-    free(str);
+    dawn_free(data_str);
+    dawn_free(str);
 
     return 0;
 }
@@ -550,8 +553,9 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
                           struct blob_attr *msg) {
     char *str;
     str = blobmsg_format_json(msg, true);
+    dawn_regmem(str);
     printf("Method new: %s : %s\n", method, str);
-    free(str);
+    dawn_free(str);
 
     struct hostapd_sock_entry *entry;
     struct ubus_subscriber *subscriber;
@@ -593,6 +597,7 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
         return -1;
     } else {
         printf("Connected to ubus\n");
+        dawn_regmem(ctx);
     }
 
     ubus_add_uloop(ctx);
@@ -630,6 +635,7 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
     close_socket();
 
     ubus_free(ctx);
+    dawn_unregmem(ctx);
     uloop_done();
     return 0;
 }
@@ -641,6 +647,7 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
         return;
 
     char *data_str = blobmsg_format_json(msg, 1);
+    dawn_regmem(data_str);
     blob_buf_init(&b_domain, 0);
     blobmsg_add_json_from_string(&b_domain, data_str);
     blobmsg_add_u32(&b_domain, "collision_domain", network_config.collision_domain);
@@ -655,13 +662,13 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
 
     if (entry == NULL) {
         fprintf(stderr, "Failed to find interface!\n");
-        free(data_str);
+        dawn_free(data_str);
         return;
     }
 
     if (!entry->subscribed) {
         fprintf(stderr, "Interface %s is not subscribed!\n", entry->iface_name);
-        free(data_str);
+        dawn_free(data_str);
         return;
     }
 
@@ -687,7 +694,7 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     print_client_array();
     print_ap_array();
 
-    free(data_str);
+    dawn_free(data_str);
 }
 
 static int ubus_get_clients() {
@@ -1248,7 +1255,7 @@ bool subscriber_to_interface(const char *ifname) {
 
     struct hostapd_sock_entry *hostapd_entry;
 
-    hostapd_entry = calloc(1, sizeof(struct hostapd_sock_entry));
+    hostapd_entry = dawn_calloc(1, sizeof(struct hostapd_sock_entry));
     strcpy(hostapd_entry->iface_name, ifname);
 
     // add hostname

@@ -2,6 +2,7 @@
 #include <ctype.h>
 
 #include "dawn_iwinfo.h"
+#include "memory_utils.h"
 
 #include "datastorage.h"
 #include "mac_utils.h"
@@ -121,7 +122,7 @@ static int array_auto_helper(int action, int i0, int i1)
             ; // Empty statement to allow label before declaration
             if ((action & HELPER_ACTION_MASK) == HELPER_ACTION_ADD)
             {
-                ap* ap0 = malloc(sizeof(struct ap_s));
+                ap* ap0 = dawn_malloc(sizeof(struct ap_s));
                 ap0->bssid_addr = this_mac;
 
                 insert_to_ap_array(ap0);
@@ -133,7 +134,7 @@ static int array_auto_helper(int action, int i0, int i1)
             ; // Empty statement to allow label before declaration
             if ((action & HELPER_ACTION_MASK) == HELPER_ACTION_ADD)
             {
-                client* client0 = malloc(sizeof(struct client_s));
+                client* client0 = dawn_malloc(sizeof(struct client_s));
                 client0->bssid_addr = this_mac;
                 client0->client_addr = this_mac;
 
@@ -152,7 +153,7 @@ static int array_auto_helper(int action, int i0, int i1)
             probe_entry* probe0 = NULL;
 
             if ((action & HELPER_ACTION_MASK) == HELPER_ACTION_ADD) {
-                probe0 = malloc(sizeof(probe_entry));
+                probe0 = dawn_malloc(sizeof(probe_entry));
                 probe0->client_addr = this_mac;
                 probe0->bssid_addr = this_mac;
 
@@ -175,7 +176,7 @@ static int array_auto_helper(int action, int i0, int i1)
             ; // Empty statement to allow label before declaration
             if ((action & HELPER_ACTION_MASK) == HELPER_ACTION_ADD)
             {
-                auth_entry* auth_entry0 = malloc(sizeof(struct auth_entry_s));
+                auth_entry* auth_entry0 = dawn_malloc(sizeof(struct auth_entry_s));
                 auth_entry0->bssid_addr = this_mac;
                 auth_entry0->client_addr = this_mac;
 
@@ -306,8 +307,14 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
         {
             args_required = 1;
 
-            char *leaky = malloc(10);
+            char* leaky = dawn_malloc(10);
             strcpy(leaky, "LEAKED"); // Force use of memory to avoid unused error
+        }
+        else if (strcmp(*argv, "memaudit") == 0)
+        {
+            args_required = 1;
+
+            dawn_memory_audit();
         }
         else if (strcmp(*argv, "probe_sort") == 0)
         {
@@ -580,7 +587,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
         }
         else if (strcmp(*argv, "ap") == 0)
         {
-            ap *ap0 = malloc(sizeof(struct ap_s));
+            ap *ap0 = dawn_malloc(sizeof(struct ap_s));
 
             ap0->freq = 0;
             ap0->ht_support = 0;
@@ -628,11 +635,11 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
             if (ret == 0)
                 insert_to_ap_array(ap0);
             else
-                free(ap0);
+                dawn_free(ap0);
         }
         else if (strcmp(*argv, "client") == 0)
         {
-            client *cl0 = malloc(sizeof(struct client_s));
+            client *cl0 = dawn_malloc(sizeof(struct client_s));
             //TODO: NULL test
 
             memset(cl0->signature, 0, SIGNATURE_LEN);
@@ -748,8 +755,8 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                     {
                         if (harness_verbosity > 1)
                             printf("probe: creating new entry...\n");
-                        // MUSTDO: Check all new malloc() returns
-                        pr0 = malloc(sizeof(probe_entry));
+                        // MUSTDO: Check all new dawn_malloc() returns
+                        pr0 = dawn_malloc(sizeof(probe_entry));
 
                         pr0->bssid_addr = bmac;
                         pr0->client_addr = cmac;
@@ -779,7 +786,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
         }
         else if (strcmp(*argv, "auth_entry") == 0)
         {
-            auth_entry *au0 = malloc(sizeof(struct auth_entry_s));
+            auth_entry *au0 = dawn_malloc(sizeof(struct auth_entry_s));
 
             memset(au0->bssid_addr.u8, 0, ETH_ALEN);
             memset(au0->client_addr.u8, 0, ETH_ALEN);
@@ -1098,7 +1105,7 @@ int main(int argc, char* argv[])
 
                     if (line)
                     {
-                        free(line);
+                        dawn_free(line);
                         line = NULL;
                     }
                 }
