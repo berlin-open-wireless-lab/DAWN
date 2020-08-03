@@ -428,7 +428,9 @@ dump_client(struct blob_attr** tb, struct dawn_mac client_addr, const char* bssi
     client_entry->time = time(0);
 
     pthread_mutex_lock(&client_array_mutex);
-    insert_client_to_array(client_entry);
+    // If entry was akraedy in list it won't be added, so free memorY
+    if (client_entry != insert_client_to_array(client_entry))
+        dawn_free(client_entry);
     pthread_mutex_unlock(&client_array_mutex);
 }
 

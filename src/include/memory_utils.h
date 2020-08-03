@@ -13,7 +13,7 @@ enum dawn_memop
 	DAWN_FREE
 };
 
-#define DAWN_MEMORY_AUDITING
+//#define DAWN_MEMORY_AUDITING
 
 #ifdef DAWN_MEMORY_AUDITING
 #define dawn_malloc(size) dawn_memory_alloc(DAWN_MALLOC, __FILE__, __LINE__, 1, size, NULL)

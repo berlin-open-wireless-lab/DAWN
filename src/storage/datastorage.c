@@ -1176,18 +1176,26 @@ void remove_old_ap_entries(time_t current_time, long long int threshold) {
     }
 }
 
-void insert_client_to_array(client *entry) {
+client *insert_client_to_array(client *entry) {
+client * ret = NULL;
+
     client **client_tmp = client_find_first_bc_entry(entry->bssid_addr, entry->client_addr, true);
 
     if (*client_tmp == NULL || !mac_is_equal_bb(entry->bssid_addr, (*client_tmp)->bssid_addr) || !mac_is_equal_bb(entry->client_addr, (*client_tmp)->client_addr)) {
         entry->kick_count = 0;
         client_array_insert(entry, client_tmp);
+        ret = entry;
     }
+
+    return ret;
 }
 
 void insert_macs_from_file() {
     FILE *fp;
     char *line = NULL;
+#ifdef DAWN_MEMORY_AUDITING
+    char *old_line = NULL;
+#endif
     size_t len = 0;
     ssize_t read;
 
@@ -1195,8 +1203,19 @@ void insert_macs_from_file() {
     fp = fopen("/tmp/dawn_mac_list", "r");
     if (fp == NULL)
         exit(EXIT_FAILURE);
+    dawn_regmem(fp);
 
     while ((read = getline(&line, &len, fp)) != -1) {
+#ifdef DAWN_MEMORY_AUDITING
+        if (old_line != line)
+	{
+	    if (old_line != NULL)
+	        dawn_unregmem(old_line);
+	    old_line = line;
+	    dawn_regmem(old_line);
+	}
+#endif
+
         printf("Retrieved line of length %zu :\n", read);
         printf("%s", line);
 
@@ -1228,6 +1247,7 @@ void insert_macs_from_file() {
     }
 
     fclose(fp);
+    dawn_unregmem(fp);
     if (line)
         dawn_free(line);
     //exit(EXIT_SUCCESS);
