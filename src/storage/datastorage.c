@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+#include "memory_utils.h"
 #include "dawn_iwinfo.h"
 #include "dawn_uci.h"
 #include "mac_utils.h"
@@ -807,7 +808,7 @@ static client* client_array_unlink_entry(client** ref_bc, int unlink_only)
     }
     else
     {
-        free(entry);
+        dawn_free(entry);
         entry = NULL;
     }
 
@@ -874,7 +875,7 @@ probe_entry* victim;
 
     victim = *i;
     *i = victim->next_probe;
-    free(victim);
+    dawn_free(victim);
 
     probe_entry_last--;
 }
@@ -1117,7 +1118,7 @@ static __inline__ void ap_array_unlink_next(ap** i)
 {
     ap* entry = *i;
     *i = entry->next_ap;
-    free(entry);
+    dawn_free(entry);
     ap_entry_last--;
 }
 
@@ -1203,10 +1204,10 @@ void insert_macs_from_file() {
         int tmp_int_mac[ETH_ALEN];
         sscanf(line, MACSTR, STR2MAC(tmp_int_mac));
 
-        struct mac_entry_s* new_mac = malloc(sizeof(struct mac_entry_s));
+        struct mac_entry_s* new_mac = dawn_malloc(sizeof(struct mac_entry_s));
         if (new_mac == NULL)
         {
-            printf("malloc of MAC struct failed!\n");
+            printf("dawn_malloc of MAC struct failed!\n");
         }
         else
         {
@@ -1228,7 +1229,7 @@ void insert_macs_from_file() {
 
     fclose(fp);
     if (line)
-        free(line);
+        dawn_free(line);
     //exit(EXIT_SUCCESS);
 }
 
@@ -1244,10 +1245,10 @@ struct mac_entry_s** i = mac_find_first_entry(mac);
     }
     else
     {
-        struct mac_entry_s* new_mac = malloc(sizeof(struct mac_entry_s));
+        struct mac_entry_s* new_mac = dawn_malloc(sizeof(struct mac_entry_s));
         if (new_mac == NULL)
         {
-            printf("malloc of MAC struct failed!\n");
+            printf("dawn_malloc of MAC struct failed!\n");
         }
         else
         {
@@ -1316,7 +1317,7 @@ void denied_req_array_delete(auth_entry* entry) {
         if (*i == entry) {
             *i = entry->next_auth;
             denied_req_last--;
-            free(entry);
+            dawn_free(entry);
             break;
         }
     }
@@ -1347,7 +1348,7 @@ void mac_array_delete(struct mac_entry_s* entry) {
         if (*i == entry) {
             *i = entry->next_mac;
             mac_set_last--;
-            free(entry);
+            dawn_free(entry);
         }
     }
 

@@ -1,5 +1,6 @@
 #include <libubus.h>
 
+#include "memory_utils.h"
 #include "dawn_uci.h"
 #include "datastorage.h"
 #include "ubus.h"
@@ -146,10 +147,10 @@ int parse_to_hostapd_notify(struct blob_attr* msg, hostapd_notify_entry* notify_
 probe_entry *parse_to_probe_req(struct blob_attr* msg) {
     struct blob_attr* tb[__PROB_MAX];
 
-    probe_entry* prob_req = malloc(sizeof(probe_entry));
+    probe_entry* prob_req = dawn_malloc(sizeof(probe_entry));
     if (prob_req == NULL)
     {
-        fprintf(stderr, "malloc of probe_entry failed!\n");
+        fprintf(stderr, "dawn_malloc of probe_entry failed!\n");
         return NULL;
     }
 
@@ -157,19 +158,19 @@ probe_entry *parse_to_probe_req(struct blob_attr* msg) {
 
     if (hwaddr_aton(blobmsg_data(tb[PROB_BSSID_ADDR]), prob_req->bssid_addr.u8))
     {
-        free(prob_req);
+        dawn_free(prob_req);
         return NULL;
     }
 
     if (hwaddr_aton(blobmsg_data(tb[PROB_CLIENT_ADDR]), prob_req->client_addr.u8))
     {
-        free(prob_req);
+        dawn_free(prob_req);
         return NULL;
     }
 
     if (hwaddr_aton(blobmsg_data(tb[PROB_TARGET_ADDR]), prob_req->target_addr.u8))
     {
-        free(prob_req);
+        dawn_free(prob_req);
         return NULL;
     }
 
@@ -286,7 +287,7 @@ int handle_network_msg(char* msg) {
             if (entry != insert_to_array(entry, false, false, false)) // use 802.11k values
             {
                 // insert found an existing entry, rather than linking in our new one
-                free(entry);
+                dawn_free(entry);
             }
         }
     }
@@ -358,7 +359,7 @@ dump_rrm_table(struct blob_attr* head, int len) //modify from examples/blobmsg-e
 static void
 dump_client(struct blob_attr** tb, struct dawn_mac client_addr, const char* bssid_addr, uint32_t freq, uint8_t ht_supported,
     uint8_t vht_supported) {
-    client *client_entry = malloc(sizeof(struct client_s));
+    client *client_entry = dawn_malloc(sizeof(struct client_s));
     if (client_entry == NULL)
     {
         // MUSTDO: Error handling?
@@ -480,7 +481,7 @@ int parse_to_clients(struct blob_attr* msg, int do_kick, uint32_t id) {
         num_stations = dump_client_table(blobmsg_data(tb[CLIENT_TABLE]), blobmsg_data_len(tb[CLIENT_TABLE]),
             blobmsg_data(tb[CLIENT_TABLE_BSSID]), blobmsg_get_u32(tb[CLIENT_TABLE_FREQ]),
             blobmsg_get_u8(tb[CLIENT_TABLE_HT]), blobmsg_get_u8(tb[CLIENT_TABLE_VHT]));
-        ap *ap_entry = malloc(sizeof(struct ap_s));
+        ap *ap_entry = dawn_malloc(sizeof(struct ap_s));
         hwaddr_aton(blobmsg_data(tb[CLIENT_TABLE_BSSID]), ap_entry->bssid_addr.u8);
         ap_entry->freq = blobmsg_get_u32(tb[CLIENT_TABLE_FREQ]);
 

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "memory_utils.h"
 #include "datastorage.h"
 #include "dawn_iwinfo.h"
 #include "dawn_uci.h"
@@ -23,6 +24,7 @@ void uci_get_hostname(char* hostname)
     char path[]= "system.@system[0].hostname";
     struct  uci_ptr ptr;
     struct  uci_context *c = uci_alloc_context();
+    dawn_regmem(c);
 
     if(!c){
         return;
@@ -30,6 +32,7 @@ void uci_get_hostname(char* hostname)
 
     if ((uci_lookup_ptr(c, &ptr, path, true) != UCI_OK) || (ptr.o==NULL || ptr.o->v.string==NULL)){
         uci_free_context(c);
+        dawn_unregmem(c);
         return;
     }
 
@@ -46,6 +49,7 @@ void uci_get_hostname(char* hostname)
     }
 
     uci_free_context(c);
+    dawn_unregmem(c);
 }
 
 struct time_config_s uci_get_time_config() {
@@ -197,6 +201,7 @@ int uci_init() {
 
     if (!ctx) {
         ctx = uci_alloc_context();
+        dawn_regmem(ctx);
         uci_ctx = ctx;
 
         ctx->flags &= ~UCI_FLAG_STRICT;
@@ -209,7 +214,11 @@ int uci_init() {
     }
 
     if (uci_load(ctx, "dawn", &uci_pkg))
+    {
+        // TODO: Is this allocating memory?
+        dawn_regmem(uci_pkg);
         return -1;
+    }
 
     return 1;
 }
@@ -217,9 +226,11 @@ int uci_init() {
 int uci_clear() {
     if (uci_pkg != NULL) {
         uci_unload(uci_ctx, uci_pkg);
+        dawn_unregmem(uci_pkg);
     }
     if (uci_ctx != NULL) {
         uci_free_context(uci_ctx);
+        dawn_unregmem(uci_ctx);
     }
     return 1;
 }
@@ -232,6 +243,7 @@ int uci_set_network(char* uci_cmd)
 
     if (!ctx) {
         ctx = uci_alloc_context();
+        dawn_regmem(ctx);
         uci_ctx = ctx;
     }
 

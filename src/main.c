@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include "memory_utils.h"
 #include "datastorage.h"
 #include "networksocket.h"
 #include "ubus.h"
@@ -30,7 +31,8 @@ void daemon_shutdown() {
 void signal_handler(int sig) {
     switch (sig) {
         case SIGHUP:
-            daemon_shutdown();
+            //daemon_shutdown();
+            dawn_memory_audit();
             break;
         case SIGINT:
             daemon_shutdown();

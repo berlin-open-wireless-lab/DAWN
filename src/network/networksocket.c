@@ -3,6 +3,7 @@
 #include <string.h>
 #include <libubox/blobmsg_json.h>
 
+#include "memory_utils.h"
 #include "multicastsocket.h"
 #include "broadcastsocket.h"
 #include "msghandler.h"
@@ -68,6 +69,7 @@ void *receive_msg(void *args) {
             continue;
         }
 
+        // TODO: recv_string is a fixed array.  Should test be here?
         if (recv_string == NULL) {
             return 0;
         }
@@ -90,6 +92,7 @@ void *receive_msg_enc(void *args) {
             continue;
         }
 
+        // TODO: recv_string is a fixed array.  Should test be here?
         if (recv_string == NULL) {
             return 0;
         }
@@ -99,23 +102,23 @@ void *receive_msg_enc(void *args) {
         }
         recv_string[recv_string_len] = '\0';
 
-        char *base64_dec_str = malloc(B64_DECODE_LEN(strlen(recv_string)));
+        char *base64_dec_str = dawn_malloc(B64_DECODE_LEN(strlen(recv_string)));
         if (!base64_dec_str){
-            fprintf(stderr, "Received network error: not enought memory\n");
+            fprintf(stderr, "Received network error: not enough memory\n");
             return 0;
         }
         int base64_dec_length = b64_decode(recv_string, base64_dec_str, B64_DECODE_LEN(strlen(recv_string)));
         char *dec = gcrypt_decrypt_msg(base64_dec_str, base64_dec_length);
         if (!dec){
-            free(base64_dec_str);
-            fprintf(stderr, "Received network error: not enought memory\n");
+            dawn_free(base64_dec_str);
+            fprintf(stderr, "Received network error: not enough memory\n");
             return 0;
         }
 
         printf("Received network message: %s\n", dec);
-        free(base64_dec_str);
+        dawn_free(base64_dec_str);
         handle_network_msg(dec);
-        free(dec);
+        dawn_free(dec);
     }
 }
 
@@ -145,15 +148,15 @@ int send_string_enc(char *msg) {
     size_t msglen = strlen(msg);
     char *enc = gcrypt_encrypt_msg(msg, msglen + 1, &length_enc);
     if (!enc){
-        fprintf(stderr, "sendto() error: not enought memory\n");
+        fprintf(stderr, "sendto() error: not enough memory\n");
         pthread_mutex_unlock(&send_mutex);
         exit(EXIT_FAILURE);
     }
 
-    char *base64_enc_str = malloc(B64_ENCODE_LEN(length_enc));
+    char *base64_enc_str = dawn_malloc(B64_ENCODE_LEN(length_enc));
     if (!base64_enc_str){
-        free(enc);
-        fprintf(stderr, "sendto() error: not enought memory\n");
+        dawn_free(enc);
+        fprintf(stderr, "sendto() error: not enough memory\n");
         pthread_mutex_unlock(&send_mutex);
         exit(EXIT_FAILURE);
     }
@@ -169,8 +172,8 @@ int send_string_enc(char *msg) {
         pthread_mutex_unlock(&send_mutex);
         exit(EXIT_FAILURE);
     }
-    free(base64_enc_str);
-    free(enc);
+    dawn_free(base64_enc_str);
+    dawn_free(enc);
     pthread_mutex_unlock(&send_mutex);
     return 0;
 }

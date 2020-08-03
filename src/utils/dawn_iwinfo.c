@@ -50,6 +50,7 @@ int compare_essid_iwinfo(struct dawn_mac bssid_addr, struct dawn_mac bssid_addr_
 
             iw = iwinfo_backend(entry->d_name);
 
+            // TODO: Magic number
             static char buf_bssid[18] = {0};
             if (iw->bssid(entry->d_name, buf_bssid))
                 snprintf(buf_bssid, sizeof(buf_bssid), "00:00:00:00:00:00");
