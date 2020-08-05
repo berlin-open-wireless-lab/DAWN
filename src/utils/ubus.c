@@ -370,10 +370,9 @@ int parse_to_beacon_rep(struct blob_attr *msg) {
         beacon_rep->ht_capabilities = false; // that is very problematic!!!
         beacon_rep->vht_capabilities = false; // that is very problematic!!!
         printf("Inserting to array!\n");
-        beacon_rep->time = time(0);
 
         // TODO: kept original code order here - send on network first to simplify?
-        if (beacon_rep != insert_to_array(beacon_rep, false, false, true)) // use 802.11k values  // TODO: Change 0 to false?
+        if (beacon_rep != insert_to_array(beacon_rep, false, false, true, time(0))) // use 802.11k values  // TODO: Change 0 to false?
         {
             // insert found an existing entry, rather than linking in our new one
             ubus_send_probe_via_network(beacon_rep);
@@ -415,13 +414,12 @@ bool discard_entry = true;
             }
 
             if (dawn_metric.use_driver_recog) {
-                auth_req->time = time(0);
-                if (auth_req == insert_to_denied_req_array(auth_req, 1))
-	        discard_entry = false;
+                if (auth_req == insert_to_denied_req_array(auth_req, 1, time(0)))
+                    discard_entry = false;
             }
             ret = dawn_metric.deny_auth_reason;
         }
-	else
+        else
             // maybe send here that the client is connected?
             printf("Allow authentication!\n");
     }
@@ -454,21 +452,20 @@ int discard_entry = true;
 
         // block if entry was not already found in probe database
         if (tmp == NULL || !decide_function(tmp, REQ_TYPE_ASSOC)) {
-	    if (tmp != NULL)
-	    {
+            if (tmp != NULL)
+            {
                 printf("Entry found\n");
                 print_probe_entry(tmp);
-	    }
+            }
 
             printf("Deny associtation!\n");
             if (dawn_metric.use_driver_recog) {
-                auth_req->time = time(0);
-                if (auth_req == insert_to_denied_req_array(auth_req, 1))
+                if (auth_req == insert_to_denied_req_array(auth_req, 1, time(0)))
                     discard_entry = false;
             }
             return dawn_metric.deny_assoc_reason;
         }
-	else
+        else
             printf("Allow association!\n");
     }
 
@@ -483,10 +480,10 @@ static int handle_probe_req(struct blob_attr *msg) {
     probe_entry* probe_req = parse_to_probe_req(msg);
 
     if (probe_req != NULL) {
-        probe_req->time = time(0);
-        if (probe_req != insert_to_array(probe_req, true, true, false))
+        if (probe_req != insert_to_array(probe_req, true, true, false, time(0)))
         {
             // insert found an existing entry, rather than linking in our new one
+            // use new entry even though it wasn't linked: they are equivalent
             ubus_send_probe_via_network(probe_req);
             dawn_free(probe_req);
         }
@@ -1077,13 +1074,6 @@ static int add_mac(struct ubus_context *ctx, struct ubus_object *obj,
     return 0;
 }
 
-int send_add_mac(struct dawn_mac client_addr) {
-    blob_buf_init(&b, 0);
-    blobmsg_add_macaddr(&b, "addr", client_addr);
-    send_blob_attr_via_network(b.head, "addmac");
-    return 0;
-}
-
 static int reload_config(struct ubus_context *ctx, struct ubus_object *obj,
                            struct ubus_request_data *req, const char *method,
                            struct blob_attr *msg) {
@@ -1405,8 +1395,8 @@ int build_hearing_map_sort_client(struct blob_buf *b) {
                 client_list = blobmsg_open_table(b, client_mac_buf);
                 probe_entry *k;
                 for (k = i;
-		        k != NULL && mac_is_equal_bb(k->client_addr, i->client_addr);
-		        k = k->next_probe) {
+                k != NULL && mac_is_equal_bb(k->client_addr, i->client_addr);
+                k = k->next_probe) {
 
                     ap *ap_k = ap_array_get_ap(k->bssid_addr);
 
@@ -1439,14 +1429,14 @@ int build_hearing_map_sort_client(struct blob_buf *b) {
                 // TODO: Change this so that i and k are single loop?
                 i = k;
             }
-	}
+        }
 
         if ((m->next_ap == NULL) || strcmp((char*)m->ssid, (char*)((m->next_ap)->ssid)) != 0)
-	{
-	    blobmsg_close_table(b, ssid_list);
+        {
+            blobmsg_close_table(b, ssid_list);
             same_ssid = false;
-	}
-	else
+        }
+        else
             same_ssid = true;
     }
 
@@ -1627,39 +1617,15 @@ void denied_req_array_cb(struct uloop_timeout* t) {
     pthread_mutex_lock(&denied_array_mutex);
     printf("[ULOOP] : Processing denied authentication!\n");
 
-    time_t current_time = time(0);
+    remove_old_denied_req_entries(time(0), timeout_config.denied_req_threshold, true);
 
-    auth_entry** i = &denied_req_set;
-    while (*i != NULL) {
-        // check counter
-
-        //check timer
-        if ((*i)->time < (current_time - timeout_config.denied_req_threshold)) {
-
-            // client is not connected for a given time threshold!
-            if (!is_connected_somehwere((*i)->client_addr)) {
-                printf("Client has probably a bad driver!\n");
-
-                // problem that somehow station will land into this list
-                // maybe delete again?
-                if (insert_to_maclist((*i)->client_addr) == 0) {
-                    send_add_mac((*i)->client_addr);
-                    // TODO: File can grow arbitarily large.  Resource consumption risk.
-                    // TODO: Consolidate use of file across source: shared resource for name, single point of access?
-                    write_mac_to_file("/tmp/dawn_mac_list", (*i)->client_addr);
-                }
-            }
-            // TODO: Add unlink function to save rescan to find element
-            denied_req_array_delete(*i);
-        }
-        else
-        {
-            i = &((*i)->next_auth);
-        }
-    }
     pthread_mutex_unlock(&denied_array_mutex);
     uloop_timeout_set(&denied_req_timeout, timeout_config.denied_req_threshold * 1000);
 }
 
-
-
+int send_add_mac(struct dawn_mac client_addr) {
+    blob_buf_init(&b, 0);
+    blobmsg_add_macaddr(&b, "addr", client_addr);
+    send_blob_attr_via_network(b.head, "addmac");
+    return 0;
+}

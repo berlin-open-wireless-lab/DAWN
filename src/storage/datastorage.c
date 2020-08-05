@@ -85,7 +85,7 @@ static const struct dawn_mac dawn_mac_null = { .u8 = {0,0,0,0,0,0} };
 ** then the target element does not exist, but can be inserted by using the returned reference.
 */
 
-static struct probe_entry_s** probe_skip_array_find_first_entry(struct dawn_mac client_mac, struct dawn_mac bssid_mac, bool do_bssid)
+static struct probe_entry_s** probe_skip_array_find_first_entry(struct dawn_mac client_mac, struct dawn_mac bssid_mac, int do_bssid)
 {
     int lo = 0;
     struct probe_entry_s** lo_ptr = &probe_skip_set;
@@ -752,7 +752,7 @@ void client_array_insert(client *entry, client** insert_pos) {
     client_entry_last++;
 
     if (client_entry_last == ARRAY_CLIENT_LEN) {
-        printf("warning: client_array overflowing (now contains %d entires)!\n", client_entry_last);
+        printf("warning: client_array overflowing (now contains %d entries)!\n", client_entry_last);
     }
 
     // Try to keep skip list density stable
@@ -788,6 +788,15 @@ static client* client_array_unlink_entry(client** ref_bc, int unlink_only)
 {
     client* entry = *ref_bc; // Both ref_bc and ref_c point to the entry we're deleting
 
+    for (struct client_s** s = &client_skip_set; *s != NULL; s = &((*s)->next_skip_entry_bc)) {
+        if (*s == entry) {
+            *s = (*s)->next_skip_entry_bc;
+
+            client_skip_entry_last--;
+            break;
+        }
+    }
+
     //  Accident of history that we always pass in the _bc ref, so need to find _c ref
 #ifndef DAWN_CLIENT_SCAN_BC_ONLY
     client** ref_c = &client_set_c;
@@ -817,15 +826,6 @@ static client* client_array_unlink_entry(client** ref_bc, int unlink_only)
 
 client *client_array_delete(client *entry, int unlink_only) {
     client* ret = NULL;
-
-    for (struct client_s** s = &client_skip_set; *s != NULL; s = &((*s)->next_skip_entry_bc)) {
-        if (*s == entry) {
-            *s = (*s)->next_skip_entry_bc;
-
-            client_skip_entry_last--;
-            break;
-        }
-    }
 
     client** ref_bc = NULL;
 
@@ -871,9 +871,19 @@ static __inline__ int probe_compare(probe_entry* probe1, probe_entry* probe2) {
 
 static __inline__ void probe_array_unlink_next(probe_entry** i)
 {
-probe_entry* victim;
+probe_entry* victim = *i;
 
-    victim = *i;
+    // TODO: Can we pre-test that entry is in skip set with 
+    // if ((*s)->next_probe_skip != NULL)... ???
+    for (struct probe_entry_s** s = &probe_skip_set; *s != NULL; s = &((*s)->next_probe_skip)) {
+        if (*s == victim) {
+            *s = (*s)->next_probe_skip;
+
+            probe_skip_entry_last--;
+            break;
+        }
+    }
+
     *i = victim->next_probe;
     dawn_free(victim);
 
@@ -882,15 +892,6 @@ probe_entry* victim;
 
 int probe_array_delete(probe_entry *entry) {
     int found_in_array = false;
-
-    for (struct probe_entry_s** s = &probe_skip_set; *s != NULL; s = &((*s)->next_probe_skip)) {
-        if (*s == entry) {
-            *s = (*s)->next_probe_skip;
-
-            probe_skip_entry_last--;
-            break;
-        }
-    }
 
     for (probe_entry** i = &probe_set; *i != NULL; i = &((*i)->next_probe)) {
         if (*i == entry) {
@@ -993,13 +994,16 @@ static struct probe_entry_s* insert_to_skip_array(struct probe_entry_s* entry) {
     return entry;
 }
 
-probe_entry* insert_to_array(probe_entry* entry, int inc_counter, int save_80211k, int is_beacon) {
+probe_entry* insert_to_array(probe_entry* entry, int inc_counter, int save_80211k, int is_beacon, time_t expiry) {
     pthread_mutex_lock(&probe_array_mutex);
+
+    entry->time = expiry;
 
     // TODO: Add a packed / unpacked wrapper pair?
     probe_entry** existing_entry = probe_array_find_first_entry(entry->client_addr, entry->bssid_addr, true);
 
     if (((*existing_entry) != NULL) && mac_is_equal_bb((*existing_entry)->client_addr, entry->client_addr) && mac_is_equal_bb((*existing_entry)->bssid_addr, entry->bssid_addr)) {
+        (*existing_entry)->time = expiry;
         if (inc_counter)
             (*existing_entry)->counter++;
 
@@ -1019,18 +1023,18 @@ probe_entry* insert_to_array(probe_entry* entry, int inc_counter, int save_80211
         else
             entry->counter = 0;
 
+        entry->next_probe_skip = NULL;
         entry->next_probe = *existing_entry;
         *existing_entry = entry;
         probe_entry_last++;
 
         if (probe_entry_last == PROBE_ARRAY_LEN) {
-            printf("warning: probe_array overflowing (now contains %d entires)!\n", probe_entry_last);
+            printf("warning: probe_array overflowing (now contains %d entries)!\n", probe_entry_last);
         }
 
         // Try to keep skip list density stable
         if ((probe_entry_last / DAWN_PROBE_SKIP_RATIO) > probe_skip_entry_last)
         {
-            entry->next_probe_skip = NULL;
             insert_to_skip_array(entry);
         }
     }
@@ -1040,7 +1044,7 @@ probe_entry* insert_to_array(probe_entry* entry, int inc_counter, int save_80211
     return entry;  // return pointer to what we used, which may not be what was passed in
 }
 
-ap *insert_to_ap_array(ap* entry) {
+ap *insert_to_ap_array(ap* entry, time_t expiry) {
     pthread_mutex_lock(&ap_array_mutex);
 
 
@@ -1054,6 +1058,7 @@ ap *insert_to_ap_array(ap* entry) {
     if (old_entry != NULL)
         ap_array_delete(old_entry);
 
+    entry->time = expiry;
     ap_array_insert(entry);
     pthread_mutex_unlock(&ap_array_mutex);
 
@@ -1096,7 +1101,7 @@ void ap_array_insert(ap* entry) {
     ap_entry_last++;
 
     if (ap_entry_last == ARRAY_AP_LEN) {
-        printf("warning: ap_array overflowing (contains %d entires)!\n", ap_entry_last);
+        printf("warning: ap_array overflowing (contains %d entries)!\n", ap_entry_last);
     }
 }
 
@@ -1176,16 +1181,50 @@ void remove_old_ap_entries(time_t current_time, long long int threshold) {
     }
 }
 
-client *insert_client_to_array(client *entry) {
+void remove_old_denied_req_entries(time_t current_time, long long int threshold, int logmac) {
+    auth_entry** i = &denied_req_set;
+    while (*i != NULL) {
+        // check counter
+
+        //check timer
+        if ((*i)->time < (current_time - threshold)) {
+
+            // client is not connected for a given time threshold!
+            if (logmac && !is_connected_somehwere((*i)->client_addr)) {
+                printf("Client has probably a bad driver!\n");
+
+                // problem that somehow station will land into this list
+                // maybe delete again?
+                if (insert_to_maclist((*i)->client_addr) == 0) {
+                    send_add_mac((*i)->client_addr);
+                    // TODO: File can grow arbitarily large.  Resource consumption risk.
+                    // TODO: Consolidate use of file across source: shared resource for name, single point of access?
+                    write_mac_to_file("/tmp/dawn_mac_list", (*i)->client_addr);
+                }
+            }
+            // TODO: Add unlink function to save rescan to find element
+            denied_req_array_delete(*i);
+        }
+        else
+        {
+            i = &((*i)->next_auth);
+        }
+    }
+}
+
+client *insert_client_to_array(client *entry, time_t expiry) {
 client * ret = NULL;
 
     client **client_tmp = client_find_first_bc_entry(entry->bssid_addr, entry->client_addr, true);
 
     if (*client_tmp == NULL || !mac_is_equal_bb(entry->bssid_addr, (*client_tmp)->bssid_addr) || !mac_is_equal_bb(entry->client_addr, (*client_tmp)->client_addr)) {
         entry->kick_count = 0;
+        entry->time = expiry;
         client_array_insert(entry, client_tmp);
         ret = entry;
     }
+    else
+        (*client_tmp)->time = expiry;
 
     return ret;
 }
@@ -1208,12 +1247,12 @@ void insert_macs_from_file() {
     while ((read = getline(&line, &len, fp)) != -1) {
 #ifdef DAWN_MEMORY_AUDITING
         if (old_line != line)
-	{
-	    if (old_line != NULL)
-	        dawn_unregmem(old_line);
-	    old_line = line;
-	    dawn_regmem(old_line);
-	}
+        {
+            if (old_line != NULL)
+                dawn_unregmem(old_line);
+            old_line = line;
+            dawn_regmem(old_line);
+        }
 #endif
 
         printf("Retrieved line of length %zu :\n", read);
@@ -1295,7 +1334,7 @@ struct mac_entry_s** i = mac_find_first_entry(mac);
     return ret;
 }
 
-auth_entry* insert_to_denied_req_array(auth_entry* entry, int inc_counter) {
+auth_entry* insert_to_denied_req_array(auth_entry* entry, int inc_counter, time_t expiry) {
     pthread_mutex_lock(&denied_array_mutex);
 
     auth_entry** i = auth_entry_find_first_entry(entry->bssid_addr, entry->client_addr);
@@ -1304,12 +1343,14 @@ auth_entry* insert_to_denied_req_array(auth_entry* entry, int inc_counter) {
 
         entry = *i;
 
+        entry->time = expiry;
         if (inc_counter) {
             entry->counter++;
         }
     }
     else
     {
+        entry->time = expiry;
         if (inc_counter)
             entry->counter++;
         else
@@ -1320,7 +1361,7 @@ auth_entry* insert_to_denied_req_array(auth_entry* entry, int inc_counter) {
         denied_req_last++;
 
         if (denied_req_last == DENY_REQ_ARRAY_LEN) {
-            printf("warning: denied_req_array overflowing (now contains %d entires)!\n", denied_req_last);
+            printf("warning: denied_req_array overflowing (now contains %d entries)!\n", denied_req_last);
         }
     }
 
@@ -1354,7 +1395,7 @@ struct mac_entry_s* insert_to_mac_array(struct mac_entry_s* entry, struct mac_en
     mac_set_last++;
 
     if (mac_set_last == DENY_REQ_ARRAY_LEN) {
-        printf("warning: denied_req_array overflowing (now contains %d entires)!\n", mac_set_last);
+        printf("warning: denied_req_array overflowing (now contains %d entries)!\n", mac_set_last);
     }
 
     return entry;

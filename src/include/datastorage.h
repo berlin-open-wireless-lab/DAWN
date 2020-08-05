@@ -250,7 +250,7 @@ extern struct client_s *client_set_bc;
 extern pthread_mutex_t client_array_mutex;
 
 // ---------------- Functions ----------------
-probe_entry *insert_to_array(probe_entry *entry, int inc_counter, int save_80211k, int is_beacon);
+probe_entry *insert_to_array(probe_entry *entry, int inc_counter, int save_80211k, int is_beacon, time_t expiry);
 
 int probe_array_delete(probe_entry *entry);
 
@@ -266,7 +266,9 @@ int eval_probe_metric(struct probe_entry_s * probe_entry, ap *ap_entry);
 
 void denied_req_array_delete(auth_entry *entry);
 
-auth_entry *insert_to_denied_req_array(auth_entry*entry, int inc_counter);
+auth_entry *insert_to_denied_req_array(auth_entry*entry, int inc_counter, time_t expiry);
+
+void remove_old_denied_req_entries(time_t current_time, long long int threshold, int logmac);
 
 void print_auth_entry(auth_entry *entry);
 
@@ -278,7 +280,7 @@ int probe_array_update_rcpi_rsni(struct dawn_mac bssid_addr, struct dawn_mac cli
 
 void remove_old_client_entries(time_t current_time, long long int threshold);
 
-client *insert_client_to_array(client *entry);
+client *insert_client_to_array(client *entry, time_t expiry);
 
 int kick_clients(ap* kicking_ap, uint32_t id);
 
@@ -296,7 +298,7 @@ void print_client_entry(client *entry);
 
 int is_connected_somehwere(struct dawn_mac client_addr);
 
-ap *insert_to_ap_array(ap *entry);
+ap *insert_to_ap_array(ap *entry, time_t expiry);
 
 void remove_old_ap_entries(time_t current_time, long long int threshold);
 

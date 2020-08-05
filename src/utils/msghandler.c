@@ -283,8 +283,7 @@ int handle_network_msg(char* msg) {
     if (strncmp(method, "probe", 5) == 0) {
         probe_entry *entry = parse_to_probe_req(data_buf.head);
         if (entry != NULL) {
-            entry->time = time(0);
-            if (entry != insert_to_array(entry, false, false, false)) // use 802.11k values
+            if (entry != insert_to_array(entry, false, false, false, time(0))) // use 802.11k values
             {
                 // insert found an existing entry, rather than linking in our new one
                 dawn_free(entry);
@@ -425,11 +424,9 @@ dump_client(struct blob_attr** tb, struct dawn_mac client_addr, const char* bssi
         memset(client_entry->signature, 0, SIGNATURE_LEN);
     }
 
-    client_entry->time = time(0);
-
     pthread_mutex_lock(&client_array_mutex);
     // If entry was akraedy in list it won't be added, so free memorY
-    if (client_entry != insert_client_to_array(client_entry))
+    if (client_entry != insert_client_to_array(client_entry, time(0)))
         dawn_free(client_entry);
     pthread_mutex_unlock(&client_array_mutex);
 }
@@ -559,8 +556,7 @@ int parse_to_clients(struct blob_attr* msg, int do_kick, uint32_t id) {
             ap_entry->hostname[0] = '\0';
         }
 
-        ap_entry->time = time(0);
-        insert_to_ap_array(ap_entry);
+        insert_to_ap_array(ap_entry, time(0));
 
         if (do_kick && dawn_metric.kicking) {
             update_iw_info(ap_entry->bssid_addr);

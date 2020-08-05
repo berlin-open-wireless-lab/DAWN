@@ -212,11 +212,11 @@ int uci_init() {
         // shouldn't happen?
         uci_pkg = uci_lookup_package(ctx, "dawn");
         if (uci_pkg)
-	{
+        {
             uci_unload(ctx, uci_pkg);
             dawn_unregmem(uci_pkg);
             uci_pkg = NULL;
-	}
+        }
     }
 
     if (uci_load(ctx, "dawn", &uci_pkg))
