@@ -34,7 +34,7 @@ int ret = 0;
         client *mc = client_array_get_client(client_addr);
         mc = client_array_delete(mc, true);
         hwaddr_aton(dest_ap, mc->bssid_addr.u8);
-        insert_client_to_array(mc);
+        insert_client_to_array(mc, 0);
         printf("BSS TRANSITION TO %s\n", dest_ap);
 
         // Tell caller not to change the arrays any further
@@ -81,12 +81,19 @@ int get_bandwidth_iwinfo(struct dawn_mac client_addr, float* rx_rate, float* tx_
     return 0;
 }
 
+int send_add_mac(struct dawn_mac client_addr)
+{
+    printf("send_add_mac() was called...\n");
+    return 0;
+}
+
 /*** Local Function Prototypes and Related Constants ***/
 static int array_auto_helper(int action, int i0, int i1);
 
-#define HELPER_ACTION_ADD 0x0000
-#define HELPER_ACTION_DEL 0x1000
-#define HELPER_ACTION_MASK 0x1000
+#define HELPER_ACTION_ADD 0x1000
+#define HELPER_ACTION_DEL 0x2000
+#define HELPER_ACTION_STRESS 0x4000
+#define HELPER_ACTION_MASK 0x7000
 
 #define HELPER_AP 0x0001
 #define HELPER_CLIENT 0x0002
@@ -102,6 +109,33 @@ static time_t faketime = 1000;
 static bool faketime_auto = true; // true = increment every command; false = scripted updates
 
 /*** Test harness code */
+static void time_moves_on()
+{
+    // Sometimes move fake time on a second - about 1 in 5 chance
+    if (((rand() & 0xFF) > 200))
+    {
+        faketime += 1;
+    }
+
+    return;
+}
+
+static void set_random_mac(uint8_t *mac)
+{
+int16_t r1 = rand();
+int16_t r2 = rand();
+int16_t r3 = rand();
+
+    mac[0] = r1;
+    mac[1] = r1 >> 4;
+    mac[2] = r2;
+    mac[3] = r2 >> 4;
+    mac[4] = r3;
+    mac[5] = r3 >> 4;
+
+    return;
+}
+
 static int array_auto_helper(int action, int i0, int i1)
 {
     int m = i0;
@@ -125,7 +159,15 @@ static int array_auto_helper(int action, int i0, int i1)
                 ap* ap0 = dawn_malloc(sizeof(struct ap_s));
                 ap0->bssid_addr = this_mac;
 
-                insert_to_ap_array(ap0);
+                insert_to_ap_array(ap0, 0);
+            }
+            else if ((action & HELPER_ACTION_MASK) == HELPER_ACTION_STRESS) {
+                ap* ap0 = dawn_malloc(sizeof(struct ap_s));
+                set_random_mac(ap0->bssid_addr.u8);
+
+                insert_to_ap_array(ap0, faketime);
+                remove_old_ap_entries(faketime, 10);
+                time_moves_on();
             }
             else
                 ap_array_delete(ap_array_get_ap(this_mac));
@@ -138,7 +180,16 @@ static int array_auto_helper(int action, int i0, int i1)
                 client0->bssid_addr = this_mac;
                 client0->client_addr = this_mac;
 
-                insert_client_to_array(client0);
+                insert_client_to_array(client0, 0);
+            }
+            else if ((action & HELPER_ACTION_MASK) == HELPER_ACTION_STRESS) {
+                client* client0 = dawn_malloc(sizeof(struct client_s));
+                set_random_mac(client0->client_addr.u8);
+                set_random_mac(client0->bssid_addr.u8);
+
+                insert_client_to_array(client0, faketime);
+                remove_old_client_entries(faketime, 10);
+                time_moves_on();
             }
             else
             {
@@ -157,7 +208,16 @@ static int array_auto_helper(int action, int i0, int i1)
                 probe0->client_addr = this_mac;
                 probe0->bssid_addr = this_mac;
 
-                insert_to_array(probe0, true, true, true); // TODO: Check bool flags
+                insert_to_array(probe0, true, true, true, 0); // TODO: Check bool flags
+            }
+            else if ((action & HELPER_ACTION_MASK) == HELPER_ACTION_STRESS) {
+                probe0 = dawn_malloc(sizeof(probe_entry));
+                set_random_mac(probe0->client_addr.u8);
+                set_random_mac(probe0->bssid_addr.u8);
+
+                insert_to_array(probe0, true, true, true, faketime);
+                remove_old_probe_entries(faketime, 10);
+                time_moves_on();
             }
             else
             {
@@ -180,7 +240,16 @@ static int array_auto_helper(int action, int i0, int i1)
                 auth_entry0->bssid_addr = this_mac;
                 auth_entry0->client_addr = this_mac;
 
-                insert_to_denied_req_array(auth_entry0, true); // TODO: Check bool flags
+                insert_to_denied_req_array(auth_entry0, true, 0); // TODO: Check bool flags
+            }
+            else if ((action & HELPER_ACTION_MASK) == HELPER_ACTION_STRESS) {
+                auth_entry* auth_entry0 = dawn_malloc(sizeof(struct auth_entry_s));
+                set_random_mac(auth_entry0->bssid_addr.u8);
+                set_random_mac(auth_entry0->client_addr.u8);
+
+                insert_to_denied_req_array(auth_entry0, true, faketime);
+                remove_old_denied_req_entries(faketime, 10, false);
+                time_moves_on();
             }
             else
             {
@@ -406,6 +475,14 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 ret = array_auto_helper(HELPER_AP | HELPER_ACTION_DEL, atoi(*(argv + 1)), atoi(*(argv + 2)));
             }
         }
+        else if (strcmp(*argv, "ap_stress") == 0)
+        {
+            args_required = 2;
+            if (curr_arg + args_required <= argc)
+            {
+                ret = array_auto_helper(HELPER_AP | HELPER_ACTION_STRESS, 1, atoi(*(argv + 1)));
+            }
+        }
         else if (strcmp(*argv, "probe_add_auto") == 0)
         {
             args_required = 3;
@@ -420,6 +497,14 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
             if (curr_arg + args_required <= argc)
             {
                 ret = array_auto_helper(HELPER_PROBE_ARRAY | HELPER_ACTION_DEL, atoi(*(argv + 1)), atoi(*(argv + 2)));
+            }
+        }
+        else if (strcmp(*argv, "probe_stress") == 0)
+        {
+            args_required = 2;
+            if (curr_arg + args_required <= argc)
+            {
+                ret = array_auto_helper(HELPER_PROBE_ARRAY | HELPER_ACTION_STRESS, 1, atoi(*(argv + 1)));
             }
         }
         else if (strcmp(*argv, "client_add_auto") == 0)
@@ -438,6 +523,14 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 ret = array_auto_helper(HELPER_CLIENT | HELPER_ACTION_DEL, atoi(*(argv + 1)), atoi(*(argv + 2)));
             }
         }
+        else if (strcmp(*argv, "client_stress") == 0)
+        {
+            args_required = 2;
+            if (curr_arg + args_required <= argc)
+            {
+                ret = array_auto_helper(HELPER_CLIENT | HELPER_ACTION_STRESS, 1, atoi(*(argv + 1)));
+            }
+        }
         else if (strcmp(*argv, "auth_entry_add_auto") == 0)
         {
             args_required = 3;
@@ -452,6 +545,14 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
             if (curr_arg + args_required <= argc)
             {
                 ret = array_auto_helper(HELPER_AUTH_ENTRY | HELPER_ACTION_DEL, atoi(*(argv + 1)), atoi(*(argv + 2)));
+            }
+        }
+        else if (strcmp(*argv, "auth_entry_stress") == 0)
+        {
+            args_required = 2;
+            if (curr_arg + args_required <= argc)
+            {
+                ret = array_auto_helper(HELPER_AUTH_ENTRY | HELPER_ACTION_STRESS, 1, atoi(*(argv + 1)));
             }
         }
         else if (strcmp(*argv, "remove_old_ap_entries") == 0)
@@ -633,7 +734,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
             }
 
             if (ret == 0)
-                insert_to_ap_array(ap0);
+                insert_to_ap_array(ap0, ap0->time);
             else
                 dawn_free(ap0);
         }
@@ -697,7 +798,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
 
             if (ret == 0)
             {
-                insert_client_to_array(cl0);
+                insert_client_to_array(cl0, cl0->time);
             }
         }
         else if (strcmp(*argv, "probe") == 0)
@@ -776,7 +877,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                         pr0->rcpi = 0;
                         pr0->rsni = 0;
 
-                        insert_to_array(pr0, true, true, true);
+                        insert_to_array(pr0, true, true, true, pr0->time);
                     }
                 }
 
@@ -821,7 +922,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
 
             if (ret == 0)
             {
-                insert_to_denied_req_array(au0, true);
+                insert_to_denied_req_array(au0, true, au0->time);
             }
         }
         else if (strcmp(*argv, "kick") == 0) // Perform kicking evaluation
@@ -908,30 +1009,29 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
             }
         }
         else
-	    {
+        {
             args_required = 1;
 
-	        printf("COMMAND \"%s\": Unknown - stopping!\n", *argv);
+            printf("COMMAND \"%s\": Unknown - stopping!\n", *argv);
             ret = -1;
-	    }
+        }
 
-	    curr_arg += args_required;
+        curr_arg += args_required;
         if (curr_arg <= argc)
         {
             // Still need to continue consuming args
             argv += args_required;
 
-            // Sometimes move fake time on a second - about 1 in 5 chance
-            if (faketime_auto && ((rand() & 0xFF) > 200))
+            if (faketime_auto)
             {
-                faketime += 1;
+                time_moves_on();
 
                 if (harness_verbosity > 0)
                 {
-					if (!(faketime & 1))
-						printf("Faketime: tick %" PRId64 "...\n", (int64_t)faketime);
-					else
-						printf("Faketime: tock %" PRId64 "...\n", (int64_t)faketime);
+                    if (!(faketime & 1))
+                        printf("Faketime: tick %" PRId64 "...\n", (int64_t)faketime);
+                    else
+                        printf("Faketime: tock %" PRId64 "...\n", (int64_t)faketime);
                 }
             }
         }
@@ -1088,6 +1188,7 @@ int main(int argc, char* argv[])
                 if (ret == 0)
                 {
                     read = getline(&line, &len, fp);
+                    dawn_regmem(line);
                     while (!ret && read != -1)
                     {
                         if (harness_verbosity > 0)
