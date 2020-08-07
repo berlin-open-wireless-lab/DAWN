@@ -139,18 +139,24 @@ static void client_read_cb(struct ustream *s, int bytes) {
             str_tmp = NULL; // Aboutt o go out of scope, but just in case it gets moved around...
             cl->state = READ_STATUS_COMMENCED;
         }
+
         if (cl->state == READ_STATUS_COMMENCED)
         {
             printf("tcp_socket: reading message...\n");
             uint32_t read_len = ustream_pending_data(s, false);
+
+            if (read_len == 0)
+                break;
+
             if (read_len > (cl->final_len - cl->curr_len))
                     read_len = cl->final_len - cl->curr_len;
 
             printf("tcp_socket: reading %" PRIu32 " bytes to add to %" PRIu32 " of %" PRIu32 "...\n",
                     read_len, cl->curr_len, cl->final_len);
 
-            cl->curr_len += ustream_read(s, cl->str + cl->curr_len, read_len);
-            printf("tcp_socket: ...and we're back\n");
+            uint32_t this_read = ustream_read(s, cl->str + cl->curr_len, read_len);
+            cl->curr_len += this_read;
+            printf("tcp_socket: ...and we're back, now have %" PRIu32 " bytes\n", cl->curr_len);
             if (cl->curr_len == cl->final_len){//ensure recv final_len bytes.
                 // Full message now received
                 cl->state = READ_STATUS_COMPLETE;
