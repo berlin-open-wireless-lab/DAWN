@@ -509,7 +509,7 @@ int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, char* neighb
         if (score_to_compare > max_score) {
             if(neighbor_report == NULL)
             {
-                fprintf(stderr,"Neigbor-Report is NULL!\n");
+                fprintf(stderr,"Neighbor-Report is NULL! (1)\n");
                 return 1;  // TODO: Should this be -1?
             }
 
@@ -527,7 +527,7 @@ int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, char* neighb
             if (compare_station_count(kicking_ap, candidate_ap, client_mac)) {
                 if (neighbor_report == NULL)
                 {
-                    fprintf(stderr, "Neigbor-Report is NULL!\n");
+                    fprintf(stderr, "Neighbor-Report is NULL! (2)\n");
                     return 1;  // TODO: Should this be -1?
                 }
 
@@ -567,7 +567,7 @@ int kick_clients(ap* kicking_ap, uint32_t id) {
     // Seach for BSSID
     client *j = *client_find_first_bc_entry(kicking_ap->bssid_addr, dawn_mac_null, false);
 
-    // Go threw clients
+    // Go through clients
     while (j  != NULL && mac_is_equal_bb(j->bssid_addr, kicking_ap->bssid_addr)) {
         char neighbor_report[NEIGHBOR_REPORT_LEN] = "";
 

@@ -270,7 +270,7 @@ static int decide_function(probe_entry *prob_req, int req_type) {
         return 1;
     }
 
-    // TODO: Bug?  This results in copious "Neigbor-Report is NULL" messages!
+    // TODO: Bug?  This results in copious "Neighbor-Report is NULL" messages!
     // find own probe entry and calculate score
     ap* this_ap = ap_array_get_ap(prob_req->bssid_addr);
     if (this_ap != NULL && better_ap_available(this_ap, prob_req->client_addr, NULL)) {
