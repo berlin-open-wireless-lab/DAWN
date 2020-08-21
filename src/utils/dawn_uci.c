@@ -190,6 +190,14 @@ bool uci_get_dawn_sort_order() {
 
 int uci_reset()
 {
+    struct uci_context *ctx = uci_ctx;
+
+    if (!ctx) {
+        ctx = uci_alloc_context();
+        dawn_regmem(ctx);
+        uci_ctx = ctx;
+    }
+    uci_pkg = uci_lookup_package(ctx, "dawn");
     uci_unload(uci_ctx, uci_pkg);
     dawn_unregmem(uci_pkg);
     uci_load(uci_ctx, "dawn", &uci_pkg);
