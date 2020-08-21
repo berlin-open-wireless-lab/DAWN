@@ -97,6 +97,7 @@ struct time_config_s {
 struct network_config_s {
     char broadcast_ip[MAX_IP_LENGTH];
     int broadcast_port;
+    char server_ip[MAX_IP_LENGTH];
     int tcp_port;
     int network_option;
     char shared_key[MAX_KEY_LENGTH];

@@ -138,6 +138,12 @@ struct network_config_s uci_get_dawn_network() {
             const char* str_broadcast = uci_lookup_option_string(uci_ctx, s, "broadcast_ip");
             strncpy(ret.broadcast_ip, str_broadcast, MAX_IP_LENGTH);
 
+            const char* str_server_ip = uci_lookup_option_string(uci_ctx, s, "server_ip");
+            if(str_server_ip)
+                strncpy(ret.server_ip, str_server_ip, MAX_IP_LENGTH);
+            else
+                ret.server_ip[0] = '\0';
+
             ret.broadcast_port = uci_lookup_option_int(uci_ctx, s, "broadcast_port");
 
             const char* str_shared_key = uci_lookup_option_string(uci_ctx, s, "shared_key");

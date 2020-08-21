@@ -29,7 +29,7 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir);
 /**
  * Start the umdns timer for updating the zeroconfiguration properties.
  */
-void start_umdns_update();
+void start_tcp_con_update();
 
 /**
  * Call umdns update to update the TCP connections.

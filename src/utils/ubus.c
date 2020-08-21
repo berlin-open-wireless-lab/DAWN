@@ -45,7 +45,7 @@ struct uloop_timeout client_timer = {
 struct uloop_timeout hostapd_timer = {
         .cb = update_hostapd_sockets
 };
-struct uloop_timeout umdns_timer = {
+struct uloop_timeout tcp_con_timer = {
         .cb = update_tcp_connections
 };
 struct uloop_timeout channel_utilization_timer = {
@@ -529,7 +529,8 @@ int send_blob_attr_via_network(struct blob_attr* msg, char* method) {
     str = blobmsg_format_json(b_send_network.head, true);
     dawn_regmem(str);
 
-    if (network_config.network_option == 2) {
+    if (network_config.network_option == 2
+        || network_config.network_option == 3) {
         send_tcp(str);
     } else {
         if (network_config.use_symm_enc) {
@@ -618,9 +619,10 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
 
     ubus_add_oject();
 
-    if (network_config.network_option == 2)
+    if (network_config.network_option == 2
+        || network_config.network_option == 3)
     {
-        start_umdns_update();
+        start_tcp_con_update();
         if(run_server(network_config.tcp_port))
             uloop_timeout_set(&usock_timer, 1 * 1000);
     }
@@ -825,13 +827,21 @@ void update_beacon_reports(struct uloop_timeout *t) {
 }
 
 void update_tcp_connections(struct uloop_timeout *t) {
-    ubus_call_umdns();
-    uloop_timeout_set(&umdns_timer, timeout_config.update_tcp_con * 1000);
+    if (strcmp(network_config.server_ip, ""))
+    {
+        // nothing happens if tcp connection is already established
+        add_tcp_conncection(network_config.server_ip, network_config.tcp_port);
+    }
+    if (network_config.network_option == 2) // mdns enabled?
+    {
+        ubus_call_umdns();
+    }
+    uloop_timeout_set(&tcp_con_timer, timeout_config.update_tcp_con * 1000);
 }
 
-void start_umdns_update() {
+void start_tcp_con_update() {
     // update connections
-    uloop_timeout_add(&umdns_timer); // callback = update_tcp_connections
+    uloop_timeout_add(&tcp_con_timer); // callback = update_tcp_connections
 }
 
 void update_hostapd_sockets(struct uloop_timeout *t) {
