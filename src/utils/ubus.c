@@ -351,6 +351,7 @@ int parse_to_beacon_rep(struct blob_attr *msg) {
         printf("Beacon: No Probe Entry Existing!\n");
 
         probe_entry* beacon_rep = dawn_malloc(sizeof(probe_entry));
+        probe_entry* beacon_rep_updated = NULL;
         if (beacon_rep == NULL)
         {
             fprintf(stderr, "dawn_malloc of probe_entry failed!\n");
@@ -372,14 +373,15 @@ int parse_to_beacon_rep(struct blob_attr *msg) {
         printf("Inserting to array!\n");
 
         // TODO: kept original code order here - send on network first to simplify?
-        if (beacon_rep != insert_to_array(beacon_rep, false, false, true, time(0))) // use 802.11k values  // TODO: Change 0 to false?
+        beacon_rep_updated = insert_to_array(beacon_rep, false, false, true, time(0));
+        if (beacon_rep != beacon_rep_updated) // use 802.11k values  // TODO: Change 0 to false?
         {
             // insert found an existing entry, rather than linking in our new one
-            ubus_send_probe_via_network(beacon_rep);
+            ubus_send_probe_via_network(beacon_rep_updated);
             dawn_free(beacon_rep);
         }
         else
-            ubus_send_probe_via_network(beacon_rep);
+            ubus_send_probe_via_network(beacon_rep_updated);
     }
     return 0;
 }
@@ -478,17 +480,19 @@ int discard_entry = true;
 static int handle_probe_req(struct blob_attr *msg) {
     // MUSTDO: Untangle dawn_malloc() and linking of probe_entry
     probe_entry* probe_req = parse_to_probe_req(msg);
+    probe_entry* probe_req_updated = NULL;
 
     if (probe_req != NULL) {
-        if (probe_req != insert_to_array(probe_req, true, true, false, time(0)))
+        probe_req_updated = insert_to_array(probe_req, true, true, false, time(0));
+        if (probe_req != probe_req_updated)
         {
             // insert found an existing entry, rather than linking in our new one
-            // use new entry even though it wasn't linked: they are equivalent
-            ubus_send_probe_via_network(probe_req);
+            // send new probe req because we want to stay synced
+            ubus_send_probe_via_network(probe_req_updated);
             dawn_free(probe_req);
         }
         else
-            ubus_send_probe_via_network(probe_req);
+            ubus_send_probe_via_network(probe_req_updated); // probe_req and probe_req_updated should be equivalent
 
         //send_blob_attr_via_network(msg, "probe");
 
@@ -991,7 +995,10 @@ int ubus_send_probe_via_network(struct probe_entry_s *probe_entry) {  // TODO: p
     blobmsg_add_u32(&b_probe, "rcpi", probe_entry->rcpi);
     blobmsg_add_u32(&b_probe, "rsni", probe_entry->rsni);
 
-    if (probe_entry->ht_capabilities)
+    blobmsg_add_u32(&b_probe, "ht_capabilities", probe_entry->ht_capabilities);
+    blobmsg_add_u32(&b_probe, "vht_capabilities", probe_entry->vht_capabilities);
+
+    /*if (probe_entry->ht_capabilities)
     {
         void *ht_cap = blobmsg_open_table(&b, "ht_capabilities");
         blobmsg_close_table(&b, ht_cap);
@@ -1000,7 +1007,7 @@ int ubus_send_probe_via_network(struct probe_entry_s *probe_entry) {  // TODO: p
     if (probe_entry->vht_capabilities) {
         void *vht_cap = blobmsg_open_table(&b, "vht_capabilities");
         blobmsg_close_table(&b, vht_cap);
-    }
+    }*/
 
     send_blob_attr_via_network(b_probe.head, "probe");
 

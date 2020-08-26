@@ -1002,10 +1002,21 @@ probe_entry* insert_to_array(probe_entry* entry, int inc_counter, int save_80211
     // TODO: Add a packed / unpacked wrapper pair?
     probe_entry** existing_entry = probe_array_find_first_entry(entry->client_addr, entry->bssid_addr, true);
 
-    if (((*existing_entry) != NULL) && mac_is_equal_bb((*existing_entry)->client_addr, entry->client_addr) && mac_is_equal_bb((*existing_entry)->bssid_addr, entry->bssid_addr)) {
+    if (((*existing_entry) != NULL)
+            && mac_is_equal_bb((*existing_entry)->client_addr, entry->client_addr)
+            && mac_is_equal_bb((*existing_entry)->bssid_addr, entry->bssid_addr)) {
         (*existing_entry)->time = expiry;
         if (inc_counter)
             (*existing_entry)->counter++;
+
+        if (entry->signal)
+            (*existing_entry)->signal = entry->signal;
+
+        if(entry->ht_capabilities)
+            (*existing_entry)->ht_capabilities = entry->ht_capabilities;
+
+        if(entry->vht_capabilities)
+            (*existing_entry)->vht_capabilities = entry->vht_capabilities;
 
         if (save_80211k && entry->rcpi != -1)
             (*existing_entry)->rcpi = entry->rcpi;

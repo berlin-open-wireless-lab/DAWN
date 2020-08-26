@@ -51,8 +51,8 @@ static const struct blobmsg_policy prob_policy[__PROB_MAX] = {
         [PROB_TARGET_ADDR] = {.name = "target", .type = BLOBMSG_TYPE_STRING},
         [PROB_SIGNAL] = {.name = "signal", .type = BLOBMSG_TYPE_INT32},
         [PROB_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
-        [PROB_HT_CAPABILITIES] = {.name = "ht_capabilities", .type = BLOBMSG_TYPE_TABLE},
-        [PROB_VHT_CAPABILITIES] = {.name = "vht_capabilities", .type = BLOBMSG_TYPE_TABLE},
+        [PROB_HT_CAPABILITIES] = {.name = "ht_capabilities", .type = BLOBMSG_TYPE_TABLE}, //ToDo: Change to int8?
+        [PROB_VHT_CAPABILITIES] = {.name = "vht_capabilities", .type = BLOBMSG_TYPE_TABLE}, //ToDo: Change to int8?
         [PROB_RCPI] = {.name = "rcpi", .type = BLOBMSG_TYPE_INT32},
         [PROB_RSNI] = {.name = "rsni", .type = BLOBMSG_TYPE_INT32},
 };
@@ -283,7 +283,7 @@ int handle_network_msg(char* msg) {
     if (strncmp(method, "probe", 5) == 0) {
         probe_entry *entry = parse_to_probe_req(data_buf.head);
         if (entry != NULL) {
-            if (entry != insert_to_array(entry, false, false, false, time(0))) // use 802.11k values
+            if (entry != insert_to_array(entry, false, true, false, time(0))) // use 802.11k values
             {
                 // insert found an existing entry, rather than linking in our new one
                 dawn_free(entry);
