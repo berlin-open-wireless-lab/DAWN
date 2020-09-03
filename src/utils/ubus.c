@@ -741,7 +741,7 @@ static void ubus_get_rrm_cb(struct ubus_request *req, int type, struct blob_attr
      {
          if(i==2)
          {
-            char* neighborreport = blobmsg_get_string(blobmsg_data(attr));
+            char* neighborreport = blobmsg_get_string(attr);
             strcpy(entry->neighbor_report,neighborreport);
             printf("Copied Neighborreport: %s,\n", entry->neighbor_report);
          }
