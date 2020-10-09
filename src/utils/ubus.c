@@ -1526,6 +1526,16 @@ int build_network_overview(struct blob_buf *b) {
                 }
                 blobmsg_add_u8(b, "ht", k->ht);
                 blobmsg_add_u8(b, "vht", k->vht);
+
+                // rrm caps
+                blobmsg_add_u8(b, "rrm_caps_link_measurement", k->rrm_caps_link_measurement);
+                blobmsg_add_u8(b, "rrm_caps_neighbor_report", k->rrm_caps_neighbor_report);
+                blobmsg_add_u8(b, "rrm_caps_beacon_report_passive", k->rrm_caps_beacon_report_passive);
+                blobmsg_add_u8(b, "rrm_caps_beacon_report_active", k->rrm_caps_beacon_report_active);
+                blobmsg_add_u8(b, "rrm_caps_beacon_report_table", k->rrm_caps_beacon_report_table);
+                blobmsg_add_u8(b, "rrm_caps_lci_measurement", k->rrm_caps_lci_measurement);
+                blobmsg_add_u8(b, "rrm_caps_ftm_range_report", k->rrm_caps_ftm_range_report);
+                
                 blobmsg_add_u32(b, "collision_count", ap_get_collision_count(m->collision_domain));
 
                 pthread_mutex_lock(&probe_array_mutex);

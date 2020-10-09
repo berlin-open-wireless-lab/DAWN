@@ -7,6 +7,24 @@
 #include "msghandler.h"
 
 
+#ifndef BIT
+#define BIT(x) (1U << (x))
+#endif
+
+// Copied from hostapd
+/* Radio Measurement capabilities (from RM Enabled Capabilities element)
+ * IEEE Std 802.11-2016, 9.4.2.45, Table 9-157 */
+/* byte 1 (out of 5) */
+#define WLAN_RRM_CAPS_LINK_MEASUREMENT BIT(0)
+#define WLAN_RRM_CAPS_NEIGHBOR_REPORT BIT(1)
+#define WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE BIT(4)
+#define WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE BIT(5)
+#define WLAN_RRM_CAPS_BEACON_REPORT_TABLE BIT(6)
+/* byte 2 (out of 5) */
+#define WLAN_RRM_CAPS_LCI_MEASUREMENT BIT(4)
+/* byte 5 (out of 5) */
+#define WLAN_RRM_CAPS_FTM_RANGE_REPORT BIT(2)
+
 static struct blob_buf network_buf;
 static struct blob_buf data_buf;
 
@@ -341,17 +359,33 @@ static uint8_t dump_rrm_data(void* data, int len, int type) //modify from exampl
     return (uint8_t)ret;
 }
 
-static uint8_t
-dump_rrm_table(struct blob_attr* head, int len) //modify from examples/blobmsg-example.c in libubox
+static void
+dump_rrm_table(struct blob_attr* head, int len, struct client_s **client) //modify from examples/blobmsg-example.c in libubox
 {
     struct blob_attr* attr;
     uint8_t ret = 0;
+    int i = 0;
 
     __blob_for_each_attr(attr, head, len) {
         ret = dump_rrm_data(blobmsg_data(attr), blobmsg_data_len(attr), blob_id(attr));
-        return ret;// get the first rrm byte
+        if(ret == 0)
+        {
+            (*client)->rrm_caps_link_measurement = ret & WLAN_RRM_CAPS_LINK_MEASUREMENT;
+            (*client)->rrm_caps_neighbor_report = ret & WLAN_RRM_CAPS_NEIGHBOR_REPORT;
+            (*client)->rrm_caps_beacon_report_passive = ret & WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE;
+            (*client)->rrm_caps_beacon_report_active = ret & WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE;
+            (*client)->rrm_caps_beacon_report_table = ret & WLAN_RRM_CAPS_BEACON_REPORT_TABLE;
+        }
+        if(ret == 1)
+        {
+            (*client)->rrm_caps_lci_measurement = ret & WLAN_RRM_CAPS_LCI_MEASUREMENT;
+        }
+        if(ret ==4)
+        {
+            (*client)->rrm_caps_ftm_range_report = ret & WLAN_RRM_CAPS_FTM_RANGE_REPORT;
+        }
+        i++;
     }
-    return ret;
 }
 
 // TOOD: Refactor this!
@@ -406,9 +440,8 @@ dump_client(struct blob_attr** tb, struct dawn_mac client_addr, const char* bssi
     }
     /* RRM Caps */
     if (tb[CLIENT_RRM]) {
-        client_entry->rrm_enabled_capa = dump_rrm_table(blobmsg_data(tb[CLIENT_RRM]),
-            blobmsg_data_len(tb[CLIENT_RRM]));// get the first byte from rrm array
-//ap_entry.ap_weight = blobmsg_get_u32(tb[CLIENT_TABLE_RRM]);
+        dump_rrm_table(blobmsg_data(tb[CLIENT_RRM]), blobmsg_data_len(tb[CLIENT_RRM]), &client_entry);// get the first byte from rrm array
+        //ap_entry.ap_weight = blobmsg_get_u32(tb[CLIENT_TABLE_RRM]);
     }
     else {
         client_entry->rrm_enabled_capa = 0;

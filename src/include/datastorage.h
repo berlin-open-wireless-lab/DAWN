@@ -216,6 +216,15 @@ typedef struct client_s {
     uint32_t aid; // TODO: Never evaluated?
     uint32_t kick_count; // kick_clients()
     uint8_t rrm_enabled_capa; //the first byte is enough
+    
+    uint8_t rrm_caps_link_measurement;
+    uint8_t rrm_caps_neighbor_report;
+    uint8_t rrm_caps_beacon_report_passive;
+    uint8_t rrm_caps_beacon_report_active;
+    uint8_t rrm_caps_beacon_report_table;
+    uint8_t rrm_caps_lci_measurement;
+    uint8_t rrm_caps_ftm_range_report;
+
 } client;
 
 typedef struct ap_s {
