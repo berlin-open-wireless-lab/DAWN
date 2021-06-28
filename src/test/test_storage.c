@@ -301,6 +301,15 @@ static int load_int(int* v, char* s)
     return ret;
 }
 
+static int load_int_band(int* v, char* s);
+static int load_int_band(int* v, char* s)
+{
+  int ret = 0;
+  sscanf(s, "%" "d", v);
+  v[1] = v[0];
+  return ret;
+}
+
 static int load_string(size_t l, char* v, char* s);
 static int load_string(size_t l, char* v, char* s)
 {
@@ -631,20 +640,34 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
 
                 if (!strcmp(fn, "default"))
                 {
-                    dawn_metric.ap_weight = 0; // Sum component
-                    dawn_metric.ht_support = 10; // Sum component
-                    dawn_metric.vht_support = 100; // Sum component
-                    dawn_metric.no_ht_support = 0; // Sum component
-                    dawn_metric.no_vht_support = 0; // Sum component
-                    dawn_metric.rssi = 10; // Sum component
-                    dawn_metric.low_rssi = -500; // Sum component
-                    dawn_metric.freq = 100; // Sum component
-                    dawn_metric.chan_util = 0; // Sum component
-                    dawn_metric.max_chan_util = -500; // Sum component
-                    dawn_metric.rssi_val = -60;
-                    dawn_metric.low_rssi_val = -80;
-                    dawn_metric.chan_util_val = 140;
-                    dawn_metric.max_chan_util_val = 170;
+                    dawn_metric.ap_weight[0] = 0; // Sum component
+                    dawn_metric.ap_weight[1] = 0; // Sum component
+                    dawn_metric.ht_support[0] = 10; // Sum component
+                    dawn_metric.ht_support[1] = 10; // Sum component
+                    dawn_metric.vht_support[0] = 100; // Sum component
+                    dawn_metric.vht_support[1] = 100; // Sum component
+                    dawn_metric.no_ht_support[0] = 0; // Sum component
+                    dawn_metric.no_ht_support[1] = 0; // Sum component
+                    dawn_metric.no_vht_support[0] = 0; // Sum component
+                    dawn_metric.no_vht_support[1] = 0; // Sum component
+                    dawn_metric.rssi[0] = 10; // Sum component
+                    dawn_metric.rssi[1] = 10; // Sum component
+                    dawn_metric.low_rssi[0] = -500; // Sum component
+                    dawn_metric.low_rssi[1] = -500; // Sum component
+                    dawn_metric.freq[0] = 0; // Sum component
+                    dawn_metric.freq[1] = 100; // Sum component
+                    dawn_metric.chan_util[0] = 0; // Sum component
+                    dawn_metric.chan_util[1] = 0; // Sum component
+                    dawn_metric.max_chan_util[0] = -500; // Sum component
+                    dawn_metric.max_chan_util[1] = -500; // Sum component
+                    dawn_metric.rssi_val[0] = -60;
+                    dawn_metric.rssi_val[1] = -60;
+                    dawn_metric.low_rssi_val[0] = -80;
+                    dawn_metric.low_rssi_val[1] = -80;
+                    dawn_metric.chan_util_val[0] = 140;
+                    dawn_metric.chan_util_val[1] = 140;
+                    dawn_metric.max_chan_util_val[0] = 170;
+                    dawn_metric.max_chan_util_val[1] = 170;
                     dawn_metric.min_probe_count = 2;
                     dawn_metric.bandwidth_threshold = 6;
                     dawn_metric.use_station_count = 1;
@@ -655,7 +678,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                     dawn_metric.deny_auth_reason = 1;
                     dawn_metric.deny_assoc_reason = 17;
                     dawn_metric.use_driver_recog = 1;
-                    dawn_metric.min_kick_count = 3;
+                    dawn_metric.min_number_to_kick = 3;
                     dawn_metric.chan_util_avg_period = 3;
                     dawn_metric.set_hostapd_nr = 1;
                     dawn_metric.kicking = 0;
@@ -667,20 +690,20 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                     dawn_metric.rrm_mode_order[1] = WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE;
                     dawn_metric.rrm_mode_order[2] = WLAN_RRM_CAPS_BEACON_REPORT_TABLE;
                 }
-                else if (!strncmp(fn, "ap_weight=", 10)) load_int(&dawn_metric.ap_weight, fn + 10);
-                else if (!strncmp(fn, "ht_support=", 11)) load_int(&dawn_metric.ht_support, fn + 11);
-                else if (!strncmp(fn, "vht_support=", 12)) load_int(&dawn_metric.vht_support, fn + 12);
-                else if (!strncmp(fn, "no_ht_support=", 14)) load_int(&dawn_metric.no_ht_support, fn + 14);
-                else if (!strncmp(fn, "no_vht_support=", 15)) load_int(&dawn_metric.no_vht_support, fn + 15);
-                else if (!strncmp(fn, "rssi=", 5)) load_int(&dawn_metric.rssi, fn + 5);
-                else if (!strncmp(fn, "low_rssi=", 9)) load_int(&dawn_metric.low_rssi, fn + 9);
-                else if (!strncmp(fn, "freq=", 5)) load_int(&dawn_metric.freq, fn + 5);
-                else if (!strncmp(fn, "chan_util=", 10)) load_int(&dawn_metric.chan_util, fn + 10);
-                else if (!strncmp(fn, "max_chan_util=", 14)) load_int(&dawn_metric.max_chan_util, fn + 14);
-                else if (!strncmp(fn, "rssi_val=", 9)) load_int(&dawn_metric.rssi_val, fn + 9);
-                else if (!strncmp(fn, "low_rssi_val=", 13)) load_int(&dawn_metric.low_rssi_val, fn + 13);
-                else if (!strncmp(fn, "chan_util_val=", 14)) load_int(&dawn_metric.chan_util_val, fn + 14);
-                else if (!strncmp(fn, "max_chan_util_val=", 18)) load_int(&dawn_metric.max_chan_util_val, fn + 18);
+                else if (!strncmp(fn, "ap_weight=", 10)) load_int_band(dawn_metric.ap_weight, fn + 10);
+                else if (!strncmp(fn, "ht_support=", 11)) load_int_band(dawn_metric.ht_support, fn + 11);
+                else if (!strncmp(fn, "vht_support=", 12)) load_int_band(dawn_metric.vht_support, fn + 12);
+                else if (!strncmp(fn, "no_ht_support=", 14)) load_int_band(dawn_metric.no_ht_support, fn + 14);
+                else if (!strncmp(fn, "no_vht_support=", 15)) load_int_band(dawn_metric.no_vht_support, fn + 15);
+                else if (!strncmp(fn, "rssi=", 5)) load_int_band(dawn_metric.rssi, fn + 5);
+                else if (!strncmp(fn, "low_rssi=", 9)) load_int_band(dawn_metric.low_rssi, fn + 9);
+                else if (!strncmp(fn, "freq=", 5)) load_int(&dawn_metric.freq[1], fn + 5);
+                else if (!strncmp(fn, "chan_util=", 10)) load_int_band(dawn_metric.chan_util, fn + 10);
+                else if (!strncmp(fn, "max_chan_util=", 14)) load_int_band(dawn_metric.max_chan_util, fn + 14);
+                else if (!strncmp(fn, "rssi_val=", 9)) load_int_band(dawn_metric.rssi_val, fn + 9);
+                else if (!strncmp(fn, "low_rssi_val=", 13)) load_int_band(dawn_metric.low_rssi_val, fn + 13);
+                else if (!strncmp(fn, "chan_util_val=", 14)) load_int_band(dawn_metric.chan_util_val, fn + 14);
+                else if (!strncmp(fn, "max_chan_util_val=", 18)) load_int_band(dawn_metric.max_chan_util_val, fn + 18);
                 else if (!strncmp(fn, "min_probe_count=", 16)) load_int(&dawn_metric.min_probe_count, fn + 16);
                 else if (!strncmp(fn, "bandwidth_threshold=", 20)) load_int(&dawn_metric.bandwidth_threshold, fn + 20);
                 else if (!strncmp(fn, "use_station_count=", 18)) load_int(&dawn_metric.use_station_count, fn + 18);
@@ -691,7 +714,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 else if (!strncmp(fn, "deny_auth_reason=", 17)) load_int(&dawn_metric.deny_auth_reason, fn + 17);
                 else if (!strncmp(fn, "deny_assoc_reason=", 18)) load_int(&dawn_metric.deny_assoc_reason, fn + 18);
                 else if (!strncmp(fn, "use_driver_recog=", 17)) load_int(&dawn_metric.use_driver_recog, fn + 17);
-                else if (!strncmp(fn, "min_kick_count=", 15)) load_int(&dawn_metric.min_kick_count, fn + 15);
+                else if (!strncmp(fn, "min_number_to_kick=", 19)) load_int(&dawn_metric.min_number_to_kick, fn + 19);
                 else if (!strncmp(fn, "chan_util_avg_period=", 21)) load_int(&dawn_metric.chan_util_avg_period, fn + 21);
                 else if (!strncmp(fn, "set_hostapd_nr=", 15)) load_int(&dawn_metric.set_hostapd_nr, fn + 15);
                 else if (!strncmp(fn, "kicking=", 8)) load_int(&dawn_metric.kicking, fn + 8);

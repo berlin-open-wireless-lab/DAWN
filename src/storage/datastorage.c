@@ -34,6 +34,19 @@ struct auth_entry_s *denied_req_set = NULL;
 int denied_req_last = 0;
 pthread_mutex_t denied_array_mutex;
 
+// config section name
+const char *band_config_name[__DAWN_BAND_MAX] = {
+    "802_11g",
+    "802_11a"
+};
+
+// starting frequency
+// TODO: make this configurable
+const int max_band_freq[__DAWN_BAND_MAX] = {
+    2500,
+    5925 // This may cause trouble because there's overlap between bands in different countries
+};
+
 // Ratio of skiping entries to all entries.
 // Approx sqrt() of large data set, and power of 2 for efficient division when adding entries.
 #define DAWN_PROBE_SKIP_RATIO 128
@@ -404,36 +417,48 @@ void send_beacon_reports(ap *a, int id) {
     pthread_mutex_unlock(&client_array_mutex);
 }
 
+int get_band(int freq) {
+    int band;
+
+    for (band=0; band < __DAWN_BAND_MAX; band++)
+        if (freq <= max_band_freq[band])
+            return band;
+    band--;
+    fprintf(stderr, "Warning: frequency %d is beyond the last known band. "
+                    "Using '%s' band parameters.\n", freq, band_config_name[band]);
+    return band;
+}
+
 // TODO: Can metric be cached once calculated? Add score_fresh indicator and reset when signal changes
 // TODO: as rest of values look to be static fr any given entry.
 int eval_probe_metric(struct probe_entry_s* probe_entry, ap* ap_entry) {
 
-    int score = 0;
-
-    // check if ap entry is available
-    if (ap_entry != NULL) {
-        score += probe_entry->ht_capabilities && ap_entry->ht_support ? dawn_metric.ht_support : 0;
-        score += !probe_entry->ht_capabilities && !ap_entry->ht_support ? dawn_metric.no_ht_support : 0;  // TODO: Is both devices not having a capability worthy of scoring?
-
-        // performance anomaly?
-        if (network_config.bandwidth >= 1000 || network_config.bandwidth == -1) {
-            score += probe_entry->vht_capabilities && ap_entry->vht_support ? dawn_metric.vht_support : 0;
-        }
-
-        score += !probe_entry->vht_capabilities && !ap_entry->vht_support ? dawn_metric.no_vht_support : 0;  // TODO: Is both devices not having a capability worthy of scoring?
-        score += ap_entry->channel_utilization <= dawn_metric.chan_util_val ? dawn_metric.chan_util : 0;
-        score += ap_entry->channel_utilization > dawn_metric.max_chan_util_val ? dawn_metric.max_chan_util : 0;
-
-        score += ap_entry->ap_weight;
-    }
-
-    score += (probe_entry->freq > 5000) ? dawn_metric.freq : 0;
+    int band, score = 0;
 
     // TODO: Should RCPI be used here as well?
     // TODO: Should this be more scaled?  Should -63dB on current and -77dB on other both score 0 if low / high are -80db and -60dB?
     // TODO: That then lets device capabilites dominate score - making them more important than RSSI difference of 14dB.
-    score += (probe_entry->signal >= dawn_metric.rssi_val) ? dawn_metric.rssi : 0;
-    score += (probe_entry->signal <= dawn_metric.low_rssi_val) ? dawn_metric.low_rssi : 0;
+    band = get_band(probe_entry->freq);
+    score = dawn_metric.freq[band];
+    score += probe_entry->signal >= dawn_metric.rssi_val[band] ? dawn_metric.rssi[band] : 0;
+    score += probe_entry->signal <= dawn_metric.low_rssi_val[band] ? dawn_metric.low_rssi[band] : 0;
+
+    // check if ap entry is available
+    if (ap_entry != NULL) {
+        score += probe_entry->ht_capabilities && ap_entry->ht_support ? dawn_metric.ht_support[band] : 0;
+        score += !probe_entry->ht_capabilities && !ap_entry->ht_support ? dawn_metric.no_ht_support[band] : 0;  // TODO: Is both devices not having a capability worthy of scoring?
+
+        // performance anomaly?
+        if (network_config.bandwidth >= 1000 || network_config.bandwidth == -1) {
+            score += probe_entry->vht_capabilities && ap_entry->vht_support ? dawn_metric.vht_support[band] : 0;
+        }
+
+        score += !probe_entry->vht_capabilities && !ap_entry->vht_support ? dawn_metric.no_vht_support[band] : 0;  // TODO: Is both devices not having a capability worthy of scoring?
+        score += ap_entry->channel_utilization <= dawn_metric.chan_util_val[band] ? dawn_metric.chan_util[band] : 0;
+        score += ap_entry->channel_utilization > dawn_metric.max_chan_util_val[band] ? dawn_metric.max_chan_util[band] : 0;
+
+        score += ap_entry->ap_weight;
+    }
 
     // TODO: This magic value never checked by caller.  What does it achieve?
     if (score < 0)
@@ -623,9 +648,9 @@ int kick_clients(ap* kicking_ap, uint32_t id) {
             // + chan util is changing a lot
             // + ping pong behavior of clients will be reduced
             j->kick_count++;
-            printf("Comparing kick count! kickcount: %d to min_kick_count: %d!\n", j->kick_count,
-                dawn_metric.min_kick_count);
-            if (j->kick_count >= dawn_metric.min_kick_count) {
+            printf("Comparing kick count! kickcount: %d to min_number_to_kick: %d!\n", j->kick_count,
+                dawn_metric.min_number_to_kick);
+            if (j->kick_count >= dawn_metric.min_number_to_kick) {
                 printf("Better AP available. Kicking client:\n");
                 print_client_entry(j);
                 printf("Check if client is active receiving!\n");
