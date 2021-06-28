@@ -116,50 +116,88 @@ static int parse_rrm_mode(int *rrm_mode_order, const char *mode_string) {
 }
 
 
-struct probe_metric_s uci_get_dawn_metric() {
-    struct probe_metric_s ret = {0};
+static void set_if_present(int *ret, struct uci_section *s, const char* option) {
+    const char *str;
 
+    if (s && (str = uci_lookup_option_string(uci_ctx, s, option)))
+        *ret = atoi(str);
+}
+
+static struct uci_section *uci_find_metric_section(const char *name) {
+    struct uci_section *s;
     struct uci_element *e;
-    uci_foreach_element(&uci_pkg->sections, e)
-    {
-        struct uci_section *s = uci_to_section(e);
 
-        if (strcmp(s->type, "metric") == 0) {
-            ret.ap_weight = uci_lookup_option_int(uci_ctx, s, "ap_weight");
-            ret.kicking = uci_lookup_option_int(uci_ctx, s, "kicking");
-            ret.ht_support = uci_lookup_option_int(uci_ctx, s, "ht_support");
-            ret.vht_support = uci_lookup_option_int(uci_ctx, s, "vht_support");
-            ret.no_ht_support = uci_lookup_option_int(uci_ctx, s, "no_ht_support");
-            ret.no_vht_support = uci_lookup_option_int(uci_ctx, s, "no_vht_support");
-            ret.rssi = uci_lookup_option_int(uci_ctx, s, "rssi");
-            ret.freq = uci_lookup_option_int(uci_ctx, s, "freq");
-            ret.rssi_val = uci_lookup_option_int(uci_ctx, s, "rssi_val");
-            ret.chan_util = uci_lookup_option_int(uci_ctx, s, "chan_util");
-            ret.max_chan_util = uci_lookup_option_int(uci_ctx, s, "max_chan_util");
-            ret.chan_util_val = uci_lookup_option_int(uci_ctx, s, "chan_util_val");
-            ret.max_chan_util_val = uci_lookup_option_int(uci_ctx, s, "max_chan_util_val");
-            ret.min_probe_count = uci_lookup_option_int(uci_ctx, s, "min_probe_count");
-            ret.low_rssi = uci_lookup_option_int(uci_ctx, s, "low_rssi");
-            ret.low_rssi_val = uci_lookup_option_int(uci_ctx, s, "low_rssi_val");
-            ret.bandwidth_threshold = uci_lookup_option_int(uci_ctx, s, "bandwidth_threshold");
-            ret.use_station_count = uci_lookup_option_int(uci_ctx, s, "use_station_count");
-            ret.eval_probe_req = uci_lookup_option_int(uci_ctx, s, "eval_probe_req");
-            ret.eval_auth_req = uci_lookup_option_int(uci_ctx, s, "eval_auth_req");
-            ret.eval_assoc_req = uci_lookup_option_int(uci_ctx, s, "eval_assoc_req");
-            ret.deny_auth_reason = uci_lookup_option_int(uci_ctx, s, "deny_auth_reason");
-            ret.deny_assoc_reason = uci_lookup_option_int(uci_ctx, s, "deny_assoc_reason");
-            ret.max_station_diff = uci_lookup_option_int(uci_ctx, s, "max_station_diff");
-            ret.use_driver_recog = uci_lookup_option_int(uci_ctx, s, "use_driver_recog");
-            ret.min_kick_count = uci_lookup_option_int(uci_ctx, s, "min_number_to_kick");
-            ret.chan_util_avg_period = uci_lookup_option_int(uci_ctx, s, "chan_util_avg_period");
-            ret.set_hostapd_nr = uci_lookup_option_int(uci_ctx, s, "set_hostapd_nr");
-            ret.duration = uci_lookup_option_int(uci_ctx, s, "duration");
-            ret.rrm_mode_mask = parse_rrm_mode(ret.rrm_mode_order,
-                                               uci_lookup_option_string(uci_ctx, s, "rrm_mode"));
-            return ret;
+    uci_foreach_element(&uci_pkg->sections, e) {
+        s = uci_to_section(e);
+        if (strcmp(s->type, "metric") == 0 &&
+            ((!name && s->anonymous) || strcmp(e->name, name) == 0)) {
+            return s;
         }
     }
+    return NULL;
+}
 
+#define DAWN_SET_CONFIG_INT(m, s, conf) \
+    set_if_present(&m.conf, s, #conf)
+
+#define DAWN_SET_BANDS_CONFIG_INT(m, global_s, band_s, conf) \
+    do for (int band = 0; band < __DAWN_BAND_MAX; band++) { \
+        if (global_s) \
+            set_if_present(&m.conf[band], global_s, #conf); \
+        if (band_s[band]) \
+            set_if_present(&m.conf[band], band_s[band], #conf); \
+    } while (0)
+
+struct probe_metric_s uci_get_dawn_metric() {
+    struct probe_metric_s ret = {0};    // TODO: Set reasonable defaults
+    struct uci_section *global_s, *band_s[__DAWN_BAND_MAX];
+
+    if (!(global_s = uci_find_metric_section("global"))) {
+        if (!(global_s = uci_find_metric_section(NULL))) {
+            fprintf(stderr, "Warning: config metric global section not found! Using defaults.\n");
+        } else {
+            fprintf(stderr, "Warning: config metric global section not found. "
+                            "Using first unnamed config metric.\n"
+                            "Consider naming a 'global' metric section to avoid ambiguity.\n");
+        }
+    }
+    if (global_s) {
+        // True global configuration
+        DAWN_SET_CONFIG_INT(ret, global_s, kicking);
+        DAWN_SET_CONFIG_INT(ret, global_s, min_probe_count);
+        DAWN_SET_CONFIG_INT(ret, global_s, use_station_count);
+        DAWN_SET_CONFIG_INT(ret, global_s, eval_auth_req);
+        DAWN_SET_CONFIG_INT(ret, global_s, eval_assoc_req);
+        DAWN_SET_CONFIG_INT(ret, global_s, deny_auth_reason);
+        DAWN_SET_CONFIG_INT(ret, global_s, deny_assoc_reason);
+        DAWN_SET_CONFIG_INT(ret, global_s, eval_probe_req);
+        DAWN_SET_CONFIG_INT(ret, global_s, min_number_to_kick);
+        DAWN_SET_CONFIG_INT(ret, global_s, set_hostapd_nr);
+        DAWN_SET_CONFIG_INT(ret, global_s, max_station_diff);
+        DAWN_SET_CONFIG_INT(ret, global_s, bandwidth_threshold);
+        DAWN_SET_CONFIG_INT(ret, global_s, use_driver_recog);
+        DAWN_SET_CONFIG_INT(ret, global_s, chan_util_avg_period);
+        DAWN_SET_CONFIG_INT(ret, global_s, duration);
+        ret.rrm_mode_mask = parse_rrm_mode(ret.rrm_mode_order,
+                                           uci_lookup_option_string(uci_ctx, global_s, "rrm_mode"));
+    }
+    for (int band = 0; band < __DAWN_BAND_MAX; band++)
+        band_s[band] = uci_find_metric_section(band_config_name[band]);
+
+    DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, ap_weight);
+    DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, ht_support);
+    DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, vht_support);
+    DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, no_ht_support);
+    DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, no_vht_support);
+    DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, rssi);
+    DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, rssi_val);
+    DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, freq);
+    DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, chan_util);
+    DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, max_chan_util);
+    DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, chan_util_val);
+    DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, max_chan_util_val);
+    DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, low_rssi);
+    DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, low_rssi_val);
     return ret;
 }
 

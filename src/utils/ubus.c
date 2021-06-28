@@ -104,6 +104,7 @@ struct hostapd_sock_entry {
     int chan_util_samples_sum;
     int chan_util_num_sample_periods;
     int chan_util_average; //TODO: Never evaluated?
+    int band;
 
     // add neighbor report string
     /*
@@ -648,6 +649,15 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
     return 0;
 }
 
+static int get_band_from_bssid(struct dawn_mac bssid) {
+    ap *a;
+    for (a = ap_set; a; a = a->next_ap) {
+        if (mac_is_equal_bb(a->bssid_addr, bssid))
+            return get_band(a->freq);
+    }
+    return -1;
+}
+
 static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_attr *msg) {
     struct hostapd_sock_entry *sub, *entry = NULL;
 
@@ -685,7 +695,10 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     blobmsg_add_u8(&b_domain, "ht_supported", entry->ht_support);
     blobmsg_add_u8(&b_domain, "vht_supported", entry->vht_support);
 
-    blobmsg_add_u32(&b_domain, "ap_weight", dawn_metric.ap_weight);
+    if (entry->band < 0)
+        entry->band = get_band_from_bssid(entry->bssid_addr);
+    if (entry->band >= 0)
+        blobmsg_add_u32(&b_domain, "ap_weight", dawn_metric.ap_weight[entry->band]);
 
     //int channel_util = get_channel_utilization(entry->iface_name, &entry->last_channel_time, &entry->last_channel_time_busy);
     blobmsg_add_u32(&b_domain, "channel_utilization", entry->chan_util_average);
@@ -1237,6 +1250,7 @@ bool subscribe(struct hostapd_sock_entry *hostapd_entry) {
 
     hostapd_entry->ht_support = (uint8_t) support_ht(hostapd_entry->iface_name);
     hostapd_entry->vht_support = (uint8_t) support_vht(hostapd_entry->iface_name);
+    hostapd_entry->band = -1;
 
     respond_to_notify(hostapd_entry->id);
     enable_rrm(hostapd_entry->id);
@@ -1363,26 +1377,12 @@ const static char* get_rrm_mode_string(int *rrm_mode_order) {
 
 int uci_send_via_network()
 {
-    void *metric, *times;
+    void *metric, *times, *band_table, *band_entry;
 
     blob_buf_init(&b, 0);
     blobmsg_add_string(&b, "version", DAWN_CONFIG_VERSION);
     metric = blobmsg_open_table(&b, "metric");
-    blobmsg_add_u32(&b, "ht_support", dawn_metric.ht_support);
-    blobmsg_add_u32(&b, "vht_support", dawn_metric.vht_support);
-    blobmsg_add_u32(&b, "no_ht_support", dawn_metric.no_ht_support);
-    blobmsg_add_u32(&b, "no_vht_support", dawn_metric.no_vht_support);
-    blobmsg_add_u32(&b, "rssi", dawn_metric.rssi);
-    blobmsg_add_u32(&b, "low_rssi", dawn_metric.low_rssi);
-    blobmsg_add_u32(&b, "freq", dawn_metric.freq);
-    blobmsg_add_u32(&b, "chan_util", dawn_metric.chan_util);
 
-
-    blobmsg_add_u32(&b, "max_chan_util", dawn_metric.max_chan_util);
-    blobmsg_add_u32(&b, "rssi_val", dawn_metric.rssi_val);
-    blobmsg_add_u32(&b, "low_rssi_val", dawn_metric.low_rssi_val);
-    blobmsg_add_u32(&b, "chan_util_val", dawn_metric.chan_util_val);
-    blobmsg_add_u32(&b, "max_chan_util_val", dawn_metric.max_chan_util_val);
     blobmsg_add_u32(&b, "min_probe_count", dawn_metric.min_probe_count);
     blobmsg_add_u32(&b, "bandwidth_threshold", dawn_metric.bandwidth_threshold);
     blobmsg_add_u32(&b, "use_station_count", dawn_metric.use_station_count);
@@ -1394,11 +1394,33 @@ int uci_send_via_network()
     blobmsg_add_u32(&b, "deny_auth_reason", dawn_metric.deny_auth_reason);
     blobmsg_add_u32(&b, "deny_assoc_reason", dawn_metric.deny_assoc_reason);
     blobmsg_add_u32(&b, "use_driver_recog", dawn_metric.use_driver_recog);
-    blobmsg_add_u32(&b, "min_number_to_kick", dawn_metric.min_kick_count);
+    blobmsg_add_u32(&b, "min_number_to_kick", dawn_metric.min_number_to_kick);
     blobmsg_add_u32(&b, "chan_util_avg_period", dawn_metric.chan_util_avg_period);
     blobmsg_add_u32(&b, "set_hostapd_nr", dawn_metric.set_hostapd_nr);
     blobmsg_add_u32(&b, "duration", dawn_metric.duration);
     blobmsg_add_string(&b, "rrm_mode", get_rrm_mode_string(dawn_metric.rrm_mode_order));
+    band_table = blobmsg_open_table(&b, "band_metrics");
+
+    for (int band=0; band < __DAWN_BAND_MAX; band++) {
+        band_entry = blobmsg_open_table(&b, band_config_name[band]);
+        blobmsg_add_u32(&b, "ap_weight", dawn_metric.ap_weight[band]);
+        blobmsg_add_u32(&b, "ht_support", dawn_metric.ht_support[band]);
+        blobmsg_add_u32(&b, "vht_support", dawn_metric.vht_support[band]);
+        blobmsg_add_u32(&b, "no_ht_support", dawn_metric.no_ht_support[band]);
+        blobmsg_add_u32(&b, "no_vht_support", dawn_metric.no_vht_support[band]);
+        blobmsg_add_u32(&b, "rssi", dawn_metric.rssi[band]);
+        blobmsg_add_u32(&b, "rssi_val", dawn_metric.rssi_val[band]);
+        blobmsg_add_u32(&b, "low_rssi", dawn_metric.low_rssi[band]);
+        blobmsg_add_u32(&b, "low_rssi_val", dawn_metric.low_rssi_val[band]);
+        blobmsg_add_u32(&b, "freq", dawn_metric.freq[band]);
+        blobmsg_add_u32(&b, "chan_util", dawn_metric.chan_util[band]);
+        blobmsg_add_u32(&b, "max_chan_util", dawn_metric.max_chan_util[band]);
+        blobmsg_add_u32(&b, "chan_util_val", dawn_metric.chan_util_val[band]);
+        blobmsg_add_u32(&b, "max_chan_util_val", dawn_metric.max_chan_util_val[band]);
+        blobmsg_close_table(&b, band_entry);
+    }
+    blobmsg_close_table(&b, band_table);
+
     blobmsg_close_table(&b, metric);
 
     times = blobmsg_open_table(&b, "times");

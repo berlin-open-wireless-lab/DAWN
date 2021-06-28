@@ -8,7 +8,7 @@ dawn max_chan_util=0
 dawn ap_weight=4
 dawn rssi=32
 dawn low_rssi=0
-dawn min_kick_count=1
+dawn min_number_to_kick=1
 
 
 #AP
