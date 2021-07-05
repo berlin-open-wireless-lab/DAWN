@@ -170,7 +170,7 @@ static int array_auto_helper(int action, int i0, int i1)
                 time_moves_on();
             }
             else
-                ap_array_delete(ap_array_get_ap(this_mac));
+                ap_array_delete(ap_array_get_ap(this_mac, NULL));
             break;
         case HELPER_CLIENT:
             ; // Empty statement to allow label before declaration
@@ -938,7 +938,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 hwaddr_aton(argv[1], kick_mac.u8);
                 load_u32(&kick_id, argv[2]);
 
-                while ((kick_clients(ap_array_get_ap(kick_mac), kick_id) != 0) && safety_count--);
+                while ((kick_clients(ap_array_get_ap(kick_mac, NULL), kick_id) != 0) && safety_count--);
             }
         }
         else if (strcmp(*argv, "better_ap_available") == 0)
@@ -971,11 +971,11 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                         strcpy(nb, argv[4]);
                     }
 
-                    tr = better_ap_available(ap_array_get_ap(bssid_mac), client_mac, nb);
+                    tr = better_ap_available(ap_array_get_ap(bssid_mac, NULL), client_mac, nb);
                 }
                 else
                 {
-                    tr = better_ap_available(ap_array_get_ap(bssid_mac), client_mac, NULL);
+                    tr = better_ap_available(ap_array_get_ap(bssid_mac, NULL), client_mac, NULL);
                 }
 
                 printf("better_ap_available returned %d (with neighbour report %s)\n", tr, nb);
@@ -1000,7 +1000,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 }
                 else
                 {
-                    ap* ap_entry = ap_array_get_ap(pr0->bssid_addr);
+                    ap* ap_entry = ap_array_get_ap(pr0->bssid_addr, NULL);
 
                     int this_metric = eval_probe_metric(pr0, ap_entry);
                     printf("eval_probe_metric: Returned %d\n", this_metric);
