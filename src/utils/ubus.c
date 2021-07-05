@@ -145,6 +145,7 @@ enum {
     BEACON_REP_BSSID,
     BEACON_REP_ANTENNA_ID,
     BEACON_REP_PARENT_TSF,
+    BEACON_REP_SSID,
     __BEACON_REP_MAX,
 };
 
@@ -160,6 +161,7 @@ static const struct blobmsg_policy beacon_rep_policy[__BEACON_REP_MAX] = {
         [BEACON_REP_BSSID] = {.name = "bssid", .type = BLOBMSG_TYPE_STRING},
         [BEACON_REP_ANTENNA_ID] = {.name = "antenna-id", .type = BLOBMSG_TYPE_INT16},
         [BEACON_REP_PARENT_TSF] = {.name = "parent-tsf", .type = BLOBMSG_TYPE_INT16},
+        [BEACON_REP_SSID] = {.name = "ssid", .type = BLOBMSG_TYPE_STRING},
 };
 
 enum {
@@ -272,7 +274,7 @@ static int decide_function(probe_entry *prob_req, int req_type) {
 
     // TODO: Bug?  This results in copious "Neigbor-Report is NULL" messages!
     // find own probe entry and calculate score
-    ap* this_ap = ap_array_get_ap(prob_req->bssid_addr);
+    ap* this_ap = ap_array_get_ap(prob_req->bssid_addr, prob_req->ssid);
     if (this_ap != NULL && better_ap_available(this_ap, prob_req->client_addr, NULL)) {
         return 0;
     }
@@ -330,7 +332,8 @@ int parse_to_beacon_rep(struct blob_attr *msg) {
         return -1;
     }
 
-    ap *ap_entry_rep = ap_array_get_ap(msg_bssid);
+    const uint8_t *ssid = (const uint8_t*)blobmsg_get_string(tb[BEACON_REP_SSID]);
+    ap *ap_entry_rep = ap_array_get_ap(msg_bssid, ssid);
 
     // no client from network!!
     if (ap_entry_rep == NULL) {
@@ -361,6 +364,8 @@ int parse_to_beacon_rep(struct blob_attr *msg) {
         beacon_rep->next_probe = NULL;
         beacon_rep->bssid_addr = msg_bssid;
         beacon_rep->client_addr = msg_client;
+        strncpy((char*)beacon_rep->ssid, (char*)ssid, SSID_MAX_LEN);
+        beacon_rep->ssid[SSID_MAX_LEN] = '\0';
         beacon_rep->counter = dawn_metric.min_probe_count;
         hwaddr_aton(blobmsg_data(tb[BEACON_REP_ADDR]), beacon_rep->target_addr.u8);  // TODO: What is this for?
         beacon_rep->signal = 0;
@@ -1397,7 +1402,7 @@ int build_hearing_map_sort_client(struct blob_buf *b) {
             ssid_list = blobmsg_open_table(b, (char*)m->ssid);
             probe_entry* i = probe_set;
             while (i != NULL) {
-                ap *ap_entry_i = ap_array_get_ap(i->bssid_addr);
+                ap *ap_entry_i = ap_array_get_ap(i->bssid_addr, m->ssid);
 
                 if (ap_entry_i == NULL) {
                     i = i->next_probe;
@@ -1416,7 +1421,7 @@ int build_hearing_map_sort_client(struct blob_buf *b) {
                 k != NULL && mac_is_equal_bb(k->client_addr, i->client_addr);
                 k = k->next_probe) {
 
-                    ap *ap_k = ap_array_get_ap(k->bssid_addr);
+                    ap *ap_k = ap_array_get_ap(k->bssid_addr, m->ssid);
 
                     if (ap_k == NULL || strcmp((char*)ap_k->ssid, (char*)m->ssid) != 0) {
                         continue;

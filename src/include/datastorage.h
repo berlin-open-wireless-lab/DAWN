@@ -122,12 +122,15 @@ extern struct probe_metric_s dawn_metric;
 
 /* Probe, Auth, Assoc */
 
+#define SSID_MAX_LEN 32
+
 // ---------------- Structs ----------------
 typedef struct probe_entry_s {
     struct probe_entry_s* next_probe;
     struct probe_entry_s* next_probe_skip;
     struct dawn_mac client_addr;
     struct dawn_mac bssid_addr;
+    uint8_t ssid[SSID_MAX_LEN + 1]; // parse_to_beacon_rep()
     struct dawn_mac target_addr; // TODO: Never evaluated?
     uint32_t signal; // eval_probe_metric()
     uint32_t freq; // eval_probe_metric()
@@ -170,7 +173,6 @@ typedef struct auth_entry_s assoc_entry;
 
 // ---------------- Defines ----------------
 
-#define SSID_MAX_LEN 32
 #define NEIGHBOR_REPORT_LEN 200
 
 // ---------------- Global variables ----------------
@@ -305,7 +307,7 @@ void remove_old_ap_entries(time_t current_time, long long int threshold);
 
 void print_ap_array();
 
-ap *ap_array_get_ap(struct dawn_mac bssid_mac);
+ap *ap_array_get_ap(struct dawn_mac bssid_mac, const uint8_t* ssid);
 
 int probe_array_set_all_probe_count(struct dawn_mac client_addr, uint32_t probe_count);
 

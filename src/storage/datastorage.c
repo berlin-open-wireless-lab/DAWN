@@ -158,7 +158,7 @@ static probe_entry** probe_array_find_first_entry(struct dawn_mac client_mac, st
     return lo_ptr;
 }
 
-static ap** ap_array_find_first_entry(struct dawn_mac bssid_mac)
+static ap** ap_array_find_first_entry(struct dawn_mac bssid_mac, const uint8_t* ssid)
 {
     int lo = 0;
     ap** lo_ptr = &ap_set;
@@ -167,6 +167,7 @@ static ap** ap_array_find_first_entry(struct dawn_mac bssid_mac)
     while (lo < hi) {
         ap** i = lo_ptr;
         int scan_pos = lo;
+        int this_cmp;
 
         // m is next test position of binary search
         int m = (lo + hi) / 2;
@@ -177,7 +178,15 @@ static ap** ap_array_find_first_entry(struct dawn_mac bssid_mac)
             i = &((*i)->next_ap);
         }
 
-        int this_cmp = mac_compare_bb((*i)->bssid_addr, bssid_mac);
+        if (ssid)
+        {
+            this_cmp = strcmp((char*)(*i)->ssid, (char*)ssid);
+        }
+        else
+        {
+            this_cmp = 0;
+        }
+        this_cmp = this_cmp ? this_cmp : mac_compare_bb((*i)->bssid_addr, bssid_mac);
 
         if (this_cmp < 0)
         {
@@ -489,7 +498,7 @@ int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, char* neighb
             continue;
         }
 
-        ap* candidate_ap = ap_array_get_ap(i->bssid_addr);
+        ap* candidate_ap = ap_array_get_ap(i->bssid_addr, kicking_ap->ssid);
 
         if (candidate_ap == NULL) {
             i = i->next_probe;
@@ -1060,10 +1069,11 @@ ap *insert_to_ap_array(ap* entry, time_t expiry) {
 
 
     // TODO: Why do we delete and add here?
-    ap* old_entry = *ap_array_find_first_entry(entry->bssid_addr);
+    ap* old_entry = *ap_array_find_first_entry(entry->bssid_addr, entry->ssid);
 
     if (old_entry != NULL &&
-            !mac_is_equal_bb((old_entry)->bssid_addr, entry->bssid_addr))
+            !mac_is_equal_bb((old_entry)->bssid_addr, entry->bssid_addr) &&
+            !strcmp((char*)old_entry->ssid, (char*)entry->ssid))
         old_entry = NULL;
 
     if (old_entry != NULL)
@@ -1116,11 +1126,11 @@ void ap_array_insert(ap* entry) {
     }
 }
 
-ap* ap_array_get_ap(struct dawn_mac bssid_mac) {
+ap* ap_array_get_ap(struct dawn_mac bssid_mac, const uint8_t* ssid) {
 
     pthread_mutex_lock(&ap_array_mutex);
 
-    ap* ret = *ap_array_find_first_entry(bssid_mac);
+    ap* ret = *ap_array_find_first_entry(bssid_mac, ssid);
 
     pthread_mutex_unlock(&ap_array_mutex);
 
