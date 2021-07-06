@@ -96,7 +96,7 @@ struct hostapd_sock_entry {
     char iface_name[MAX_INTERFACE_NAME];
     char hostname[HOST_NAME_MAX];
     struct dawn_mac bssid_addr;
-    char ssid[SSID_MAX_LEN];
+    char ssid[SSID_MAX_LEN + 1];
     uint8_t ht_support;
     uint8_t vht_support;
     uint64_t last_channel_time;
@@ -1214,6 +1214,7 @@ bool subscribe(struct hostapd_sock_entry *hostapd_entry) {
 
     get_bssid(hostapd_entry->iface_name, hostapd_entry->bssid_addr.u8);
     get_ssid(hostapd_entry->iface_name, hostapd_entry->ssid, (SSID_MAX_LEN) * sizeof(char));
+    hostapd_entry->ssid[SSID_MAX_LEN] = '\0';
 
     hostapd_entry->ht_support = (uint8_t) support_ht(hostapd_entry->iface_name);
     hostapd_entry->vht_support = (uint8_t) support_vht(hostapd_entry->iface_name);
