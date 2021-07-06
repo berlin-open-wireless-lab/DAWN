@@ -867,7 +867,7 @@ void ubus_set_nr(){
         if (sub->subscribed) {
             int timeout = 1;
             blob_buf_init(&b_nr, 0);
-            ap_get_nr(&b_nr, sub->bssid_addr);
+            ap_get_nr(&b_nr, sub->bssid_addr, sub->ssid);
             ubus_invoke(ctx, sub->id, "rrm_nr_set", b_nr.head, NULL, NULL, timeout * 1000);
         }
     }
@@ -1563,7 +1563,7 @@ int build_network_overview(struct blob_buf *b) {
 
 // TODO: Does all APs constitute neighbor report?  How about using list of AP connected
 // clients can also see (from probe_set) to give more (physically) local set?
-int ap_get_nr(struct blob_buf *b_local, struct dawn_mac own_bssid_addr) {
+int ap_get_nr(struct blob_buf *b_local, struct dawn_mac own_bssid_addr, const char *ssid) {
 
     pthread_mutex_lock(&ap_array_mutex);
     ap *i;
@@ -1571,8 +1571,9 @@ int ap_get_nr(struct blob_buf *b_local, struct dawn_mac own_bssid_addr) {
     void* nbs = blobmsg_open_array(b_local, "list");
 
     for (i = ap_set; i != NULL; i = i->next_ap) {
-        if (mac_is_equal_bb(own_bssid_addr, i->bssid_addr)) {
-            continue; //TODO: Skip own entry?!
+        if (mac_is_equal_bb(own_bssid_addr, i->bssid_addr) ||
+	    strncmp((char *)i->ssid, ssid, SSID_MAX_LEN)) {
+            continue;
         }
 
         void* nr_entry = blobmsg_open_array(b_local, NULL);

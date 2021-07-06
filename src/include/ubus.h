@@ -78,7 +78,7 @@ int build_hearing_map_sort_client(struct blob_buf* b);
 
 int build_network_overview(struct blob_buf* b);
 
-int ap_get_nr(struct blob_buf* b, struct dawn_mac own_bssid_addr);
+int ap_get_nr(struct blob_buf* b, struct dawn_mac own_bssid_addr, const char *ssid);
 
 int parse_add_mac_to_file(struct blob_attr* msg);
 
