@@ -227,7 +227,7 @@ typedef struct ap_s {
     uint32_t channel_utilization; // eval_probe_metric()
     time_t time; // remove_old...entries
     uint32_t station_count; // compare_station_count() <- better_ap_available()
-    uint8_t ssid[SSID_MAX_LEN]; // compare_sid() < -better_ap_available()
+    uint8_t ssid[SSID_MAX_LEN + 1]; // compare_sid() < -better_ap_available()
     char neighbor_report[NEIGHBOR_REPORT_LEN];
     uint32_t collision_domain;  // TODO: ap_get_collision_count() never evaluated?
     uint32_t bandwidth; // TODO: Never evaluated?

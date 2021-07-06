@@ -281,8 +281,7 @@ int get_ssid(const char *ifname, char* ssid, size_t ssidmax) {
     if (iw->ssid(ifname, buf))
         memset(buf, 0, sizeof(buf));
 
-    memcpy(ssid, buf, ssidmax);
-    strcpy(ssid, buf);
+    strncpy(ssid, buf, ssidmax);
     iwinfo_finish();
     return 0;
 }

@@ -697,7 +697,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
             ap0->time = faketime;
             ap0->station_count = 0;
             memset(ap0->ssid, '*', SSID_MAX_LEN);
-            ap0->ssid[SSID_MAX_LEN - 1] = '\0';
+            ap0->ssid[SSID_MAX_LEN] = '\0';
             ap0->neighbor_report[0] = 0;
             ap0->collision_domain = 0;
             ap0->bandwidth = 0;
