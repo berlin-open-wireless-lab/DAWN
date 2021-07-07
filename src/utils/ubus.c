@@ -1617,35 +1617,60 @@ int build_network_overview(struct blob_buf *b) {
 }
 
 
+static void blobmsg_add_nr(struct blob_buf *b_local, ap *i) {
+    void* nr_entry = blobmsg_open_array(b_local, NULL);
+    char mac_buf[20];
+
+    sprintf(mac_buf, MACSTRLOWER, MAC2STR(i->bssid_addr.u8));
+    blobmsg_add_string(b_local, NULL, mac_buf);
+
+    blobmsg_add_string(b_local, NULL, (char *) i->ssid);
+    blobmsg_add_string(b_local, NULL, i->neighbor_report);
+    blobmsg_close_array(b_local, nr_entry);
+}
+
+static int mac_is_in_entry_list(const struct dawn_mac mac, const struct mac_entry_s *list) {
+    for (const struct mac_entry_s *i = list; i; i = i->next_mac)
+        if (mac_is_equal_bb(i->mac, mac))
+            return 1;
+    return 0;
+}
+
 // TODO: Does all APs constitute neighbor report?  How about using list of AP connected
 // clients can also see (from probe_set) to give more (physically) local set?
+// Here, we let the user configure a list of preferred APs that clients can see, and then
+// add the rest of all APs.  hostapd inserts this list backwards, so we must start with
+// the regular APs, then add the preferred ones, which are already ordered backwards.
 int ap_get_nr(struct blob_buf *b_local, struct dawn_mac own_bssid_addr, const char *ssid) {
 
-    pthread_mutex_lock(&ap_array_mutex);
-    ap *i;
+    ap *i, *own_ap;
+    struct mac_entry_s *preferred_list, *n;
 
     void* nbs = blobmsg_open_array(b_local, "list");
 
+    own_ap = ap_array_get_ap(own_bssid_addr, (uint8_t*)ssid);
+    if (!own_ap)
+        return -1;
+    for (int band = 0; band < __DAWN_BAND_MAX; band++) {
+        preferred_list = dawn_metric.neighbors[band];
+        if (own_ap->freq <= max_band_freq[band])
+           break;
+    }
+    pthread_mutex_lock(&ap_array_mutex);
     for (i = ap_set; i != NULL; i = i->next_ap) {
-        if (mac_is_equal_bb(own_bssid_addr, i->bssid_addr) ||
-            strncmp((char *)i->ssid, ssid, SSID_MAX_LEN)) {
-            continue;
+        if (i != own_ap && !strncmp((char *)i->ssid, ssid, SSID_MAX_LEN) &&
+            !mac_is_in_entry_list(i->bssid_addr, preferred_list))
+        {
+            blobmsg_add_nr(b_local, i);
         }
+    }
+    pthread_mutex_unlock(&ap_array_mutex);
 
-        void* nr_entry = blobmsg_open_array(b_local, NULL);
-
-        char mac_buf[20];
-        sprintf(mac_buf, MACSTRLOWER, MAC2STR(i->bssid_addr.u8));
-        blobmsg_add_string(b_local, NULL, mac_buf);
-
-        blobmsg_add_string(b_local, NULL, (char *) i->ssid);
-        blobmsg_add_string(b_local, NULL, i->neighbor_report);
-        blobmsg_close_array(b_local, nr_entry);
-
+    for (n = preferred_list; n; n = n->next_mac) {
+        if ((i = ap_array_get_ap(n->mac, (uint8_t*)ssid)))
+            blobmsg_add_nr(b_local, i);
     }
     blobmsg_close_array(b_local, nbs);
-
-    pthread_mutex_unlock(&ap_array_mutex);
 
     return 0;
 }

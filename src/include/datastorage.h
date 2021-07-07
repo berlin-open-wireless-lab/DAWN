@@ -109,6 +109,7 @@ struct probe_metric_s {
     int low_rssi_val[__DAWN_BAND_MAX]; // eval_probe_metric()()
     int chan_util_val[__DAWN_BAND_MAX]; // eval_probe_metric()()
     int max_chan_util_val[__DAWN_BAND_MAX]; // eval_probe_metric()()
+    struct mac_entry_s* neighbors[__DAWN_BAND_MAX]; // ap_get_nr()
 };
 
 struct time_config_s {
@@ -250,7 +251,7 @@ typedef struct client_s {
     char signature[SIGNATURE_LEN]; // TODO: Never evaluated?
     uint8_t ht_supported; // TODO: Never evaluated?
     uint8_t vht_supported; // TODO: Never evaluated?
-    uint32_t freq; // TODO: Never evaluated?
+    uint32_t freq; // ap_get_nr()
     uint8_t auth; // TODO: Never evaluated?
     uint8_t assoc; // TODO: Never evaluated?
     uint8_t authorized; // TODO: Never evaluated?
