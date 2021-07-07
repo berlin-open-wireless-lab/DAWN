@@ -140,6 +140,58 @@ static int parse_rrm_mode(int *rrm_mode_order, const char *mode_string) {
 }
 
 
+static struct mac_entry_s *insert_neighbor_mac(struct mac_entry_s *head, const char* mac) {
+    struct mac_entry_s *new;
+
+    if (!(new = dawn_malloc(sizeof (struct mac_entry_s)))) {
+        fprintf(stderr, "Warning: Failed to create neighbor entry for '%s'\n", mac);
+        return head;
+    }
+    memset(new, 0, sizeof (struct mac_entry_s));
+    if (hwaddr_aton(mac, new->mac.u8) != 0) {
+        fprintf(stderr, "Warning: Failed to parse MAC from '%s'\n", mac);
+        dawn_free(new);
+        return head;
+    }
+    new->next_mac = head;
+    return new;
+}
+
+static void free_neighbor_mac_list(struct mac_entry_s *list) {
+    struct mac_entry_s *ptr = list;
+    while (list) {
+        ptr = list;
+        list = list->next_mac;
+        dawn_free(ptr);
+    }
+}
+
+static struct mac_entry_s* uci_lookup_mac_list(struct uci_option *o) {
+    struct uci_element *e;
+    struct mac_entry_s *head = NULL;
+    char *str;
+
+    if (o == NULL)
+        return NULL;
+
+    // hostapd inserts the new neigbor reports at the top of the list.
+    // Therefore, we must also do this backwares somewhere.  Let's do it
+    // here instead of when sending the list through ubus.
+    switch (o->type) {
+    case UCI_TYPE_LIST:
+        uci_foreach_element(&o->v.list, e)
+            head = insert_neighbor_mac(head, e->name);
+        break;
+    case UCI_TYPE_STRING:
+        if (!(str = strdup (o->v.string)))
+            return NULL;
+        for (char *mac = strtok(str, " "); mac; mac = strtok(NULL, " "))
+            head = insert_neighbor_mac(head, mac);
+        free(str);
+    }
+    return head;
+}
+
 static struct uci_section *uci_find_metric_section(const char *name) {
     struct uci_section *s;
     struct uci_element *e;
@@ -201,6 +253,7 @@ struct probe_metric_s uci_get_dawn_metric() {
         .low_rssi_val = { -80, -80 },
     };
     struct uci_section *global_s, *band_s[__DAWN_BAND_MAX];
+    struct uci_option *global_neighbors = NULL, *neighbors;
 
     if (!(global_s = uci_find_metric_section("global"))) {
         if (!(global_s = uci_find_metric_section(NULL))) {
@@ -230,9 +283,13 @@ struct probe_metric_s uci_get_dawn_metric() {
         DAWN_SET_CONFIG_INT(ret, global_s, duration);
         ret.rrm_mode_mask = parse_rrm_mode(ret.rrm_mode_order,
                                            uci_lookup_option_string(uci_ctx, global_s, "rrm_mode"));
+        global_neighbors = uci_lookup_option(uci_ctx, global_s, "neighbors");
     }
-    for (int band = 0; band < __DAWN_BAND_MAX; band++)
+    for (int band = 0; band < __DAWN_BAND_MAX; band++) {
         band_s[band] = uci_find_metric_section(band_config_name[band]);
+        neighbors = band_s[band] ? uci_lookup_option(uci_ctx, band_s[band], "neighbors") : NULL;
+        ret.neighbors[band] = uci_lookup_mac_list(neighbors ? : global_neighbors);
+    }
 
     DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, ap_weight);
     DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, ht_support);
@@ -379,6 +436,9 @@ int uci_init() {
 }
 
 int uci_clear() {
+    for (int band = 0; band < __DAWN_BAND_MAX; band++)
+        free_neighbor_mac_list(dawn_metric.neighbors[band]);
+
     if (uci_pkg != NULL) {
         uci_unload(uci_ctx, uci_pkg);
         dawn_unregmem(uci_pkg);
