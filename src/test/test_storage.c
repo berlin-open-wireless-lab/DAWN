@@ -148,8 +148,8 @@ static int array_auto_helper(int action, int i0, int i1)
     while (cont) {
         struct dawn_mac this_mac;
 
-        *((uint64_t*)(&this_mac.u8)) = m;
-
+	uint64_t mac_src = m;
+    memcpy(&this_mac.u8, &mac_src, ETH_ALEN < sizeof (uint64_t) ? ETH_ALEN : sizeof (uint64_t));
         switch (action & ~HELPER_ACTION_MASK)
         {
         case HELPER_AP:
