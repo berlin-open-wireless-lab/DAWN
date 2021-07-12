@@ -22,20 +22,25 @@ int send_set_probe(struct dawn_mac client_addr)
     return 0;
 }
 
-int wnm_disassoc_imminent(uint32_t id, const struct dawn_mac client_addr, char* dest_ap, uint32_t duration)
+int wnm_disassoc_imminent(uint32_t id, const struct dawn_mac client_addr, struct kicking_nr* neighbor_list, uint32_t duration)
 {
 int ret = 0;
 
     printf("wnm_disassoc_imminent() was called...\n");
 
-    if (dest_ap != NULL)
+    if (neighbor_list != NULL)
     {
         // Fake a client being disassociated and then rejoining on the recommended neoghbor
         client *mc = client_array_get_client(client_addr);
         mc = client_array_delete(mc, true);
-        hwaddr_aton(dest_ap, mc->bssid_addr.u8);
+        // Originally, there was only one AP, not a list of them; that AP is at the tail of the list
+        // Use it to keep the results the same as before
+        while (neighbor_list && neighbor_list->next)
+            neighbor_list = neighbor_list->next;
+        for (int n=0; n < ETH_ALEN; n++)
+            sscanf(neighbor_list->nr + n*2, "%2hhx", mc->bssid_addr.u8 + n);
         insert_client_to_array(mc, 0);
-        printf("BSS TRANSITION TO %s\n", dest_ap);
+        printf("BSS TRANSITION TO " NR_MACSTR "\n", NR_MAC2STR(neighbor_list->nr));
 
         // Tell caller not to change the arrays any further
         ret = 1;
@@ -996,6 +1001,8 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 load_u32(&autokick, argv[3]);
 
                 char nb[NEIGHBOR_REPORT_LEN] = "TAMPER EVIDENT NEIGHBOR REPORT INITIALISATION STRING";
+                struct kicking_nr neighbor = {0};
+                struct kicking_nr *neighbor_list = &neighbor;
 
                 if (curr_arg + 5 <= argc)
                 {
@@ -1009,8 +1016,8 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                     {
                         strcpy(nb, argv[4]);
                     }
-
-                    tr = better_ap_available(ap_array_get_ap(bssid_mac, NULL), client_mac, nb);
+                    strncpy(neighbor.nr, nb, NEIGHBOR_REPORT_LEN);
+                    tr = better_ap_available(ap_array_get_ap(bssid_mac, NULL), client_mac, &neighbor_list);
                 }
                 else
                 {

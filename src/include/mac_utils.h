@@ -10,6 +10,9 @@
 #define MACSTR "%02X:%02X:%02X:%02X:%02X:%02X"
 #define MACSTRLOWER "%02x:%02x:%02x:%02x:%02x:%02x"
 
+#define NR_MACSTR "%c%c:%c%c:%c%c:%c%c:%c%c:%c%c"
+#define NR_MAC2STR(a) *a, *(a+1), *(a+2), *(a+3), *(a+4), *(a+5), *(a+6), *(a+7), *(a+8), *(a+9), *(a+10), *(a+11)
+
 #ifndef ETH_ALEN
 #define ETH_ALEN 6
 #endif

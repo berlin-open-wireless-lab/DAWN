@@ -20,7 +20,7 @@ struct time_config_s timeout_config;
 
 static int probe_compare(probe_entry *probe1, probe_entry *probe2);
 
-static int kick_client(ap *kicking_ap, struct client_s *client_entry, char* neighbor_report);
+static int kick_client(ap* kicking_ap, struct client_s *client_entry, struct kicking_nr** neighbor_report);
 
 static void print_ap_entry(ap *entry);
 
@@ -463,10 +463,36 @@ static int compare_station_count(ap* ap_entry_own, ap* ap_entry_to_compare, stru
     }
     printf("Comparing own station count %d to %d\n", sta_count, sta_count_to_compare);
 
-    return sta_count - sta_count_to_compare > dawn_metric.max_station_diff;
+    if (sta_count - sta_count_to_compare > dawn_metric.max_station_diff)
+        return 1;
+    else if (sta_count_to_compare - sta_count > dawn_metric.max_station_diff)
+        return -1;
+    else
+        return 0;
 }
 
-int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, char* neighbor_report) {
+static struct kicking_nr *insert_kicking_nr(struct kicking_nr *nr_list, char *nr, int score) {
+    struct kicking_nr *new_entry;
+
+    if (!(new_entry = dawn_malloc(sizeof (struct kicking_nr))))
+        return NULL;
+    strncpy(new_entry->nr, nr, NEIGHBOR_REPORT_LEN);
+    new_entry->score = score;
+    new_entry->next = nr_list;
+    return new_entry;
+}
+
+static void remove_kicking_nr_list(struct kicking_nr *nr_list) {
+    struct kicking_nr *n;
+
+    while(nr_list) {
+        n = nr_list->next;
+        dawn_free(nr_list);
+        nr_list = n;
+    }
+}
+
+int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, struct kicking_nr **neighbor_report) {
 
     // This remains set to the current AP of client for rest of function
     probe_entry* own_probe = *probe_array_find_first_entry(client_mac, kicking_ap->bssid_addr, true);
@@ -515,32 +541,40 @@ int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, char* neighb
         if (score_to_compare > max_score) {
             if(neighbor_report == NULL)
             {
-                fprintf(stderr,"Neigbor-Report is NULL!\n");
+                fprintf(stderr,"Neighbor-Report is NULL!\n");
                 return 1;  // TODO: Should this be -1?
             }
 
             kick = 1;
 
-            // instead of returning we append a neighbor report list...
-            strcpy(neighbor_report, candidate_ap->neighbor_report);
+            // instead of returning we create a neighbor report list...
+            remove_kicking_nr_list(*neighbor_report);
+            *neighbor_report = insert_kicking_nr(NULL, candidate_ap->neighbor_report, score_to_compare);
 
             max_score = score_to_compare;
         }
         // if ap have same value but station count is different...
         // TODO: Is absolute number meaningful when AP have diffeent capacity?
         else if (dawn_metric.use_station_count > 0 && score_to_compare == max_score ) {
+            int compare = compare_station_count(kicking_ap, candidate_ap, client_mac);
 
-            if (compare_station_count(kicking_ap, candidate_ap, client_mac)) {
+            if (compare > 0) {
                 if (neighbor_report == NULL)
                 {
-                    fprintf(stderr, "Neigbor-Report is NULL!\n");
+                    fprintf(stderr, "Neighbor-Report is NULL!\n");
                     return 1;  // TODO: Should this be -1?
                 }
 
                 kick = 1;
-
-                strcpy(neighbor_report, candidate_ap->neighbor_report);
+                remove_kicking_nr_list(*neighbor_report);
+                *neighbor_report = insert_kicking_nr(NULL, candidate_ap->neighbor_report, score_to_compare);
             }
+            else if (compare == 0 && kick) {
+                *neighbor_report = insert_kicking_nr(*neighbor_report, candidate_ap->neighbor_report, score_to_compare);
+            }
+        }
+        else if (score_to_compare == max_score && kick) {
+            *neighbor_report = insert_kicking_nr(*neighbor_report, candidate_ap->neighbor_report, score_to_compare);
         }
 
         i = i->next_probe;
@@ -549,7 +583,7 @@ int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, char* neighb
     return kick;
 }
 
-static int kick_client(ap* kicking_ap, struct client_s *client_entry, char* neighbor_report) {
+static int kick_client(ap* kicking_ap, struct client_s *client_entry, struct kicking_nr** neighbor_report) {
     int ret = 0;
 
     if (!mac_in_maclist(client_entry->client_addr)) {
@@ -575,10 +609,11 @@ int kick_clients(ap* kicking_ap, uint32_t id) {
 
     // Go threw clients
     while (j  != NULL && mac_is_equal_bb(j->bssid_addr, kicking_ap->bssid_addr)) {
-        char neighbor_report[NEIGHBOR_REPORT_LEN] = "";
+        struct kicking_nr *neighbor_report = NULL;
 
-        int do_kick = kick_client(kicking_ap, j, neighbor_report);
-        printf("Chosen AP %s\n", neighbor_report);
+        int do_kick = kick_client(kicking_ap, j, &neighbor_report);
+        for (struct kicking_nr *n = neighbor_report; n; n = n->next)
+            printf("Chosen AP candidate: " NR_MACSTR ", score=%d\n", NR_MAC2STR(n->nr), n->score);
 
         // better ap available
         if (do_kick > 0) {
@@ -596,7 +631,8 @@ int kick_clients(ap* kicking_ap, uint32_t id) {
                 printf("Check if client is active receiving!\n");
 
                 float rx_rate, tx_rate;
-                if (get_bandwidth_iwinfo(j->client_addr, &rx_rate, &tx_rate)) {
+                bool have_bandwidth_iwinfo = !(get_bandwidth_iwinfo(j->client_addr, &rx_rate, &tx_rate));
+                if (!have_bandwidth_iwinfo && dawn_metric.bandwidth_threshold > 0) {
                     printf("No active transmission data for client. Don't kick!\n");
                 }
                 else
@@ -604,12 +640,16 @@ int kick_clients(ap* kicking_ap, uint32_t id) {
                     // only use rx_rate for indicating if transmission is going on
                     // <= 6MBits <- probably no transmission
                     // tx_rate has always some weird value so don't use ist
-                    if (rx_rate > dawn_metric.bandwidth_threshold) {
+                    if (have_bandwidth_iwinfo && rx_rate > dawn_metric.bandwidth_threshold) {
                         printf("Client is probably in active transmisison. Don't kick! RxRate is: %f\n", rx_rate);
                     }
                     else
                     {
-                        printf("Client is probably NOT in active transmisison. KICK! RxRate is: %f\n", rx_rate);
+                        if (have_bandwidth_iwinfo)
+                            printf("Client is probably NOT in active transmisison. KICK! RxRate is: %f\n", rx_rate);
+                        else
+                            printf("No active tranmission data for client, but bandwidth_threshold=%d means we don't care. KICK!\n",
+                                   dawn_metric.bandwidth_threshold);
 
                         // here we should send a messsage to set the probe.count for all aps to the min that there is no delay between switching
                         // the hearing map is full...
@@ -632,6 +672,8 @@ int kick_clients(ap* kicking_ap, uint32_t id) {
                             // don't delete clients in a row. use update function again...
                             // -> chan_util update, ...
                             add_client_update_timer(timeout_config.update_client * 1000 / 4);
+                            remove_kicking_nr_list(neighbor_report);
+                            neighbor_report = NULL;
                             break;
                         }
                     }
@@ -653,6 +695,8 @@ int kick_clients(ap* kicking_ap, uint32_t id) {
             j->kick_count = 0;
         }
 
+        remove_kicking_nr_list(neighbor_report);
+        neighbor_report = NULL;
         j = j->next_entry_bc;
     }
 

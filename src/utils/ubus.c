@@ -926,7 +926,7 @@ void del_client_interface(uint32_t id, const struct dawn_mac client_addr, uint32
 
 }
 
-int wnm_disassoc_imminent(uint32_t id, const struct dawn_mac client_addr, char *dest_ap, uint32_t duration) {
+int wnm_disassoc_imminent(uint32_t id, const struct dawn_mac client_addr, struct kicking_nr* neighbor_list, uint32_t duration) {
     struct hostapd_sock_entry *sub;
 
     blob_buf_init(&b, 0);
@@ -934,12 +934,11 @@ int wnm_disassoc_imminent(uint32_t id, const struct dawn_mac client_addr, char *
     blobmsg_add_u32(&b, "duration", duration);
     blobmsg_add_u8(&b, "abridged", 1); // prefer aps in neighborlist
 
-    // ToDo: maybe exchange to a list of aps
     void* nbs = blobmsg_open_array(&b, "neighbors");
-    if (dest_ap != NULL)
-    {
-        blobmsg_add_string(&b, NULL, dest_ap);
-        printf("BSS TRANSITION TO %s\n", dest_ap);
+    while(neighbor_list != NULL) {
+        printf("BSS TRANSITION NEIGHBOR " NR_MACSTR ", Score=%d\n", NR_MAC2STR(neighbor_list->nr), neighbor_list->score);
+        blobmsg_add_string(&b, NULL, neighbor_list->nr);
+        neighbor_list = neighbor_list->next;
     }
 
     blobmsg_close_array(&b, nbs);
