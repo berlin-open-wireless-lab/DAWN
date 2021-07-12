@@ -12,16 +12,16 @@ dawn min_kick_count=1
 
 
 #AP
-ap bssid=0A:7B:AA:00:01:00 ht_sup=1 vht_sup=1 util=156 stations=13 ssid=aTestSSID weight=10 neighbors=0A:7B:AA:00:01:00
-ap bssid=02:67:AA:00:02:00 ht_sup=1 vht_sup=1 util=195 stations=13 ssid=aTestSSID weight=10 neighbors=02:67:AA:00:02:00
-ap bssid=14:02:AA:00:03:00 ht_sup=1 vht_sup=1 util=126 stations=9 ssid=aTestSSID weight=10 neighbors=14:02:AA:00:03:00
-ap bssid=1F:36:AA:00:04:00 ht_sup=0 vht_sup=0 util=120 stations=8 ssid=aTestSSID weight=10 neighbors=1F:36:AA:00:04:00
-ap bssid=69:E9:AA:00:05:00 ht_sup=0 vht_sup=0 util=44 stations=4 ssid=aTestSSID weight=10 neighbors=69:E9:AA:00:05:00
-ap bssid=6A:97:AA:00:06:00 ht_sup=0 vht_sup=0 util=110 stations=11 ssid=aTestSSID weight=10 neighbors=6A:97:AA:00:06:00
-ap bssid=45:63:AA:00:07:00 ht_sup=0 vht_sup=0 util=55 stations=5 ssid=aTestSSID weight=10 neighbors=45:63:AA:00:07:00
-ap bssid=07:1E:AA:00:08:00 ht_sup=1 vht_sup=1 util=88 stations=8 ssid=aTestSSID weight=10 neighbors=07:1E:AA:00:08:00
-ap bssid=45:A2:AA:00:09:00 ht_sup=0 vht_sup=0 util=120 stations=12 ssid=aTestSSID weight=10 neighbors=45:A2:AA:00:09:00
-ap bssid=4C:4D:AA:00:0A:00 ht_sup=1 vht_sup=1 util=195 stations=13 ssid=aTestSSID weight=10 neighbors=4C:4D:AA:00:0A:00
+ap bssid=0A:7B:AA:00:01:00 ht_sup=1 vht_sup=1 util=156 stations=13 ssid=aTestSSID weight=10 neighbors=0A7BAA000100
+ap bssid=02:67:AA:00:02:00 ht_sup=1 vht_sup=1 util=195 stations=13 ssid=aTestSSID weight=10 neighbors=0267AA000200
+ap bssid=14:02:AA:00:03:00 ht_sup=1 vht_sup=1 util=126 stations=9 ssid=aTestSSID weight=10 neighbors=1402AA000300
+ap bssid=1F:36:AA:00:04:00 ht_sup=0 vht_sup=0 util=120 stations=8 ssid=aTestSSID weight=10 neighbors=1F36AA000400
+ap bssid=69:E9:AA:00:05:00 ht_sup=0 vht_sup=0 util=44 stations=4 ssid=aTestSSID weight=10 neighbors=69E9AA000500
+ap bssid=6A:97:AA:00:06:00 ht_sup=0 vht_sup=0 util=110 stations=11 ssid=aTestSSID weight=10 neighbors=6A97AA000600
+ap bssid=45:63:AA:00:07:00 ht_sup=0 vht_sup=0 util=55 stations=5 ssid=aTestSSID weight=10 neighbors=4563AA000700
+ap bssid=07:1E:AA:00:08:00 ht_sup=1 vht_sup=1 util=88 stations=8 ssid=aTestSSID weight=10 neighbors=071EAA000800
+ap bssid=45:A2:AA:00:09:00 ht_sup=0 vht_sup=0 util=120 stations=12 ssid=aTestSSID weight=10 neighbors=45A2AA000900
+ap bssid=4C:4D:AA:00:0A:00 ht_sup=1 vht_sup=1 util=195 stations=13 ssid=aTestSSID weight=10 neighbors=4C4DAA000A00
 
 #Client
 client client=50:7B:DD:00:01:00 bssid=45:A2:AA:00:09:00 freq=2500 ht_cap=1 vht_cap=1

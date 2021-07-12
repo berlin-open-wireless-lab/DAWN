@@ -347,9 +347,14 @@ void send_beacon_reports(ap *a, int id);
 #define SORT_LENGTH 5
 extern char sort_string[];
 
+struct kicking_nr {
+    char nr[NEIGHBOR_REPORT_LEN];
+    int score;
+    struct kicking_nr *next;
+};
 
 // ---------------- Functions -------------------
-int better_ap_available(ap *kicking_ap, struct dawn_mac client_addr, char* neighbor_report);
+int better_ap_available(ap *kicking_ap, struct dawn_mac client_addr, struct kicking_nr** neighbor_report);
 
 // All users of datastorage should call init_ / destroy_mutex at initialisation and termination respectively
 int init_mutex();
