@@ -361,9 +361,7 @@ ap *ap_array_get_ap(struct dawn_mac bssid_mac, const uint8_t* ssid);
 
 int probe_array_set_all_probe_count(struct dawn_mac client_addr, uint32_t probe_count);
 
-#ifndef DAWN_NO_OUTPUT
 int ap_get_collision_count(int col_domain);
-#endif
 
 void send_beacon_reports(ap *a, int id);
 

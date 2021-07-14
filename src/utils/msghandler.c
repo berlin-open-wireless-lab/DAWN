@@ -228,7 +228,9 @@ int handle_deauth_req(struct blob_attr* msg) {
 
     pthread_mutex_unlock(&client_array_mutex);
 
+#ifndef DAWN_NO_OUTPUT
     printf("[WC] Deauth: %s\n", "deauth");
+#endif
 
     return 0;
 }
@@ -260,7 +262,9 @@ int handle_network_msg(char* msg) {
     method = blobmsg_data(tb[NETWORK_METHOD]);
     data = blobmsg_data(tb[NETWORK_DATA]);
 
+#ifndef DAWN_NO_OUTPUT
     printf("Network Method new: %s : %s\n", method, msg);
+#endif
 
     blob_buf_init(&data_buf, 0);
     blobmsg_add_json_from_string(&data_buf, data);
@@ -294,11 +298,15 @@ int handle_network_msg(char* msg) {
         parse_to_clients(data_buf.head, 0, 0);
     }
     else if (strncmp(method, "deauth", 5) == 0) {
+#ifndef DAWN_NO_OUTPUT
         printf("METHOD DEAUTH\n");
+#endif
         handle_deauth_req(data_buf.head);
     }
     else if (strncmp(method, "setprobe", 5) == 0) {
+#ifndef DAWN_NO_OUTPUT
         printf("HANDLING SET PROBE!\n");
+#endif
         handle_set_probe(data_buf.head);
     }
     else if (strncmp(method, "addmac", 5) == 0) {
@@ -308,7 +316,9 @@ int handle_network_msg(char* msg) {
         parse_add_mac_to_file(data_buf.head);
     }
     else if (strncmp(method, "uci", 2) == 0) {
+#ifndef DAWN_NO_OUTPUT
         printf("HANDLING UCI!\n");
+#endif
         handle_uci_config(data_buf.head);
     }
     else if (strncmp(method, "beacon-report", 12) == 0) {
@@ -322,7 +332,9 @@ int handle_network_msg(char* msg) {
     }
     else
     {
+#ifndef DAWN_NO_OUTPUT
         printf("No method fonud for: %s\n", method);
+#endif
     }
 
     return 0;
