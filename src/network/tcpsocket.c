@@ -97,8 +97,10 @@ static void client_read_cb(struct ustream *s, int bytes) {
     while(1) {
         if (cl->state == READ_STATUS_READY)
         {
+#ifndef DAWN_NO_OUTPUT
             printf("tcp_socket: commencing message...\n");
             uint32_t min_len = sizeof(uint32_t); // big enough to get msg length
+#endif
             cl->str = dawn_malloc(HEADER_SIZE);
             if (!cl->str) {
                 fprintf(stderr,"not enough memory (" STR_QUOTE(__LINE__) ")\n");
@@ -108,7 +110,9 @@ static void client_read_cb(struct ustream *s, int bytes) {
             uint32_t avail_len = ustream_pending_data(s, false);
 
             if (avail_len < HEADER_SIZE){//ensure recv sizeof(uint32_t)
+#ifndef DAWN_NO_OUTPUT
                 printf("not complete msg, len:%d, expected len:%u\n", avail_len, min_len);
+#endif
                 dawn_free(cl->str);
                 cl->str = NULL;
                 break;
@@ -142,7 +146,9 @@ static void client_read_cb(struct ustream *s, int bytes) {
 
         if (cl->state == READ_STATUS_COMMENCED)
         {
+#ifndef DAWN_NO_OUTPUT
             printf("tcp_socket: reading message...\n");
+#endif
             uint32_t read_len = ustream_pending_data(s, false);
 
             if (read_len == 0)
@@ -151,22 +157,30 @@ static void client_read_cb(struct ustream *s, int bytes) {
             if (read_len > (cl->final_len - cl->curr_len))
                     read_len = cl->final_len - cl->curr_len;
 
+#ifndef DAWN_NO_OUTPUT
             printf("tcp_socket: reading %" PRIu32 " bytes to add to %" PRIu32 " of %" PRIu32 "...\n",
                     read_len, cl->curr_len, cl->final_len);
+#endif
 
             uint32_t this_read = ustream_read(s, cl->str + cl->curr_len, read_len);
             cl->curr_len += this_read;
+#ifndef DAWN_NO_OUTPUT
             printf("tcp_socket: ...and we're back, now have %" PRIu32 " bytes\n", cl->curr_len);
+#endif
             if (cl->curr_len == cl->final_len){//ensure recv final_len bytes.
                 // Full message now received
                 cl->state = READ_STATUS_COMPLETE;
+#ifndef DAWN_NO_OUTPUT
                 printf("tcp_socket: message completed\n");
+#endif
             }
         }
 
         if (cl->state == READ_STATUS_COMPLETE)
         {
+#ifndef DAWN_NO_OUTPUT
             printf("tcp_socket: processing message...\n");
+#endif
             if (network_config.use_symm_enc) {
                 char *dec = gcrypt_decrypt_msg(cl->str + HEADER_SIZE, cl->final_len - HEADER_SIZE);//len of str is final_len
                 if (!dec) {
@@ -189,7 +203,9 @@ static void client_read_cb(struct ustream *s, int bytes) {
         }
     }
 
+#ifndef DAWN_NO_OUTPUT
     printf("tcp_socket: leaving\n");
+#endif
 
     return;
 }
@@ -220,7 +236,9 @@ static void server_cb(struct uloop_fd *fd, unsigned int events) {
 }
 
 int run_server(int port) {
+#ifndef DAWN_NO_OUTPUT
     printf("Adding socket!\n");
+#endif
     char port_str[12];
     sprintf(port_str, "%d", port);
 
@@ -242,7 +260,9 @@ static void client_not_be_used_read_cb(struct ustream *s, int bytes) {
 
     len = ustream_read(s, buf, sizeof(buf));
     buf[len] = '\0';
+#ifndef DAWN_NO_OUTPUT
     printf("Read %d bytes from SSL connection: %s\n", len, buf);
+#endif
 }
 
 static void connect_cb(struct uloop_fd *f, unsigned int events) {
@@ -257,7 +277,9 @@ static void connect_cb(struct uloop_fd *f, unsigned int events) {
         return;
     }
 
+#ifndef DAWN_NO_OUTPUT
     fprintf(stderr, "Connection established\n");
+#endif
     uloop_fd_delete(&entry->fd);
 
     entry->stream.stream.notify_read = client_not_be_used_read_cb;
@@ -302,7 +324,9 @@ int add_tcp_conncection(char *ipv4, int port) {
     tcp_entry->fd.cb = connect_cb;
     uloop_fd_add(&tcp_entry->fd, ULOOP_WRITE | ULOOP_EDGE_TRIGGER);
 
+#ifndef DAWN_NO_OUTPUT
     printf("New TCP connection to %s:%d\n", ipv4, port);
+#endif
     list_add(&tcp_entry->list, &tcp_sock_list);
 
     return 0;
@@ -334,7 +358,9 @@ void send_tcp(char *msg) {
         {
             if (con->connected) {
                 int len_ustream = ustream_write(&con->stream.stream, final_str, final_len, 0);
+#ifndef DAWN_NO_OUTPUT
                 printf("Ustream send: %d\n", len_ustream);
+#endif
                 if (len_ustream <= 0) {
                     fprintf(stderr,"Ustream error(" STR_QUOTE(__LINE__) ")!\n");
                     //ERROR HANDLING!
@@ -367,7 +393,9 @@ void send_tcp(char *msg) {
         {
             if (con->connected) {
                 int len_ustream = ustream_write(&con->stream.stream, final_str, final_len, 0);
+#ifndef DAWN_NO_OUTPUT
                 printf("Ustream send: %d\n", len_ustream);
+#endif
                 if (len_ustream <= 0) {
                     //ERROR HANDLING!
                     fprintf(stderr,"Ustream error(" STR_QUOTE(__LINE__) ")!\n");
@@ -398,6 +426,7 @@ struct network_con_s* tcp_list_contains_address(struct sockaddr_in entry) {
 }
 
 void print_tcp_array() {
+#ifndef DAWN_NO_OUTPUT
     struct network_con_s *con;
 
     printf("--------Connections------\n");
@@ -406,4 +435,5 @@ void print_tcp_array() {
         printf("Connecting to Port: %d, Connected: %s\n", ntohs(con->sock_addr.sin_port), con->connected ? "True" : "False");
     }
     printf("------------------\n");
+#endif
 }

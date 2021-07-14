@@ -72,7 +72,9 @@ int compare_essid_iwinfo(struct dawn_mac bssid_addr, struct dawn_mac bssid_addr_
     }
     closedir(dirp);
 
+#ifndef DAWN_NO_OUTPUT
     printf("Comparing: %s with %s\n", essid, essid_to_compare);
+#endif
 
     if (essid == NULL || essid_to_compare == NULL) {
         return -1;
@@ -120,11 +122,15 @@ int get_bandwidth(const char *ifname, struct dawn_mac client_addr, float *rx_rat
     iw = iwinfo_backend(ifname);
 
     if (iw->assoclist(ifname, buf, &len)) {
+#ifndef DAWN_NO_OUTPUT
         fprintf(stdout, "No information available\n");
+#endif
         iwinfo_finish();
         return 0;
     } else if (len <= 0) {
+#ifndef DAWN_NO_OUTPUT
         fprintf(stdout, "No station connected\n");
+#endif
         iwinfo_finish();
         return 0;
     }
@@ -177,11 +183,15 @@ int get_rssi(const char *ifname, struct dawn_mac client_addr) {
     iw = iwinfo_backend(ifname);
 
     if (iw->assoclist(ifname, buf, &len)) {
+#ifndef DAWN_NO_OUTPUT
         fprintf(stdout, "No information available\n");
+#endif
         iwinfo_finish();
         return INT_MIN;
     } else if (len <= 0) {
+#ifndef DAWN_NO_OUTPUT
         fprintf(stdout, "No station connected\n");
+#endif
         iwinfo_finish();
         return INT_MIN;
     }
@@ -233,11 +243,15 @@ int get_expected_throughput(const char *ifname, struct dawn_mac client_addr) {
     iw = iwinfo_backend(ifname);
 
     if (iw->assoclist(ifname, buf, &len)) {
+#ifndef DAWN_NO_OUTPUT
         fprintf(stdout, "No information available\n");
+#endif
         iwinfo_finish();
         return INT_MIN;
     } else if (len <= 0) {
+#ifndef DAWN_NO_OUTPUT
         fprintf(stdout, "No station connected\n");
+#endif
         iwinfo_finish();
         return INT_MIN;
     }
@@ -348,7 +362,9 @@ int support_ht(const char *ifname) {
 
     if (iw->htmodelist(ifname, &htmodes))
     {
+#ifndef DAWN_NO_OUTPUT
         printf("No HT mode information available\n");
+#endif
         iwinfo_finish();
         return 0;
     }
