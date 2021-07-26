@@ -815,25 +815,25 @@ static int get_mode_from_capability(int capability) {
     return -1;
 }
 
-void ubus_send_beacon_report(client *c, int id)
+void ubus_send_beacon_report(client *c, ap *a, int id)
 {
     printf("Crafting Beacon Report\n");
     int timeout = 1;
-
     blob_buf_init(&b_beacon, 0);
     blobmsg_add_macaddr(&b_beacon, "addr", c->client_addr);
-    blobmsg_add_u32(&b_beacon, "op_class", dawn_metric.op_class);
-    blobmsg_add_u32(&b_beacon, "channel", dawn_metric.scan_channel);
+    blobmsg_add_u32(&b_beacon, "op_class", a->op_class);
+    blobmsg_add_u32(&b_beacon, "channel", a->channel);
     blobmsg_add_u32(&b_beacon, "duration", dawn_metric.duration);
     blobmsg_add_u32(&b_beacon, "mode", get_mode_from_capability(c->rrm_enabled_capa));
-    printf("Adding string\n");
-    blobmsg_add_string(&b_beacon, "ssid", "");
+    blobmsg_add_string(&b_beacon, "ssid", (char*)a->ssid);
 
     printf("Invoking beacon report!\n");
     ubus_invoke(ctx, id, "rrm_beacon_req", b_beacon.head, NULL, NULL, timeout * 1000);
 }
 
 void update_beacon_reports(struct uloop_timeout *t) {
+    ap *a;
+
     if(!timeout_config.update_beacon_reports) // if 0 just return
     {
         return;
@@ -842,9 +842,9 @@ void update_beacon_reports(struct uloop_timeout *t) {
     struct hostapd_sock_entry *sub;
     list_for_each_entry(sub, &hostapd_sock_list, list)
     {
-        if (sub->subscribed) {
+        if (sub->subscribed && (a = ap_array_get_ap(sub->bssid_addr, (uint8_t*)sub->ssid))) {
             printf("Sending beacon report Sub!\n");
-            send_beacon_reports(sub->bssid_addr, sub->id);
+            send_beacon_reports(a, sub->id);
         }
     }
     uloop_timeout_set(&beacon_reports_timer, timeout_config.update_beacon_reports * 1000);
@@ -1397,10 +1397,8 @@ int uci_send_via_network()
     blobmsg_add_u32(&b, "min_number_to_kick", dawn_metric.min_kick_count);
     blobmsg_add_u32(&b, "chan_util_avg_period", dawn_metric.chan_util_avg_period);
     blobmsg_add_u32(&b, "set_hostapd_nr", dawn_metric.set_hostapd_nr);
-    blobmsg_add_u32(&b, "op_class", dawn_metric.op_class);
     blobmsg_add_u32(&b, "duration", dawn_metric.duration);
     blobmsg_add_string(&b, "rrm_mode", get_rrm_mode_string(dawn_metric.rrm_mode_order));
-    blobmsg_add_u32(&b, "scan_channel", dawn_metric.scan_channel);
     blobmsg_close_table(&b, metric);
 
     times = blobmsg_open_table(&b, "times");

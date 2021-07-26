@@ -11,7 +11,7 @@
 #include "test_storage.h"
 
 /*** Test Stub Functions - Called by SUT ***/
-void ubus_send_beacon_report(client *c, int id)
+void ubus_send_beacon_report(client *c, ap *a, int id)
 {
     printf("send_beacon_report() was called...\n");
 }
@@ -654,7 +654,6 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                     dawn_metric.chan_util_avg_period = 3;
                     dawn_metric.set_hostapd_nr = 1;
                     dawn_metric.kicking = 0;
-                    dawn_metric.op_class = 0;
                     dawn_metric.duration = 0;
                     dawn_metric.rrm_mode_mask = WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE |
                                                 WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE |
@@ -662,7 +661,6 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                     dawn_metric.rrm_mode_order[0] = WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE;
                     dawn_metric.rrm_mode_order[1] = WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE;
                     dawn_metric.rrm_mode_order[2] = WLAN_RRM_CAPS_BEACON_REPORT_TABLE;
-                    dawn_metric.scan_channel = 0;
                 }
                 else if (!strncmp(fn, "ap_weight=", 10)) load_int(&dawn_metric.ap_weight, fn + 10);
                 else if (!strncmp(fn, "ht_support=", 11)) load_int(&dawn_metric.ht_support, fn + 11);
@@ -692,10 +690,8 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 else if (!strncmp(fn, "chan_util_avg_period=", 21)) load_int(&dawn_metric.chan_util_avg_period, fn + 21);
                 else if (!strncmp(fn, "set_hostapd_nr=", 15)) load_int(&dawn_metric.set_hostapd_nr, fn + 15);
                 else if (!strncmp(fn, "kicking=", 8)) load_int(&dawn_metric.kicking, fn + 8);
-                else if (!strncmp(fn, "op_class=", 9)) load_int(&dawn_metric.op_class, fn + 9);
                 else if (!strncmp(fn, "duration=", 9)) load_int(&dawn_metric.duration, fn + 9);
                 else if (!strncmp(fn, "rrm_mode=", 9)) dawn_metric.rrm_mode_mask = parse_rrm_mode(dawn_metric.rrm_mode_order, fn + 9);
-                else if (!strncmp(fn, "scan_channel=", 13)) load_int(&dawn_metric.scan_channel, fn + 13);
                 else {
                     printf("ERROR: Loading DAWN control metrics, but don't recognise assignment \"%s\"\n", fn);
                     ret = 1;

@@ -519,8 +519,10 @@ int parse_to_clients(struct blob_attr* msg, int do_kick, uint32_t id) {
         }
 
 
+        ap_entry->op_class = ap_entry->channel = 0;
         if (tb[CLIENT_TABLE_NEIGHBOR]) {
             strncpy(ap_entry->neighbor_report, blobmsg_get_string(tb[CLIENT_TABLE_NEIGHBOR]), NEIGHBOR_REPORT_LEN);
+            sscanf(ap_entry->neighbor_report + NR_OP_CLASS, "%2x%2x", &ap_entry->op_class, &ap_entry->channel);
         }
         else {
             ap_entry->neighbor_report[0] = '\0';
@@ -584,10 +586,8 @@ enum {
     UCI_MIN_NUMBER_TO_KICK,
     UCI_CHAN_UTIL_AVG_PERIOD,
     UCI_SET_HOSTAPD_NR,
-    UCI_OP_CLASS,
     UCI_DURATION,
     UCI_RRM_MODE,
-    UCI_SCAN_CHANNEL,
     __UCI_METIC_MAX
 };
 
@@ -637,10 +637,8 @@ static const struct blobmsg_policy uci_metric_policy[__UCI_METIC_MAX] = {
         [UCI_MIN_NUMBER_TO_KICK] = {.name = "min_number_to_kick", .type = BLOBMSG_TYPE_INT32},
         [UCI_CHAN_UTIL_AVG_PERIOD] = {.name = "chan_util_avg_period", .type = BLOBMSG_TYPE_INT32},
         [UCI_SET_HOSTAPD_NR] = {.name = "set_hostapd_nr", .type = BLOBMSG_TYPE_INT32},
-        [UCI_OP_CLASS] = {.name = "op_class", .type = BLOBMSG_TYPE_INT32},
         [UCI_DURATION] = {.name = "duration", .type = BLOBMSG_TYPE_INT32},
         [UCI_RRM_MODE] = {.name = "rrm_mode", .type = BLOBMSG_TYPE_STRING},
-        [UCI_SCAN_CHANNEL] = {.name = "scan_channel", .type = BLOBMSG_TYPE_INT32},
 };
 
 static const struct blobmsg_policy uci_times_policy[__UCI_TIMES_MAX] = {
@@ -746,16 +744,10 @@ static int handle_uci_config(struct blob_attr* msg) {
     sprintf(cmd_buffer, "dawn.@metric[0].set_hostapd_nr=%d", blobmsg_get_u32(tb_metric[UCI_SET_HOSTAPD_NR]));
     uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].op_class=%d", blobmsg_get_u32(tb_metric[UCI_OP_CLASS]));
-    uci_set_network(cmd_buffer);
-
     sprintf(cmd_buffer, "dawn.@metric[0].duration=%d", blobmsg_get_u32(tb_metric[UCI_DURATION]));
     uci_set_network(cmd_buffer);
 
     sprintf(cmd_buffer, "dawn.@metric[0].rrm_mode=%s", blobmsg_get_string(tb_metric[UCI_RRM_MODE]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.@metric[0].scan_channel=%d", blobmsg_get_u32(tb_metric[UCI_SCAN_CHANNEL]));
     uci_set_network(cmd_buffer);
 
     struct blob_attr* tb_times[__UCI_TIMES_MAX];
