@@ -82,11 +82,9 @@ struct probe_metric_s {
     int chan_util_avg_period;
     int set_hostapd_nr;
     int kicking;
-    int op_class;
     int duration;
     int rrm_mode_mask;
     int rrm_mode_order[__RRM_BEACON_RQST_MODE_MAX];
-    int scan_channel;
 };
 
 struct time_config_s {
@@ -248,7 +246,7 @@ typedef struct client_s {
 typedef struct ap_s {
     struct ap_s* next_ap;
     struct dawn_mac bssid_addr;
-    uint32_t freq; // TODO: Never evaluated?
+    uint32_t freq; // ap_get_nr()
     uint8_t ht_support; // eval_probe_metric()
     uint8_t vht_support; // eval_probe_metric()
     uint32_t channel_utilization; // eval_probe_metric()
@@ -256,6 +254,8 @@ typedef struct ap_s {
     uint32_t station_count; // compare_station_count() <- better_ap_available()
     uint8_t ssid[SSID_MAX_LEN + 1]; // compare_sid() < -better_ap_available()
     char neighbor_report[NEIGHBOR_REPORT_LEN];
+    uint32_t op_class; // ubus_send_beacon_report()
+    uint32_t channel; // ubus_send_beacon_report()
     uint32_t collision_domain;  // TODO: ap_get_collision_count() never evaluated?
     uint32_t bandwidth; // TODO: Never evaluated?
     uint32_t ap_weight; // eval_probe_metric()
@@ -340,7 +340,7 @@ int probe_array_set_all_probe_count(struct dawn_mac client_addr, uint32_t probe_
 int ap_get_collision_count(int col_domain);
 #endif
 
-void send_beacon_reports(struct dawn_mac bssid, int id);
+void send_beacon_reports(ap *a, int id);
 
 /* Utils */
 // deprecate use of this - it makes things slow

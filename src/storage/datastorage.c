@@ -380,14 +380,14 @@ static struct mac_entry_s** mac_find_first_entry(struct dawn_mac mac)
     return lo_ptr;
 }
 
-void send_beacon_reports(struct dawn_mac bssid, int id) {
+void send_beacon_reports(ap *a, int id) {
     pthread_mutex_lock(&client_array_mutex);
 
     // Seach for BSSID
-    client* i = *client_find_first_bc_entry(bssid, dawn_mac_null, false);
+    client* i = *client_find_first_bc_entry(a->bssid_addr, dawn_mac_null, false);
 
     // Go threw clients
-    while (i != NULL && mac_is_equal_bb(i->bssid_addr, bssid)) {
+    while (i != NULL && mac_is_equal_bb(i->bssid_addr, a->bssid_addr)) {
 #ifndef DAWN_NO_OUTPUT
         printf("Client " MACSTR ": rrm_enabled_capa=%02x: PASSIVE=%d, ACTIVE=%d, TABLE=%d\n",
             MAC2STR(i->client_addr.u8), i->rrm_enabled_capa,
@@ -396,7 +396,7 @@ void send_beacon_reports(struct dawn_mac bssid, int id) {
             !!(i->rrm_enabled_capa & WLAN_RRM_CAPS_BEACON_REPORT_TABLE));
 #endif
         if (i->rrm_enabled_capa & dawn_metric.rrm_mode_mask)
-            ubus_send_beacon_report(i, id);
+            ubus_send_beacon_report(i, a, id);
 
         i = i->next_entry_bc;
     }
