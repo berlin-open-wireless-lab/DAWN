@@ -328,30 +328,14 @@ int handle_network_msg(char* msg) {
     return 0;
 }
 
-static uint8_t dump_rrm_data(void* data, int len, int type) //modify from examples/blobmsg-example.c in libubox
-{
-    uint32_t ret = 0;
-    switch (type) {
-    case BLOBMSG_TYPE_INT32:
-        ret = *(uint32_t*)data;
-        break;
-    default:
-        fprintf(stderr, "wrong type of rrm array\n");
-    }
-    return (uint8_t)ret;
-}
-
 static uint8_t
-dump_rrm_table(struct blob_attr* head, int len) //modify from examples/blobmsg-example.c in libubox
+dump_rrm_data(struct blob_attr* head)
 {
-    struct blob_attr* attr;
-    uint8_t ret = 0;
-
-    __blob_for_each_attr(attr, head, len) {
-        ret = dump_rrm_data(blobmsg_data(attr), blobmsg_data_len(attr), blob_id(attr));
-        return ret;// get the first rrm byte
+    if (blob_id(head) != BLOBMSG_TYPE_INT32) {
+        fprintf(stderr, "wrong type of rrm array.\n");
+        return 0;
     }
-    return ret;
+    return (uint8_t)blobmsg_get_u32(head);
 }
 
 // TOOD: Refactor this!
@@ -406,8 +390,8 @@ dump_client(struct blob_attr** tb, struct dawn_mac client_addr, const char* bssi
     }
     /* RRM Caps */
     if (tb[CLIENT_RRM]) {
-        client_entry->rrm_enabled_capa = dump_rrm_table(blobmsg_data(tb[CLIENT_RRM]),
-            blobmsg_data_len(tb[CLIENT_RRM]));// get the first byte from rrm array
+        // get the first byte from rrm array
+        client_entry->rrm_enabled_capa = dump_rrm_data(blobmsg_data(tb[CLIENT_RRM]));
 //ap_entry.ap_weight = blobmsg_get_u32(tb[CLIENT_TABLE_RRM]);
     }
     else {
