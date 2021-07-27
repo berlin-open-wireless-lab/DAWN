@@ -18,13 +18,6 @@ struct time_config_s timeout_config;
 
 #define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
 
-#ifndef BIT
-#define BIT(x) (1U << (x))
-#endif
-#define WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE BIT(4)
-#define WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE BIT(5)
-#define WLAN_RRM_CAPS_BEACON_REPORT_TABLE BIT(6)
-
 static int probe_compare(probe_entry *probe1, probe_entry *probe2);
 
 static int kick_client(ap *kicking_ap, struct client_s *client_entry, char* neighbor_report);
@@ -402,11 +395,8 @@ void send_beacon_reports(struct dawn_mac bssid, int id) {
             !!(i->rrm_enabled_capa & WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE),
             !!(i->rrm_enabled_capa & WLAN_RRM_CAPS_BEACON_REPORT_TABLE));
 #endif
-        if (i->rrm_enabled_capa &
-            (WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE |
-                WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE |
-                WLAN_RRM_CAPS_BEACON_REPORT_TABLE))
-            ubus_send_beacon_report(i->client_addr, id);
+        if (i->rrm_enabled_capa & dawn_metric.rrm_mode_mask)
+            ubus_send_beacon_report(i, id);
 
         i = i->next_entry_bc;
     }

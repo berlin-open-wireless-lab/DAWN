@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <uci.h>
 #include <stdlib.h>
 #include <string.h>
@@ -77,8 +78,46 @@ struct time_config_s uci_get_time_config() {
     return ret;
 }
 
+
+static int get_rrm_mode_val(char mode) {
+    switch (tolower(mode)) {
+        case 'a':
+            return WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE;
+            break;
+        case 'p':
+            return WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE;
+            break;
+        case 'b':
+        case 't':
+             return WLAN_RRM_CAPS_BEACON_REPORT_TABLE;
+             break;
+    }
+    return 0;
+}
+
+static int parse_rrm_mode(int *rrm_mode_order, const char *mode_string) {
+    int len, mode_val;
+    int mask = 0, order = 0, pos = 0;
+
+    if (!mode_string)
+        mode_string = DEFAULT_RRM_MODE_ORDER;
+    len = strlen(mode_string);
+
+    while (order < __RRM_BEACON_RQST_MODE_MAX) {
+        if (pos >= len) {
+            rrm_mode_order[order++] = 0;
+        } else {
+            mode_val = get_rrm_mode_val(mode_string[pos++]);
+            if (mode_val && !(mask & mode_val))
+                mask |= (rrm_mode_order[order++] = mode_val);
+        }
+    }
+    return mask;
+}
+
+
 struct probe_metric_s uci_get_dawn_metric() {
-    struct probe_metric_s ret;
+    struct probe_metric_s ret = {0};
 
     struct uci_element *e;
     uci_foreach_element(&uci_pkg->sections, e)
@@ -116,7 +155,8 @@ struct probe_metric_s uci_get_dawn_metric() {
             ret.set_hostapd_nr = uci_lookup_option_int(uci_ctx, s, "set_hostapd_nr");
             ret.op_class = uci_lookup_option_int(uci_ctx, s, "op_class");
             ret.duration = uci_lookup_option_int(uci_ctx, s, "duration");
-            ret.mode = uci_lookup_option_int(uci_ctx, s, "mode");
+            ret.rrm_mode_mask = parse_rrm_mode(ret.rrm_mode_order,
+                                               uci_lookup_option_string(uci_ctx, s, "rrm_mode"));
             ret.scan_channel = uci_lookup_option_int(uci_ctx, s, "scan_channel");
             return ret;
         }

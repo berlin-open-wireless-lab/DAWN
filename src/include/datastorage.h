@@ -19,6 +19,15 @@
 
 // ---------------- Defines -------------------
 #define MAC_LIST_LENGTH 100
+#define DEFAULT_RRM_MODE_ORDER "pat"
+#define RRM_MODE_COUNT 3
+
+enum rrm_beacon_rqst_mode {
+    RRM_BEACON_RQST_MODE_PASSIVE,
+    RRM_BEACON_RQST_MODE_ACTIVE,
+    RRM_BEACON_RQST_MODE_BEACON_TABLE,
+    __RRM_BEACON_RQST_MODE_MAX
+};
 
 // ---------------- Global variables ----------------
 extern struct mac_entry_s *mac_set;
@@ -75,7 +84,8 @@ struct probe_metric_s {
     int kicking;
     int op_class;
     int duration;
-    int mode;
+    int rrm_mode_mask;
+    int rrm_mode_order[__RRM_BEACON_RQST_MODE_MAX];
     int scan_channel;
 };
 
@@ -174,6 +184,21 @@ typedef struct auth_entry_s assoc_entry;
 // ---------------- Defines ----------------
 
 #define NEIGHBOR_REPORT_LEN 200
+/* Neighbor report string elements
+ * [Elemen ID|1][LENGTH|1][BSSID|6][BSSID INFORMATION|4][Operating Class|1][Channel Number|1][PHY Type|1][Operational Subelements]
+ * first two bytes are not stored
+ */
+#define NR_BSSID         0
+#define NR_BSSID_INFO   12
+#define NR_OP_CLASS     20
+#define NR_CHANNEL      22
+#define NR_PHY          24
+#ifndef BIT
+#define BIT(x) (1U << (x))
+#endif
+#define WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE BIT(4)
+#define WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE BIT(5)
+#define WLAN_RRM_CAPS_BEACON_REPORT_TABLE BIT(6)
 
 // ---------------- Global variables ----------------
 extern struct auth_entry_s *denied_req_set;

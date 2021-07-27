@@ -801,16 +801,31 @@ void update_channel_utilization(struct uloop_timeout *t) {
     uloop_timeout_set(&channel_utilization_timer, timeout_config.update_chan_util * 1000);
 }
 
-void ubus_send_beacon_report(struct dawn_mac client, int id)
+static int get_mode_from_capability(int capability) {
+    for (int n = 0; n < __RRM_BEACON_RQST_MODE_MAX; n++) {
+        switch (capability & dawn_metric.rrm_mode_order[n]) {
+        case WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE:
+            return RRM_BEACON_RQST_MODE_PASSIVE;
+        case WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE:
+            return RRM_BEACON_RQST_MODE_ACTIVE;
+        case WLAN_RRM_CAPS_BEACON_REPORT_TABLE:
+            return RRM_BEACON_RQST_MODE_BEACON_TABLE;
+        }
+    }
+    return -1;
+}
+
+void ubus_send_beacon_report(client *c, int id)
 {
     printf("Crafting Beacon Report\n");
     int timeout = 1;
+
     blob_buf_init(&b_beacon, 0);
-    blobmsg_add_macaddr(&b_beacon, "addr", client);
+    blobmsg_add_macaddr(&b_beacon, "addr", c->client_addr);
     blobmsg_add_u32(&b_beacon, "op_class", dawn_metric.op_class);
     blobmsg_add_u32(&b_beacon, "channel", dawn_metric.scan_channel);
     blobmsg_add_u32(&b_beacon, "duration", dawn_metric.duration);
-    blobmsg_add_u32(&b_beacon, "mode", dawn_metric.mode);
+    blobmsg_add_u32(&b_beacon, "mode", get_mode_from_capability(c->rrm_enabled_capa));
     printf("Adding string\n");
     blobmsg_add_string(&b_beacon, "ssid", "");
 
@@ -1326,6 +1341,27 @@ void subscribe_to_new_interfaces(const char *hostapd_sock_path) {
     return;
 }
 
+static char get_rrm_mode_char(int val)
+{
+    switch (val) {
+    case WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE:
+        return 'p';
+    case WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE:
+        return 'a';
+    case WLAN_RRM_CAPS_BEACON_REPORT_TABLE:
+        return 't';
+    }
+    return '?';
+}
+
+const static char* get_rrm_mode_string(int *rrm_mode_order) {
+    static char rrm_mode_string [__RRM_BEACON_RQST_MODE_MAX + 1] = {0};
+
+    for (int n = 0; n < __RRM_BEACON_RQST_MODE_MAX && rrm_mode_order[n]; n++)
+        rrm_mode_string[n] = get_rrm_mode_char(rrm_mode_order[n]);
+    return rrm_mode_string;
+}
+
 int uci_send_via_network()
 {
     void *metric, *times;
@@ -1363,7 +1399,7 @@ int uci_send_via_network()
     blobmsg_add_u32(&b, "set_hostapd_nr", dawn_metric.set_hostapd_nr);
     blobmsg_add_u32(&b, "op_class", dawn_metric.op_class);
     blobmsg_add_u32(&b, "duration", dawn_metric.duration);
-    blobmsg_add_u32(&b, "mode", dawn_metric.mode);
+    blobmsg_add_string(&b, "rrm_mode", get_rrm_mode_string(dawn_metric.rrm_mode_order));
     blobmsg_add_u32(&b, "scan_channel", dawn_metric.scan_channel);
     blobmsg_close_table(&b, metric);
 
@@ -1572,7 +1608,7 @@ int ap_get_nr(struct blob_buf *b_local, struct dawn_mac own_bssid_addr, const ch
 
     for (i = ap_set; i != NULL; i = i->next_ap) {
         if (mac_is_equal_bb(own_bssid_addr, i->bssid_addr) ||
-	    strncmp((char *)i->ssid, ssid, SSID_MAX_LEN)) {
+            strncmp((char *)i->ssid, ssid, SSID_MAX_LEN)) {
             continue;
         }
 
