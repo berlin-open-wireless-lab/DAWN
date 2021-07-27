@@ -395,6 +395,13 @@ void send_beacon_reports(struct dawn_mac bssid, int id) {
 
     // Go threw clients
     while (i != NULL && mac_is_equal_bb(i->bssid_addr, bssid)) {
+#ifndef DAWN_NO_OUTPUT
+        printf("Client " MACSTR ": rrm_enabled_capa=%02x: PASSIVE=%d, ACTIVE=%d, TABLE=%d\n",
+            MAC2STR(i->client_addr.u8), i->rrm_enabled_capa,
+            !!(i->rrm_enabled_capa & WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE),
+            !!(i->rrm_enabled_capa & WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE),
+            !!(i->rrm_enabled_capa & WLAN_RRM_CAPS_BEACON_REPORT_TABLE));
+#endif
         if (i->rrm_enabled_capa &
             (WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE |
                 WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE |
