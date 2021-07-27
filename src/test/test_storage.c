@@ -11,7 +11,7 @@
 #include "test_storage.h"
 
 /*** Test Stub Functions - Called by SUT ***/
-void ubus_send_beacon_report(struct dawn_mac client, int id)
+void ubus_send_beacon_report(client *c, int id)
 {
     printf("send_beacon_report() was called...\n");
 }
@@ -148,7 +148,7 @@ static int array_auto_helper(int action, int i0, int i1)
     while (cont) {
         struct dawn_mac this_mac;
 
-	uint64_t mac_src = m;
+        uint64_t mac_src = m;
     memcpy(&this_mac.u8, &mac_src, ETH_ALEN < sizeof (uint64_t) ? ETH_ALEN : sizeof (uint64_t));
         switch (action & ~HELPER_ACTION_MASK)
         {
@@ -318,6 +318,44 @@ static int load_time(time_t* v, char* s)
     int ret = 0;
     sscanf(s, "%" SCNi64, (int64_t*)v);  // TODO: Check making portable for target SoC environemnts?
     return ret;
+}
+
+static int get_rrm_mode_val(char mode);
+static int get_rrm_mode_val(char mode) {
+    switch (tolower(mode)) {
+        case 'a':
+            return WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE;
+            break;
+        case 'p':
+            return WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE;
+            break;
+        case 'b':
+        case 't':
+             return WLAN_RRM_CAPS_BEACON_REPORT_TABLE;
+             break;
+    }
+    return 0;
+}
+
+static int parse_rrm_mode(int *rrm_mode_order, const char *mode_string);
+static int parse_rrm_mode(int *rrm_mode_order, const char *mode_string) {
+    int len, mode_val;
+    int mask = 0, order = 0, pos = 0;
+
+    if (!mode_string)
+        mode_string = DEFAULT_RRM_MODE_ORDER;
+    len = strlen(mode_string);
+
+    while (order < __RRM_BEACON_RQST_MODE_MAX) {
+        if (pos >= len) {
+            rrm_mode_order[order++] = 0;
+        } else {
+            mode_val = get_rrm_mode_val(mode_string[pos++]);
+            if (mode_val && !(mask & mode_val))
+                mask |= (rrm_mode_order[order++] = mode_val);
+        }
+    }
+    return mask;
 }
 
 static int consume_actions(int argc, char* argv[], int harness_verbosity);
@@ -618,7 +656,12 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                     dawn_metric.kicking = 0;
                     dawn_metric.op_class = 0;
                     dawn_metric.duration = 0;
-                    dawn_metric.mode = 0;
+                    dawn_metric.rrm_mode_mask = WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE |
+                                                WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE |
+                                                WLAN_RRM_CAPS_BEACON_REPORT_TABLE;
+                    dawn_metric.rrm_mode_order[0] = WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE;
+                    dawn_metric.rrm_mode_order[1] = WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE;
+                    dawn_metric.rrm_mode_order[2] = WLAN_RRM_CAPS_BEACON_REPORT_TABLE;
                     dawn_metric.scan_channel = 0;
                 }
                 else if (!strncmp(fn, "ap_weight=", 10)) load_int(&dawn_metric.ap_weight, fn + 10);
@@ -651,7 +694,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 else if (!strncmp(fn, "kicking=", 8)) load_int(&dawn_metric.kicking, fn + 8);
                 else if (!strncmp(fn, "op_class=", 9)) load_int(&dawn_metric.op_class, fn + 9);
                 else if (!strncmp(fn, "duration=", 9)) load_int(&dawn_metric.duration, fn + 9);
-                else if (!strncmp(fn, "mode=", 5)) load_int(&dawn_metric.mode, fn + 5);
+                else if (!strncmp(fn, "rrm_mode=", 9)) dawn_metric.rrm_mode_mask = parse_rrm_mode(dawn_metric.rrm_mode_order, fn + 9);
                 else if (!strncmp(fn, "scan_channel=", 13)) load_int(&dawn_metric.scan_channel, fn + 13);
                 else {
                     printf("ERROR: Loading DAWN control metrics, but don't recognise assignment \"%s\"\n", fn);
