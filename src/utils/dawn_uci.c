@@ -12,13 +12,16 @@
 static struct uci_context *uci_ctx = NULL;
 static struct uci_package *uci_pkg = NULL;
 
-// why is this not included in uci lib...?!
-// found here: https://github.com/br101/pingcheck/blob/master/uci.c
-static int uci_lookup_option_int(struct uci_context *uci, struct uci_section *s,
-                                 const char *name) {
-    const char *str = uci_lookup_option_string(uci, s, name);
-    return str == NULL ? -1 : atoi(str);
+static void set_if_present_int(int *ret, struct uci_section *s, const char* option) {
+    const char *str;
+
+    if (s && (str = uci_lookup_option_string(uci_ctx, s, option)))
+        *ret = atoi(str);
 }
+
+#define DAWN_SET_CONFIG_INT(m, s, conf) \
+    set_if_present_int(&m.conf, s, #conf)
+
 
 void uci_get_hostname(char* hostname)
 {
@@ -53,8 +56,29 @@ void uci_get_hostname(char* hostname)
     dawn_unregmem(c);
 }
 
+
+static void set_if_present_time_t(time_t *ret, struct uci_section *s, const char* option) {
+    const char *str;
+
+    if (s && (str = uci_lookup_option_string(uci_ctx, s, option)))
+        *ret = atoi(str);
+}
+
+#define DAWN_SET_CONFIG_TIME(m, s, conf) \
+    set_if_present_time_t(&m.conf, s, #conf)
+
 struct time_config_s uci_get_time_config() {
-    struct time_config_s ret;
+    struct time_config_s ret = {
+        .update_client = 10,
+        .remove_client = 15,
+        .remove_probe = 30,
+        .update_hostapd = 10,
+        .remove_ap = 460,
+        .update_tcp_con = 10,
+        .denied_req_threshold = 30,
+        .update_chan_util = 5,
+        .update_beacon_reports = 20,
+    };
 
     struct uci_element *e;
     uci_foreach_element(&uci_pkg->sections, e)
@@ -62,15 +86,15 @@ struct time_config_s uci_get_time_config() {
         struct uci_section *s = uci_to_section(e);
 
         if (strcmp(s->type, "times") == 0) {
-            ret.update_client = uci_lookup_option_int(uci_ctx, s, "update_client");
-            ret.remove_client = uci_lookup_option_int(uci_ctx, s, "remove_client");
-            ret.remove_probe = uci_lookup_option_int(uci_ctx, s, "remove_probe");
-            ret.update_hostapd = uci_lookup_option_int(uci_ctx, s, "update_hostapd");
-            ret.remove_ap = uci_lookup_option_int(uci_ctx, s, "remove_ap");
-            ret.update_tcp_con = uci_lookup_option_int(uci_ctx, s, "update_tcp_con");
-            ret.denied_req_threshold = uci_lookup_option_int(uci_ctx, s, "denied_req_threshold");
-            ret.update_chan_util = uci_lookup_option_int(uci_ctx, s, "update_chan_util");
-            ret.update_beacon_reports = uci_lookup_option_int(uci_ctx, s, "update_beacon_reports");
+            DAWN_SET_CONFIG_TIME(ret, s, update_client);
+            DAWN_SET_CONFIG_TIME(ret, s, remove_client);
+            DAWN_SET_CONFIG_TIME(ret, s, remove_probe);
+            DAWN_SET_CONFIG_TIME(ret, s, update_hostapd);
+            DAWN_SET_CONFIG_TIME(ret, s, remove_ap);
+            DAWN_SET_CONFIG_TIME(ret, s, update_tcp_con);
+            DAWN_SET_CONFIG_TIME(ret, s, denied_req_threshold);
+            DAWN_SET_CONFIG_TIME(ret, s, update_chan_util);
+            DAWN_SET_CONFIG_TIME(ret, s, update_beacon_reports);
             return ret;
         }
     }
@@ -116,13 +140,6 @@ static int parse_rrm_mode(int *rrm_mode_order, const char *mode_string) {
 }
 
 
-static void set_if_present(int *ret, struct uci_section *s, const char* option) {
-    const char *str;
-
-    if (s && (str = uci_lookup_option_string(uci_ctx, s, option)))
-        *ret = atoi(str);
-}
-
 static struct uci_section *uci_find_metric_section(const char *name) {
     struct uci_section *s;
     struct uci_element *e;
@@ -137,19 +154,52 @@ static struct uci_section *uci_find_metric_section(const char *name) {
     return NULL;
 }
 
-#define DAWN_SET_CONFIG_INT(m, s, conf) \
-    set_if_present(&m.conf, s, #conf)
-
 #define DAWN_SET_BANDS_CONFIG_INT(m, global_s, band_s, conf) \
     do for (int band = 0; band < __DAWN_BAND_MAX; band++) { \
         if (global_s) \
-            set_if_present(&m.conf[band], global_s, #conf); \
+            set_if_present_int(&m.conf[band], global_s, #conf); \
         if (band_s[band]) \
-            set_if_present(&m.conf[band], band_s[band], #conf); \
+            set_if_present_int(&m.conf[band], band_s[band], #conf); \
     } while (0)
 
 struct probe_metric_s uci_get_dawn_metric() {
-    struct probe_metric_s ret = {0};    // TODO: Set reasonable defaults
+    struct probe_metric_s ret = {
+        .kicking = 0,
+        .min_probe_count = 0,
+        .use_station_count = 1,
+        .eval_auth_req = 0,
+        .eval_assoc_req = 0,
+        .deny_auth_reason = 1,
+        .deny_assoc_reason = 17,
+        .eval_probe_req = 0,
+        .min_number_to_kick = 3,
+        .set_hostapd_nr = 1,
+        .max_station_diff = 1,
+        .bandwidth_threshold = 6,
+        .use_driver_recog = 1,
+        .chan_util_avg_period = 3,
+        .duration = 0,
+        .rrm_mode_mask = WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE |
+                         WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE |
+                         WLAN_RRM_CAPS_BEACON_REPORT_TABLE,
+        .rrm_mode_order = { WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE,
+                            WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE,
+                            WLAN_RRM_CAPS_BEACON_REPORT_TABLE },
+        .ap_weight = { 0, 0 },
+        .ht_support = { 0, 0 },
+        .vht_support = { 0, 0 },
+        .no_ht_support = { 0, 0 },
+        .no_vht_support = { 0, 0 },
+        .rssi = { 10, 10 },
+        .rssi_val = { -60, -60 },
+        .freq = { 0, 100 },
+        .chan_util = { 0, 0 },
+        .max_chan_util = { -500, -500 },
+        .chan_util_val = { 140, 140 },
+        .max_chan_util_val = { 170, 170 },
+        .low_rssi = { -500, -500 },
+        .low_rssi_val = { -80, -80 },
+    };
     struct uci_section *global_s, *band_s[__DAWN_BAND_MAX];
 
     if (!(global_s = uci_find_metric_section("global"))) {
@@ -202,8 +252,18 @@ struct probe_metric_s uci_get_dawn_metric() {
 }
 
 struct network_config_s uci_get_dawn_network() {
-    struct network_config_s ret;
-    memset(&ret, 0, sizeof(ret));
+    struct network_config_s ret = {
+        .broadcast_ip = "",
+        .broadcast_port = 1025,
+        .server_ip = "",
+        .tcp_port = 1026,
+        .network_option = 2,
+        .shared_key = "Niiiiiiiiiiiiiik",
+        .iv = "Niiiiiiiiiiiiiik",
+        .use_symm_enc = 1,
+        .collision_domain = -1,
+        .bandwidth = -1,
+    };
 
     struct uci_element *e;
     uci_foreach_element(&uci_pkg->sections, e)
@@ -212,27 +272,28 @@ struct network_config_s uci_get_dawn_network() {
 
         if (strcmp(s->type, "network") == 0) {
             const char* str_broadcast = uci_lookup_option_string(uci_ctx, s, "broadcast_ip");
-            strncpy(ret.broadcast_ip, str_broadcast, MAX_IP_LENGTH);
+            if (str_broadcast)
+                strncpy(ret.broadcast_ip, str_broadcast, MAX_IP_LENGTH);
 
             const char* str_server_ip = uci_lookup_option_string(uci_ctx, s, "server_ip");
             if(str_server_ip)
                 strncpy(ret.server_ip, str_server_ip, MAX_IP_LENGTH);
-            else
-                ret.server_ip[0] = '\0';
 
-            ret.broadcast_port = uci_lookup_option_int(uci_ctx, s, "broadcast_port");
+            DAWN_SET_CONFIG_INT(ret, s, broadcast_port);
 
             const char* str_shared_key = uci_lookup_option_string(uci_ctx, s, "shared_key");
-            strncpy(ret.shared_key, str_shared_key, MAX_KEY_LENGTH);
+            if (str_shared_key)
+                strncpy(ret.shared_key, str_shared_key, MAX_KEY_LENGTH);
 
             const char* str_iv = uci_lookup_option_string(uci_ctx, s, "iv");
-            strncpy(ret.iv, str_iv, MAX_KEY_LENGTH);
+            if (str_iv)
+                strncpy(ret.iv, str_iv, MAX_KEY_LENGTH);
 
-            ret.network_option = uci_lookup_option_int(uci_ctx, s, "network_option");
-            ret.tcp_port = uci_lookup_option_int(uci_ctx, s, "tcp_port");
-            ret.use_symm_enc = uci_lookup_option_int(uci_ctx, s, "use_symm_enc");
-            ret.collision_domain = uci_lookup_option_int(uci_ctx, s, "collision_domain");
-            ret.bandwidth = uci_lookup_option_int(uci_ctx, s, "bandwidth");
+            DAWN_SET_CONFIG_INT(ret, s, network_option);
+            DAWN_SET_CONFIG_INT(ret, s, tcp_port);
+            DAWN_SET_CONFIG_INT(ret, s, use_symm_enc);
+            DAWN_SET_CONFIG_INT(ret, s, collision_domain);
+            DAWN_SET_CONFIG_INT(ret, s, bandwidth);
             return ret;
         }
     }
