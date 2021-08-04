@@ -580,6 +580,7 @@ enum {
     UCI_EVAL_AUTH_REQ,
     UCI_EVAL_ASSOC_REQ,
     UCI_KICKING,
+    UCI_KICKING_THRESHOLD,
     UCI_DENY_AUTH_REASON,
     UCI_DENY_ASSOC_REASON,
     UCI_USE_DRIVER_RECOG,
@@ -594,7 +595,7 @@ enum {
 
 enum {
     UCI_BAND,
-    UCI_FREQ,
+    UCI_INITIAL_SCORE,
     UCI_AP_WEIGHT,
     UCI_HT_SUPPORT,
     UCI_VHT_SUPPORT,
@@ -608,6 +609,8 @@ enum {
     UCI_LOW_RSSI_VAL,
     UCI_CHAN_UTIL_VAL,
     UCI_MAX_CHAN_UTIL_VAL,
+    UCI_RSSI_WEIGHT,
+    UCI_RSSI_CENTER,
     __UCI_BAND_METRIC_MAX
 };
 
@@ -639,6 +642,7 @@ static const struct blobmsg_policy uci_metric_policy[__UCI_METRIC_MAX] = {
         [UCI_EVAL_AUTH_REQ] = {.name = "eval_auth_req", .type = BLOBMSG_TYPE_INT32},
         [UCI_EVAL_ASSOC_REQ] = {.name = "eval_assoc_req", .type = BLOBMSG_TYPE_INT32},
         [UCI_KICKING] = {.name = "kicking", .type = BLOBMSG_TYPE_INT32},
+        [UCI_KICKING_THRESHOLD] = {.name = "kicking_threshold", .type = BLOBMSG_TYPE_INT32},
         [UCI_DENY_AUTH_REASON] = {.name = "deny_auth_reason", .type = BLOBMSG_TYPE_INT32},
         [UCI_DENY_ASSOC_REASON] = {.name = "deny_assoc_reason", .type = BLOBMSG_TYPE_INT32},
         [UCI_USE_DRIVER_RECOG] = {.name = "use_driver_recog", .type = BLOBMSG_TYPE_INT32},
@@ -651,7 +655,7 @@ static const struct blobmsg_policy uci_metric_policy[__UCI_METRIC_MAX] = {
 };
 
 static const struct blobmsg_policy uci_band_metric_policy[__UCI_METRIC_MAX] = {
-        [UCI_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
+        [UCI_INITIAL_SCORE] = {.name = "initial_score", .type = BLOBMSG_TYPE_INT32},
         [UCI_HT_SUPPORT] = {.name = "ht_support", .type = BLOBMSG_TYPE_INT32},
         [UCI_VHT_SUPPORT] = {.name = "vht_support", .type = BLOBMSG_TYPE_INT32},
         [UCI_NO_HT_SUPPORT] = {.name = "no_ht_support", .type = BLOBMSG_TYPE_INT32},
@@ -664,6 +668,8 @@ static const struct blobmsg_policy uci_band_metric_policy[__UCI_METRIC_MAX] = {
         [UCI_MAX_CHAN_UTIL] = {.name = "max_chan_util", .type = BLOBMSG_TYPE_INT32},
         [UCI_CHAN_UTIL_VAL] = {.name = "chan_util_val", .type = BLOBMSG_TYPE_INT32},
         [UCI_MAX_CHAN_UTIL_VAL] = {.name = "max_chan_util_val", .type = BLOBMSG_TYPE_INT32},
+        [UCI_RSSI_WEIGHT] = {.name = "rssi_weight", .type = BLOBMSG_TYPE_INT32},
+        [UCI_RSSI_CENTER] = {.name = "rssi_center", .type = BLOBMSG_TYPE_INT32},
 };
 
 static const struct blobmsg_policy uci_times_policy[__UCI_TIMES_MAX] = {
@@ -723,6 +729,9 @@ static int handle_uci_config(struct blob_attr* msg) {
     sprintf(cmd_buffer, "dawn.global.kicking=%d", blobmsg_get_u32(tb_metric[UCI_KICKING]));
     uci_set_network(cmd_buffer);
 
+    sprintf(cmd_buffer, "dawn.global.kicking_threshold=%d", blobmsg_get_u32(tb_metric[UCI_KICKING_THRESHOLD]));
+    uci_set_network(cmd_buffer);
+
     sprintf(cmd_buffer, "dawn.global.deny_auth_reason=%d", blobmsg_get_u32(tb_metric[UCI_DENY_AUTH_REASON]));
     uci_set_network(cmd_buffer);
 
@@ -770,7 +779,7 @@ static int handle_uci_config(struct blob_attr* msg) {
         sprintf(cmd_buffer, "dawn.%s=metric", band_name);
         uci_set_network(cmd_buffer);
 
-        sprintf(cmd_buffer, "dawn.%s.freq=%d", band_name, blobmsg_get_u32(tb_band_metric[UCI_FREQ]));
+        sprintf(cmd_buffer, "dawn.%s.initial_score=%d", band_name, blobmsg_get_u32(tb_band_metric[UCI_INITIAL_SCORE]));
         uci_set_network(cmd_buffer);
 
         sprintf(cmd_buffer, "dawn.%s.ht_support=%d", band_name, blobmsg_get_u32(tb_band_metric[UCI_HT_SUPPORT]));
@@ -807,6 +816,12 @@ static int handle_uci_config(struct blob_attr* msg) {
         uci_set_network(cmd_buffer);
 
         sprintf(cmd_buffer, "dawn.%s.max_chan_util_val=%d", band_name, blobmsg_get_u32(tb_band_metric[UCI_MAX_CHAN_UTIL_VAL]));
+        uci_set_network(cmd_buffer);
+
+        sprintf(cmd_buffer, "dawn.%s.rssi_weight=%d", band_name, blobmsg_get_u32(tb_band_metric[UCI_RSSI_WEIGHT]));
+        uci_set_network(cmd_buffer);
+
+        sprintf(cmd_buffer, "dawn.%s.rssi_center=%d", band_name, blobmsg_get_u32(tb_band_metric[UCI_RSSI_CENTER]));
         uci_set_network(cmd_buffer);
     }
 

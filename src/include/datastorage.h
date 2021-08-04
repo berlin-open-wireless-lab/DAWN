@@ -55,7 +55,7 @@ int get_band(int freq);
 
 // TODO: Define a proper version string
 #ifndef DAWN_CONFIG_VERSION
-#define DAWN_CONFIG_VERSION "2"
+#define DAWN_CONFIG_VERSION "3"
 #endif
 
 // Band definitions
@@ -90,11 +90,13 @@ struct probe_metric_s {
     int chan_util_avg_period;
     int set_hostapd_nr;
     int kicking;
+    int kicking_threshold;
     int duration;
     int rrm_mode_mask;
     int rrm_mode_order[__RRM_BEACON_RQST_MODE_MAX];
 
     // Per-band Configuration
+    int initial_score[__DAWN_BAND_MAX]; // eval_probe_metric()()
     int ap_weight[__DAWN_BAND_MAX]; // TODO: Never evaluated?
     int ht_support[__DAWN_BAND_MAX]; // eval_probe_metric()()
     int vht_support[__DAWN_BAND_MAX]; // eval_probe_metric()()
@@ -102,13 +104,14 @@ struct probe_metric_s {
     int no_vht_support[__DAWN_BAND_MAX]; // eval_probe_metric()()
     int rssi[__DAWN_BAND_MAX]; // eval_probe_metric()()
     int low_rssi[__DAWN_BAND_MAX]; // eval_probe_metric()()
-    int freq[__DAWN_BAND_MAX]; // eval_probe_metric()()
     int chan_util[__DAWN_BAND_MAX]; // eval_probe_metric()()
     int max_chan_util[__DAWN_BAND_MAX]; // eval_probe_metric()()
     int rssi_val[__DAWN_BAND_MAX]; // eval_probe_metric()()
     int low_rssi_val[__DAWN_BAND_MAX]; // eval_probe_metric()()
     int chan_util_val[__DAWN_BAND_MAX]; // eval_probe_metric()()
     int max_chan_util_val[__DAWN_BAND_MAX]; // eval_probe_metric()()
+    int rssi_weight[__DAWN_BAND_MAX]; // eval_probe_metric()()
+    int rssi_center[__DAWN_BAND_MAX]; // eval_probe_metric()()
     struct mac_entry_s* neighbors[__DAWN_BAND_MAX]; // ap_get_nr()
 };
 

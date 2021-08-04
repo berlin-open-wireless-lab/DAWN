@@ -654,8 +654,8 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                     dawn_metric.rssi[1] = 10; // Sum component
                     dawn_metric.low_rssi[0] = -500; // Sum component
                     dawn_metric.low_rssi[1] = -500; // Sum component
-                    dawn_metric.freq[0] = 0; // Sum component
-                    dawn_metric.freq[1] = 100; // Sum component
+                    dawn_metric.initial_score[0] = 0; // Sum component
+                    dawn_metric.initial_score[1] = 100; // Sum component
                     dawn_metric.chan_util[0] = 0; // Sum component
                     dawn_metric.chan_util[1] = 0; // Sum component
                     dawn_metric.max_chan_util[0] = -500; // Sum component
@@ -697,7 +697,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 else if (!strncmp(fn, "no_vht_support=", 15)) load_int_band(dawn_metric.no_vht_support, fn + 15);
                 else if (!strncmp(fn, "rssi=", 5)) load_int_band(dawn_metric.rssi, fn + 5);
                 else if (!strncmp(fn, "low_rssi=", 9)) load_int_band(dawn_metric.low_rssi, fn + 9);
-                else if (!strncmp(fn, "freq=", 5)) load_int(&dawn_metric.freq[1], fn + 5);
+                else if (!strncmp(fn, "freq=", 5)) load_int(&dawn_metric.initial_score[1], fn + 5);
                 else if (!strncmp(fn, "chan_util=", 10)) load_int_band(dawn_metric.chan_util, fn + 10);
                 else if (!strncmp(fn, "max_chan_util=", 14)) load_int_band(dawn_metric.max_chan_util, fn + 14);
                 else if (!strncmp(fn, "rssi_val=", 9)) load_int_band(dawn_metric.rssi_val, fn + 9);

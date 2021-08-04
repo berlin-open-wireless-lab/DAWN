@@ -244,7 +244,7 @@ struct probe_metric_s uci_get_dawn_metric() {
         .no_vht_support = { 0, 0 },
         .rssi = { 10, 10 },
         .rssi_val = { -60, -60 },
-        .freq = { 0, 100 },
+        .initial_score = { 0, 100 },
         .chan_util = { 0, 0 },
         .max_chan_util = { -500, -500 },
         .chan_util_val = { 140, 140 },
@@ -267,6 +267,7 @@ struct probe_metric_s uci_get_dawn_metric() {
     if (global_s) {
         // True global configuration
         DAWN_SET_CONFIG_INT(ret, global_s, kicking);
+        DAWN_SET_CONFIG_INT(ret, global_s, kicking_threshold);
         DAWN_SET_CONFIG_INT(ret, global_s, min_probe_count);
         DAWN_SET_CONFIG_INT(ret, global_s, use_station_count);
         DAWN_SET_CONFIG_INT(ret, global_s, eval_auth_req);
@@ -291,6 +292,7 @@ struct probe_metric_s uci_get_dawn_metric() {
         ret.neighbors[band] = uci_lookup_mac_list(neighbors ? : global_neighbors);
     }
 
+    DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, initial_score);
     DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, ap_weight);
     DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, ht_support);
     DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, vht_support);
@@ -298,13 +300,14 @@ struct probe_metric_s uci_get_dawn_metric() {
     DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, no_vht_support);
     DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, rssi);
     DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, rssi_val);
-    DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, freq);
     DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, chan_util);
     DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, max_chan_util);
     DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, chan_util_val);
     DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, max_chan_util_val);
     DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, low_rssi);
     DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, low_rssi_val);
+    DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, rssi_weight);
+    DAWN_SET_BANDS_CONFIG_INT(ret, global_s, band_s, rssi_center);
     return ret;
 }
 
