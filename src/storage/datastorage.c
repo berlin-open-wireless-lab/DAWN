@@ -434,12 +434,11 @@ int eval_probe_metric(struct probe_entry_s* probe_entry, ap* ap_entry) {
     int band, score = 0;
 
     // TODO: Should RCPI be used here as well?
-    // TODO: Should this be more scaled?  Should -63dB on current and -77dB on other both score 0 if low / high are -80db and -60dB?
-    // TODO: That then lets device capabilites dominate score - making them more important than RSSI difference of 14dB.
     band = get_band(probe_entry->freq);
-    score = dawn_metric.freq[band];
+    score = dawn_metric.initial_score[band];
     score += probe_entry->signal >= dawn_metric.rssi_val[band] ? dawn_metric.rssi[band] : 0;
     score += probe_entry->signal <= dawn_metric.low_rssi_val[band] ? dawn_metric.low_rssi[band] : 0;
+    score += (probe_entry->signal - dawn_metric.rssi_center[band]) * dawn_metric.rssi_weight[band];
 
     // check if ap entry is available
     if (ap_entry != NULL) {
@@ -504,15 +503,14 @@ static int compare_station_count(ap* ap_entry_own, ap* ap_entry_to_compare, stru
         return 0;
 }
 
-static struct kicking_nr *insert_kicking_nr(struct kicking_nr *nr_list, char *nr, int score) {
-    struct kicking_nr *new_entry;
+static struct kicking_nr *find_position(struct kicking_nr *nrlist, int score) {
+    struct kicking_nr *ret = NULL;
 
-    if (!(new_entry = dawn_malloc(sizeof (struct kicking_nr))))
-        return NULL;
-    strncpy(new_entry->nr, nr, NEIGHBOR_REPORT_LEN);
-    new_entry->score = score;
-    new_entry->next = nr_list;
-    return new_entry;
+    while (nrlist && nrlist->score < score) {
+        ret = nrlist;
+        nrlist = nrlist->next;
+    }
+    return ret;
 }
 
 static void remove_kicking_nr_list(struct kicking_nr *nr_list) {
@@ -523,6 +521,40 @@ static void remove_kicking_nr_list(struct kicking_nr *nr_list) {
         dawn_free(nr_list);
         nr_list = n;
     }
+}
+
+static struct kicking_nr *prune_kicking_nr_list(struct kicking_nr *nr_list, int min_score) {
+    struct kicking_nr *next;
+
+    while (nr_list && nr_list->score <= min_score) {
+        next = nr_list->next;
+        dawn_free(nr_list);
+        nr_list = next;
+    }
+    return nr_list;
+}
+
+static struct kicking_nr *insert_kicking_nr(struct kicking_nr *head, char *nr, int score, bool prune) {
+    struct kicking_nr *new_entry, *pos;
+
+    if (prune)
+        head = prune_kicking_nr_list(head, score - dawn_metric.kicking_threshold);
+
+    // we are giving no error information here (not really critical)
+    if (!(new_entry = dawn_malloc(sizeof (struct kicking_nr))))
+        return head;
+
+    strncpy(new_entry->nr, nr, NEIGHBOR_REPORT_LEN);
+    new_entry->score = score;
+    pos = find_position(head, score);
+    if (pos) {
+        new_entry->next = pos->next;
+        pos -> next = new_entry;
+    } else {
+        new_entry->next = head;
+        head = new_entry;
+    }
+    return head;
 }
 
 int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, struct kicking_nr **neighbor_report) {
@@ -577,7 +609,7 @@ int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, struct kicki
         int score_to_compare = eval_probe_metric(i, candidate_ap);
 
         // Find better score...
-        if (score_to_compare > max_score) {
+        if (score_to_compare > max_score + (kick ? 0 : dawn_metric.kicking_threshold)) {
             if(neighbor_report == NULL)
             {
                 fprintf(stderr,"Neighbor-Report is NULL!\n");
@@ -586,15 +618,14 @@ int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, struct kicki
 
             kick = 1;
 
-            // instead of returning we create a neighbor report list...
-            remove_kicking_nr_list(*neighbor_report);
-            *neighbor_report = insert_kicking_nr(NULL, candidate_ap->neighbor_report, score_to_compare);
+            // instead of returning we add the ap to the neighbor report list, pruning it first...
+            *neighbor_report = insert_kicking_nr(*neighbor_report, candidate_ap->neighbor_report, score_to_compare, true);
 
             max_score = score_to_compare;
         }
         // if ap have same value but station count is different...
         // TODO: Is absolute number meaningful when AP have diffeent capacity?
-        else if (dawn_metric.use_station_count > 0 && score_to_compare == max_score ) {
+        else if (dawn_metric.use_station_count > 0 && score_to_compare >= max_score ) {
             int compare = compare_station_count(kicking_ap, candidate_ap, client_mac);
 
             if (compare > 0) {
@@ -605,15 +636,17 @@ int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, struct kicki
                 }
 
                 kick = 1;
-                remove_kicking_nr_list(*neighbor_report);
-                *neighbor_report = insert_kicking_nr(NULL, candidate_ap->neighbor_report, score_to_compare);
+                *neighbor_report = insert_kicking_nr(*neighbor_report, candidate_ap->neighbor_report,
+                                                     score_to_compare, true);
             }
             else if (compare == 0 && kick) {
-                *neighbor_report = insert_kicking_nr(*neighbor_report, candidate_ap->neighbor_report, score_to_compare);
+                *neighbor_report = insert_kicking_nr(*neighbor_report, candidate_ap->neighbor_report,
+                                                     score_to_compare, false);
             }
         }
-        else if (score_to_compare == max_score && kick) {
-            *neighbor_report = insert_kicking_nr(*neighbor_report, candidate_ap->neighbor_report, score_to_compare);
+        else if (score_to_compare >= max_score && kick) {
+            *neighbor_report = insert_kicking_nr(*neighbor_report, candidate_ap->neighbor_report,
+                                                 score_to_compare, false);
         }
 
         i = i->next_probe;

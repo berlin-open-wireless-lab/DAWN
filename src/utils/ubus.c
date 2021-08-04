@@ -1448,6 +1448,7 @@ int uci_send_via_network()
     blobmsg_add_u32(&b, "eval_auth_req", dawn_metric.eval_auth_req);
     blobmsg_add_u32(&b, "eval_assoc_req", dawn_metric.eval_assoc_req);
     blobmsg_add_u32(&b, "kicking", dawn_metric.kicking);
+    blobmsg_add_u32(&b, "kicking_threshold", dawn_metric.kicking_threshold);
     blobmsg_add_u32(&b, "deny_auth_reason", dawn_metric.deny_auth_reason);
     blobmsg_add_u32(&b, "deny_assoc_reason", dawn_metric.deny_assoc_reason);
     blobmsg_add_u32(&b, "use_driver_recog", dawn_metric.use_driver_recog);
@@ -1460,6 +1461,7 @@ int uci_send_via_network()
 
     for (int band=0; band < __DAWN_BAND_MAX; band++) {
         band_entry = blobmsg_open_table(&b, band_config_name[band]);
+        blobmsg_add_u32(&b, "initial_score", dawn_metric.initial_score[band]);
         blobmsg_add_u32(&b, "ap_weight", dawn_metric.ap_weight[band]);
         blobmsg_add_u32(&b, "ht_support", dawn_metric.ht_support[band]);
         blobmsg_add_u32(&b, "vht_support", dawn_metric.vht_support[band]);
@@ -1469,11 +1471,12 @@ int uci_send_via_network()
         blobmsg_add_u32(&b, "rssi_val", dawn_metric.rssi_val[band]);
         blobmsg_add_u32(&b, "low_rssi", dawn_metric.low_rssi[band]);
         blobmsg_add_u32(&b, "low_rssi_val", dawn_metric.low_rssi_val[band]);
-        blobmsg_add_u32(&b, "freq", dawn_metric.freq[band]);
         blobmsg_add_u32(&b, "chan_util", dawn_metric.chan_util[band]);
         blobmsg_add_u32(&b, "max_chan_util", dawn_metric.max_chan_util[band]);
         blobmsg_add_u32(&b, "chan_util_val", dawn_metric.chan_util_val[band]);
         blobmsg_add_u32(&b, "max_chan_util_val", dawn_metric.max_chan_util_val[band]);
+        blobmsg_add_u32(&b, "rssi_weight", dawn_metric.rssi_weight[band]);
+        blobmsg_add_u32(&b, "rssi_center", dawn_metric.rssi_center[band]);
         blobmsg_close_table(&b, band_entry);
     }
     blobmsg_close_table(&b, band_table);
