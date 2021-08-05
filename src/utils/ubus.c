@@ -1366,6 +1366,7 @@ int uci_send_via_network()
     void *metric, *times;
 
     blob_buf_init(&b, 0);
+    blobmsg_add_string(&b, "version", DAWN_CONFIG_VERSION);
     metric = blobmsg_open_table(&b, "metric");
     blobmsg_add_u32(&b, "ht_support", dawn_metric.ht_support);
     blobmsg_add_u32(&b, "vht_support", dawn_metric.vht_support);
