@@ -553,6 +553,7 @@ int parse_to_clients(struct blob_attr* msg, int do_kick, uint32_t id) {
 }
 
 enum {
+    UCI_CONFIG_VERSION,
     UCI_TABLE_METRIC,
     UCI_TABLE_TIMES,
     __UCI_TABLE_MAX
@@ -605,6 +606,7 @@ enum {
 };
 
 static const struct blobmsg_policy uci_table_policy[__UCI_TABLE_MAX] = {
+        [UCI_CONFIG_VERSION ] = {.name = "version", .type = BLOBMSG_TYPE_STRING},
         [UCI_TABLE_METRIC] = {.name = "metric", .type = BLOBMSG_TYPE_TABLE},
         [UCI_TABLE_TIMES] = {.name = "times", .type = BLOBMSG_TYPE_TABLE}
 };
@@ -657,6 +659,13 @@ static int handle_uci_config(struct blob_attr* msg) {
 
     struct blob_attr* tb[__UCI_TABLE_MAX];
     blobmsg_parse(uci_table_policy, __UCI_TABLE_MAX, tb, blob_data(msg), blob_len(msg));
+
+    const char *version_string = blobmsg_get_string(tb[UCI_CONFIG_VERSION]);
+    if (version_string == NULL || strcmp(version_string, DAWN_CONFIG_VERSION)) {
+        fprintf(stderr, "Ignoring network config message with incompatible version string '%s'.\n",
+                version_string ? : "");
+        return -1;
+    }
 
     struct blob_attr* tb_metric[__UCI_METIC_MAX];
     blobmsg_parse(uci_metric_policy, __UCI_METIC_MAX, tb_metric, blobmsg_data(tb[UCI_TABLE_METRIC]), blobmsg_len(tb[UCI_TABLE_METRIC]));

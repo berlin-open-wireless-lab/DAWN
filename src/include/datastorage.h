@@ -52,6 +52,11 @@ void mac_array_delete(struct mac_entry_s* entry);
 // ---------------- Global variables ----------------
 /*** Metrics and configuration data ***/
 
+// TODO: Define a proper version string
+#ifndef DAWN_CONFIG_VERSION
+#define DAWN_CONFIG_VERSION "1"
+#endif
+
 // ---------------- Structs ----------------
 struct probe_metric_s {
     int ap_weight; // TODO: Never evaluated?
