@@ -479,16 +479,10 @@ static int compare_station_count(ap* ap_entry_own, ap* ap_entry_to_compare, stru
     int sta_count = ap_entry_own->station_count;
     int sta_count_to_compare = ap_entry_to_compare->station_count;
     if (is_connected(ap_entry_own->bssid_addr, client_addr)) {
-#ifndef DAWN_NO_OUTPUT
-        printf("Own is already connected! Decrease counter!\n");
-#endif
         sta_count--;
     }
 
     if (is_connected(ap_entry_to_compare->bssid_addr, client_addr)) {
-#ifndef DAWN_NO_OUTPUT
-        printf("Comparing station is already connected! Decrease counter!\n");
-#endif
         sta_count_to_compare--;
     }
 #ifndef DAWN_NO_OUTPUT
@@ -582,10 +576,6 @@ int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, struct kicki
 
     while (i != NULL && mac_is_equal_bb(i->client_addr, client_mac)) {
         if (i == own_probe) {
-#ifndef DAWN_NO_OUTPUT
-            printf("Own Score! Skipping!\n");
-            print_probe_entry(i);
-#endif
             i = i->next_probe;
             continue;
         }
@@ -829,11 +819,6 @@ void update_iw_info(struct dawn_mac bssid_mac) {
                 printf("Failed to update rssi!\n");
 #endif
             }
-            else {
-#ifndef DAWN_NO_OUTPUT
-                printf("Updated rssi: %d\n", rssi);
-#endif
-            }
         }
     }
 
@@ -1064,9 +1049,6 @@ int probe_array_set_all_probe_count(struct dawn_mac client_addr, uint32_t probe_
     pthread_mutex_lock(&probe_array_mutex);
     for (probe_entry *i = probe_set; i != NULL; i = i->next_probe) {
         if (mac_is_equal_bb(client_addr, i->client_addr)) {
-#ifndef DAWN_NO_OUTPUT
-            printf("Setting probecount for given mac!\n");
-#endif
             i->counter = probe_count;
         } else if (mac_compare_bb(client_addr, i->client_addr) > 0) {
 #ifndef DAWN_NO_OUTPUT
@@ -1423,11 +1405,6 @@ void insert_macs_from_file() {
             old_line = line;
             dawn_regmem(old_line);
         }
-#endif
-
-#ifndef DAWN_NO_OUTPUT
-        printf("Retrieved line of length %zu :\n", read);
-        printf("%s", line);
 #endif
 
         // Need to scanf to an array of ints as there is no byte format specifier

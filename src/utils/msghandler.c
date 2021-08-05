@@ -228,10 +228,6 @@ int handle_deauth_req(struct blob_attr* msg) {
 
     pthread_mutex_unlock(&client_array_mutex);
 
-#ifndef DAWN_NO_OUTPUT
-    printf("[WC] Deauth: %s\n", "deauth");
-#endif
-
     return 0;
 }
 
