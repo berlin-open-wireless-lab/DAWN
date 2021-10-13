@@ -19,16 +19,6 @@
 
 static struct ubus_context *ctx = NULL;
 
-static struct blob_buf b;
-static struct blob_buf b_send_network;
-static struct blob_buf b_probe;
-static struct blob_buf b_domain;
-static struct blob_buf b_notify;
-static struct blob_buf b_clients;
-static struct blob_buf b_umdns;
-static struct blob_buf b_beacon;
-static struct blob_buf b_nr;
-
 void update_clients(struct uloop_timeout *t);
 
 void update_tcp_connections(struct uloop_timeout *t);
@@ -195,26 +185,26 @@ static const struct blobmsg_policy rrm_array_policy[__RRM_MAX] = {
 };
 
 /* Function Definitions */
-static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
+static int hostapd_notify(struct ubus_context *ctx_local, struct ubus_object *obj,
                           struct ubus_request_data *req, const char *method,
                           struct blob_attr *msg);
 
 static int ubus_get_clients();
 
 static int
-add_mac(struct ubus_context *ctx, struct ubus_object *obj,
+add_mac(struct ubus_context *ctx_local, struct ubus_object *obj,
         struct ubus_request_data *req, const char *method,
         struct blob_attr *msg);
 
-static int reload_config(struct ubus_context *ctx, struct ubus_object *obj,
+static int reload_config(struct ubus_context *ctx_local, struct ubus_object *obj,
                          struct ubus_request_data *req, const char *method,
                          struct blob_attr *msg);
 
-static int get_hearing_map(struct ubus_context *ctx, struct ubus_object *obj,
+static int get_hearing_map(struct ubus_context *ctx_local, struct ubus_object *obj,
                            struct ubus_request_data *req, const char *method,
                            struct blob_attr *msg);
 
-static int get_network(struct ubus_context *ctx, struct ubus_object *obj,
+static int get_network(struct ubus_context *ctx_local, struct ubus_object *obj,
                        struct ubus_request_data *req, const char *method,
                        struct blob_attr *msg);
 
@@ -228,7 +218,7 @@ void subscribe_to_new_interfaces(const char *hostapd_sock_path);
 
 bool subscriber_to_interface(const char *ifname);
 
-bool subscribe(struct hostapd_sock_entry *hostapd_entry);
+bool subscribe(struct ubus_context *ctx_local, struct hostapd_sock_entry *hostapd_entry);
 
 int parse_to_beacon_rep(struct blob_attr *msg);
 
@@ -515,13 +505,15 @@ int send_blob_attr_via_network(struct blob_attr* msg, char* method) {
 
     char *data_str;
     char *str;
+    struct blob_buf b = {0};
+
     data_str = blobmsg_format_json(msg, true);
     dawn_regmem(data_str);
-    blob_buf_init(&b_send_network, 0);
-    blobmsg_add_string(&b_send_network, "method", method);
-    blobmsg_add_string(&b_send_network, "data", data_str);
+    blob_buf_init(&b, 0);
+    blobmsg_add_string(&b, "method", method);
+    blobmsg_add_string(&b, "data", data_str);
 
-    str = blobmsg_format_json(b_send_network.head, true);
+    str = blobmsg_format_json(b.head, true);
     dawn_regmem(str);
 
     if (network_config.network_option == 2
@@ -537,14 +529,18 @@ int send_blob_attr_via_network(struct blob_attr* msg, char* method) {
 
     dawn_free(data_str);
     dawn_free(str);
+    blob_buf_free(&b);
 
     return 0;
 }
 
-static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
+static int hostapd_notify(struct ubus_context *ctx_local, struct ubus_object *obj,
                           struct ubus_request_data *req, const char *method,
                           struct blob_attr *msg) {
     char *str;
+    int ret = 0;
+    struct blob_buf b = {0};
+
     str = blobmsg_format_json(msg, true);
     dawn_regmem(str);
 #ifndef DAWN_NO_OUTPUT
@@ -559,27 +555,30 @@ static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
     entry = container_of(subscriber, struct hostapd_sock_entry, subscriber);
 
     struct blob_attr *cur; int rem;
-    blob_buf_init(&b_notify, 0);
+    blob_buf_init(&b, 0);
     blobmsg_for_each_attr(cur, msg, rem){
-        blobmsg_add_blob(&b_notify, cur);
+        blobmsg_add_blob(&b, cur);
     }
 
-    blobmsg_add_macaddr(&b_notify, "bssid", entry->bssid_addr);
-    blobmsg_add_string(&b_notify, "ssid", entry->ssid);
+    blobmsg_add_macaddr(&b, "bssid", entry->bssid_addr);
+    blobmsg_add_string(&b, "ssid", entry->ssid);
 
     if (strncmp(method, "probe", 5) == 0) {
-        return handle_probe_req(b_notify.head);
+        ret = handle_probe_req(b.head);
     } else if (strncmp(method, "auth", 4) == 0) {
-        return handle_auth_req(b_notify.head);
+        ret = handle_auth_req(b.head);
     } else if (strncmp(method, "assoc", 5) == 0) {
-        return handle_assoc_req(b_notify.head);
+        ret = handle_assoc_req(b.head);
     } else if (strncmp(method, "deauth", 6) == 0) {
-        send_blob_attr_via_network(b_notify.head, "deauth");
-        return handle_deauth_req(b_notify.head);
+        send_blob_attr_via_network(b.head, "deauth");
+        ret = handle_deauth_req(b.head);
     } else if (strncmp(method, "beacon-report", 12) == 0) {
-        return handle_beacon_rep(b_notify.head);
+        ret = handle_beacon_rep(b.head);
     }
-    return 0;
+
+    blob_buf_free(&b);
+
+    return ret;
 }
 
 int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
@@ -646,16 +645,17 @@ static int get_band_from_bssid(struct dawn_mac bssid) {
 
 static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_attr *msg) {
     struct hostapd_sock_entry *sub, *entry = NULL;
+    struct blob_buf b = {0};
 
     if (!msg)
         return;
 
     char *data_str = blobmsg_format_json(msg, 1);
     dawn_regmem(data_str);
-    blob_buf_init(&b_domain, 0);
-    blobmsg_add_json_from_string(&b_domain, data_str);
-    blobmsg_add_u32(&b_domain, "collision_domain", network_config.collision_domain);
-    blobmsg_add_u32(&b_domain, "bandwidth", network_config.bandwidth);
+    blob_buf_init(&b, 0);
+    blobmsg_add_json_from_string(&b, data_str);
+    blobmsg_add_u32(&b, "collision_domain", network_config.collision_domain);
+    blobmsg_add_u32(&b, "bandwidth", network_config.bandwidth);
 
     list_for_each_entry(sub, &hostapd_sock_list, list)
     {
@@ -667,41 +667,44 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     if (entry == NULL) {
         fprintf(stderr, "Failed to find interface!\n");
         dawn_free(data_str);
+        blob_buf_free(&b);
         return;
     }
 
     if (!entry->subscribed) {
         fprintf(stderr, "Interface %s is not subscribed!\n", entry->iface_name);
         dawn_free(data_str);
+        blob_buf_free(&b);
         return;
     }
 
-    blobmsg_add_macaddr(&b_domain, "bssid", entry->bssid_addr);
-    blobmsg_add_string(&b_domain, "ssid", entry->ssid);
-    blobmsg_add_u8(&b_domain, "ht_supported", entry->ht_support);
-    blobmsg_add_u8(&b_domain, "vht_supported", entry->vht_support);
+    blobmsg_add_macaddr(&b, "bssid", entry->bssid_addr);
+    blobmsg_add_string(&b, "ssid", entry->ssid);
+    blobmsg_add_u8(&b, "ht_supported", entry->ht_support);
+    blobmsg_add_u8(&b, "vht_supported", entry->vht_support);
 
     if (entry->band < 0)
         entry->band = get_band_from_bssid(entry->bssid_addr);
     if (entry->band >= 0)
-        blobmsg_add_u32(&b_domain, "ap_weight", dawn_metric.ap_weight[entry->band]);
+        blobmsg_add_u32(&b, "ap_weight", dawn_metric.ap_weight[entry->band]);
 
     //int channel_util = get_channel_utilization(entry->iface_name, &entry->last_channel_time, &entry->last_channel_time_busy);
-    blobmsg_add_u32(&b_domain, "channel_utilization", entry->chan_util_average);
+    blobmsg_add_u32(&b, "channel_utilization", entry->chan_util_average);
 
-    blobmsg_add_string(&b_domain, "neighbor_report", entry->neighbor_report);
+    blobmsg_add_string(&b, "neighbor_report", entry->neighbor_report);
 
-    blobmsg_add_string(&b_domain, "iface", entry->iface_name);
-    blobmsg_add_string(&b_domain, "hostname", entry->hostname);
+    blobmsg_add_string(&b, "iface", entry->iface_name);
+    blobmsg_add_string(&b, "hostname", entry->hostname);
 
-    send_blob_attr_via_network(b_domain.head, "clients");
+    send_blob_attr_via_network(b.head, "clients");
     // TODO: Have we just bit-packed data to send to something locally to unpack it again?  Performance / scalability?
-    parse_to_clients(b_domain.head, 1, req->peer);
+    parse_to_clients(b.head, 1, req->peer);
 
     print_client_array();
     print_ap_array();
 
     dawn_free(data_str);
+    blob_buf_free(&b);
 }
 
 static int ubus_get_clients() {
@@ -710,8 +713,10 @@ static int ubus_get_clients() {
     list_for_each_entry(sub, &hostapd_sock_list, list)
     {
         if (sub->subscribed) {
-            blob_buf_init(&b_clients, 0);
-            ubus_invoke(ctx, sub->id, "get_clients", b_clients.head, ubus_get_clients_cb, NULL, timeout * 1000);
+            struct blob_buf b = {0};
+            blob_buf_init(&b, 0);
+            ubus_invoke(ctx, sub->id, "get_clients", b.head, ubus_get_clients_cb, NULL, timeout * 1000);
+            blob_buf_free(&b);
         }
     }
     return 0;
@@ -755,11 +760,14 @@ static void ubus_get_rrm_cb(struct ubus_request *req, int type, struct blob_attr
 static int ubus_get_rrm() {
     int timeout = 1;
     struct hostapd_sock_entry *sub;
+
     list_for_each_entry(sub, &hostapd_sock_list, list)
     {
         if (sub->subscribed) {
+            struct blob_buf b = {0};
             blob_buf_init(&b, 0);
             ubus_invoke(ctx, sub->id, "rrm_nr_get_own", b.head, ubus_get_rrm_cb, NULL, timeout * 1000);
+            blob_buf_free(&b);
         }
     }
     return 0;
@@ -815,16 +823,19 @@ static int get_mode_from_capability(int capability) {
 
 void ubus_send_beacon_report(client *c, ap *a, int id)
 {
+    struct blob_buf b = {0};
     int timeout = 1;
-    blob_buf_init(&b_beacon, 0);
-    blobmsg_add_macaddr(&b_beacon, "addr", c->client_addr);
-    blobmsg_add_u32(&b_beacon, "op_class", a->op_class);
-    blobmsg_add_u32(&b_beacon, "channel", a->channel);
-    blobmsg_add_u32(&b_beacon, "duration", dawn_metric.duration);
-    blobmsg_add_u32(&b_beacon, "mode", get_mode_from_capability(c->rrm_enabled_capa));
-    blobmsg_add_string(&b_beacon, "ssid", (char*)a->ssid);
 
-    ubus_invoke(ctx, id, "rrm_beacon_req", b_beacon.head, NULL, NULL, timeout * 1000);
+    blob_buf_init(&b, 0);
+    blobmsg_add_macaddr(&b, "addr", c->client_addr);
+    blobmsg_add_u32(&b, "op_class", a->op_class);
+    blobmsg_add_u32(&b, "channel", a->channel);
+    blobmsg_add_u32(&b, "duration", dawn_metric.duration);
+    blobmsg_add_u32(&b, "mode", get_mode_from_capability(c->rrm_enabled_capa));
+    blobmsg_add_string(&b, "ssid", (char*)a->ssid);
+
+    ubus_invoke(ctx, id, "rrm_beacon_req", b.head, NULL, NULL, timeout * 1000);
+    blob_buf_free(&b);
 }
 
 void update_beacon_reports(struct uloop_timeout *t) {
@@ -869,21 +880,23 @@ void update_hostapd_sockets(struct uloop_timeout *t) {
 
 void ubus_set_nr(){
     struct hostapd_sock_entry *sub;
-
+    int timeout = 1;
 
     list_for_each_entry(sub, &hostapd_sock_list, list)
     {
         if (sub->subscribed) {
-            int timeout = 1;
-            blob_buf_init(&b_nr, 0);
-            ap_get_nr(&b_nr, sub->bssid_addr, sub->ssid);
-            ubus_invoke(ctx, sub->id, "rrm_nr_set", b_nr.head, NULL, NULL, timeout * 1000);
+            struct blob_buf b = {0};
+            blob_buf_init(&b, 0);
+            ap_get_nr(&b, sub->bssid_addr, sub->ssid);
+            ubus_invoke(ctx, sub->id, "rrm_nr_set", b.head, NULL, NULL, timeout * 1000);
+            blob_buf_free(&b);
         }
     }
 }
 
 void del_client_all_interfaces(const struct dawn_mac client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time) {
     struct hostapd_sock_entry *sub;
+    struct blob_buf b = {0};
 
     blob_buf_init(&b, 0);
     blobmsg_add_macaddr(&b, "addr", client_addr);
@@ -898,10 +911,12 @@ void del_client_all_interfaces(const struct dawn_mac client_addr, uint32_t reaso
             ubus_invoke(ctx, sub->id, "del_client", b.head, NULL, NULL, timeout * 1000);
         }
     }
+    blob_buf_free(&b);
 }
 
 void del_client_interface(uint32_t id, const struct dawn_mac client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time) {
     struct hostapd_sock_entry *sub;
+    struct blob_buf b = {0};
 
     blob_buf_init(&b, 0);
     blobmsg_add_macaddr(&b, "addr", client_addr);
@@ -917,11 +932,12 @@ void del_client_interface(uint32_t id, const struct dawn_mac client_addr, uint32
             ubus_invoke(ctx, id, "del_client", b.head, NULL, NULL, timeout * 1000);
         }
     }
-
+    blob_buf_free(&b);
 }
 
 int wnm_disassoc_imminent(uint32_t id, const struct dawn_mac client_addr, struct kicking_nr* neighbor_list, uint32_t duration) {
     struct hostapd_sock_entry *sub;
+    struct blob_buf b = {0};
 
     blob_buf_init(&b, 0);
     blobmsg_add_macaddr(&b, "addr", client_addr);
@@ -945,6 +961,8 @@ int wnm_disassoc_imminent(uint32_t id, const struct dawn_mac client_addr, struct
             ubus_invoke(ctx, id, "wnm_disassoc_imminent", b.head, NULL, NULL, timeout * 1000);
         }
     }
+
+    blob_buf_free(&b);
 
     return 0;
 }
@@ -988,33 +1006,38 @@ static void ubus_umdns_cb(struct ubus_request *req, int type, struct blob_attr *
 
 int ubus_call_umdns() {
     u_int32_t id;
+    struct blob_buf b = {0};
+
     if (ubus_lookup_id(ctx, "umdns", &id)) {
         fprintf(stderr, "Failed to look up test object for %s\n", "umdns");
         return -1;
     }
 
     int timeout = 1;
-    blob_buf_init(&b_umdns, 0);
-    ubus_invoke(ctx, id, "update", b_umdns.head, NULL, NULL, timeout * 1000);
-    ubus_invoke(ctx, id, "browse", b_umdns.head, ubus_umdns_cb, NULL, timeout * 1000);
+    blob_buf_init(&b, 0);
+    ubus_invoke(ctx, id, "update", b.head, NULL, NULL, timeout * 1000);
+    ubus_invoke(ctx, id, "browse", b.head, ubus_umdns_cb, NULL, timeout * 1000);
+    blob_buf_free(&b);
 
     return 0;
 }
 
 //TODO: ADD STUFF HERE!!!!
 int ubus_send_probe_via_network(struct probe_entry_s *probe_entry) {  // TODO: probe_entry is also a typedef - fix?
-    blob_buf_init(&b_probe, 0);
-    blobmsg_add_macaddr(&b_probe, "bssid", probe_entry->bssid_addr);
-    blobmsg_add_macaddr(&b_probe, "address", probe_entry->client_addr);
-    blobmsg_add_macaddr(&b_probe, "target", probe_entry->target_addr);
-    blobmsg_add_u32(&b_probe, "signal", probe_entry->signal);
-    blobmsg_add_u32(&b_probe, "freq", probe_entry->freq);
+    struct blob_buf b = {0};
 
-    blobmsg_add_u32(&b_probe, "rcpi", probe_entry->rcpi);
-    blobmsg_add_u32(&b_probe, "rsni", probe_entry->rsni);
+    blob_buf_init(&b, 0);
+    blobmsg_add_macaddr(&b, "bssid", probe_entry->bssid_addr);
+    blobmsg_add_macaddr(&b, "address", probe_entry->client_addr);
+    blobmsg_add_macaddr(&b, "target", probe_entry->target_addr);
+    blobmsg_add_u32(&b, "signal", probe_entry->signal);
+    blobmsg_add_u32(&b, "freq", probe_entry->freq);
 
-    blobmsg_add_u32(&b_probe, "ht_capabilities", probe_entry->ht_capabilities);
-    blobmsg_add_u32(&b_probe, "vht_capabilities", probe_entry->vht_capabilities);
+    blobmsg_add_u32(&b, "rcpi", probe_entry->rcpi);
+    blobmsg_add_u32(&b, "rsni", probe_entry->rsni);
+
+    blobmsg_add_u32(&b, "ht_capabilities", probe_entry->ht_capabilities);
+    blobmsg_add_u32(&b, "vht_capabilities", probe_entry->vht_capabilities);
 
     /*if (probe_entry->ht_capabilities)
     {
@@ -1027,17 +1050,23 @@ int ubus_send_probe_via_network(struct probe_entry_s *probe_entry) {  // TODO: p
         blobmsg_close_table(&b, vht_cap);
     }*/
 
-    send_blob_attr_via_network(b_probe.head, "probe");
+    send_blob_attr_via_network(b.head, "probe");
+
+    blob_buf_free(&b);
 
     return 0;
 }
 
 int send_set_probe(struct dawn_mac client_addr) {
-    blob_buf_init(&b_probe, 0);
-    blobmsg_add_macaddr(&b_probe, "bssid", client_addr);
-    blobmsg_add_macaddr(&b_probe, "address", client_addr);
+    struct blob_buf b = {0};
 
-    send_blob_attr_via_network(b_probe.head, "setprobe");
+    blob_buf_init(&b, 0);
+    blobmsg_add_macaddr(&b, "bssid", client_addr);
+    blobmsg_add_macaddr(&b, "address", client_addr);
+
+    send_blob_attr_via_network(b.head, "setprobe");
+
+    blob_buf_free(&b);
 
     return 0;
 }
@@ -1094,7 +1123,7 @@ int parse_add_mac_to_file(struct blob_attr *msg) {
     return 0;
 }
 
-static int add_mac(struct ubus_context *ctx, struct ubus_object *obj,
+static int add_mac(struct ubus_context *ctx_local, struct ubus_object *obj,
                    struct ubus_request_data *req, const char *method,
                    struct blob_attr *msg) {
     parse_add_mac_to_file(msg);
@@ -1105,10 +1134,12 @@ static int add_mac(struct ubus_context *ctx, struct ubus_object *obj,
     return 0;
 }
 
-static int reload_config(struct ubus_context *ctx, struct ubus_object *obj,
+static int reload_config(struct ubus_context *ctx_local, struct ubus_object *obj,
                            struct ubus_request_data *req, const char *method,
                            struct blob_attr *msg) {
     int ret;
+    struct blob_buf b = {0};
+
     blob_buf_init(&b, 0);
     uci_reset();
     dawn_metric = uci_get_dawn_metric();
@@ -1120,34 +1151,45 @@ static int reload_config(struct ubus_context *ctx, struct ubus_object *obj,
         uloop_timeout_add(&beacon_reports_timer); // callback = update_beacon_reports
 
     uci_send_via_network();
-    ret = ubus_send_reply(ctx, req, b.head);
+    ret = ubus_send_reply(ctx_local, req, b.head);
     if (ret)
         fprintf(stderr, "Failed to send reply: %s\n", ubus_strerror(ret));
+
+    blob_buf_free(&b);
+
     return 0;
 }
 
-static int get_hearing_map(struct ubus_context *ctx, struct ubus_object *obj,
+static int get_hearing_map(struct ubus_context *ctx_local, struct ubus_object *obj,
                            struct ubus_request_data *req, const char *method,
                            struct blob_attr *msg) {
     int ret;
+    struct blob_buf b = {0};
 
+    blob_buf_init(&b, 0);
     build_hearing_map_sort_client(&b);
-    ret = ubus_send_reply(ctx, req, b.head);
+    ret = ubus_send_reply(ctx_local, req, b.head);
     if (ret)
         fprintf(stderr, "Failed to send reply: %s\n", ubus_strerror(ret));
+    blob_buf_free(&b);
+
     return 0;
 }
 
 
-static int get_network(struct ubus_context *ctx, struct ubus_object *obj,
+static int get_network(struct ubus_context *ctx_local, struct ubus_object *obj,
                        struct ubus_request_data *req, const char *method,
                        struct blob_attr *msg) {
     int ret;
+    struct blob_buf b = {0};
 
+    blob_buf_init(&b, 0);
     build_network_overview(&b);
-    ret = ubus_send_reply(ctx, req, b.head);
+    ret = ubus_send_reply(ctx_local, req, b.head);
     if (ret)
         fprintf(stderr, "Failed to send reply: %s\n", ubus_strerror(ret));
+    blob_buf_free(&b);
+
     return 0;
 }
 
@@ -1164,18 +1206,22 @@ static void respond_to_notify(uint32_t id) {
     // Maybe we need to disable on shutdown...
     // But it is not possible when we disable the notify that other daemons are running that relay on this notify...
     int ret;
+    struct blob_buf b = {0};
+    int timeout = 1;
 
     blob_buf_init(&b, 0);
     blobmsg_add_u32(&b, "notify_response", 1);
 
-    int timeout = 1;
     ret = ubus_invoke(ctx, id, "notify_response", b.head, NULL, NULL, timeout * 1000);
     if (ret)
         fprintf(stderr, "Failed to invoke: %s\n", ubus_strerror(ret));
+
+    blob_buf_free(&b);
 }
 
 static void enable_rrm(uint32_t id) {
     int ret;
+    struct blob_buf b = {0};
 
     blob_buf_init(&b, 0);
     blobmsg_add_u8(&b, "neighbor_report", 1);
@@ -1186,9 +1232,11 @@ static void enable_rrm(uint32_t id) {
     ret = ubus_invoke(ctx, id, "bss_mgmt_enable", b.head, NULL, NULL, timeout * 1000);
     if (ret)
         fprintf(stderr, "Failed to invoke: %s\n", ubus_strerror(ret));
+    
+    blob_buf_free(&b);
 }
 
-static void hostapd_handle_remove(struct ubus_context *ctx,
+static void hostapd_handle_remove(struct ubus_context *ctx_local,
                                   struct ubus_subscriber *s, uint32_t id) {
     struct hostapd_sock_entry *hostapd_sock = container_of(s,
     struct hostapd_sock_entry, subscriber);
@@ -1202,7 +1250,7 @@ static void hostapd_handle_remove(struct ubus_context *ctx,
 
 }
 
-bool subscribe(struct hostapd_sock_entry *hostapd_entry) {
+bool subscribe(struct ubus_context *ctx_local, struct hostapd_sock_entry *hostapd_entry) {
     char subscribe_name[sizeof("hostapd.") + MAX_INTERFACE_NAME + 1];
 
     if (hostapd_entry->subscribed)
@@ -1210,13 +1258,13 @@ bool subscribe(struct hostapd_sock_entry *hostapd_entry) {
 
     sprintf(subscribe_name, "hostapd.%s", hostapd_entry->iface_name);
 
-    if (ubus_lookup_id(ctx, subscribe_name, &hostapd_entry->id)) {
+    if (ubus_lookup_id(ctx_local, subscribe_name, &hostapd_entry->id)) {
         fprintf(stdout, "Failed to lookup ID!");
         subscription_wait(&hostapd_entry->wait_handler);
         return false;
     }
 
-    if (ubus_subscribe(ctx, &hostapd_entry->subscriber, hostapd_entry->id)) {
+    if (ubus_subscribe(ctx_local, &hostapd_entry->subscriber, hostapd_entry->id)) {
         fprintf(stdout, "Failed to register subscriber!");
         subscription_wait(&hostapd_entry->wait_handler);
         return false;
@@ -1240,7 +1288,7 @@ bool subscribe(struct hostapd_sock_entry *hostapd_entry) {
 }
 
 static void
-wait_cb(struct ubus_context *ctx, struct ubus_event_handler *ev_handler,
+wait_cb(struct ubus_context *ctx_local, struct ubus_event_handler *ev_handler,
         const char *type, struct blob_attr *msg) {
     static const struct blobmsg_policy wait_policy = {
             "path", BLOBMSG_TYPE_STRING
@@ -1249,7 +1297,7 @@ wait_cb(struct ubus_context *ctx, struct ubus_event_handler *ev_handler,
     struct blob_attr *attr;
     const char *path;
     struct hostapd_sock_entry *sub = container_of(ev_handler,
-            struct hostapd_sock_entry, wait_handler);
+    struct hostapd_sock_entry, wait_handler);
 
     if (strcmp(type, "ubus.object.add"))
         return;
@@ -1267,7 +1315,7 @@ wait_cb(struct ubus_context *ctx, struct ubus_event_handler *ev_handler,
     if (strcmp(sub->iface_name, path + 1))
         return;
 
-    subscribe(sub);
+    subscribe(ctx_local, sub);
 }
 
 bool subscriber_to_interface(const char *ifname) {
@@ -1293,7 +1341,7 @@ bool subscriber_to_interface(const char *ifname) {
 
     list_add(&hostapd_entry->list, &hostapd_sock_list);
 
-    return subscribe(hostapd_entry);
+    return subscribe(ctx, hostapd_entry);
 }
 
 void subscribe_to_new_interfaces(const char *hostapd_sock_path) {
@@ -1356,6 +1404,7 @@ const static char* get_rrm_mode_string(int *rrm_mode_order) {
 int uci_send_via_network()
 {
     void *metric, *times, *band_table, *band_entry;
+    struct blob_buf b = {0};
 
     blob_buf_init(&b, 0);
     blobmsg_add_string(&b, "version", DAWN_CONFIG_VERSION);
@@ -1418,6 +1467,8 @@ int uci_send_via_network()
 
     send_blob_attr_via_network(b.head, "uci");
 
+    blob_buf_free(&b);
+
     return 0;
 }
 
@@ -1428,8 +1479,6 @@ int build_hearing_map_sort_client(struct blob_buf *b) {
     char ap_mac_buf[20];
     char client_mac_buf[20];
     bool same_ssid = false;
-
-    blob_buf_init(b, 0);
 
     for (ap* m = ap_set; m != NULL; m = m->next_ap) {
         // MUSTDO: Ensure SSID / BSSID ordering.  Lost when switched to linked list!
@@ -1508,8 +1557,6 @@ int build_network_overview(struct blob_buf *b) {
     char ap_mac_buf[20];
     char client_mac_buf[20];
     struct hostapd_sock_entry *sub;
-
-    blob_buf_init(b, 0);
 
     bool add_ssid = true;
     for (ap* m = ap_set; m != NULL; m = m->next_ap) {
@@ -1593,6 +1640,7 @@ int build_network_overview(struct blob_buf *b) {
             add_ssid = true;
         }
     }
+
     return 0;
 }
 
@@ -1719,8 +1767,12 @@ void denied_req_array_cb(struct uloop_timeout* t) {
 }
 
 int send_add_mac(struct dawn_mac client_addr) {
+    struct blob_buf b = {0};
+
     blob_buf_init(&b, 0);
     blobmsg_add_macaddr(&b, "addr", client_addr);
     send_blob_attr_via_network(b.head, "addmac");
+    blob_buf_free(&b);
+
     return 0;
 }
