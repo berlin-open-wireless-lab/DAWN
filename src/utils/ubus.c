@@ -467,24 +467,20 @@ static int handle_probe_req(struct blob_attr *msg) {
 
     if (probe_req != NULL) {
         probe_req_updated = insert_to_array(probe_req, true, true, false, time(0));
+        // If insert finds an existing entry, rather than linking in our new one,
+        // send new probe req because we want to stay synced.
+        // If not, probe_req and probe_req_updated should be equivalent
         if (probe_req != probe_req_updated)
-        {
-            // insert found an existing entry, rather than linking in our new one
-            // send new probe req because we want to stay synced
-            ubus_send_probe_via_network(probe_req_updated);
             dawn_free(probe_req);
-        }
-        else
-            ubus_send_probe_via_network(probe_req_updated); // probe_req and probe_req_updated should be equivalent
 
-        //send_blob_attr_via_network(msg, "probe");
+        ubus_send_probe_via_network(probe_req_updated);
 
-        if (!decide_function(probe_req, REQ_TYPE_PROBE)) {
+        if (!decide_function(probe_req_updated, REQ_TYPE_PROBE)) {
             return WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA; // no reason needed...
         }
     }
 
-    // TODO: Retrun for dawn_malloc() failure?
+    // TODO: Return for dawn_malloc() failure?
     return WLAN_STATUS_SUCCESS;
 }
 
