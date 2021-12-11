@@ -68,6 +68,13 @@ void del_client_all_interfaces(const struct dawn_mac client_addr, uint32_t reaso
  */
 void update_hostapd_sockets(struct uloop_timeout *t);
 
+/**
+ * Send control message to all hosts to add the mac to a don't control list.
+ * @param client_addr
+ * @return
+ */
+int send_add_mac(struct dawn_mac client_addr);
+
 void ubus_send_beacon_report(struct dawn_mac client, int id);
 
 void uloop_add_data_cbs();
@@ -140,12 +147,5 @@ int send_set_probe(struct dawn_mac client_addr);
  * @return - 0 = asynchronous (client has been told to remove itself, and caller should manage arrays); 1 = synchronous (caller should assume arrays are updated)
  */
 int wnm_disassoc_imminent(uint32_t id, const struct dawn_mac client_addr, char* dest_ap, uint32_t duration);
-
-/**
- * Send control message to all hosts to add the mac to a don't control list.
- * @param client_addr
- * @return
- */
-int send_add_mac(struct dawn_mac client_addr);
 
 #endif

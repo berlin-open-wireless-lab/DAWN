@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <stdio.h>
+#include <syslog.h>
 
 #include "memory_utils.h"
 #include "dawn_iwinfo.h"
@@ -11,6 +12,13 @@
 #include "test_storage.h"
 #include "msghandler.h"
 #include "ubus.h"
+
+#define DAWN_TEST_HOST
+#ifdef DAWN_TEST_HOST
+#define dawnlog(level, ...) fprintf((level==LOG_ERR)?stderr:stdout, __VA_ARGS__)
+#else
+#define dawnlog(level, ...) syslog(level, __VA_ARGS__)
+#endif
 
 struct probe_metric_s dawn_metric;
 struct network_config_s network_config;
@@ -85,7 +93,7 @@ static const struct dawn_mac dawn_mac_null = { .u8 = {0,0,0,0,0,0} };
 ** then the target element does not exist, but can be inserted by using the returned reference.
 */
 
-static struct probe_entry_s** probe_skip_array_find_first_entry(struct dawn_mac client_mac, struct dawn_mac bssid_mac, int do_bssid)
+static struct probe_entry_s** probe_skip_array_find_first_entry(struct dawn_mac client_mac, struct dawn_mac bssid_mac, bool do_bssid)
 {
     int lo = 0;
     struct probe_entry_s** lo_ptr = &probe_skip_set;
@@ -424,16 +432,22 @@ int eval_probe_metric(struct probe_entry_s* probe_entry, ap* ap_entry) {
     score += (probe_entry->freq > 5000) ? dawn_metric.freq : 0;
 
     // TODO: Should RCPI be used here as well?
-    // TODO: Should this be more scaled?  Should -63dB on current and -77dB on other both score 0 if low / high are -80db and -60dB?
-    // TODO: That then lets device capabilites dominate score - making them more important than RSSI difference of 14dB.
-    score += (probe_entry->signal >= dawn_metric.rssi_val) ? dawn_metric.rssi : 0;
-    score += (probe_entry->signal <= dawn_metric.low_rssi_val) ? dawn_metric.low_rssi : 0;
+    if (probe_entry->signal >= dawn_metric.rssi_val)
+        score += dawn_metric.rssi;
+    else if(probe_entry->signal <= dawn_metric.low_rssi_val)
+        score += dawn_metric.low_rssi;
+    else
+    {
+        score += dawn_metric.low_rssi;
+        score +=  ((probe_entry->signal - dawn_metric.low_rssi_val) *
+                        (dawn_metric.rssi - dawn_metric.low_rssi)) /
+                    (dawn_metric.rssi_val - dawn_metric.low_rssi_val);
+    }
 
-    // TODO: This magic value never checked by caller.  What does it achieve?
     if (score < 0)
-        score = -2; // -1 already used...
+        score = 0;
 
-    printf("Score: %d of:\n", score);
+    dawnlog(LOG_INFO, "Score: %d of:\n", score);
     print_probe_entry(probe_entry);
 
     return score;
@@ -442,20 +456,20 @@ int eval_probe_metric(struct probe_entry_s* probe_entry, ap* ap_entry) {
 
 static int compare_station_count(ap* ap_entry_own, ap* ap_entry_to_compare, struct dawn_mac client_addr) {
 
-    printf("Comparing own %d to %d\n", ap_entry_own->station_count, ap_entry_to_compare->station_count);
+    dawnlog(LOG_INFO, "Comparing own %d to %d\n", ap_entry_own->station_count, ap_entry_to_compare->station_count);
 
     int sta_count = ap_entry_own->station_count;
     int sta_count_to_compare = ap_entry_to_compare->station_count;
     if (is_connected(ap_entry_own->bssid_addr, client_addr)) {
-        printf("Own is already connected! Decrease counter!\n");
+        dawnlog(LOG_INFO, "Own is already connected! Decrease counter!\n");
         sta_count--;
     }
 
     if (is_connected(ap_entry_to_compare->bssid_addr, client_addr)) {
-        printf("Comparing station is already connected! Decrease counter!\n");
+        dawnlog(LOG_INFO, "Comparing station is already connected! Decrease counter!\n");
         sta_count_to_compare--;
     }
-    printf("Comparing own station count %d to %d\n", sta_count, sta_count_to_compare);
+    dawnlog(LOG_INFO, "Comparing own station count %d to %d\n", sta_count, sta_count_to_compare);
 
     return sta_count - sta_count_to_compare > dawn_metric.max_station_diff;
 }
@@ -466,14 +480,14 @@ int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, char* neighb
     probe_entry* own_probe = *probe_array_find_first_entry(client_mac, kicking_ap->bssid_addr, true);
     int own_score = -1;
     if (own_probe != NULL && mac_is_equal_bb(own_probe->client_addr, client_mac) && mac_is_equal_bb(own_probe->bssid_addr, kicking_ap->bssid_addr)) {
-        printf("Calculating own score!\n");
+        dawnlog(LOG_INFO, "Calculating own score!\n");
 
         own_score = eval_probe_metric(own_probe, kicking_ap);  //TODO: Should the -2 return be handled?
     }
     // no entry for own ap - should never happen?
     else {
-        printf("Current AP not found in probe array!\n");
-        return -1;
+        dawnlog(LOG_INFO, "Current AP not found in probe array!\n");
+        return 0;
     }
 
     int max_score = own_score;
@@ -483,7 +497,7 @@ int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, char* neighb
 
     while (i != NULL && mac_is_equal_bb(i->client_addr, client_mac)) {
         if (i == own_probe) {
-            printf("Own Score! Skipping!\n");
+            dawnlog(LOG_INFO, "Own Score! Skipping!\n");
             print_probe_entry(i);
             i = i->next_probe;
             continue;
@@ -502,15 +516,15 @@ int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, char* neighb
             continue;
         }
 
-        printf("Calculating score to compare!\n");
+        dawnlog(LOG_INFO, "Calculating score to compare!\n");
         int score_to_compare = eval_probe_metric(i, candidate_ap);
 
         // Find better score...
         if (score_to_compare > max_score) {
             if(neighbor_report == NULL)
             {
-                fprintf(stderr,"Neigbor-Report is NULL!\n");
-                return 1;  // TODO: Should this be -1?
+                dawnlog(LOG_ERR,"Neigbor-Report is NULL!\n");
+                return 0;
             }
 
             kick = 1;
@@ -527,8 +541,8 @@ int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, char* neighb
             if (compare_station_count(kicking_ap, candidate_ap, client_mac)) {
                 if (neighbor_report == NULL)
                 {
-                    fprintf(stderr, "Neigbor-Report is NULL!\n");
-                    return 1;  // TODO: Should this be -1?
+                    dawnlog(LOG_ERR, "Neigbor-Report is NULL!\n");
+                    return 0;
                 }
 
                 kick = 1;
@@ -559,10 +573,10 @@ int kick_clients(ap* kicking_ap, uint32_t id) {
 
     int kicked_clients = 0;
 
-    printf("-------- KICKING CLIENTS!!!---------\n");
+    dawnlog(LOG_INFO, "-------- KICKING CLIENTS!!!---------\n");
     char mac_buf_ap[20];
     sprintf(mac_buf_ap, MACSTR, MAC2STR(kicking_ap->bssid_addr.u8));
-    printf("EVAL %s\n", mac_buf_ap);
+    dawnlog(LOG_INFO, "EVAL %s\n", mac_buf_ap);
 
     // Seach for BSSID
     client *j = *client_find_first_bc_entry(kicking_ap->bssid_addr, dawn_mac_null, false);
@@ -572,26 +586,26 @@ int kick_clients(ap* kicking_ap, uint32_t id) {
         char neighbor_report[NEIGHBOR_REPORT_LEN] = "";
 
         int do_kick = kick_client(kicking_ap, j, neighbor_report);
-        printf("Chosen AP %s\n", neighbor_report);
+        dawnlog(LOG_INFO, "Chosen AP %s\n", neighbor_report);
 
         // better ap available
-        if (do_kick > 0) {
+        if (do_kick == 1) {
 
             // kick after algorithm decided to kick several times
             // + rssi is changing a lot
             // + chan util is changing a lot
             // + ping pong behavior of clients will be reduced
             j->kick_count++;
-            printf("Comparing kick count! kickcount: %d to min_kick_count: %d!\n", j->kick_count,
+            dawnlog(LOG_INFO, "Comparing kick count! kickcount: %d to min_kick_count: %d!\n", j->kick_count,
                 dawn_metric.min_kick_count);
             if (j->kick_count >= dawn_metric.min_kick_count) {
-                printf("Better AP available. Kicking client:\n");
+                dawnlog(LOG_INFO, "Better AP available. Kicking client:\n");
                 print_client_entry(j);
-                printf("Check if client is active receiving!\n");
+                dawnlog(LOG_INFO, "Check if client is active receiving!\n");
 
                 float rx_rate, tx_rate;
                 if (get_bandwidth_iwinfo(j->client_addr, &rx_rate, &tx_rate)) {
-                    printf("No active transmission data for client. Don't kick!\n");
+                    dawnlog(LOG_INFO, "No active transmission data for client. Don't kick!\n");
                 }
                 else
                 {
@@ -599,11 +613,11 @@ int kick_clients(ap* kicking_ap, uint32_t id) {
                     // <= 6MBits <- probably no transmission
                     // tx_rate has always some weird value so don't use ist
                     if (rx_rate > dawn_metric.bandwidth_threshold) {
-                        printf("Client is probably in active transmisison. Don't kick! RxRate is: %f\n", rx_rate);
+                        dawnlog(LOG_INFO, "Client is probably in active transmisison. Don't kick! RxRate is: %f\n", rx_rate);
                     }
                     else
                     {
-                        printf("Client is probably NOT in active transmisison. KICK! RxRate is: %f\n", rx_rate);
+                        dawnlog(LOG_INFO, "Client is probably NOT in active transmisison. KICK! RxRate is: %f\n", rx_rate);
 
                         // here we should send a messsage to set the probe.count for all aps to the min that there is no delay between switching
                         // the hearing map is full...
@@ -635,13 +649,13 @@ int kick_clients(ap* kicking_ap, uint32_t id) {
         // no entry in probe array for own bssid
         // TODO: Is test against -1 from (1 && -1) portable?
         else if (do_kick == -1) {
-            printf("No Information about client. Force reconnect:\n");
+            dawnlog(LOG_INFO, "No Information about client. Force reconnect:\n");
             print_client_entry(j);
             del_client_interface(id, j->client_addr, 0, 1, 0);
         }
         // ap is best
         else {
-            printf("AP is best. Client will stay:\n");
+            dawnlog(LOG_INFO, "AP is best. Client will stay:\n");
             print_client_entry(j);
             // set kick counter to 0 again
             j->kick_count = 0;
@@ -650,7 +664,7 @@ int kick_clients(ap* kicking_ap, uint32_t id) {
         j = j->next_entry_bc;
     }
 
-    printf("---------------------------\n");
+    dawnlog(LOG_INFO, "---------------------------\n");
 
     pthread_mutex_unlock(&probe_array_mutex);
     pthread_mutex_unlock(&client_array_mutex);
@@ -662,10 +676,10 @@ void update_iw_info(struct dawn_mac bssid_mac) {
     pthread_mutex_lock(&client_array_mutex);
     pthread_mutex_lock(&probe_array_mutex);
 
-    printf("-------- IW INFO UPDATE!!!---------\n");
+    dawnlog(LOG_INFO, "-------- IW INFO UPDATE!!!---------\n");
     char mac_buf_ap[20];
     sprintf(mac_buf_ap, MACSTR, MAC2STR(bssid_mac.u8));
-    printf("EVAL %s\n", mac_buf_ap);
+    dawnlog(LOG_INFO, "EVAL %s\n", mac_buf_ap);
 
     // Seach for BSSID
     // Go threw clients
@@ -675,19 +689,19 @@ void update_iw_info(struct dawn_mac bssid_mac) {
         int rssi = get_rssi_iwinfo(j->client_addr);
         int exp_thr = get_expected_throughput_iwinfo(j->client_addr);
         double exp_thr_tmp = iee80211_calculate_expected_throughput_mbit(exp_thr);
-        printf("Expected throughput %f Mbit/sec\n", exp_thr_tmp);
+        dawnlog(LOG_INFO, "Expected throughput %f Mbit/sec\n", exp_thr_tmp);
 
         if (rssi != INT_MIN) {
             if (!probe_array_update_rssi(j->bssid_addr, j->client_addr, rssi, true)) {
-                printf("Failed to update rssi!\n");
+                dawnlog(LOG_INFO, "Failed to update rssi!\n");
             }
             else {
-                printf("Updated rssi: %d\n", rssi);
+                dawnlog(LOG_INFO, "Updated rssi: %d\n", rssi);
             }
         }
     }
 
-    printf("---------------------------\n");
+    dawnlog(LOG_INFO, "---------------------------\n");
 
     pthread_mutex_unlock(&probe_array_mutex);
     pthread_mutex_unlock(&client_array_mutex);
@@ -752,7 +766,7 @@ void client_array_insert(client *entry, client** insert_pos) {
     client_entry_last++;
 
     if (client_entry_last == ARRAY_CLIENT_LEN) {
-        printf("warning: client_array overflowing (now contains %d entries)!\n", client_entry_last);
+        dawnlog(LOG_INFO, "warning: client_array overflowing (now contains %d entries)!\n", client_entry_last);
     }
 
     // Try to keep skip list density stable
@@ -912,10 +926,10 @@ int probe_array_set_all_probe_count(struct dawn_mac client_addr, uint32_t probe_
     pthread_mutex_lock(&probe_array_mutex);
     for (probe_entry *i = probe_set; i != NULL; i = i->next_probe) {
         if (mac_is_equal_bb(client_addr, i->client_addr)) {
-            printf("Setting probecount for given mac!\n");
+            dawnlog(LOG_INFO, "Setting probecount for given mac!\n");
             i->counter = probe_count;
         } else if (mac_compare_bb(client_addr, i->client_addr) > 0) {
-            printf("MAC not found!\n");
+            dawnlog(LOG_INFO, "MAC not found!\n");
             break;
         }
     }
@@ -975,12 +989,12 @@ probe_entry *probe_array_get_entry(struct dawn_mac bssid_mac, struct dawn_mac cl
 }
 
 void print_probe_array() {
-    printf("------------------\n");
-    printf("Probe Entry Last: %d\n", probe_entry_last);
+    dawnlog(LOG_INFO, "------------------\n");
+    dawnlog(LOG_INFO, "Probe Entry Last: %d\n", probe_entry_last);
     for (probe_entry* i = probe_set; i != NULL ; i = i->next_probe) {
         print_probe_entry(i);
     }
-    printf("------------------\n");
+    dawnlog(LOG_INFO, "------------------\n");
 }
 
 static struct probe_entry_s* insert_to_skip_array(struct probe_entry_s* entry) {
@@ -1029,7 +1043,7 @@ probe_entry* insert_to_array(probe_entry* entry, int inc_counter, int save_80211
         probe_entry_last++;
 
         if (probe_entry_last == PROBE_ARRAY_LEN) {
-            printf("warning: probe_array overflowing (now contains %d entries)!\n", probe_entry_last);
+            dawnlog(LOG_INFO, "warning: probe_array overflowing (now contains %d entries)!\n", probe_entry_last);
         }
 
         // Try to keep skip list density stable
@@ -1101,7 +1115,7 @@ void ap_array_insert(ap* entry) {
     ap_entry_last++;
 
     if (ap_entry_last == ARRAY_AP_LEN) {
-        printf("warning: ap_array overflowing (contains %d entries)!\n", ap_entry_last);
+        dawnlog(LOG_INFO, "warning: ap_array overflowing (contains %d entries)!\n", ap_entry_last);
     }
 }
 
@@ -1191,7 +1205,7 @@ void remove_old_denied_req_entries(time_t current_time, long long int threshold,
 
             // client is not connected for a given time threshold!
             if (logmac && !is_connected_somehwere((*i)->client_addr)) {
-                printf("Client has probably a bad driver!\n");
+                dawnlog(LOG_INFO, "Client has probably a bad driver!\n");
 
                 // problem that somehow station will land into this list
                 // maybe delete again?
@@ -1255,8 +1269,8 @@ void insert_macs_from_file() {
         }
 #endif
 
-        printf("Retrieved line of length %zu :\n", read);
-        printf("%s", line);
+        dawnlog(LOG_INFO, "Retrieved line of length %zu :\n", read);
+        dawnlog(LOG_INFO, "%s", line);
 
         // Need to scanf to an array of ints as there is no byte format specifier
         int tmp_int_mac[ETH_ALEN];
@@ -1265,7 +1279,7 @@ void insert_macs_from_file() {
         struct mac_entry_s* new_mac = dawn_malloc(sizeof(struct mac_entry_s));
         if (new_mac == NULL)
         {
-            printf("dawn_malloc of MAC struct failed!\n");
+            dawnlog(LOG_INFO, "dawn_malloc of MAC struct failed!\n");
         }
         else
         {
@@ -1278,11 +1292,11 @@ void insert_macs_from_file() {
         }
     }
 
-    printf("Printing MAC list:\n");
+    dawnlog(LOG_INFO, "Printing MAC list:\n");
     for (struct mac_entry_s *i = mac_set; i != NULL; i = i->next_mac) {
         char mac_buf_target[20];
         sprintf(mac_buf_target, MACSTR, MAC2STR(i->mac.u8));
-        printf("%s\n", mac_buf_target);
+        dawnlog(LOG_INFO, "%s\n", mac_buf_target);
     }
 
     fclose(fp);
@@ -1307,7 +1321,7 @@ struct mac_entry_s** i = mac_find_first_entry(mac);
         struct mac_entry_s* new_mac = dawn_malloc(sizeof(struct mac_entry_s));
         if (new_mac == NULL)
         {
-            printf("dawn_malloc of MAC struct failed!\n");
+            dawnlog(LOG_INFO, "dawn_malloc of MAC struct failed!\n");
         }
         else
         {
@@ -1361,7 +1375,7 @@ auth_entry* insert_to_denied_req_array(auth_entry* entry, int inc_counter, time_
         denied_req_last++;
 
         if (denied_req_last == DENY_REQ_ARRAY_LEN) {
-            printf("warning: denied_req_array overflowing (now contains %d entries)!\n", denied_req_last);
+            dawnlog(LOG_INFO, "warning: denied_req_array overflowing (now contains %d entries)!\n", denied_req_last);
         }
     }
 
@@ -1395,7 +1409,7 @@ struct mac_entry_s* insert_to_mac_array(struct mac_entry_s* entry, struct mac_en
     mac_set_last++;
 
     if (mac_set_last == DENY_REQ_ARRAY_LEN) {
-        printf("warning: denied_req_array overflowing (now contains %d entries)!\n", mac_set_last);
+        dawnlog(LOG_INFO, "warning: denied_req_array overflowing (now contains %d entries)!\n", mac_set_last);
     }
 
     return entry;
@@ -1427,7 +1441,7 @@ void print_probe_entry(probe_entry *entry) {
     sprintf(mac_buf_target, MACSTR, MAC2STR(entry->target_addr.u8));
 
 
-    printf(
+    dawnlog(LOG_INFO, 
             "bssid_addr: %s, client_addr: %s, signal: %d, freq: "
             "%d, counter: %d, vht: %d, min_rate: %d, max_rate: %d\n",
             mac_buf_ap, mac_buf_client, entry->signal, entry->freq, entry->counter, entry->vht_capabilities,
@@ -1445,7 +1459,7 @@ void print_auth_entry(auth_entry *entry) {
     sprintf(mac_buf_client, MACSTR, MAC2STR(entry->client_addr.u8));
     sprintf(mac_buf_target, MACSTR, MAC2STR(entry->target_addr.u8));
 
-    printf(
+    dawnlog(LOG_INFO, 
             "bssid_addr: %s, client_addr: %s, signal: %d, freq: "
             "%d\n",
             mac_buf_ap, mac_buf_client, entry->signal, entry->freq);
@@ -1460,19 +1474,19 @@ void print_client_entry(client *entry) {
     sprintf(mac_buf_ap, MACSTR, MAC2STR(entry->bssid_addr.u8));
     sprintf(mac_buf_client, MACSTR, MAC2STR(entry->client_addr.u8));
 
-    printf("bssid_addr: %s, client_addr: %s, freq: %d, ht_supported: %d, vht_supported: %d, ht: %d, vht: %d, kick: %d\n",
+    dawnlog(LOG_INFO, "bssid_addr: %s, client_addr: %s, freq: %d, ht_supported: %d, vht_supported: %d, ht: %d, vht: %d, kick: %d\n",
            mac_buf_ap, mac_buf_client, entry->freq, entry->ht_supported, entry->vht_supported, entry->ht, entry->vht,
            entry->kick_count);
 #endif
 }
 
 void print_client_array() {
-    printf("--------Clients------\n");
-    printf("Client Entry Last: %d\n", client_entry_last);
+    dawnlog(LOG_INFO, "--------Clients------\n");
+    dawnlog(LOG_INFO, "Client Entry Last: %d\n", client_entry_last);
     for (client* i = client_set_bc; i != NULL; i = i->next_entry_bc) {
         print_client_entry(i);
     }
-    printf("------------------\n");
+    dawnlog(LOG_INFO, "------------------\n");
 }
 
 static void print_ap_entry(ap *entry) {
@@ -1480,7 +1494,7 @@ static void print_ap_entry(ap *entry) {
     char mac_buf_ap[20];
 
     sprintf(mac_buf_ap, MACSTR, MAC2STR(entry->bssid_addr.u8));
-    printf("ssid: %s, bssid_addr: %s, freq: %d, ht: %d, vht: %d, chan_utilz: %d, col_d: %d, bandwidth: %d, col_count: %d neighbor_report: %s\n",
+    dawnlog(LOG_INFO, "ssid: %s, bssid_addr: %s, freq: %d, ht: %d, vht: %d, chan_utilz: %d, col_d: %d, bandwidth: %d, col_count: %d neighbor_report: %s\n",
            entry->ssid, mac_buf_ap, entry->freq, entry->ht_support, entry->vht_support,
            entry->channel_utilization, entry->collision_domain, entry->bandwidth,
            ap_get_collision_count(entry->collision_domain), entry->neighbor_report
@@ -1489,11 +1503,11 @@ static void print_ap_entry(ap *entry) {
 }
 
 void print_ap_array() {
-    printf("--------APs------\n");
+    dawnlog(LOG_INFO, "--------APs------\n");
     for (ap *i = ap_set; i != NULL; i = i->next_ap) {
         print_ap_entry(i);
     }
-    printf("------------------\n");
+    dawnlog(LOG_INFO, "------------------\n");
 }
 
 void destroy_mutex() {
@@ -1510,22 +1524,22 @@ void destroy_mutex() {
 int init_mutex() {
 
     if (pthread_mutex_init(&probe_array_mutex, NULL) != 0) {
-        fprintf(stderr, "Mutex init failed!\n");
+        dawnlog(LOG_ERR, "Mutex init failed!\n");
         return 1;
     }
 
     if (pthread_mutex_init(&client_array_mutex, NULL) != 0) {
-        fprintf(stderr, "Mutex init failed!\n");
+        dawnlog(LOG_ERR, "Mutex init failed!\n");
         return 1;
     }
 
     if (pthread_mutex_init(&ap_array_mutex, NULL) != 0) {
-        fprintf(stderr, "Mutex init failed!\n");
+        dawnlog(LOG_ERR, "Mutex init failed!\n");
         return 1;
     }
 
     if (pthread_mutex_init(&denied_array_mutex, NULL) != 0) {
-        fprintf(stderr, "Mutex init failed!\n");
+        dawnlog(LOG_ERR, "Mutex init failed!\n");
         return 1;
     }
     return 0;

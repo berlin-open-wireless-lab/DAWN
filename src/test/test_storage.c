@@ -377,7 +377,16 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
             args_required = 1;
 
             char* leaky = dawn_malloc(10);
-            strcpy(leaky, "LEAKED"); // Force use of memory to avoid unused error
+            strcpy(leaky, "TRACKED"); // Force use of memory to avoid unused error
+
+            leaky = malloc(10);
+            strcpy(leaky, "UNTRACKED"); // Force use of memory to avoid unused error
+        }
+        else if (strcmp(*argv, "segv") == 0)
+        {
+            args_required = 1;
+
+            strcpy((char *)0x01, "oooops");
         }
         else if (strcmp(*argv, "memaudit") == 0)
         {

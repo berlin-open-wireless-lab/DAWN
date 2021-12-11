@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include <syslog.h>
+
 #include "memory_utils.h"
 #include "datastorage.h"
 #include "networksocket.h"
@@ -46,12 +48,17 @@ void signal_handler(int sig) {
     }
 }
 
+
 int main(int argc, char **argv) {
 
     const char *ubus_socket = NULL;
 
     argc -= optind;
     argv += optind;
+
+openlog("dawn", LOG_PID|LOG_CONS, LOG_DAEMON);
+syslog(LOG_INFO, "DAWN instance %d %s...", 0, "starting");
+closelog();
 
     // connect signals
     signal_action.sa_handler = signal_handler;

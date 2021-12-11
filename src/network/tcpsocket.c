@@ -18,12 +18,22 @@ struct network_con_s *tcp_list_contains_address(struct sockaddr_in entry);
 static struct uloop_fd server;
 static struct client *next_client = NULL; // TODO: Why here? Only used in sever_cb()
 
+enum socket_read_status {
+    READ_STATUS_READY,
+    READ_STATUS_COMMENCED,
+    READ_STATUS_COMPLETE
+};
+
 struct client {
     struct sockaddr_in sin;
 
     struct ustream_fd s;
     int ctr;
     int counter;
+    char *str; // message buffer
+    enum socket_read_status state; // messge read state
+    uint32_t final_len; // full message length
+    uint32_t curr_len; // bytes read so far
 };
 
 static void client_close(struct ustream *s) {
@@ -65,8 +75,7 @@ static void client_to_server_close(struct ustream *s) {
 }
 
 static void client_to_server_state(struct ustream *s) {
-    struct client *cl = container_of(s,
-    struct client, s.stream);
+    struct client *cl = container_of(s, struct client, s.stream);
 
     if (!s->eof)
         return;
@@ -79,53 +88,107 @@ static void client_to_server_state(struct ustream *s) {
 }
 
 static void client_read_cb(struct ustream *s, int bytes) {
-    char *str, *str_tmp;
-    int len = 0;
-    uint32_t final_len = sizeof(uint32_t); // big enough to get msg length
-    str = dawn_malloc(final_len);
-    if (!str) {
-        fprintf(stderr,"not enough memory (" STR_QUOTE(__LINE__) ")\n");
-        goto nofree;
-    }
+    struct client *cl = container_of(s, struct client, s.stream);
+    struct ustream_fd* ufd = container_of(s, struct ustream_fd, stream);
+    
+    while(1) {
+        printf("tcp_socket: looping - U-EOF = %d, U-error = %d...\n", ufd->fd.eof, ufd->fd.error);
+        if (cl->state == READ_STATUS_READY)
+        {
+            printf("tcp_socket: commencing message...\n");
+            uint32_t min_len = sizeof(uint32_t); // big enough to get msg length
+            cl->str = dawn_malloc(min_len);
+            if (!cl->str) {
+                fprintf(stderr,"tcp_socket: not enough memory (" STR_QUOTE(__LINE__) ")\n");
+                break;
+            }
 
-    if ((len = ustream_pending_data(s, false)) < final_len){//ensure recv sizeof(uint32_t).
-        fprintf(stdout,"not complete msg, len:%d, expected len:%u\n", len, final_len);
-        goto out;
-    }
-    if (ustream_read(s, str, final_len) != final_len) // read msg length bytes
-    {
-        fprintf(stdout,"msg length read failed\n");
-        goto out;
-    }	
+            uint32_t avail_len = ustream_pending_data(s, false);
 
-    final_len = ntohl(*(uint32_t *)str) - final_len;//the final_len in headder includes header itself
-    str_tmp = dawn_realloc(str, final_len);
-    if (!str_tmp) {
-        fprintf(stderr,"not enough memory (%" PRIu32 " @ " STR_QUOTE(__LINE__) ")\n", final_len);
-        goto out;//On failure, dawn_realloc returns a null pointer. The original pointer str remains valid
-                 //and may need to be deallocated.
-    }
-    str = str_tmp;
+            if (avail_len < min_len){//ensure recv sizeof(uint32_t)
+                printf("tcp_socket: not complete msg, len:%d, expected len:%u\n", avail_len, min_len);
+                dawn_free(cl->str);
+                cl->str = NULL;
+                break;
+            }
 
-    if ((len = ustream_pending_data(s, false)) < final_len){//ensure recv final_len bytes.
-        fprintf(stdout,"not complete msg, len:%d, expected len:%u\n", len, final_len);
-        goto out;
-    }
-    ustream_read(s, str, final_len);
-    if (network_config.use_symm_enc) {
-        char *dec = gcrypt_decrypt_msg(str, final_len);//len of str is final_len
-        if (!dec) {
-            fprintf(stderr,"not enough memory (" STR_QUOTE(__LINE__) ")\n");
-            goto out;
+            if (ustream_read(s, cl->str, min_len) != min_len) // read msg length bytes
+            {
+                fprintf(stdout,"tcp_socket: msg length read failed\n");
+                dawn_free(cl->str);
+                cl->str = NULL;
+                break;
+            }        
+
+            cl->curr_len += min_len;
+            cl->final_len = ntohl(*(uint32_t *)cl->str);
+
+            // On failure, dawn_realloc returns a null pointer. The original pointer str
+            // remains valid and may need to be deallocated.
+            char *str_tmp = dawn_realloc(cl->str, cl->final_len);
+            if (!str_tmp) {
+                fprintf(stderr,"tcp_socket: not enough memory (%" PRIu32 " @ " STR_QUOTE(__LINE__) ")\n", cl->final_len);
+                dawn_free(cl->str);
+                cl->str = NULL;
+                break;
+            }
+
+            cl->str = str_tmp;
+            str_tmp = NULL; // Aboutt o go out of scope, but just in case it gets moved around...
+            cl->state = READ_STATUS_COMMENCED;
         }
-        handle_network_msg(dec);
-        dawn_free(dec);
-    } else {
-        handle_network_msg(str);//len of str is final_len
+
+        if (cl->state == READ_STATUS_COMMENCED)
+        {
+            printf("tcp_socket: reading message...\n");
+            uint32_t read_len = ustream_pending_data(s, false);
+
+            if (read_len == 0)
+                break;
+
+            if (read_len > (cl->final_len - cl->curr_len))
+                    read_len = cl->final_len - cl->curr_len;
+
+            printf("tcp_socket: reading %" PRIu32 " bytes to add to %" PRIu32 " of %" PRIu32 "...\n",
+                    read_len, cl->curr_len, cl->final_len);
+
+            uint32_t this_read = ustream_read(s, cl->str + cl->curr_len, read_len);
+            cl->curr_len += this_read;
+            printf("tcp_socket: ...and we're back, now have %" PRIu32 " bytes\n", cl->curr_len);
+            if (cl->curr_len == cl->final_len){//ensure recv final_len bytes.
+                // Full message now received
+                cl->state = READ_STATUS_COMPLETE;
+                printf("tcp_socket: message completed\n");
+            }
+        }
+
+        if (cl->state == READ_STATUS_COMPLETE)
+        {
+            printf("tcp_socket: processing message...\n");
+            if (network_config.use_symm_enc) {
+                char *dec = gcrypt_decrypt_msg(cl->str + 4, cl->final_len - 4);
+                if (!dec) {
+                    fprintf(stderr,"tcp_socket: not enough memory (" STR_QUOTE(__LINE__) ")\n");
+                    dawn_free(cl->str);
+                    cl->str = NULL;
+                    break;
+                }
+                handle_network_msg(dec);
+                dawn_free(dec);
+            } else {
+                handle_network_msg(cl->str + 4);
+            }
+
+            cl->state = READ_STATUS_READY;
+            cl->curr_len = 0;
+            cl->final_len = 0;
+            dawn_free(cl->str);
+            cl->str = NULL;
+        }
     }
-out:
-    dawn_free(str);
-nofree:
+
+    printf("tcp_socket: leaving\n");
+
     return;
 }
 

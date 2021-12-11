@@ -476,19 +476,22 @@ int discard_entry = true;
 }
 
 static int handle_probe_req(struct blob_attr *msg) {
-    // MUSTDO: Untangle dawn_malloc() and linking of probe_entry
     probe_entry* probe_req = parse_to_probe_req(msg);
-
-    if (probe_req != NULL) {
+    if (probe_req == NULL)
+        // TODO: Is this right?  SHould we do something else?
+        return WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA;
+    else {
+        // we get the same probe_req back if it is added to the list
+        // or the one actually used if it is an update to existing
+        // use 802.11k values
         if (probe_req != insert_to_array(probe_req, true, true, false, time(0)))
         {
-            // insert found an existing entry, rather than linking in our new one
-            // use new entry even though it wasn't linked: they are equivalent
             ubus_send_probe_via_network(probe_req);
             dawn_free(probe_req);
         }
         else
             ubus_send_probe_via_network(probe_req);
+
 
         //send_blob_attr_via_network(msg, "probe");
 
@@ -497,7 +500,6 @@ static int handle_probe_req(struct blob_attr *msg) {
         }
     }
 
-    // TODO: Retrun for dawn_malloc() failure?
     return WLAN_STATUS_SUCCESS;
 }
 
@@ -539,8 +541,8 @@ int send_blob_attr_via_network(struct blob_attr* msg, char* method) {
         }
     }
 
-    dawn_free(data_str);
     dawn_free(str);
+    dawn_free(data_str);
 
     return 0;
 }
@@ -548,11 +550,15 @@ int send_blob_attr_via_network(struct blob_attr* msg, char* method) {
 static int hostapd_notify(struct ubus_context *ctx, struct ubus_object *obj,
                           struct ubus_request_data *req, const char *method,
                           struct blob_attr *msg) {
+
+// TODO: Churns a lot of unnecessary memory - remove for now
+#if 0
     char *str;
     str = blobmsg_format_json(msg, true);
     dawn_regmem(str);
     printf("Method new: %s : %s\n", method, str);
     dawn_free(str);
+#endif
 
     struct hostapd_sock_entry *entry;
     struct ubus_subscriber *subscriber;
@@ -608,6 +614,7 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
     uloop_add_data_cbs();
 
     // get clients
+    uloop_timeout_set(&client_timer, 60 * 1000); // Allow some time for probe reports to arrive
     uloop_timeout_add(&client_timer);  // callback = update_clients
 
     uloop_timeout_add(&channel_utilization_timer);  // callback = update_channel_utilization
@@ -643,13 +650,6 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     if (!msg)
         return;
 
-    char *data_str = blobmsg_format_json(msg, 1);
-    dawn_regmem(data_str);
-    blob_buf_init(&b_domain, 0);
-    blobmsg_add_json_from_string(&b_domain, data_str);
-    blobmsg_add_u32(&b_domain, "collision_domain", network_config.collision_domain);
-    blobmsg_add_u32(&b_domain, "bandwidth", network_config.bandwidth);
-
     list_for_each_entry(sub, &hostapd_sock_list, list)
     {
         if (sub->id == req->peer) {
@@ -659,15 +659,20 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
 
     if (entry == NULL) {
         fprintf(stderr, "Failed to find interface!\n");
-        dawn_free(data_str);
         return;
     }
 
     if (!entry->subscribed) {
         fprintf(stderr, "Interface %s is not subscribed!\n", entry->iface_name);
-        dawn_free(data_str);
         return;
     }
+
+    char *data_str = blobmsg_format_json(msg, 1);
+    dawn_regmem(data_str);
+    blob_buf_init(&b_domain, 0);
+    blobmsg_add_json_from_string(&b_domain, data_str);
+    blobmsg_add_u32(&b_domain, "collision_domain", network_config.collision_domain);
+    blobmsg_add_u32(&b_domain, "bandwidth", network_config.bandwidth);
 
     blobmsg_add_macaddr(&b_domain, "bssid", entry->bssid_addr);
     blobmsg_add_string(&b_domain, "ssid", entry->ssid);
@@ -1071,6 +1076,13 @@ static int add_mac(struct ubus_context *ctx, struct ubus_object *obj,
     // here we need to send it via the network!
     send_blob_attr_via_network(msg, "addmac");
 
+    return 0;
+}
+
+int send_add_mac(struct dawn_mac client_addr) {
+    blob_buf_init(&b, 0);
+    blobmsg_add_macaddr(&b, "addr", client_addr);
+    send_blob_attr_via_network(b.head, "addmac");
     return 0;
 }
 
@@ -1621,11 +1633,4 @@ void denied_req_array_cb(struct uloop_timeout* t) {
 
     pthread_mutex_unlock(&denied_array_mutex);
     uloop_timeout_set(&denied_req_timeout, timeout_config.denied_req_threshold * 1000);
-}
-
-int send_add_mac(struct dawn_mac client_addr) {
-    blob_buf_init(&b, 0);
-    blobmsg_add_macaddr(&b, "addr", client_addr);
-    send_blob_attr_via_network(b.head, "addmac");
-    return 0;
 }

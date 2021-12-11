@@ -88,6 +88,7 @@ void* dawn_memory_register(enum dawn_memop type, char* file, int line, size_t si
     }
     else
     {
+        //printf("mem-audit: registering new memory (%c@%s:%d)...\n", type_c, file, line);
         this_log = malloc(sizeof(struct mem_list));
 
         if (this_log == NULL)
@@ -146,6 +147,7 @@ char type_c = '?';
 
     if (*mem != NULL && (*mem)->ptr == ptr)
     {
+        //printf("mem-audit: unregistering memory (%c@%s:%d)...\n", type_c, file, line);
         struct mem_list* tmp = *mem;
         *mem = tmp->next_mem;
         free(tmp);

@@ -148,6 +148,7 @@ probe_entry *parse_to_probe_req(struct blob_attr* msg) {
     struct blob_attr* tb[__PROB_MAX];
 
     probe_entry* prob_req = dawn_malloc(sizeof(probe_entry));
+
     if (prob_req == NULL)
     {
         fprintf(stderr, "dawn_malloc of probe_entry failed!\n");
@@ -283,11 +284,11 @@ int handle_network_msg(char* msg) {
     if (strncmp(method, "probe", 5) == 0) {
         probe_entry *entry = parse_to_probe_req(data_buf.head);
         if (entry != NULL) {
-            if (entry != insert_to_array(entry, false, false, false, time(0))) // use 802.11k values
-            {
-                // insert found an existing entry, rather than linking in our new one
+            // we get the same entry back if it is added to the list
+            // or the one actually used if it is an update to existing
+            // use 802.11k values
+            if (entry != insert_to_array(entry, false, false, false, time(0)))
                 dawn_free(entry);
-            }
         }
     }
     else if (strncmp(method, "clients", 5) == 0) {
