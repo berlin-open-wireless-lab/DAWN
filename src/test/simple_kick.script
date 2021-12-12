@@ -1,7 +1,7 @@
 dawn default
-dawn min_kick_count=2
-ap bssid=11:22:33:44:55:66 neighbors=11:22:33:44:55:66
-ap bssid=22:33:44:55:66:77 neighbors=22:33:44:55:66:77
+dawn min_number_to_kick=2
+ap bssid=11:22:33:44:55:66 neighbors=112233445566
+ap bssid=22:33:44:55:66:77 neighbors=223344556677
 client bssid=11:22:33:44:55:66 client=ff:ee:dd:cc:bb:aa
 ap_show
 client_show

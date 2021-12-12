@@ -72,8 +72,6 @@ int compare_essid_iwinfo(struct dawn_mac bssid_addr, struct dawn_mac bssid_addr_
     }
     closedir(dirp);
 
-    printf("Comparing: %s with %s\n", essid, essid_to_compare);
-
     if (essid == NULL || essid_to_compare == NULL) {
         return -1;
     }
@@ -120,11 +118,9 @@ int get_bandwidth(const char *ifname, struct dawn_mac client_addr, float *rx_rat
     iw = iwinfo_backend(ifname);
 
     if (iw->assoclist(ifname, buf, &len)) {
-        fprintf(stdout, "No information available\n");
         iwinfo_finish();
         return 0;
     } else if (len <= 0) {
-        fprintf(stdout, "No station connected\n");
         iwinfo_finish();
         return 0;
     }
@@ -177,11 +173,15 @@ int get_rssi(const char *ifname, struct dawn_mac client_addr) {
     iw = iwinfo_backend(ifname);
 
     if (iw->assoclist(ifname, buf, &len)) {
+#ifndef DAWN_NO_OUTPUT
         fprintf(stdout, "No information available\n");
+#endif
         iwinfo_finish();
         return INT_MIN;
     } else if (len <= 0) {
+#ifndef DAWN_NO_OUTPUT
         fprintf(stdout, "No station connected\n");
+#endif
         iwinfo_finish();
         return INT_MIN;
     }
@@ -233,11 +233,15 @@ int get_expected_throughput(const char *ifname, struct dawn_mac client_addr) {
     iw = iwinfo_backend(ifname);
 
     if (iw->assoclist(ifname, buf, &len)) {
+#ifndef DAWN_NO_OUTPUT
         fprintf(stdout, "No information available\n");
+#endif
         iwinfo_finish();
         return INT_MIN;
     } else if (len <= 0) {
+#ifndef DAWN_NO_OUTPUT
         fprintf(stdout, "No station connected\n");
+#endif
         iwinfo_finish();
         return INT_MIN;
     }
@@ -281,8 +285,7 @@ int get_ssid(const char *ifname, char* ssid, size_t ssidmax) {
     if (iw->ssid(ifname, buf))
         memset(buf, 0, sizeof(buf));
 
-    memcpy(ssid, buf, ssidmax);
-    strcpy(ssid, buf);
+    strncpy(ssid, buf, ssidmax);
     iwinfo_finish();
     return 0;
 }
@@ -349,7 +352,6 @@ int support_ht(const char *ifname) {
 
     if (iw->htmodelist(ifname, &htmodes))
     {
-        printf("No HT mode information available\n");
         iwinfo_finish();
         return 0;
     }
@@ -369,7 +371,6 @@ int support_vht(const char *ifname) {
 
     if (iw->htmodelist(ifname, &htmodes))
     {
-        fprintf(stderr, "No VHT mode information available\n");
         iwinfo_finish();
         return 0;
     }

@@ -11,7 +11,7 @@
 #include "test_storage.h"
 
 /*** Test Stub Functions - Called by SUT ***/
-void ubus_send_beacon_report(struct dawn_mac client, int id)
+void ubus_send_beacon_report(client *c, ap *a, int id)
 {
     printf("send_beacon_report() was called...\n");
 }
@@ -22,20 +22,25 @@ int send_set_probe(struct dawn_mac client_addr)
     return 0;
 }
 
-int wnm_disassoc_imminent(uint32_t id, const struct dawn_mac client_addr, char* dest_ap, uint32_t duration)
+int wnm_disassoc_imminent(uint32_t id, const struct dawn_mac client_addr, struct kicking_nr* neighbor_list, uint32_t duration)
 {
 int ret = 0;
 
     printf("wnm_disassoc_imminent() was called...\n");
 
-    if (dest_ap != NULL)
+    if (neighbor_list != NULL)
     {
         // Fake a client being disassociated and then rejoining on the recommended neoghbor
         client *mc = client_array_get_client(client_addr);
         mc = client_array_delete(mc, true);
-        hwaddr_aton(dest_ap, mc->bssid_addr.u8);
+        // Originally, there was only one AP, not a list of them; that AP is at the tail of the list
+        // Use it to keep the results the same as before
+        while (neighbor_list && neighbor_list->next)
+            neighbor_list = neighbor_list->next;
+        for (int n=0; n < ETH_ALEN; n++)
+            sscanf(neighbor_list->nr + n*2, "%2hhx", mc->bssid_addr.u8 + n);
         insert_client_to_array(mc, 0);
-        printf("BSS TRANSITION TO %s\n", dest_ap);
+        printf("BSS TRANSITION TO " NR_MACSTR "\n", NR_MAC2STR(neighbor_list->nr));
 
         // Tell caller not to change the arrays any further
         ret = 1;
@@ -148,8 +153,8 @@ static int array_auto_helper(int action, int i0, int i1)
     while (cont) {
         struct dawn_mac this_mac;
 
-        *((uint64_t*)(&this_mac.u8)) = m;
-
+        uint64_t mac_src = m;
+    memcpy(&this_mac.u8, &mac_src, ETH_ALEN < sizeof (uint64_t) ? ETH_ALEN : sizeof (uint64_t));
         switch (action & ~HELPER_ACTION_MASK)
         {
         case HELPER_AP:
@@ -170,7 +175,7 @@ static int array_auto_helper(int action, int i0, int i1)
                 time_moves_on();
             }
             else
-                ap_array_delete(ap_array_get_ap(this_mac));
+                ap_array_delete(ap_array_get_ap(this_mac, NULL));
             break;
         case HELPER_CLIENT:
             ; // Empty statement to allow label before declaration
@@ -296,6 +301,15 @@ static int load_int(int* v, char* s)
     return ret;
 }
 
+static int load_int_band(int* v, char* s);
+static int load_int_band(int* v, char* s)
+{
+  int ret = 0;
+  sscanf(s, "%" "d", v);
+  v[1] = v[0];
+  return ret;
+}
+
 static int load_string(size_t l, char* v, char* s);
 static int load_string(size_t l, char* v, char* s)
 {
@@ -318,6 +332,44 @@ static int load_time(time_t* v, char* s)
     int ret = 0;
     sscanf(s, "%" SCNi64, (int64_t*)v);  // TODO: Check making portable for target SoC environemnts?
     return ret;
+}
+
+static int get_rrm_mode_val(char mode);
+static int get_rrm_mode_val(char mode) {
+    switch (tolower(mode)) {
+        case 'a':
+            return WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE;
+            break;
+        case 'p':
+            return WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE;
+            break;
+        case 'b':
+        case 't':
+             return WLAN_RRM_CAPS_BEACON_REPORT_TABLE;
+             break;
+    }
+    return 0;
+}
+
+static int parse_rrm_mode(int *rrm_mode_order, const char *mode_string);
+static int parse_rrm_mode(int *rrm_mode_order, const char *mode_string) {
+    int len, mode_val;
+    int mask = 0, order = 0, pos = 0;
+
+    if (!mode_string)
+        mode_string = DEFAULT_RRM_MODE_ORDER;
+    len = strlen(mode_string);
+
+    while (order < __RRM_BEACON_RQST_MODE_MAX) {
+        if (pos >= len) {
+            rrm_mode_order[order++] = 0;
+        } else {
+            mode_val = get_rrm_mode_val(mode_string[pos++]);
+            if (mode_val && !(mask & mode_val))
+                mask |= (rrm_mode_order[order++] = mode_val);
+        }
+    }
+    return mask;
 }
 
 static int consume_actions(int argc, char* argv[], int harness_verbosity);
@@ -597,20 +649,34 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
 
                 if (!strcmp(fn, "default"))
                 {
-                    dawn_metric.ap_weight = 0; // Sum component
-                    dawn_metric.ht_support = 10; // Sum component
-                    dawn_metric.vht_support = 100; // Sum component
-                    dawn_metric.no_ht_support = 0; // Sum component
-                    dawn_metric.no_vht_support = 0; // Sum component
-                    dawn_metric.rssi = 10; // Sum component
-                    dawn_metric.low_rssi = -500; // Sum component
-                    dawn_metric.freq = 100; // Sum component
-                    dawn_metric.chan_util = 0; // Sum component
-                    dawn_metric.max_chan_util = -500; // Sum component
-                    dawn_metric.rssi_val = -60;
-                    dawn_metric.low_rssi_val = -80;
-                    dawn_metric.chan_util_val = 140;
-                    dawn_metric.max_chan_util_val = 170;
+                    dawn_metric.ap_weight[0] = 0; // Sum component
+                    dawn_metric.ap_weight[1] = 0; // Sum component
+                    dawn_metric.ht_support[0] = 10; // Sum component
+                    dawn_metric.ht_support[1] = 10; // Sum component
+                    dawn_metric.vht_support[0] = 100; // Sum component
+                    dawn_metric.vht_support[1] = 100; // Sum component
+                    dawn_metric.no_ht_support[0] = 0; // Sum component
+                    dawn_metric.no_ht_support[1] = 0; // Sum component
+                    dawn_metric.no_vht_support[0] = 0; // Sum component
+                    dawn_metric.no_vht_support[1] = 0; // Sum component
+                    dawn_metric.rssi[0] = 10; // Sum component
+                    dawn_metric.rssi[1] = 10; // Sum component
+                    dawn_metric.low_rssi[0] = -500; // Sum component
+                    dawn_metric.low_rssi[1] = -500; // Sum component
+                    dawn_metric.initial_score[0] = 0; // Sum component
+                    dawn_metric.initial_score[1] = 100; // Sum component
+                    dawn_metric.chan_util[0] = 0; // Sum component
+                    dawn_metric.chan_util[1] = 0; // Sum component
+                    dawn_metric.max_chan_util[0] = -500; // Sum component
+                    dawn_metric.max_chan_util[1] = -500; // Sum component
+                    dawn_metric.rssi_val[0] = -60;
+                    dawn_metric.rssi_val[1] = -60;
+                    dawn_metric.low_rssi_val[0] = -80;
+                    dawn_metric.low_rssi_val[1] = -80;
+                    dawn_metric.chan_util_val[0] = 140;
+                    dawn_metric.chan_util_val[1] = 140;
+                    dawn_metric.max_chan_util_val[0] = 170;
+                    dawn_metric.max_chan_util_val[1] = 170;
                     dawn_metric.min_probe_count = 2;
                     dawn_metric.bandwidth_threshold = 6;
                     dawn_metric.use_station_count = 1;
@@ -621,29 +687,32 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                     dawn_metric.deny_auth_reason = 1;
                     dawn_metric.deny_assoc_reason = 17;
                     dawn_metric.use_driver_recog = 1;
-                    dawn_metric.min_kick_count = 3;
+                    dawn_metric.min_number_to_kick = 3;
                     dawn_metric.chan_util_avg_period = 3;
                     dawn_metric.set_hostapd_nr = 1;
                     dawn_metric.kicking = 0;
-                    dawn_metric.op_class = 0;
                     dawn_metric.duration = 0;
-                    dawn_metric.mode = 0;
-                    dawn_metric.scan_channel = 0;
+                    dawn_metric.rrm_mode_mask = WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE |
+                                                WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE |
+                                                WLAN_RRM_CAPS_BEACON_REPORT_TABLE;
+                    dawn_metric.rrm_mode_order[0] = WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE;
+                    dawn_metric.rrm_mode_order[1] = WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE;
+                    dawn_metric.rrm_mode_order[2] = WLAN_RRM_CAPS_BEACON_REPORT_TABLE;
                 }
-                else if (!strncmp(fn, "ap_weight=", 10)) load_int(&dawn_metric.ap_weight, fn + 10);
-                else if (!strncmp(fn, "ht_support=", 11)) load_int(&dawn_metric.ht_support, fn + 11);
-                else if (!strncmp(fn, "vht_support=", 12)) load_int(&dawn_metric.vht_support, fn + 12);
-                else if (!strncmp(fn, "no_ht_support=", 14)) load_int(&dawn_metric.no_ht_support, fn + 14);
-                else if (!strncmp(fn, "no_vht_support=", 15)) load_int(&dawn_metric.no_vht_support, fn + 15);
-                else if (!strncmp(fn, "rssi=", 5)) load_int(&dawn_metric.rssi, fn + 5);
-                else if (!strncmp(fn, "low_rssi=", 9)) load_int(&dawn_metric.low_rssi, fn + 9);
-                else if (!strncmp(fn, "freq=", 5)) load_int(&dawn_metric.freq, fn + 5);
-                else if (!strncmp(fn, "chan_util=", 10)) load_int(&dawn_metric.chan_util, fn + 10);
-                else if (!strncmp(fn, "max_chan_util=", 14)) load_int(&dawn_metric.max_chan_util, fn + 14);
-                else if (!strncmp(fn, "rssi_val=", 9)) load_int(&dawn_metric.rssi_val, fn + 9);
-                else if (!strncmp(fn, "low_rssi_val=", 13)) load_int(&dawn_metric.low_rssi_val, fn + 13);
-                else if (!strncmp(fn, "chan_util_val=", 14)) load_int(&dawn_metric.chan_util_val, fn + 14);
-                else if (!strncmp(fn, "max_chan_util_val=", 18)) load_int(&dawn_metric.max_chan_util_val, fn + 18);
+                else if (!strncmp(fn, "ap_weight=", 10)) load_int_band(dawn_metric.ap_weight, fn + 10);
+                else if (!strncmp(fn, "ht_support=", 11)) load_int_band(dawn_metric.ht_support, fn + 11);
+                else if (!strncmp(fn, "vht_support=", 12)) load_int_band(dawn_metric.vht_support, fn + 12);
+                else if (!strncmp(fn, "no_ht_support=", 14)) load_int_band(dawn_metric.no_ht_support, fn + 14);
+                else if (!strncmp(fn, "no_vht_support=", 15)) load_int_band(dawn_metric.no_vht_support, fn + 15);
+                else if (!strncmp(fn, "rssi=", 5)) load_int_band(dawn_metric.rssi, fn + 5);
+                else if (!strncmp(fn, "low_rssi=", 9)) load_int_band(dawn_metric.low_rssi, fn + 9);
+                else if (!strncmp(fn, "freq=", 5)) load_int(&dawn_metric.initial_score[1], fn + 5);
+                else if (!strncmp(fn, "chan_util=", 10)) load_int_band(dawn_metric.chan_util, fn + 10);
+                else if (!strncmp(fn, "max_chan_util=", 14)) load_int_band(dawn_metric.max_chan_util, fn + 14);
+                else if (!strncmp(fn, "rssi_val=", 9)) load_int_band(dawn_metric.rssi_val, fn + 9);
+                else if (!strncmp(fn, "low_rssi_val=", 13)) load_int_band(dawn_metric.low_rssi_val, fn + 13);
+                else if (!strncmp(fn, "chan_util_val=", 14)) load_int_band(dawn_metric.chan_util_val, fn + 14);
+                else if (!strncmp(fn, "max_chan_util_val=", 18)) load_int_band(dawn_metric.max_chan_util_val, fn + 18);
                 else if (!strncmp(fn, "min_probe_count=", 16)) load_int(&dawn_metric.min_probe_count, fn + 16);
                 else if (!strncmp(fn, "bandwidth_threshold=", 20)) load_int(&dawn_metric.bandwidth_threshold, fn + 20);
                 else if (!strncmp(fn, "use_station_count=", 18)) load_int(&dawn_metric.use_station_count, fn + 18);
@@ -654,14 +723,12 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 else if (!strncmp(fn, "deny_auth_reason=", 17)) load_int(&dawn_metric.deny_auth_reason, fn + 17);
                 else if (!strncmp(fn, "deny_assoc_reason=", 18)) load_int(&dawn_metric.deny_assoc_reason, fn + 18);
                 else if (!strncmp(fn, "use_driver_recog=", 17)) load_int(&dawn_metric.use_driver_recog, fn + 17);
-                else if (!strncmp(fn, "min_kick_count=", 15)) load_int(&dawn_metric.min_kick_count, fn + 15);
+                else if (!strncmp(fn, "min_number_to_kick=", 19)) load_int(&dawn_metric.min_number_to_kick, fn + 19);
                 else if (!strncmp(fn, "chan_util_avg_period=", 21)) load_int(&dawn_metric.chan_util_avg_period, fn + 21);
                 else if (!strncmp(fn, "set_hostapd_nr=", 15)) load_int(&dawn_metric.set_hostapd_nr, fn + 15);
                 else if (!strncmp(fn, "kicking=", 8)) load_int(&dawn_metric.kicking, fn + 8);
-                else if (!strncmp(fn, "op_class=", 9)) load_int(&dawn_metric.op_class, fn + 9);
                 else if (!strncmp(fn, "duration=", 9)) load_int(&dawn_metric.duration, fn + 9);
-                else if (!strncmp(fn, "mode=", 5)) load_int(&dawn_metric.mode, fn + 5);
-                else if (!strncmp(fn, "scan_channel=", 13)) load_int(&dawn_metric.scan_channel, fn + 13);
+                else if (!strncmp(fn, "rrm_mode=", 9)) dawn_metric.rrm_mode_mask = parse_rrm_mode(dawn_metric.rrm_mode_order, fn + 9);
                 else {
                     printf("ERROR: Loading DAWN control metrics, but don't recognise assignment \"%s\"\n", fn);
                     ret = 1;
@@ -706,7 +773,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
             ap0->time = faketime;
             ap0->station_count = 0;
             memset(ap0->ssid, '*', SSID_MAX_LEN);
-            ap0->ssid[SSID_MAX_LEN - 1] = '\0';
+            ap0->ssid[SSID_MAX_LEN] = '\0';
             ap0->neighbor_report[0] = 0;
             ap0->collision_domain = 0;
             ap0->bandwidth = 0;
@@ -947,7 +1014,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 hwaddr_aton(argv[1], kick_mac.u8);
                 load_u32(&kick_id, argv[2]);
 
-                while ((kick_clients(ap_array_get_ap(kick_mac), kick_id) != 0) && safety_count--);
+                while ((kick_clients(ap_array_get_ap(kick_mac, NULL), kick_id) != 0) && safety_count--);
             }
         }
         else if (strcmp(*argv, "better_ap_available") == 0)
@@ -966,6 +1033,8 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 load_u32(&autokick, argv[3]);
 
                 char nb[NEIGHBOR_REPORT_LEN] = "TAMPER EVIDENT NEIGHBOR REPORT INITIALISATION STRING";
+                struct kicking_nr neighbor = {0};
+                struct kicking_nr *neighbor_list = &neighbor;
 
                 if (curr_arg + 5 <= argc)
                 {
@@ -979,12 +1048,12 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                     {
                         strcpy(nb, argv[4]);
                     }
-
-                    tr = better_ap_available(ap_array_get_ap(bssid_mac), client_mac, nb);
+                    strncpy(neighbor.nr, nb, NEIGHBOR_REPORT_LEN);
+                    tr = better_ap_available(ap_array_get_ap(bssid_mac, NULL), client_mac, &neighbor_list);
                 }
                 else
                 {
-                    tr = better_ap_available(ap_array_get_ap(bssid_mac), client_mac, NULL);
+                    tr = better_ap_available(ap_array_get_ap(bssid_mac, NULL), client_mac, NULL);
                 }
 
                 printf("better_ap_available returned %d (with neighbour report %s)\n", tr, nb);
@@ -1009,7 +1078,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 }
                 else
                 {
-                    ap* ap_entry = ap_array_get_ap(pr0->bssid_addr);
+                    ap* ap_entry = ap_array_get_ap(pr0->bssid_addr, NULL);
 
                     int this_metric = eval_probe_metric(pr0, ap_entry);
                     printf("eval_probe_metric: Returned %d\n", this_metric);

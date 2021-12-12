@@ -37,7 +37,9 @@ int init_socket_runopts(const char *_ip, int _port, int _multicast_socket) {
     multicast_socket = _multicast_socket;
 
     if (multicast_socket) {
+#ifndef DAWN_NO_OUTPUT
         printf("Settingup multicastsocket!\n");
+#endif
         sock = setup_multicast_socket(ip, port, &addr);
     } else {
         sock = setup_broadcast_socket(ip, port, &addr);
@@ -56,7 +58,9 @@ int init_socket_runopts(const char *_ip, int _port, int _multicast_socket) {
         }
     }
 
+#ifndef DAWN_NO_OUTPUT
     fprintf(stdout, "Connected to %s:%d\n", ip, port);
+#endif
 
     return 0;
 }
@@ -79,7 +83,9 @@ void *receive_msg(void *args) {
         }
         recv_string[recv_string_len] = '\0';
 
+#ifndef DAWN_NO_OUTPUT
         printf("Received network message: %s\n", recv_string);
+#endif
         handle_network_msg(recv_string);
     }
 }
@@ -115,7 +121,9 @@ void *receive_msg_enc(void *args) {
             return 0;
         }
 
+#ifndef DAWN_NO_OUTPUT
         printf("Received network message: %s\n", dec);
+#endif
         dawn_free(base64_dec_str);
         handle_network_msg(dec);
         dawn_free(dec);

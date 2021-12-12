@@ -77,7 +77,7 @@ SET(SOURCES_TEST_HEADER
         test/test_header.c)
 
 SET(LIBS
-        ubox ubus json-c blobmsg_json uci gcrypt iwinfo)
+        ubox ubus json-c blobmsg_json uci gcrypt iwinfo pthread)
 
 ADD_EXECUTABLE(dawn ${SOURCES})
 ADD_EXECUTABLE(test_storage ${SOURCES_TEST_STORAGE})
