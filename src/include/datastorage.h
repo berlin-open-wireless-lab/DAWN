@@ -19,6 +19,15 @@
 
 // ---------------- Defines -------------------
 #define MAC_LIST_LENGTH 100
+#define DEFAULT_RRM_MODE_ORDER "pat"
+#define RRM_MODE_COUNT 3
+
+enum rrm_beacon_rqst_mode {
+    RRM_BEACON_RQST_MODE_PASSIVE,
+    RRM_BEACON_RQST_MODE_ACTIVE,
+    RRM_BEACON_RQST_MODE_BEACON_TABLE,
+    __RRM_BEACON_RQST_MODE_MAX
+};
 
 // ---------------- Global variables ----------------
 extern struct mac_entry_s *mac_set;
@@ -39,26 +48,34 @@ struct mac_entry_s* insert_to_mac_array(struct mac_entry_s* entry, struct mac_en
 
 void mac_array_delete(struct mac_entry_s* entry);
 
+int get_band(int freq);
 
 // ---------------- Global variables ----------------
 /*** Metrics and configuration data ***/
 
+// TODO: Define a proper version string
+#ifndef DAWN_CONFIG_VERSION
+#define DAWN_CONFIG_VERSION "3"
+#endif
+
+// Band definitions
+// Keep them sorted by frequency, in ascending order
+enum dawn_bands {
+    DAWN_BAND_80211G,
+    DAWN_BAND_80211A,
+    __DAWN_BAND_MAX
+};
+
+// config section name
+extern const char *band_config_name[__DAWN_BAND_MAX];
+
+// starting frequency
+// TODO: make this configurable
+extern const int max_band_freq[__DAWN_BAND_MAX];
+
 // ---------------- Structs ----------------
 struct probe_metric_s {
-    int ap_weight; // TODO: Never evaluated?
-    int ht_support; // eval_probe_metric()()
-    int vht_support; // eval_probe_metric()()
-    int no_ht_support; // eval_probe_metric()()
-    int no_vht_support; // eval_probe_metric()()
-    int rssi; // eval_probe_metric()()
-    int low_rssi; // eval_probe_metric()()
-    int freq; // eval_probe_metric()()
-    int chan_util; // eval_probe_metric()()
-    int max_chan_util; // eval_probe_metric()()
-    int rssi_val; // eval_probe_metric()()
-    int low_rssi_val; // eval_probe_metric()()
-    int chan_util_val; // eval_probe_metric()()
-    int max_chan_util_val; // eval_probe_metric()()
+    // Global Configuration
     int min_probe_count;
     int bandwidth_threshold; // kick_clients()
     int use_station_count; // better_ap_available()
@@ -69,14 +86,33 @@ struct probe_metric_s {
     int deny_auth_reason;
     int deny_assoc_reason;
     int use_driver_recog;
-    int min_kick_count; // kick_clients()
+    int min_number_to_kick; // kick_clients()
     int chan_util_avg_period;
     int set_hostapd_nr;
     int kicking;
-    int op_class;
+    int kicking_threshold;
     int duration;
-    int mode;
-    int scan_channel;
+    int rrm_mode_mask;
+    int rrm_mode_order[__RRM_BEACON_RQST_MODE_MAX];
+
+    // Per-band Configuration
+    int initial_score[__DAWN_BAND_MAX]; // eval_probe_metric()()
+    int ap_weight[__DAWN_BAND_MAX]; // TODO: Never evaluated?
+    int ht_support[__DAWN_BAND_MAX]; // eval_probe_metric()()
+    int vht_support[__DAWN_BAND_MAX]; // eval_probe_metric()()
+    int no_ht_support[__DAWN_BAND_MAX]; // eval_probe_metric()()
+    int no_vht_support[__DAWN_BAND_MAX]; // eval_probe_metric()()
+    int rssi[__DAWN_BAND_MAX]; // eval_probe_metric()()
+    int low_rssi[__DAWN_BAND_MAX]; // eval_probe_metric()()
+    int chan_util[__DAWN_BAND_MAX]; // eval_probe_metric()()
+    int max_chan_util[__DAWN_BAND_MAX]; // eval_probe_metric()()
+    int rssi_val[__DAWN_BAND_MAX]; // eval_probe_metric()()
+    int low_rssi_val[__DAWN_BAND_MAX]; // eval_probe_metric()()
+    int chan_util_val[__DAWN_BAND_MAX]; // eval_probe_metric()()
+    int max_chan_util_val[__DAWN_BAND_MAX]; // eval_probe_metric()()
+    int rssi_weight[__DAWN_BAND_MAX]; // eval_probe_metric()()
+    int rssi_center[__DAWN_BAND_MAX]; // eval_probe_metric()()
+    struct mac_entry_s* neighbors[__DAWN_BAND_MAX]; // ap_get_nr()
 };
 
 struct time_config_s {
@@ -97,6 +133,7 @@ struct time_config_s {
 struct network_config_s {
     char broadcast_ip[MAX_IP_LENGTH];
     int broadcast_port;
+    char server_ip[MAX_IP_LENGTH];
     int tcp_port;
     int network_option;
     char shared_key[MAX_KEY_LENGTH];
@@ -121,12 +158,15 @@ extern struct probe_metric_s dawn_metric;
 
 /* Probe, Auth, Assoc */
 
+#define SSID_MAX_LEN 32
+
 // ---------------- Structs ----------------
 typedef struct probe_entry_s {
     struct probe_entry_s* next_probe;
     struct probe_entry_s* next_probe_skip;
     struct dawn_mac client_addr;
     struct dawn_mac bssid_addr;
+    uint8_t ssid[SSID_MAX_LEN + 1]; // parse_to_beacon_rep()
     struct dawn_mac target_addr; // TODO: Never evaluated?
     uint32_t signal; // eval_probe_metric()
     uint32_t freq; // eval_probe_metric()
@@ -169,8 +209,22 @@ typedef struct auth_entry_s assoc_entry;
 
 // ---------------- Defines ----------------
 
-#define SSID_MAX_LEN 32
 #define NEIGHBOR_REPORT_LEN 200
+/* Neighbor report string elements
+ * [Elemen ID|1][LENGTH|1][BSSID|6][BSSID INFORMATION|4][Operating Class|1][Channel Number|1][PHY Type|1][Operational Subelements]
+ * first two bytes are not stored
+ */
+#define NR_BSSID         0
+#define NR_BSSID_INFO   12
+#define NR_OP_CLASS     20
+#define NR_CHANNEL      22
+#define NR_PHY          24
+#ifndef BIT
+#define BIT(x) (1U << (x))
+#endif
+#define WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE BIT(4)
+#define WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE BIT(5)
+#define WLAN_RRM_CAPS_BEACON_REPORT_TABLE BIT(6)
 
 // ---------------- Global variables ----------------
 extern struct auth_entry_s *denied_req_set;
@@ -200,7 +254,7 @@ typedef struct client_s {
     char signature[SIGNATURE_LEN]; // TODO: Never evaluated?
     uint8_t ht_supported; // TODO: Never evaluated?
     uint8_t vht_supported; // TODO: Never evaluated?
-    uint32_t freq; // TODO: Never evaluated?
+    uint32_t freq; // ap_get_nr()
     uint8_t auth; // TODO: Never evaluated?
     uint8_t assoc; // TODO: Never evaluated?
     uint8_t authorized; // TODO: Never evaluated?
@@ -220,14 +274,16 @@ typedef struct client_s {
 typedef struct ap_s {
     struct ap_s* next_ap;
     struct dawn_mac bssid_addr;
-    uint32_t freq; // TODO: Never evaluated?
+    uint32_t freq; // ap_get_nr()
     uint8_t ht_support; // eval_probe_metric()
     uint8_t vht_support; // eval_probe_metric()
     uint32_t channel_utilization; // eval_probe_metric()
     time_t time; // remove_old...entries
     uint32_t station_count; // compare_station_count() <- better_ap_available()
-    uint8_t ssid[SSID_MAX_LEN]; // compare_sid() < -better_ap_available()
+    uint8_t ssid[SSID_MAX_LEN + 1]; // compare_sid() < -better_ap_available()
     char neighbor_report[NEIGHBOR_REPORT_LEN];
+    uint32_t op_class; // ubus_send_beacon_report()
+    uint32_t channel; // ubus_send_beacon_report()
     uint32_t collision_domain;  // TODO: ap_get_collision_count() never evaluated?
     uint32_t bandwidth; // TODO: Never evaluated?
     uint32_t ap_weight; // eval_probe_metric()
@@ -304,24 +360,27 @@ void remove_old_ap_entries(time_t current_time, long long int threshold);
 
 void print_ap_array();
 
-ap *ap_array_get_ap(struct dawn_mac bssid_mac);
+ap *ap_array_get_ap(struct dawn_mac bssid_mac, const uint8_t* ssid);
 
 int probe_array_set_all_probe_count(struct dawn_mac client_addr, uint32_t probe_count);
 
-#ifndef DAWN_NO_OUTPUT
 int ap_get_collision_count(int col_domain);
-#endif
 
-void send_beacon_reports(struct dawn_mac bssid, int id);
+void send_beacon_reports(ap *a, int id);
 
 /* Utils */
 // deprecate use of this - it makes things slow
 #define SORT_LENGTH 5
 extern char sort_string[];
 
+struct kicking_nr {
+    char nr[NEIGHBOR_REPORT_LEN];
+    int score;
+    struct kicking_nr *next;
+};
 
 // ---------------- Functions -------------------
-int better_ap_available(ap *kicking_ap, struct dawn_mac client_addr, char* neighbor_report);
+int better_ap_available(ap *kicking_ap, struct dawn_mac client_addr, struct kicking_nr** neighbor_report);
 
 // All users of datastorage should call init_ / destroy_mutex at initialisation and termination respectively
 int init_mutex();

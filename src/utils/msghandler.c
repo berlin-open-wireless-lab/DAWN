@@ -51,8 +51,8 @@ static const struct blobmsg_policy prob_policy[__PROB_MAX] = {
         [PROB_TARGET_ADDR] = {.name = "target", .type = BLOBMSG_TYPE_STRING},
         [PROB_SIGNAL] = {.name = "signal", .type = BLOBMSG_TYPE_INT32},
         [PROB_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
-        [PROB_HT_CAPABILITIES] = {.name = "ht_capabilities", .type = BLOBMSG_TYPE_TABLE},
-        [PROB_VHT_CAPABILITIES] = {.name = "vht_capabilities", .type = BLOBMSG_TYPE_TABLE},
+        [PROB_HT_CAPABILITIES] = {.name = "ht_capabilities", .type = BLOBMSG_TYPE_TABLE}, //ToDo: Change to int8?
+        [PROB_VHT_CAPABILITIES] = {.name = "vht_capabilities", .type = BLOBMSG_TYPE_TABLE}, //ToDo: Change to int8?
         [PROB_RCPI] = {.name = "rcpi", .type = BLOBMSG_TYPE_INT32},
         [PROB_RSNI] = {.name = "rsni", .type = BLOBMSG_TYPE_INT32},
 };
@@ -148,7 +148,6 @@ probe_entry *parse_to_probe_req(struct blob_attr* msg) {
     struct blob_attr* tb[__PROB_MAX];
 
     probe_entry* prob_req = dawn_malloc(sizeof(probe_entry));
-
     if (prob_req == NULL)
     {
         fprintf(stderr, "dawn_malloc of probe_entry failed!\n");
@@ -229,8 +228,6 @@ int handle_deauth_req(struct blob_attr* msg) {
 
     pthread_mutex_unlock(&client_array_mutex);
 
-    printf("[WC] Deauth: %s\n", "deauth");
-
     return 0;
 }
 
@@ -261,7 +258,9 @@ int handle_network_msg(char* msg) {
     method = blobmsg_data(tb[NETWORK_METHOD]);
     data = blobmsg_data(tb[NETWORK_DATA]);
 
+#ifndef DAWN_NO_OUTPUT
     printf("Network Method new: %s : %s\n", method, msg);
+#endif
 
     blob_buf_init(&data_buf, 0);
     blobmsg_add_json_from_string(&data_buf, data);
@@ -295,11 +294,15 @@ int handle_network_msg(char* msg) {
         parse_to_clients(data_buf.head, 0, 0);
     }
     else if (strncmp(method, "deauth", 5) == 0) {
+#ifndef DAWN_NO_OUTPUT
         printf("METHOD DEAUTH\n");
+#endif
         handle_deauth_req(data_buf.head);
     }
     else if (strncmp(method, "setprobe", 5) == 0) {
+#ifndef DAWN_NO_OUTPUT
         printf("HANDLING SET PROBE!\n");
+#endif
         handle_set_probe(data_buf.head);
     }
     else if (strncmp(method, "addmac", 5) == 0) {
@@ -309,7 +312,9 @@ int handle_network_msg(char* msg) {
         parse_add_mac_to_file(data_buf.head);
     }
     else if (strncmp(method, "uci", 2) == 0) {
+#ifndef DAWN_NO_OUTPUT
         printf("HANDLING UCI!\n");
+#endif
         handle_uci_config(data_buf.head);
     }
     else if (strncmp(method, "beacon-report", 12) == 0) {
@@ -323,36 +328,22 @@ int handle_network_msg(char* msg) {
     }
     else
     {
+#ifndef DAWN_NO_OUTPUT
         printf("No method fonud for: %s\n", method);
+#endif
     }
 
     return 0;
 }
 
-static uint8_t dump_rrm_data(void* data, int len, int type) //modify from examples/blobmsg-example.c in libubox
-{
-    uint32_t ret = 0;
-    switch (type) {
-    case BLOBMSG_TYPE_INT32:
-        ret = *(uint32_t*)data;
-        break;
-    default:
-        fprintf(stderr, "wrong type of rrm array\n");
-    }
-    return (uint8_t)ret;
-}
-
 static uint8_t
-dump_rrm_table(struct blob_attr* head, int len) //modify from examples/blobmsg-example.c in libubox
+dump_rrm_data(struct blob_attr* head)
 {
-    struct blob_attr* attr;
-    uint8_t ret = 0;
-
-    __blob_for_each_attr(attr, head, len) {
-        ret = dump_rrm_data(blobmsg_data(attr), blobmsg_data_len(attr), blob_id(attr));
-        return ret;// get the first rrm byte
+    if (blob_id(head) != BLOBMSG_TYPE_INT32) {
+        fprintf(stderr, "wrong type of rrm array.\n");
+        return 0;
     }
-    return ret;
+    return (uint8_t)blobmsg_get_u32(head);
 }
 
 // TOOD: Refactor this!
@@ -407,8 +398,8 @@ dump_client(struct blob_attr** tb, struct dawn_mac client_addr, const char* bssi
     }
     /* RRM Caps */
     if (tb[CLIENT_RRM]) {
-        client_entry->rrm_enabled_capa = dump_rrm_table(blobmsg_data(tb[CLIENT_RRM]),
-            blobmsg_data_len(tb[CLIENT_RRM]));// get the first byte from rrm array
+        // get the first byte from rrm array
+        client_entry->rrm_enabled_capa = dump_rrm_data(blobmsg_data(tb[CLIENT_RRM]));
 //ap_entry.ap_weight = blobmsg_get_u32(tb[CLIENT_TABLE_RRM]);
     }
     else {
@@ -536,8 +527,10 @@ int parse_to_clients(struct blob_attr* msg, int do_kick, uint32_t id) {
         }
 
 
+        ap_entry->op_class = ap_entry->channel = 0;
         if (tb[CLIENT_TABLE_NEIGHBOR]) {
             strncpy(ap_entry->neighbor_report, blobmsg_get_string(tb[CLIENT_TABLE_NEIGHBOR]), NEIGHBOR_REPORT_LEN);
+            sscanf(ap_entry->neighbor_report + NR_OP_CLASS, "%2x%2x", &ap_entry->op_class, &ap_entry->channel);
         }
         else {
             ap_entry->neighbor_report[0] = '\0';
@@ -568,25 +561,13 @@ int parse_to_clients(struct blob_attr* msg, int do_kick, uint32_t id) {
 }
 
 enum {
+    UCI_CONFIG_VERSION,
     UCI_TABLE_METRIC,
     UCI_TABLE_TIMES,
     __UCI_TABLE_MAX
 };
 
 enum {
-    UCI_HT_SUPPORT,
-    UCI_VHT_SUPPORT,
-    UCI_NO_HT_SUPPORT,
-    UCI_NO_VHT_SUPPORT,
-    UCI_RSSI,
-    UCI_LOW_RSSI,
-    UCI_FREQ,
-    UCI_CHAN_UTIL,
-    UCI_MAX_CHAN_UTIL,
-    UCI_RSSI_VAL,
-    UCI_LOW_RSSI_VAL,
-    UCI_CHAN_UTIL_VAL,
-    UCI_MAX_CHAN_UTIL_VAL,
     UCI_MIN_PROBE_COUNT,
     UCI_BANDWIDTH_THRESHOLD,
     UCI_USE_STATION_COUNT,
@@ -595,17 +576,38 @@ enum {
     UCI_EVAL_AUTH_REQ,
     UCI_EVAL_ASSOC_REQ,
     UCI_KICKING,
+    UCI_KICKING_THRESHOLD,
     UCI_DENY_AUTH_REASON,
     UCI_DENY_ASSOC_REASON,
     UCI_USE_DRIVER_RECOG,
     UCI_MIN_NUMBER_TO_KICK,
     UCI_CHAN_UTIL_AVG_PERIOD,
     UCI_SET_HOSTAPD_NR,
-    UCI_OP_CLASS,
     UCI_DURATION,
-    UCI_MODE,
-    UCI_SCAN_CHANNEL,
-    __UCI_METIC_MAX
+    UCI_RRM_MODE,
+    UCI_BAND_METRICS,
+    __UCI_METRIC_MAX
+};
+
+enum {
+    UCI_BAND,
+    UCI_INITIAL_SCORE,
+    UCI_AP_WEIGHT,
+    UCI_HT_SUPPORT,
+    UCI_VHT_SUPPORT,
+    UCI_NO_HT_SUPPORT,
+    UCI_NO_VHT_SUPPORT,
+    UCI_RSSI,
+    UCI_LOW_RSSI,
+    UCI_CHAN_UTIL,
+    UCI_MAX_CHAN_UTIL,
+    UCI_RSSI_VAL,
+    UCI_LOW_RSSI_VAL,
+    UCI_CHAN_UTIL_VAL,
+    UCI_MAX_CHAN_UTIL_VAL,
+    UCI_RSSI_WEIGHT,
+    UCI_RSSI_CENTER,
+    __UCI_BAND_METRIC_MAX
 };
 
 enum {
@@ -622,24 +624,12 @@ enum {
 };
 
 static const struct blobmsg_policy uci_table_policy[__UCI_TABLE_MAX] = {
+        [UCI_CONFIG_VERSION ] = {.name = "version", .type = BLOBMSG_TYPE_STRING},
         [UCI_TABLE_METRIC] = {.name = "metric", .type = BLOBMSG_TYPE_TABLE},
         [UCI_TABLE_TIMES] = {.name = "times", .type = BLOBMSG_TYPE_TABLE}
 };
 
-static const struct blobmsg_policy uci_metric_policy[__UCI_METIC_MAX] = {
-        [UCI_HT_SUPPORT] = {.name = "ht_support", .type = BLOBMSG_TYPE_INT32},
-        [UCI_VHT_SUPPORT] = {.name = "vht_support", .type = BLOBMSG_TYPE_INT32},
-        [UCI_NO_HT_SUPPORT] = {.name = "no_ht_support", .type = BLOBMSG_TYPE_INT32},
-        [UCI_NO_VHT_SUPPORT] = {.name = "no_vht_support", .type = BLOBMSG_TYPE_INT32},
-        [UCI_RSSI] = {.name = "rssi", .type = BLOBMSG_TYPE_INT32},
-        [UCI_LOW_RSSI] = {.name = "low_rssi", .type = BLOBMSG_TYPE_INT32},
-        [UCI_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
-        [UCI_CHAN_UTIL] = {.name = "chan_util", .type = BLOBMSG_TYPE_INT32},
-        [UCI_MAX_CHAN_UTIL] = {.name = "max_chan_util", .type = BLOBMSG_TYPE_INT32},
-        [UCI_RSSI_VAL] = {.name = "rssi_val", .type = BLOBMSG_TYPE_INT32},
-        [UCI_LOW_RSSI_VAL] = {.name = "low_rssi_val", .type = BLOBMSG_TYPE_INT32},
-        [UCI_CHAN_UTIL_VAL] = {.name = "chan_util_val", .type = BLOBMSG_TYPE_INT32},
-        [UCI_MAX_CHAN_UTIL_VAL] = {.name = "max_chan_util_val", .type = BLOBMSG_TYPE_INT32},
+static const struct blobmsg_policy uci_metric_policy[__UCI_METRIC_MAX] = {
         [UCI_MIN_PROBE_COUNT] = {.name = "min_probe_count", .type = BLOBMSG_TYPE_INT32},
         [UCI_BANDWIDTH_THRESHOLD] = {.name = "bandwidth_threshold", .type = BLOBMSG_TYPE_INT32},
         [UCI_USE_STATION_COUNT] = {.name = "use_station_count", .type = BLOBMSG_TYPE_INT32},
@@ -648,16 +638,34 @@ static const struct blobmsg_policy uci_metric_policy[__UCI_METIC_MAX] = {
         [UCI_EVAL_AUTH_REQ] = {.name = "eval_auth_req", .type = BLOBMSG_TYPE_INT32},
         [UCI_EVAL_ASSOC_REQ] = {.name = "eval_assoc_req", .type = BLOBMSG_TYPE_INT32},
         [UCI_KICKING] = {.name = "kicking", .type = BLOBMSG_TYPE_INT32},
+        [UCI_KICKING_THRESHOLD] = {.name = "kicking_threshold", .type = BLOBMSG_TYPE_INT32},
         [UCI_DENY_AUTH_REASON] = {.name = "deny_auth_reason", .type = BLOBMSG_TYPE_INT32},
         [UCI_DENY_ASSOC_REASON] = {.name = "deny_assoc_reason", .type = BLOBMSG_TYPE_INT32},
         [UCI_USE_DRIVER_RECOG] = {.name = "use_driver_recog", .type = BLOBMSG_TYPE_INT32},
         [UCI_MIN_NUMBER_TO_KICK] = {.name = "min_number_to_kick", .type = BLOBMSG_TYPE_INT32},
         [UCI_CHAN_UTIL_AVG_PERIOD] = {.name = "chan_util_avg_period", .type = BLOBMSG_TYPE_INT32},
         [UCI_SET_HOSTAPD_NR] = {.name = "set_hostapd_nr", .type = BLOBMSG_TYPE_INT32},
-        [UCI_OP_CLASS] = {.name = "op_class", .type = BLOBMSG_TYPE_INT32},
         [UCI_DURATION] = {.name = "duration", .type = BLOBMSG_TYPE_INT32},
-        [UCI_MODE] = {.name = "mode", .type = BLOBMSG_TYPE_INT32},
-        [UCI_SCAN_CHANNEL] = {.name = "mode", .type = BLOBMSG_TYPE_INT32},
+        [UCI_RRM_MODE] = {.name = "rrm_mode", .type = BLOBMSG_TYPE_STRING},
+        [UCI_BAND_METRICS] = {.name = "band_metrics", .type = BLOBMSG_TYPE_TABLE},
+};
+
+static const struct blobmsg_policy uci_band_metric_policy[__UCI_METRIC_MAX] = {
+        [UCI_INITIAL_SCORE] = {.name = "initial_score", .type = BLOBMSG_TYPE_INT32},
+        [UCI_HT_SUPPORT] = {.name = "ht_support", .type = BLOBMSG_TYPE_INT32},
+        [UCI_VHT_SUPPORT] = {.name = "vht_support", .type = BLOBMSG_TYPE_INT32},
+        [UCI_NO_HT_SUPPORT] = {.name = "no_ht_support", .type = BLOBMSG_TYPE_INT32},
+        [UCI_NO_VHT_SUPPORT] = {.name = "no_vht_support", .type = BLOBMSG_TYPE_INT32},
+        [UCI_RSSI] = {.name = "rssi", .type = BLOBMSG_TYPE_INT32},
+        [UCI_RSSI_VAL] = {.name = "rssi_val", .type = BLOBMSG_TYPE_INT32},
+        [UCI_LOW_RSSI] = {.name = "low_rssi", .type = BLOBMSG_TYPE_INT32},
+        [UCI_LOW_RSSI_VAL] = {.name = "low_rssi_val", .type = BLOBMSG_TYPE_INT32},
+        [UCI_CHAN_UTIL] = {.name = "chan_util", .type = BLOBMSG_TYPE_INT32},
+        [UCI_MAX_CHAN_UTIL] = {.name = "max_chan_util", .type = BLOBMSG_TYPE_INT32},
+        [UCI_CHAN_UTIL_VAL] = {.name = "chan_util_val", .type = BLOBMSG_TYPE_INT32},
+        [UCI_MAX_CHAN_UTIL_VAL] = {.name = "max_chan_util_val", .type = BLOBMSG_TYPE_INT32},
+        [UCI_RSSI_WEIGHT] = {.name = "rssi_weight", .type = BLOBMSG_TYPE_INT32},
+        [UCI_RSSI_CENTER] = {.name = "rssi_center", .type = BLOBMSG_TYPE_INT32},
 };
 
 static const struct blobmsg_policy uci_times_policy[__UCI_TIMES_MAX] = {
@@ -677,103 +685,141 @@ static int handle_uci_config(struct blob_attr* msg) {
     struct blob_attr* tb[__UCI_TABLE_MAX];
     blobmsg_parse(uci_table_policy, __UCI_TABLE_MAX, tb, blob_data(msg), blob_len(msg));
 
-    struct blob_attr* tb_metric[__UCI_METIC_MAX];
-    blobmsg_parse(uci_metric_policy, __UCI_METIC_MAX, tb_metric, blobmsg_data(tb[UCI_TABLE_METRIC]), blobmsg_len(tb[UCI_TABLE_METRIC]));
+    const char *version_string = blobmsg_get_string(tb[UCI_CONFIG_VERSION]);
+    if (version_string == NULL || strcmp(version_string, DAWN_CONFIG_VERSION)) {
+        fprintf(stderr, "Ignoring network config message with incompatible version string '%s'.\n",
+                version_string ? : "");
+        return -1;
+    }
+
+    struct blob_attr* tb_metric[__UCI_METRIC_MAX];
+    blobmsg_parse(uci_metric_policy, __UCI_METRIC_MAX, tb_metric, blobmsg_data(tb[UCI_TABLE_METRIC]), blobmsg_len(tb[UCI_TABLE_METRIC]));
 
     // TODO: Magic number?
     char cmd_buffer[1024];
-    sprintf(cmd_buffer, "dawn.@metric[0].ht_support=%d", blobmsg_get_u32(tb_metric[UCI_HT_SUPPORT]));
+
+    sprintf(cmd_buffer, "%s", "dawn.global=metric");
     uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].vht_support=%d", blobmsg_get_u32(tb_metric[UCI_VHT_SUPPORT]));
+    sprintf(cmd_buffer, "dawn.global.min_probe_count=%d", blobmsg_get_u32(tb_metric[UCI_MIN_PROBE_COUNT]));
     uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].no_ht_support=%d", blobmsg_get_u32(tb_metric[UCI_NO_HT_SUPPORT]));
+    sprintf(cmd_buffer, "dawn.global.bandwidth_threshold=%d", blobmsg_get_u32(tb_metric[UCI_BANDWIDTH_THRESHOLD]));
     uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].no_vht_support=%d", blobmsg_get_u32(tb_metric[UCI_NO_VHT_SUPPORT]));
+    sprintf(cmd_buffer, "dawn.global.use_station_count=%d", blobmsg_get_u32(tb_metric[UCI_USE_STATION_COUNT]));
     uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].rssi=%d", blobmsg_get_u32(tb_metric[UCI_RSSI]));
+    sprintf(cmd_buffer, "dawn.global.max_station_diff=%d", blobmsg_get_u32(tb_metric[UCI_MAX_STATION_DIFF]));
     uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].low_rssi=%d", blobmsg_get_u32(tb_metric[UCI_LOW_RSSI]));
+    sprintf(cmd_buffer, "dawn.global.eval_probe_req=%d", blobmsg_get_u32(tb_metric[UCI_EVAL_PROBE_REQ]));
     uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].freq=%d", blobmsg_get_u32(tb_metric[UCI_FREQ]));
+    sprintf(cmd_buffer, "dawn.global.eval_auth_req=%d", blobmsg_get_u32(tb_metric[UCI_EVAL_AUTH_REQ]));
     uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].chan_util=%d", blobmsg_get_u32(tb_metric[UCI_CHAN_UTIL]));
+    sprintf(cmd_buffer, "dawn.global.eval_assoc_req=%d", blobmsg_get_u32(tb_metric[UCI_EVAL_ASSOC_REQ]));
     uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].rssi_val=%d", blobmsg_get_u32(tb_metric[UCI_RSSI_VAL]));
+    sprintf(cmd_buffer, "dawn.global.kicking=%d", blobmsg_get_u32(tb_metric[UCI_KICKING]));
     uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].low_rssi_val=%d", blobmsg_get_u32(tb_metric[UCI_LOW_RSSI_VAL]));
+    sprintf(cmd_buffer, "dawn.global.kicking_threshold=%d", blobmsg_get_u32(tb_metric[UCI_KICKING_THRESHOLD]));
     uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].chan_util_val=%d", blobmsg_get_u32(tb_metric[UCI_CHAN_UTIL_VAL]));
+    sprintf(cmd_buffer, "dawn.global.deny_auth_reason=%d", blobmsg_get_u32(tb_metric[UCI_DENY_AUTH_REASON]));
     uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].max_chan_util=%d", blobmsg_get_u32(tb_metric[UCI_MAX_CHAN_UTIL]));
+    sprintf(cmd_buffer, "dawn.global.deny_assoc_reason=%d", blobmsg_get_u32(tb_metric[UCI_DENY_ASSOC_REASON]));
     uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].max_chan_util_val=%d", blobmsg_get_u32(tb_metric[UCI_MAX_CHAN_UTIL_VAL]));
+    sprintf(cmd_buffer, "dawn.global.use_driver_recog=%d", blobmsg_get_u32(tb_metric[UCI_USE_DRIVER_RECOG]));
     uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].min_probe_count=%d", blobmsg_get_u32(tb_metric[UCI_MIN_PROBE_COUNT]));
+    sprintf(cmd_buffer, "dawn.global.min_number_to_kick=%d", blobmsg_get_u32(tb_metric[UCI_MIN_NUMBER_TO_KICK]));
     uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].bandwidth_threshold=%d", blobmsg_get_u32(tb_metric[UCI_BANDWIDTH_THRESHOLD]));
+    sprintf(cmd_buffer, "dawn.global.chan_util_avg_period=%d", blobmsg_get_u32(tb_metric[UCI_CHAN_UTIL_AVG_PERIOD]));
     uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].use_station_count=%d", blobmsg_get_u32(tb_metric[UCI_USE_STATION_COUNT]));
+    sprintf(cmd_buffer, "dawn.global.set_hostapd_nr=%d", blobmsg_get_u32(tb_metric[UCI_SET_HOSTAPD_NR]));
     uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].max_station_diff=%d", blobmsg_get_u32(tb_metric[UCI_MAX_STATION_DIFF]));
+    sprintf(cmd_buffer, "dawn.global.duration=%d", blobmsg_get_u32(tb_metric[UCI_DURATION]));
     uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].eval_probe_req=%d", blobmsg_get_u32(tb_metric[UCI_EVAL_PROBE_REQ]));
+    sprintf(cmd_buffer, "dawn.global.rrm_mode=%s", blobmsg_get_string(tb_metric[UCI_RRM_MODE]));
     uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].eval_auth_req=%d", blobmsg_get_u32(tb_metric[UCI_EVAL_AUTH_REQ]));
-    uci_set_network(cmd_buffer);
+    struct blob_attr *tb_band_metric[__UCI_BAND_METRIC_MAX], *attr;
+    int band_len = blobmsg_len(tb_metric[UCI_BAND_METRICS]);
+    struct blob_attr *band_data = blobmsg_data(tb_metric[UCI_BAND_METRICS]);
+    __blob_for_each_attr(attr, band_data, band_len) {
+        struct blobmsg_hdr *hdr = blob_data(attr);
+        const char *band_name = (const char *)hdr->name;
+        int band;
 
-    sprintf(cmd_buffer, "dawn.@metric[0].evalcd_assoc_req=%d", blobmsg_get_u32(tb_metric[UCI_EVAL_ASSOC_REQ]));
-    uci_set_network(cmd_buffer);
+        blobmsg_parse(uci_band_metric_policy, __UCI_BAND_METRIC_MAX, tb_band_metric,
+                      blobmsg_data(attr), blobmsg_len(attr));
 
-    sprintf(cmd_buffer, "dawn.@metric[0].kicking=%d", blobmsg_get_u32(tb_metric[UCI_KICKING]));
-    uci_set_network(cmd_buffer);
+        for (band = 0; band < __DAWN_BAND_MAX; band++) {
+            if (!strcmp(band_name, band_config_name[band]))
+                break;
+        }
+        if (band == __DAWN_BAND_MAX) {
+            fprintf(stderr, "handle_uci_config: Warning: unknown band '%s'.\n", band_name);
+            continue;  // Should we write the metrics of an unknown band to the config file?
+        }
 
-    sprintf(cmd_buffer, "dawn.@metric[0].deny_auth_reason=%d", blobmsg_get_u32(tb_metric[UCI_DENY_AUTH_REASON]));
-    uci_set_network(cmd_buffer);
+        sprintf(cmd_buffer, "dawn.%s=metric", band_name);
+        uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].deny_assoc_reason=%d", blobmsg_get_u32(tb_metric[UCI_DENY_ASSOC_REASON]));
-    uci_set_network(cmd_buffer);
+        sprintf(cmd_buffer, "dawn.%s.initial_score=%d", band_name, blobmsg_get_u32(tb_band_metric[UCI_INITIAL_SCORE]));
+        uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].use_driver_recog=%d", blobmsg_get_u32(tb_metric[UCI_USE_DRIVER_RECOG]));
-    uci_set_network(cmd_buffer);
+        sprintf(cmd_buffer, "dawn.%s.ht_support=%d", band_name, blobmsg_get_u32(tb_band_metric[UCI_HT_SUPPORT]));
+        uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].min_number_to_kick=%d", blobmsg_get_u32(tb_metric[UCI_MIN_NUMBER_TO_KICK]));
-    uci_set_network(cmd_buffer);
+        sprintf(cmd_buffer, "dawn.%s.vht_support=%d", band_name, blobmsg_get_u32(tb_band_metric[UCI_VHT_SUPPORT]));
+        uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].chan_util_avg_period=%d", blobmsg_get_u32(tb_metric[UCI_CHAN_UTIL_AVG_PERIOD]));
-    uci_set_network(cmd_buffer);
+        sprintf(cmd_buffer, "dawn.%s.no_ht_support=%d", band_name, blobmsg_get_u32(tb_band_metric[UCI_NO_HT_SUPPORT]));
+        uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].set_hostapd_nr=%d", blobmsg_get_u32(tb_metric[UCI_SET_HOSTAPD_NR]));
-    uci_set_network(cmd_buffer);
+        sprintf(cmd_buffer, "dawn.%s.no_vht_support=%d", band_name, blobmsg_get_u32(tb_band_metric[UCI_NO_VHT_SUPPORT]));
+        uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].op_class=%d", blobmsg_get_u32(tb_metric[UCI_OP_CLASS]));
-    uci_set_network(cmd_buffer);
+        sprintf(cmd_buffer, "dawn.%s.rssi=%d", band_name, blobmsg_get_u32(tb_band_metric[UCI_RSSI]));
+        uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].duration=%d", blobmsg_get_u32(tb_metric[UCI_DURATION]));
-    uci_set_network(cmd_buffer);
+        sprintf(cmd_buffer, "dawn.%s.rssi_val=%d", band_name, blobmsg_get_u32(tb_band_metric[UCI_RSSI_VAL]));
+        uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].mode=%d", blobmsg_get_u32(tb_metric[UCI_MODE]));
-    uci_set_network(cmd_buffer);
+        sprintf(cmd_buffer, "dawn.%s.low_rssi_val=%d", band_name, blobmsg_get_u32(tb_band_metric[UCI_LOW_RSSI_VAL]));
+        uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@metric[0].scan_channel=%d", blobmsg_get_u32(tb_metric[UCI_SCAN_CHANNEL]));
-    uci_set_network(cmd_buffer);
+        sprintf(cmd_buffer, "dawn.%s.low_rssi=%d", band_name, blobmsg_get_u32(tb_band_metric[UCI_LOW_RSSI]));
+        uci_set_network(cmd_buffer);
+
+        sprintf(cmd_buffer, "dawn.%s.chan_util=%d", band_name, blobmsg_get_u32(tb_band_metric[UCI_CHAN_UTIL]));
+        uci_set_network(cmd_buffer);
+
+        sprintf(cmd_buffer, "dawn.%s.chan_util_val=%d", band_name, blobmsg_get_u32(tb_band_metric[UCI_CHAN_UTIL_VAL]));
+        uci_set_network(cmd_buffer);
+
+        sprintf(cmd_buffer, "dawn.%s.max_chan_util=%d", band_name, blobmsg_get_u32(tb_band_metric[UCI_MAX_CHAN_UTIL]));
+        uci_set_network(cmd_buffer);
+
+        sprintf(cmd_buffer, "dawn.%s.max_chan_util_val=%d", band_name, blobmsg_get_u32(tb_band_metric[UCI_MAX_CHAN_UTIL_VAL]));
+        uci_set_network(cmd_buffer);
+
+        sprintf(cmd_buffer, "dawn.%s.rssi_weight=%d", band_name, blobmsg_get_u32(tb_band_metric[UCI_RSSI_WEIGHT]));
+        uci_set_network(cmd_buffer);
+
+        sprintf(cmd_buffer, "dawn.%s.rssi_center=%d", band_name, blobmsg_get_u32(tb_band_metric[UCI_RSSI_CENTER]));
+        uci_set_network(cmd_buffer);
+    }
 
     struct blob_attr* tb_times[__UCI_TIMES_MAX];
     blobmsg_parse(uci_times_policy, __UCI_TIMES_MAX, tb_times, blobmsg_data(tb[UCI_TABLE_TIMES]), blobmsg_len(tb[UCI_TABLE_TIMES]));

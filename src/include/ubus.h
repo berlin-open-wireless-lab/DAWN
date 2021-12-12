@@ -29,7 +29,7 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir);
 /**
  * Start the umdns timer for updating the zeroconfiguration properties.
  */
-void start_umdns_update();
+void start_tcp_con_update();
 
 /**
  * Call umdns update to update the TCP connections.
@@ -68,14 +68,7 @@ void del_client_all_interfaces(const struct dawn_mac client_addr, uint32_t reaso
  */
 void update_hostapd_sockets(struct uloop_timeout *t);
 
-/**
- * Send control message to all hosts to add the mac to a don't control list.
- * @param client_addr
- * @return
- */
-int send_add_mac(struct dawn_mac client_addr);
-
-void ubus_send_beacon_report(struct dawn_mac client, int id);
+void ubus_send_beacon_report(client *c, ap *a, int id);
 
 void uloop_add_data_cbs();
 
@@ -85,7 +78,7 @@ int build_hearing_map_sort_client(struct blob_buf* b);
 
 int build_network_overview(struct blob_buf* b);
 
-int ap_get_nr(struct blob_buf* b, struct dawn_mac own_bssid_addr);
+int ap_get_nr(struct blob_buf* b, struct dawn_mac own_bssid_addr, const char *ssid);
 
 int parse_add_mac_to_file(struct blob_attr* msg);
 
@@ -146,6 +139,13 @@ int send_set_probe(struct dawn_mac client_addr);
  * @param duration
  * @return - 0 = asynchronous (client has been told to remove itself, and caller should manage arrays); 1 = synchronous (caller should assume arrays are updated)
  */
-int wnm_disassoc_imminent(uint32_t id, const struct dawn_mac client_addr, char* dest_ap, uint32_t duration);
+int wnm_disassoc_imminent(uint32_t id, const struct dawn_mac client_addr, struct kicking_nr* neighbor_list, uint32_t duration);
+
+/**
+ * Send control message to all hosts to add the mac to a don't control list.
+ * @param client_addr
+ * @return
+ */
+int send_add_mac(struct dawn_mac client_addr);
 
 #endif
