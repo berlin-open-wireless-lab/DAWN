@@ -3,6 +3,7 @@
 #include <string.h>
 #include <libubox/blobmsg_json.h>
 
+#include "utils.h"
 #include "memory_utils.h"
 #include "multicastsocket.h"
 #include "broadcastsocket.h"
@@ -37,9 +38,7 @@ int init_socket_runopts(const char *_ip, int _port, int _multicast_socket) {
     multicast_socket = _multicast_socket;
 
     if (multicast_socket) {
-#ifndef DAWN_NO_OUTPUT
-        printf("Settingup multicastsocket!\n");
-#endif
+        dawnlog_info("Settingup multicastsocket!\n");
         sock = setup_multicast_socket(ip, port, &addr);
     } else {
         sock = setup_broadcast_socket(ip, port, &addr);
@@ -48,19 +47,17 @@ int init_socket_runopts(const char *_ip, int _port, int _multicast_socket) {
     pthread_t sniffer_thread;
     if (network_config.use_symm_enc) {
         if (pthread_create(&sniffer_thread, NULL, receive_msg_enc, NULL)) {
-            fprintf(stderr, "Could not create receiving thread!\n");
+            dawnlog_error("Could not create receiving thread!\n");
             return -1;
         }
     } else {
         if (pthread_create(&sniffer_thread, NULL, receive_msg, NULL)) {
-            fprintf(stderr, "Could not create receiving thread!\n");
+            dawnlog_error("Could not create receiving thread!\n");
             return -1;
         }
     }
 
-#ifndef DAWN_NO_OUTPUT
-    fprintf(stdout, "Connected to %s:%d\n", ip, port);
-#endif
+    dawnlog_info("Connected to %s:%d\n", ip, port);
 
     return 0;
 }
@@ -69,7 +66,7 @@ void *receive_msg(void *args) {
     while (1) {
         if ((recv_string_len =
                      recvfrom(sock, recv_string, MAX_RECV_STRING, 0, NULL, 0)) < 0) {
-            fprintf(stderr, "Could not receive message!");
+            dawnlog_error("Could not receive message!");
             continue;
         }
 
@@ -83,9 +80,7 @@ void *receive_msg(void *args) {
         }
         recv_string[recv_string_len] = '\0';
 
-#ifndef DAWN_NO_OUTPUT
-        printf("Received network message: %s\n", recv_string);
-#endif
+        dawnlog_debug("Received network message: %s\n", recv_string);
         handle_network_msg(recv_string);
     }
 }
@@ -94,7 +89,7 @@ void *receive_msg_enc(void *args) {
     while (1) {
         if ((recv_string_len =
                      recvfrom(sock, recv_string, MAX_RECV_STRING, 0, NULL, 0)) < 0) {
-            fprintf(stderr, "Could not receive message!\n");
+            dawnlog_error("Could not receive message!\n");
             continue;
         }
 
@@ -110,23 +105,24 @@ void *receive_msg_enc(void *args) {
 
         char *base64_dec_str = dawn_malloc(B64_DECODE_LEN(strlen(recv_string)));
         if (!base64_dec_str){
-            fprintf(stderr, "Received network error: not enough memory\n");
+            dawnlog_error("Received network error: not enough memory\n");
             return 0;
         }
         int base64_dec_length = b64_decode(recv_string, base64_dec_str, B64_DECODE_LEN(strlen(recv_string)));
         char *dec = gcrypt_decrypt_msg(base64_dec_str, base64_dec_length);
         if (!dec){
             dawn_free(base64_dec_str);
-            fprintf(stderr, "Received network error: not enough memory\n");
+            base64_dec_str = NULL;
+            dawnlog_error("Received network error: not enough memory\n");
             return 0;
         }
 
-#ifndef DAWN_NO_OUTPUT
-        printf("Received network message: %s\n", dec);
-#endif
+        dawnlog_debug("Received network message: %s\n", dec);
         dawn_free(base64_dec_str);
+        base64_dec_str = NULL;
         handle_network_msg(dec);
         dawn_free(dec);
+        dec = NULL;
     }
 }
 
@@ -140,7 +136,7 @@ int send_string(char *msg) {
                0,
                (struct sockaddr *) &addr,
                sizeof(addr)) < 0) {
-        perror("sendto()");
+        dawnlog_perror("sendto()");
         pthread_mutex_unlock(&send_mutex);
         exit(EXIT_FAILURE);
     }
@@ -156,7 +152,7 @@ int send_string_enc(char *msg) {
     size_t msglen = strlen(msg);
     char *enc = gcrypt_encrypt_msg(msg, msglen + 1, &length_enc);
     if (!enc){
-        fprintf(stderr, "sendto() error: not enough memory\n");
+        dawnlog_error("sendto() error: not enough memory\n");
         pthread_mutex_unlock(&send_mutex);
         exit(EXIT_FAILURE);
     }
@@ -164,7 +160,8 @@ int send_string_enc(char *msg) {
     char *base64_enc_str = dawn_malloc(B64_ENCODE_LEN(length_enc));
     if (!base64_enc_str){
         dawn_free(enc);
-        fprintf(stderr, "sendto() error: not enough memory\n");
+        enc = NULL;
+        dawnlog_error("sendto() error: not enough memory\n");
         pthread_mutex_unlock(&send_mutex);
         exit(EXIT_FAILURE);
     }
@@ -176,12 +173,14 @@ int send_string_enc(char *msg) {
                0,
                (struct sockaddr *) &addr,
                sizeof(addr)) < 0) {
-        perror("sendto()");
+        dawnlog_perror("sendto()");
         pthread_mutex_unlock(&send_mutex);
         exit(EXIT_FAILURE);
     }
     dawn_free(base64_enc_str);
+    base64_enc_str = NULL;
     dawn_free(enc);
+    enc = NULL;
     pthread_mutex_unlock(&send_mutex);
     return 0;
 }

@@ -29,6 +29,12 @@ struct probe_metric_s uci_get_dawn_metric();
 struct time_config_s uci_get_time_config();
 
 /**
+ * Function that returns a struct with all the local config values.
+ * @return the local config values.
+ */
+struct local_config_s uci_get_local_config();
+
+/**
  * Function that returns all the network informations.
  * @return the network config values.
  */

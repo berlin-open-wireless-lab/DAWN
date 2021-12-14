@@ -3,6 +3,7 @@
 
 #include <gcrypt.h>
 
+#include "utils.h"
 #include "memory_utils.h"
 #include "crypto.h"
 
@@ -14,7 +15,7 @@ gcry_cipher_hd_t gcry_cipher_hd;
 
 void gcrypt_init() {
     if (!gcry_check_version(GCRYPT_VERSION)) {
-        fprintf(stderr, "gcrypt: library version mismatch");
+        dawnlog_error("gcrypt: library version mismatch");
     }
     gcry_error_t err = 0;
     err = gcry_control(GCRYCTL_SUSPEND_SECMEM_WARN);
@@ -23,7 +24,7 @@ void gcrypt_init() {
     err |= gcry_control(GCRYCTL_INITIALIZATION_FINISHED, 0);
 
     if (err) {
-        fprintf(stderr, "gcrypt: failed initialization");
+        dawnlog_error("gcrypt: failed initialization");
     }
 }
 
@@ -37,7 +38,7 @@ void gcrypt_set_key_and_iv(const char *key, const char *iv) {
             GCRY_C_MODE,   // int
             0);
     if (gcry_error_handle) {
-        fprintf(stderr, "gcry_cipher_open failed:  %s/%s\n",
+        dawnlog_error("gcry_cipher_open failed:  %s/%s\n",
                 gcry_strsource(gcry_error_handle),
                 gcry_strerror(gcry_error_handle));
         return;
@@ -45,7 +46,7 @@ void gcrypt_set_key_and_iv(const char *key, const char *iv) {
 
     gcry_error_handle = gcry_cipher_setkey(gcry_cipher_hd, key, keylen);
     if (gcry_error_handle) {
-        fprintf(stderr, "gcry_cipher_setkey failed:  %s/%s\n",
+        dawnlog_error("gcry_cipher_setkey failed:  %s/%s\n",
                 gcry_strsource(gcry_error_handle),
                 gcry_strerror(gcry_error_handle));
         return;
@@ -53,7 +54,7 @@ void gcrypt_set_key_and_iv(const char *key, const char *iv) {
 
     gcry_error_handle = gcry_cipher_setiv(gcry_cipher_hd, iv, blklen);
     if (gcry_error_handle) {
-        fprintf(stderr, "gcry_cipher_setiv failed:  %s/%s\n",
+        dawnlog_error("gcry_cipher_setiv failed:  %s/%s\n",
                 gcry_strsource(gcry_error_handle),
                 gcry_strerror(gcry_error_handle));
         return;
@@ -67,12 +68,12 @@ char *gcrypt_encrypt_msg(char *msg, size_t msg_length, int *out_length) {
 
     char *out = dawn_malloc(msg_length);
     if (!out){
-        fprintf(stderr, "gcry_cipher_encrypt error: not enought memory\n");
+        dawnlog_error("gcry_cipher_encrypt error: not enough memory\n");
         return NULL;
     }
     gcry_error_handle = gcry_cipher_encrypt(gcry_cipher_hd, out, msg_length, msg, msg_length);
     if (gcry_error_handle) {
-        fprintf(stderr, "gcry_cipher_encrypt failed:  %s/%s\n",
+        dawnlog_error("gcry_cipher_encrypt failed:  %s/%s\n",
                 gcry_strsource(gcry_error_handle),
                 gcry_strerror(gcry_error_handle));
         return NULL;
@@ -88,25 +89,28 @@ char *gcrypt_decrypt_msg(char *msg, size_t msg_length) {
 
     char *out_buffer = dawn_malloc(msg_length);
     if (!out_buffer){
-        fprintf(stderr, "gcry_cipher_decrypt error: not enought memory\n");
+        dawnlog_error("gcry_cipher_decrypt error: not enough memory\n");
         return NULL;
     }
     gcry_error_handle = gcry_cipher_decrypt(gcry_cipher_hd, out_buffer, msg_length, msg, msg_length);
     if (gcry_error_handle) {
-        fprintf(stderr, "gcry_cipher_decrypt failed:  %s/%s\n",
+        dawnlog_error("gcry_cipher_decrypt failed:  %s/%s\n",
                 gcry_strsource(gcry_error_handle),
                 gcry_strerror(gcry_error_handle));
         dawn_free(out_buffer);
+        out_buffer = NULL;
         return NULL;
     }
     char *out = dawn_malloc(strlen(out_buffer) + 1);
     if (!out){
         dawn_free(out_buffer);
-        fprintf(stderr, "gcry_cipher_decrypt error: not enought memory\n");
+        out_buffer = NULL;
+        dawnlog_error("gcry_cipher_decrypt error: not enough memory\n");
         return NULL;
     }
     strcpy(out, out_buffer);
     dawn_free(out_buffer);
+    out_buffer = NULL;
     return out;
 }
 

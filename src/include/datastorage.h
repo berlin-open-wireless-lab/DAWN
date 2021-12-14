@@ -9,16 +9,9 @@
 #include "mac_utils.h"
 #include "utils.h"
 
-// Core data storage array sizes
-#define ARRAY_AP_LEN 100
-#define ARRAY_CLIENT_LEN 300
-#define PROBE_ARRAY_LEN 1000
-#define DENY_REQ_ARRAY_LEN 100
-
 /* Mac */
 
 // ---------------- Defines -------------------
-#define MAC_LIST_LENGTH 100
 #define DEFAULT_RRM_MODE_ORDER "pat"
 #define RRM_MODE_COUNT 3
 
@@ -127,6 +120,10 @@ struct time_config_s {
     time_t update_beacon_reports;
 };
 
+struct local_config_s {
+    int loglevel;
+};
+
 #define MAX_IP_LENGTH 46
 #define MAX_KEY_LENGTH 65
 
@@ -145,12 +142,10 @@ struct network_config_s {
 
 extern struct network_config_s network_config;
 extern struct time_config_s timeout_config;
+extern struct local_config_s local_config;
 extern struct probe_metric_s dawn_metric;
 
 /*** Core DAWN data structures for tracking network devices and status ***/
-// Define this to remove printing / reporing of fields, and hence observe
-// which fields are evaluated in use at compile time.
-// #define DAWN_NO_OUTPUT
 
 // TODO notes:
 //    Never used? = No code reference
@@ -174,11 +169,9 @@ typedef struct probe_entry_s {
     uint8_t vht_capabilities; // eval_probe_metric()
     time_t time; // remove_old...entries
     int counter;
-#ifndef DAWN_NO_OUTPUT
     int deny_counter; // TODO: Never used?
     uint8_t max_supp_datarate; // TODO: Never used?
     uint8_t min_supp_datarate; // TODO: Never used?
-#endif
     uint32_t rcpi;
     uint32_t rsni;
 } probe_entry;
@@ -316,7 +309,7 @@ void remove_old_probe_entries(time_t current_time, long long int threshold);
 
 void print_probe_array();
 
-void print_probe_entry(probe_entry *entry);
+void print_probe_entry(int level, probe_entry *entry);
 
 int eval_probe_metric(struct probe_entry_s * probe_entry, ap *ap_entry);
 
@@ -326,7 +319,7 @@ auth_entry *insert_to_denied_req_array(auth_entry*entry, int inc_counter, time_t
 
 void remove_old_denied_req_entries(time_t current_time, long long int threshold, int logmac);
 
-void print_auth_entry(auth_entry *entry);
+void print_auth_entry(int level, auth_entry *entry);
 
 // ---------------- Functions ----------------
 
@@ -350,7 +343,7 @@ client *client_array_delete(client *entry, int unlink_only);
 
 void print_client_array();
 
-void print_client_entry(client *entry);
+void print_client_entry(int level, client *entry);
 
 int is_connected_somehwere(struct dawn_mac client_addr);
 

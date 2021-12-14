@@ -133,6 +133,8 @@ static int handle_uci_config(struct blob_attr* msg);
 int parse_to_hostapd_notify(struct blob_attr* msg, hostapd_notify_entry* notify_req) {
     struct blob_attr* tb[__HOSTAPD_NOTIFY_MAX];
 
+    dawnlog_debug_func("Entering...");
+
     blobmsg_parse(hostapd_notify_policy, __HOSTAPD_NOTIFY_MAX, tb, blob_data(msg), blob_len(msg));
 
     if (hwaddr_aton(blobmsg_data(tb[HOSTAPD_NOTIFY_BSSID_ADDR]), notify_req->bssid_addr.u8))
@@ -147,10 +149,12 @@ int parse_to_hostapd_notify(struct blob_attr* msg, hostapd_notify_entry* notify_
 probe_entry *parse_to_probe_req(struct blob_attr* msg) {
     struct blob_attr* tb[__PROB_MAX];
 
+    dawnlog_debug_func("Entering...");
+
     probe_entry* prob_req = dawn_malloc(sizeof(probe_entry));
     if (prob_req == NULL)
     {
-        fprintf(stderr, "dawn_malloc of probe_entry failed!\n");
+        dawnlog_error("dawn_malloc of probe_entry failed!\n");
         return NULL;
     }
 
@@ -159,18 +163,21 @@ probe_entry *parse_to_probe_req(struct blob_attr* msg) {
     if (hwaddr_aton(blobmsg_data(tb[PROB_BSSID_ADDR]), prob_req->bssid_addr.u8))
     {
         dawn_free(prob_req);
+        prob_req = NULL;
         return NULL;
     }
 
     if (hwaddr_aton(blobmsg_data(tb[PROB_CLIENT_ADDR]), prob_req->client_addr.u8))
     {
         dawn_free(prob_req);
+        prob_req = NULL;
         return NULL;
     }
 
     if (hwaddr_aton(blobmsg_data(tb[PROB_TARGET_ADDR]), prob_req->target_addr.u8))
     {
         dawn_free(prob_req);
+        prob_req = NULL;
         return NULL;
     }
 
@@ -220,6 +227,8 @@ int handle_deauth_req(struct blob_attr* msg) {
     hostapd_notify_entry notify_req;
     parse_to_hostapd_notify(msg, &notify_req);
 
+    dawnlog_debug_func("Entering...");
+
     pthread_mutex_lock(&client_array_mutex);
 
     client* client_entry = client_array_get_client(notify_req.client_addr);
@@ -228,10 +237,14 @@ int handle_deauth_req(struct blob_attr* msg) {
 
     pthread_mutex_unlock(&client_array_mutex);
 
+    dawnlog_debug("[WC] Deauth: %s\n", "deauth");
+
     return 0;
 }
 
 static int handle_set_probe(struct blob_attr* msg) {
+
+    dawnlog_debug_func("Entering...");
 
     hostapd_notify_entry notify_req;
     parse_to_hostapd_notify(msg, &notify_req);
@@ -246,7 +259,10 @@ int handle_network_msg(char* msg) {
     char* method;
     char* data;
 
+    dawnlog_debug_func("Entering...");
+
     blob_buf_init(&network_buf, 0);
+    // dawn_regmem(&network_buf);
     blobmsg_add_json_from_string(&network_buf, msg);
 
     blobmsg_parse(network_policy, __NETWORK_MAX, tb, blob_data(network_buf.head), blob_len(network_buf.head));
@@ -258,18 +274,19 @@ int handle_network_msg(char* msg) {
     method = blobmsg_data(tb[NETWORK_METHOD]);
     data = blobmsg_data(tb[NETWORK_DATA]);
 
-#ifndef DAWN_NO_OUTPUT
-    printf("Network Method new: %s : %s\n", method, msg);
-#endif
+    dawnlog_debug("Network Method new: %s : %s\n", method, msg);
 
     blob_buf_init(&data_buf, 0);
+    // dawn_regmem(&data_buf);
     blobmsg_add_json_from_string(&data_buf, data);
 
     if (!data_buf.head) {
+        dawnlog_warning("Data header not formed!");
         return -1;
     }
 
     if (blob_len(data_buf.head) <= 0) {
+        dawnlog_warning("Data header invalid length!");
         return -1;
     }
 
@@ -283,26 +300,24 @@ int handle_network_msg(char* msg) {
     if (strncmp(method, "probe", 5) == 0) {
         probe_entry *entry = parse_to_probe_req(data_buf.head);
         if (entry != NULL) {
-            // we get the same entry back if it is added to the list
-            // or the one actually used if it is an update to existing
-            // use 802.11k values
-            if (entry != insert_to_array(entry, false, false, false, time(0)))
+            //FIXME: 802.11k parameter and comment seem to be at odds here.  Historic cut / paste quirk?
+            if (entry != insert_to_array(entry, false, false, false, time(0))) // use 802.11k values
+            {
+                // insert found an existing entry, rather than linking in our new one
                 dawn_free(entry);
+                entry = NULL;
+            }
         }
     }
     else if (strncmp(method, "clients", 5) == 0) {
         parse_to_clients(data_buf.head, 0, 0);
     }
     else if (strncmp(method, "deauth", 5) == 0) {
-#ifndef DAWN_NO_OUTPUT
-        printf("METHOD DEAUTH\n");
-#endif
+        dawnlog_debug("METHOD DEAUTH\n");
         handle_deauth_req(data_buf.head);
     }
     else if (strncmp(method, "setprobe", 5) == 0) {
-#ifndef DAWN_NO_OUTPUT
-        printf("HANDLING SET PROBE!\n");
-#endif
+        dawnlog_debug("HANDLING SET PROBE!\n");
         handle_set_probe(data_buf.head);
     }
     else if (strncmp(method, "addmac", 5) == 0) {
@@ -312,26 +327,28 @@ int handle_network_msg(char* msg) {
         parse_add_mac_to_file(data_buf.head);
     }
     else if (strncmp(method, "uci", 2) == 0) {
-#ifndef DAWN_NO_OUTPUT
-        printf("HANDLING UCI!\n");
-#endif
+        dawnlog_debug("HANDLING UCI!\n");
         handle_uci_config(data_buf.head);
     }
     else if (strncmp(method, "beacon-report", 12) == 0) {
         // TODO: Check beacon report stuff
 
-        //printf("HANDLING BEACON REPORT NETWORK!\n");
-        //printf("The Method for beacon-report is: %s\n", method);
+         dawnlog_debug("HANDLING BEACON REPORT NETWORK!\n");
+         dawnlog_debug("The Method for beacon-report is: %s\n", method);
         // ignore beacon reports send via network!, use probe functions for it
         //probe_entry entry; // for now just stay at probe entry stuff...
         //parse_to_beacon_rep(data_buf.head, &entry, true);
     }
     else
     {
-#ifndef DAWN_NO_OUTPUT
-        printf("No method fonud for: %s\n", method);
-#endif
+        dawnlog_warning("No method found for: %s\n", method);
     }
+
+    blob_buf_free(&data_buf);
+    // dawn_unregmem(&data_buf);
+
+    blob_buf_free(&network_buf);
+    // dawn_unregmem(&network_buf);
 
     return 0;
 }
@@ -339,8 +356,10 @@ int handle_network_msg(char* msg) {
 static uint8_t
 dump_rrm_data(struct blob_attr* head)
 {
+    dawnlog_debug_func("Entering...");
+
     if (blob_id(head) != BLOBMSG_TYPE_INT32) {
-        fprintf(stderr, "wrong type of rrm array.\n");
+        dawnlog_error("wrong type of rrm array.\n");
         return 0;
     }
     return (uint8_t)blobmsg_get_u32(head);
@@ -350,6 +369,8 @@ dump_rrm_data(struct blob_attr* head)
 static void
 dump_client(struct blob_attr** tb, struct dawn_mac client_addr, const char* bssid_addr, uint32_t freq, uint8_t ht_supported,
     uint8_t vht_supported) {
+    dawnlog_debug_func("Entering...");
+
     client *client_entry = dawn_malloc(sizeof(struct client_s));
     if (client_entry == NULL)
     {
@@ -419,7 +440,11 @@ dump_client(struct blob_attr** tb, struct dawn_mac client_addr, const char* bssi
     pthread_mutex_lock(&client_array_mutex);
     // If entry was akraedy in list it won't be added, so free memorY
     if (client_entry != insert_client_to_array(client_entry, time(0)))
+    {
         dawn_free(client_entry);
+        client_entry = NULL;
+    }
+
     pthread_mutex_unlock(&client_array_mutex);
 }
 
@@ -429,6 +454,8 @@ dump_client_table(struct blob_attr* head, int len, const char* bssid_addr, uint3
     struct blob_attr* attr;
     struct blobmsg_hdr* hdr;
     int station_count = 0;
+
+    dawnlog_debug_func("Entering...");
 
     __blob_for_each_attr(attr, head, len)
     {
@@ -452,6 +479,8 @@ dump_client_table(struct blob_attr* head, int len, const char* bssid_addr, uint3
 
 int parse_to_clients(struct blob_attr* msg, int do_kick, uint32_t id) {
     struct blob_attr* tb[__CLIENT_TABLE_MAX];
+
+    dawnlog_debug_func("Entering...");
 
     if (!msg) {
         return -1;
@@ -682,12 +711,14 @@ static const struct blobmsg_policy uci_times_policy[__UCI_TIMES_MAX] = {
 
 static int handle_uci_config(struct blob_attr* msg) {
 
+    dawnlog_debug_func("Entering...");
+
     struct blob_attr* tb[__UCI_TABLE_MAX];
     blobmsg_parse(uci_table_policy, __UCI_TABLE_MAX, tb, blob_data(msg), blob_len(msg));
 
     const char *version_string = blobmsg_get_string(tb[UCI_CONFIG_VERSION]);
     if (version_string == NULL || strcmp(version_string, DAWN_CONFIG_VERSION)) {
-        fprintf(stderr, "Ignoring network config message with incompatible version string '%s'.\n",
+        dawnlog_warning("Ignoring network config message with incompatible version string '%s'.\n",
                 version_string ? : "");
         return -1;
     }
@@ -768,7 +799,7 @@ static int handle_uci_config(struct blob_attr* msg) {
                 break;
         }
         if (band == __DAWN_BAND_MAX) {
-            fprintf(stderr, "handle_uci_config: Warning: unknown band '%s'.\n", band_name);
+            dawnlog_warning("handle_uci_config: unknown band '%s'.\n", band_name);
             continue;  // Should we write the metrics of an unknown band to the config file?
         }
 

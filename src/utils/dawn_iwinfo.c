@@ -24,16 +24,11 @@ int get_bandwidth(const char *ifname, struct dawn_mac client_addr, float *rx_rat
 int compare_essid_iwinfo(struct dawn_mac bssid_addr, struct dawn_mac bssid_addr_to_compare) {
     const struct iwinfo_ops *iw;
 
-    char mac_buf[20];
-    char mac_buf_to_compare[20];
-    sprintf(mac_buf, MACSTR, MAC2STR(bssid_addr.u8));
-    sprintf(mac_buf_to_compare, MACSTR, MAC2STR(bssid_addr_to_compare.u8));
-
     DIR *dirp;
     struct dirent *entry;
     dirp = opendir(hostapd_dir_glob);  // error handling?
     if (!dirp) {
-        fprintf(stderr, "[COMPARE ESSID] Failed to open %s\n", hostapd_dir_glob);
+        dawnlog_error("[COMPARE ESSID] Failed to open %s\n", hostapd_dir_glob);
         return 0;
     }
 
@@ -50,10 +45,14 @@ int compare_essid_iwinfo(struct dawn_mac bssid_addr, struct dawn_mac bssid_addr_
 
             iw = iwinfo_backend(entry->d_name);
 
+            // FIXME: Try to reduce string conversion and comparison here by using byte array compares
             // TODO: Magic number
             static char buf_bssid[18] = {0};
             if (iw->bssid(entry->d_name, buf_bssid))
                 snprintf(buf_bssid, sizeof(buf_bssid), "00:00:00:00:00:00");
+
+            char mac_buf[20];
+            sprintf(mac_buf, MACSTR, MAC2STR(bssid_addr.u8));
 
             if (strcmp(mac_buf, buf_bssid) == 0) {
 
@@ -61,6 +60,9 @@ int compare_essid_iwinfo(struct dawn_mac bssid_addr, struct dawn_mac bssid_addr_
                     memset(buf_essid, 0, sizeof(buf_essid));
                 essid = buf_essid;
             }
+
+            char mac_buf_to_compare[20];
+            sprintf(mac_buf_to_compare, MACSTR, MAC2STR(bssid_addr_to_compare.u8));
 
             if (strcmp(mac_buf_to_compare, buf_bssid) == 0) {
                 if (iw->ssid(entry->d_name, buf_essid_to_compare))
@@ -71,6 +73,8 @@ int compare_essid_iwinfo(struct dawn_mac bssid_addr, struct dawn_mac bssid_addr_
         }
     }
     closedir(dirp);
+
+    dawnlog_debug("Comparing: %s with %s\n", essid, essid_to_compare);
 
     if (essid == NULL || essid_to_compare == NULL) {
         return -1;
@@ -89,18 +93,20 @@ int get_bandwidth_iwinfo(struct dawn_mac client_addr, float *rx_rate, float *tx_
     struct dirent *entry;
     dirp = opendir(hostapd_dir_glob);  // error handling?
     if (!dirp) {
-        fprintf(stderr, "[BANDWIDTH INFO] Failed to open %s\n", hostapd_dir_glob);
+        dawnlog_error("[BANDWIDTH INFO] Failed to open %s\n", hostapd_dir_glob);
         return 0;
+    }
+    else
+    {
+        dawnlog_debug("[BANDWIDTH INFO] Opened %s\n", hostapd_dir_glob);
     }
 
     int sucess = 0;
 
-    while ((entry = readdir(dirp)) != NULL) {
+    while (!sucess && ((entry = readdir(dirp)) != NULL)) {
         if (entry->d_type == DT_SOCK) {
-            if (get_bandwidth(entry->d_name, client_addr, rx_rate, tx_rate)) {
-                sucess = 1;
-                break;
-            }
+            dawnlog_debug("[BANDWIDTH INFO] Trying %s\n", entry->d_name);
+            sucess = get_bandwidth(entry->d_name, client_addr, rx_rate, tx_rate);
         }
     }
     closedir(dirp);
@@ -108,35 +114,34 @@ int get_bandwidth_iwinfo(struct dawn_mac client_addr, float *rx_rate, float *tx_
 }
 
 int get_bandwidth(const char *ifname, struct dawn_mac client_addr, float *rx_rate, float *tx_rate) {
+    int ret = 0;
 
-    int i, len;
-    char buf[IWINFO_BUFSIZE];
-    struct iwinfo_assoclist_entry *e;
-    const struct iwinfo_ops *iw;
-    if (strcmp(ifname, "global") == 0)
-        return 0;
-    iw = iwinfo_backend(ifname);
+    if (strcmp(ifname, "global") != 0)
+    {
+        const struct iwinfo_ops* iw = iwinfo_backend(ifname);
 
-    if (iw->assoclist(ifname, buf, &len)) {
-        iwinfo_finish();
-        return 0;
-    } else if (len <= 0) {
-        iwinfo_finish();
-        return 0;
-    }
+        char buf[IWINFO_BUFSIZE];
+        int len;
+        if (iw->assoclist(ifname, buf, &len) == 0 && len > 0)
+        {
+            struct iwinfo_assoclist_entry* e = (struct iwinfo_assoclist_entry*)buf;
+            for (int i = 0; ret == 0 && i < len; i += sizeof(struct iwinfo_assoclist_entry)) {
 
-    for (i = 0; i < len; i += sizeof(struct iwinfo_assoclist_entry)) {
-        e = (struct iwinfo_assoclist_entry *) &buf[i];
+                if (mac_is_equal(client_addr.u8, e->mac)) {
+                    *rx_rate = e->rx_rate.rate / 1000.0;
+                    *tx_rate = e->tx_rate.rate / 1000.0;
 
-        if (mac_is_equal(client_addr.u8, e->mac)) {
-            *rx_rate = e->rx_rate.rate / 1000;
-            *tx_rate = e->tx_rate.rate / 1000;
-            iwinfo_finish();
-            return 1;
+                    ret = 1;
+                }
+
+                e++;
+            }
         }
+
+        iwinfo_finish();
     }
-    iwinfo_finish();
-    return 0;
+
+    return ret;
 }
 
 int get_rssi_iwinfo(struct dawn_mac client_addr) {
@@ -145,7 +150,7 @@ int get_rssi_iwinfo(struct dawn_mac client_addr) {
     struct dirent *entry;
     dirp = opendir(hostapd_dir_glob);  // error handling?
     if (!dirp) {
-        fprintf(stderr, "[RSSI INFO] No hostapd sockets!\n");
+        dawnlog_error("[RSSI INFO] No hostapd sockets!\n");
         return INT_MIN;
     }
 
@@ -173,15 +178,11 @@ int get_rssi(const char *ifname, struct dawn_mac client_addr) {
     iw = iwinfo_backend(ifname);
 
     if (iw->assoclist(ifname, buf, &len)) {
-#ifndef DAWN_NO_OUTPUT
-        fprintf(stdout, "No information available\n");
-#endif
+        dawnlog_warning("No information available\n");
         iwinfo_finish();
         return INT_MIN;
     } else if (len <= 0) {
-#ifndef DAWN_NO_OUTPUT
-        fprintf(stdout, "No station connected\n");
-#endif
+        dawnlog_warning("No station connected\n");
         iwinfo_finish();
         return INT_MIN;
     }
@@ -205,7 +206,7 @@ int get_expected_throughput_iwinfo(struct dawn_mac client_addr) {
     struct dirent *entry;
     dirp = opendir(hostapd_dir_glob);  // error handling?
     if (!dirp) {
-        fprintf(stderr, "[RSSI INFO] Failed to open dir:%s\n", hostapd_dir_glob);
+        dawnlog_error("[RSSI INFO] Failed to open dir:%s\n", hostapd_dir_glob);
         return INT_MIN;
     }
 
@@ -233,15 +234,11 @@ int get_expected_throughput(const char *ifname, struct dawn_mac client_addr) {
     iw = iwinfo_backend(ifname);
 
     if (iw->assoclist(ifname, buf, &len)) {
-#ifndef DAWN_NO_OUTPUT
-        fprintf(stdout, "No information available\n");
-#endif
+        dawnlog_warning("No information available\n");
         iwinfo_finish();
         return INT_MIN;
     } else if (len <= 0) {
-#ifndef DAWN_NO_OUTPUT
-        fprintf(stdout, "No station connected\n");
-#endif
+        dawnlog_warning("No station connected\n");
         iwinfo_finish();
         return INT_MIN;
     }
@@ -310,13 +307,13 @@ int get_channel_utilization(const char *ifname, uint64_t *last_channel_time, uin
 
     if (iw->survey(ifname, buf, &len))
     {
-        fprintf(stderr, "Survey not possible!\n\n");
+        dawnlog_warning("Survey not possible!\n");
         iwinfo_finish();
         return 0;
     }
     else if (len <= 0)
     {
-        fprintf(stderr, "No survey results\n\n");
+        dawnlog_warning("No survey results\n");
         iwinfo_finish();
         return 0;
     }
@@ -352,6 +349,7 @@ int support_ht(const char *ifname) {
 
     if (iw->htmodelist(ifname, &htmodes))
     {
+        dawnlog_debug("No HT mode information available\n");
         iwinfo_finish();
         return 0;
     }
@@ -371,6 +369,7 @@ int support_vht(const char *ifname) {
 
     if (iw->htmodelist(ifname, &htmodes))
     {
+        dawnlog_error("No VHT mode information available\n");
         iwinfo_finish();
         return 0;
     }
