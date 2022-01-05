@@ -20,8 +20,6 @@ struct time_config_s timeout_config;
 
 static int probe_compare(probe_entry *probe1, probe_entry *probe2);
 
-static int kick_client(ap* kicking_ap, struct client_s *client_entry, struct kicking_nr** neighbor_report);
-
 static int is_connected(struct dawn_mac bssid_mac, struct dawn_mac client_mac);
 
 static int compare_station_count(ap* ap_entry_own, ap* ap_entry_to_compare, struct dawn_mac client_addr);
@@ -89,7 +87,7 @@ static const struct dawn_mac dawn_mac_null = { .u8 = {0,0,0,0,0,0} };
 ** then the target element does not exist, but can be inserted by using the returned reference.
 */
 
-static struct probe_entry_s** probe_skip_array_find_first_entry(struct dawn_mac client_mac, struct dawn_mac bssid_mac, int do_bssid)
+static struct probe_entry_s** probe_skip_array_find_first_entry(struct dawn_mac client_mac, struct dawn_mac bssid_mac, bool do_bssid)
 {
     int lo = 0;
     struct probe_entry_s** lo_ptr = &probe_skip_set;
