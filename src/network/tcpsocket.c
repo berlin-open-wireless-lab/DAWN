@@ -46,8 +46,10 @@ static void client_close(struct ustream *s) {
 
     dawnlog_warning("Connection closed\n");
     ustream_free(s);
+    dawn_unregmem(s);
     close(cl->s.fd.fd);
     dawn_free(cl);
+    cl = NULL;
 }
 
 static void client_notify_write(struct ustream *s, int bytes) {
@@ -76,9 +78,12 @@ static void client_to_server_close(struct ustream *s) {
 
     dawnlog_warning("Connection to server closed\n");
     ustream_free(s);
+    dawn_unregmem(s);
+
     close(con->fd.fd);
     list_del(&con->list);
     dawn_free(con);
+    con = NULL;
 }
 
 static void client_to_server_state(struct ustream *s) {
@@ -184,6 +189,7 @@ static void client_read_cb(struct ustream *s, int bytes) {
                 }
                 handle_network_msg(dec);
                 dawn_free(dec);
+                dec = NULL;
             } else {
                 handle_network_msg(cl->str + HEADER_SIZE);//len of str is final_len
             }
@@ -223,6 +229,7 @@ static void server_cb(struct uloop_fd *fd, unsigned int events) {
     cl->s.stream.notify_state = client_notify_state;
     cl->s.stream.notify_write = client_notify_write;
     ustream_fd_init(&cl->s, sfd);
+    dawn_regmem(&cl->s);
     next_client = NULL;  // TODO: Why is this here?  To avoid resetting if above return happens?
     dawnlog_info("New connection\n");
 }
@@ -266,6 +273,7 @@ static void connect_cb(struct uloop_fd *f, unsigned int events) {
         close(entry->fd.fd);
         list_del(&entry->list);
         dawn_free(entry);
+        entry = NULL;
         return;
     }
 
@@ -276,6 +284,8 @@ static void connect_cb(struct uloop_fd *f, unsigned int events) {
     entry->stream.stream.notify_state = client_to_server_state;
 
     ustream_fd_init(&entry->stream, entry->fd.fd);
+    dawn_regmem(&entry->stream);
+
     entry->connected = 1;
 }
 
@@ -301,7 +311,8 @@ int add_tcp_conncection(char *ipv4, int port) {
             // Delete already existing entry
             close(tmp->fd.fd);
             list_del(&tmp->list);
-            // TODO: Removed free(tmp) here - was it needed?
+            dawn_free(tmp);
+            tmp = NULL;
         }
     }
 
@@ -311,6 +322,7 @@ int add_tcp_conncection(char *ipv4, int port) {
 
     if (tcp_entry->fd.fd < 0) {
         dawn_free(tcp_entry);
+        tcp_entry = NULL;
         return -1;
     }
     tcp_entry->fd.cb = connect_cb;
@@ -342,6 +354,7 @@ void send_tcp(char *msg) {
         char *final_str = dawn_malloc(final_len);
         if (!final_str){
             dawn_free(enc);
+            enc = NULL;
             dawnlog_error("Ustream error: not enough memory (" STR_QUOTE(__LINE__) ")\n");
             return;
         }
@@ -358,9 +371,11 @@ void send_tcp(char *msg) {
                     //ERROR HANDLING!
                     if (con->stream.stream.write_error) {
                         ustream_free(&con->stream.stream);
+                        dawn_unregmem(&con->stream.stream);
                         close(con->fd.fd);
                         list_del(&con->list);
                         dawn_free(con);
+                        con = NULL;
                     }
                 }
             }
@@ -368,7 +383,9 @@ void send_tcp(char *msg) {
         }
 
         dawn_free(final_str);
+        final_str = NULL;
         dawn_free(enc);
+        enc = NULL;
     } else {
         size_t msglen = strlen(msg) + 1;
         uint32_t final_len = msglen + sizeof(final_len);
@@ -391,14 +408,17 @@ void send_tcp(char *msg) {
                     dawnlog_error("Ustream error(" STR_QUOTE(__LINE__) ")!\n");
                     if (con->stream.stream.write_error) {
                         ustream_free(&con->stream.stream);
+                        dawn_unregmem(&con->stream.stream);
                         close(con->fd.fd);
                         list_del(&con->list);
                         dawn_free(con);
+                        con = NULL;
                     }
                 }
             }
         }
         dawn_free(final_str);
+        final_str = NULL;
     }
 }
 

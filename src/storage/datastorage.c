@@ -1049,6 +1049,7 @@ probe_entry* victim = *i;
 
     *i = victim->next_probe;
     dawn_free(victim);
+    victim = NULL;
 
     probe_entry_last--;
 }
@@ -1327,6 +1328,7 @@ static __inline__ void ap_array_unlink_next(ap** i)
     ap* entry = *i;
     *i = entry->next_ap;
     dawn_free(entry);
+    entry = NULL;
     ap_entry_last--;
 }
 
@@ -1445,9 +1447,6 @@ client * ret = NULL;
 void insert_macs_from_file() {
     FILE *fp;
     char *line = NULL;
-#ifdef DAWN_MEMORY_AUDITING
-    char *old_line = NULL;
-#endif
     size_t len = 0;
     ssize_t read;
 
@@ -1462,16 +1461,16 @@ void insert_macs_from_file() {
 
     dawn_regmem(fp);
 
-    while ((read = getline(&line, &len, fp)) != -1) {
+    read = getline(&line, &len, fp);
 #ifdef DAWN_MEMORY_AUDITING
-        if (old_line != line)
-        {
-            if (old_line != NULL)
-                dawn_unregmem(old_line);
-            old_line = line;
-            dawn_regmem(old_line);
-        }
+    if (line)
+        dawn_regmem(line);
 #endif
+
+    while (read != -1) {
+
+        dawnlog_debug("Retrieved line of length %zu :\n", read);
+        dawnlog_debug("%s", line);
 
         // Need to scanf to an array of ints as there is no byte format specifier
         int tmp_int_mac[ETH_ALEN];
@@ -1491,8 +1490,19 @@ void insert_macs_from_file() {
 
             insert_to_mac_array(new_mac, NULL);
         }
-    }
 
+#ifdef DAWN_MEMORY_AUDITING
+        char* old_line = line;
+#endif
+        read = getline(&line, &len, fp);
+#ifdef DAWN_MEMORY_AUDITING
+        if (old_line != line)
+        {
+            dawn_unregmem(old_line);
+            dawn_regmem(line);
+        }
+#endif
+    }
 
     if (dawnlog_showing(DAWNLOG_DEBUG))
     {
@@ -1505,7 +1515,11 @@ void insert_macs_from_file() {
     fclose(fp);
     dawn_unregmem(fp);
     if (line)
-        dawn_free(line);
+    {
+        free(line);
+        dawn_unregmem(line);
+    }
+
     //exit(EXIT_SUCCESS);
 }
 
@@ -1604,6 +1618,7 @@ void denied_req_array_delete(auth_entry* entry) {
             *i = entry->next_auth;
             denied_req_last--;
             dawn_free(entry);
+            entry = NULL;
             break;
         }
     }
@@ -1639,6 +1654,7 @@ void mac_array_delete(struct mac_entry_s* entry) {
             *i = entry->next_mac;
             mac_set_last--;
             dawn_free(entry);
+            entry = NULL;
         }
     }
 

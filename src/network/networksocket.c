@@ -112,14 +112,17 @@ void *receive_msg_enc(void *args) {
         char *dec = gcrypt_decrypt_msg(base64_dec_str, base64_dec_length);
         if (!dec){
             dawn_free(base64_dec_str);
+            base64_dec_str = NULL;
             dawnlog_error("Received network error: not enough memory\n");
             return 0;
         }
 
         dawnlog_debug("Received network message: %s\n", dec);
         dawn_free(base64_dec_str);
+        base64_dec_str = NULL;
         handle_network_msg(dec);
         dawn_free(dec);
+        dec = NULL;
     }
 }
 
@@ -157,6 +160,7 @@ int send_string_enc(char *msg) {
     char *base64_enc_str = dawn_malloc(B64_ENCODE_LEN(length_enc));
     if (!base64_enc_str){
         dawn_free(enc);
+        enc = NULL;
         dawnlog_error("sendto() error: not enough memory\n");
         pthread_mutex_unlock(&send_mutex);
         exit(EXIT_FAILURE);
@@ -174,7 +178,9 @@ int send_string_enc(char *msg) {
         exit(EXIT_FAILURE);
     }
     dawn_free(base64_enc_str);
+    base64_enc_str = NULL;
     dawn_free(enc);
+    enc = NULL;
     pthread_mutex_unlock(&send_mutex);
     return 0;
 }

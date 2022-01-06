@@ -24,11 +24,6 @@ int get_bandwidth(const char *ifname, struct dawn_mac client_addr, float *rx_rat
 int compare_essid_iwinfo(struct dawn_mac bssid_addr, struct dawn_mac bssid_addr_to_compare) {
     const struct iwinfo_ops *iw;
 
-    char mac_buf[20];
-    char mac_buf_to_compare[20];
-    sprintf(mac_buf, MACSTR, MAC2STR(bssid_addr.u8));
-    sprintf(mac_buf_to_compare, MACSTR, MAC2STR(bssid_addr_to_compare.u8));
-
     DIR *dirp;
     struct dirent *entry;
     dirp = opendir(hostapd_dir_glob);  // error handling?
@@ -50,10 +45,14 @@ int compare_essid_iwinfo(struct dawn_mac bssid_addr, struct dawn_mac bssid_addr_
 
             iw = iwinfo_backend(entry->d_name);
 
+            // FIXME: Try to reduce string conversion and comparison here by using byte array compares
             // TODO: Magic number
             static char buf_bssid[18] = {0};
             if (iw->bssid(entry->d_name, buf_bssid))
                 snprintf(buf_bssid, sizeof(buf_bssid), "00:00:00:00:00:00");
+
+            char mac_buf[20];
+            sprintf(mac_buf, MACSTR, MAC2STR(bssid_addr.u8));
 
             if (strcmp(mac_buf, buf_bssid) == 0) {
 
@@ -61,6 +60,9 @@ int compare_essid_iwinfo(struct dawn_mac bssid_addr, struct dawn_mac bssid_addr_
                     memset(buf_essid, 0, sizeof(buf_essid));
                 essid = buf_essid;
             }
+
+            char mac_buf_to_compare[20];
+            sprintf(mac_buf_to_compare, MACSTR, MAC2STR(bssid_addr_to_compare.u8));
 
             if (strcmp(mac_buf_to_compare, buf_bssid) == 0) {
                 if (iw->ssid(entry->d_name, buf_essid_to_compare))
