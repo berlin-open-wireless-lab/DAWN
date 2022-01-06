@@ -308,15 +308,18 @@ struct probe_metric_s uci_get_dawn_metric() {
     struct uci_section *global_s, *band_s[__DAWN_BAND_MAX];
     struct uci_option *global_neighbors = NULL, *neighbors;
 
-    if (!(global_s = uci_find_metric_section("global"))) {
-        if (!(global_s = uci_find_metric_section(NULL))) {
-            dawnlog_warning("config metric global section not found! Using defaults.\n");
-        } else {
-            dawnlog_warning("config metric global section not found. "
-                            "Using first unnamed config metric.\n"
-                            "Consider naming a 'global' metric section to avoid ambiguity.\n");
-        }
-    }
+    dawnlog_debug_func("Entering...");
+
+    global_s = uci_find_metric_section("global");
+
+    if (!global_s && (global_s = uci_find_metric_section(NULL)))
+        dawnlog_warning("config metric global section not found. "
+            "Using first unnamed config metric.\n"
+            "Consider naming a 'global' metric section to avoid ambiguity.\n");
+
+    if (!global_s)
+        dawnlog_warning("config metric global section not found! Using defaults.\n");
+
     if (global_s) {
         // True global configuration
         DAWN_SET_CONFIG_INT(ret, global_s, kicking);

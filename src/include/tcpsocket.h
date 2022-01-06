@@ -21,7 +21,7 @@ struct network_con_s {
  * @param port
  * @return
  */
-int add_tcp_conncection(char *ipv4, int port);
+int add_tcp_connection(char *ipv4, int port);
 
 /**
  * Opens a tcp server and adds it to the uloop.

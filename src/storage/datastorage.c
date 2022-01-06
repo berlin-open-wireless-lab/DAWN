@@ -90,7 +90,7 @@ static const struct dawn_mac dawn_mac_null = { .u8 = {0,0,0,0,0,0} };
 ** then the target element does not exist, but can be inserted by using the returned reference.
 */
 
-static struct probe_entry_s** probe_skip_array_find_first_entry(struct dawn_mac client_mac, struct dawn_mac bssid_mac, int do_bssid)
+static struct probe_entry_s** probe_skip_array_find_first_entry(struct dawn_mac client_mac, struct dawn_mac bssid_mac, bool do_bssid)
 {
     int lo = 0;
     struct probe_entry_s** lo_ptr = &probe_skip_set;
@@ -906,10 +906,6 @@ void client_array_insert(client *entry, client** insert_pos) {
 
     client_entry_last++;
 
-    if (client_entry_last == ARRAY_CLIENT_LEN) {
-        dawnlog_warning("client_array overflowing (now contains %d entries)!\n", client_entry_last);
-    }
-
     // Try to keep skip list density stable
     if ((client_entry_last / DAWN_CLIENT_SKIP_RATIO) > client_skip_entry_last)
     {
@@ -1220,10 +1216,6 @@ probe_entry* insert_to_array(probe_entry* entry, int inc_counter, int save_80211
         *existing_entry = entry;
         probe_entry_last++;
 
-        if (probe_entry_last == PROBE_ARRAY_LEN) {
-           dawnlog_warning("probe_array overflowing (now contains %d entries)!\n", probe_entry_last);
-        }
-
         // Try to keep skip list density stable
         if ((probe_entry_last / DAWN_PROBE_SKIP_RATIO) > probe_skip_entry_last)
         {
@@ -1299,10 +1291,6 @@ void ap_array_insert(ap* entry) {
     entry->next_ap = *i;
     *i = entry;
     ap_entry_last++;
-
-    if (ap_entry_last == ARRAY_AP_LEN) {
-        dawnlog_warning("ap_array overflowing (contains %d entries)!\n", ap_entry_last);
-    }
 }
 
 ap* ap_array_get_ap(struct dawn_mac bssid_mac, const uint8_t* ssid) {
@@ -1451,7 +1439,7 @@ void insert_macs_from_file() {
     ssize_t read;
 
     dawnlog_debug_func("Entering...");
-// TODO: Loading to array is not constrained by array checks.  Buffer overrun can occur.
+
     fp = fopen("/tmp/dawn_mac_list", "r");
     if (fp == NULL)
     {
@@ -1596,10 +1584,6 @@ auth_entry* insert_to_denied_req_array(auth_entry* entry, int inc_counter, time_
         entry->next_auth = *i;
         *i = entry;
         denied_req_last++;
-
-        if (denied_req_last == DENY_REQ_ARRAY_LEN) {
-           dawnlog_warning("denied_req_array overflowing (now contains %d entries)!\n", denied_req_last);
-        }
     }
 
     pthread_mutex_unlock(&denied_array_mutex);
@@ -1635,10 +1619,6 @@ struct mac_entry_s* insert_to_mac_array(struct mac_entry_s* entry, struct mac_en
     entry->next_mac = *insert_pos;
     *insert_pos = entry;
     mac_set_last++;
-
-    if (mac_set_last == DENY_REQ_ARRAY_LEN) {
-        dawnlog_warning("denied_req_array overflowing (now contains %d entries)!\n", mac_set_last);
-    }
 
     return entry;
 }

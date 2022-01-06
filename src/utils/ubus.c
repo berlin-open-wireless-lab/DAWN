@@ -441,25 +441,25 @@ int discard_entry = true;
 
     dawnlog_debug_func("Entering...");
     print_probe_array();
-    auth_entry* auth_req = dawn_malloc(sizeof(struct auth_entry_s));
-    if (auth_req == NULL)
+    auth_entry* assoc_req = dawn_malloc(sizeof(struct auth_entry_s));
+    if (assoc_req == NULL)
         return -1;
 
-    parse_to_assoc_req(msg, auth_req);
+    parse_to_assoc_req(msg, assoc_req);
     dawnlog_debug("Association entry: ");
-    print_auth_entry(DAWNLOG_DEBUG, auth_req);
+    print_auth_entry(DAWNLOG_DEBUG, assoc_req);
 
-    if (!mac_in_maclist(auth_req->client_addr)) {
+    if (!mac_in_maclist(assoc_req->client_addr)) {
         pthread_mutex_lock(&probe_array_mutex);
 
-        probe_entry *tmp = probe_array_get_entry(auth_req->bssid_addr, auth_req->client_addr);
+        probe_entry *tmp = probe_array_get_entry(assoc_req->bssid_addr, assoc_req->client_addr);
 
         pthread_mutex_unlock(&probe_array_mutex);
 
         // block if entry was not already found in probe database
         if (tmp == NULL || !decide_function(tmp, REQ_TYPE_ASSOC)) {
             if (dawn_metric.use_driver_recog) {
-                if (auth_req == insert_to_denied_req_array(auth_req, 1, time(0)))
+                if (assoc_req == insert_to_denied_req_array(assoc_req, 1, time(0)))
                     discard_entry = false;
             }
             return dawn_metric.deny_assoc_reason;
@@ -468,8 +468,8 @@ int discard_entry = true;
 
     if (discard_entry)
     {
-        dawn_free(auth_req);
-        auth_req = NULL;
+        dawn_free(assoc_req);
+        assoc_req = NULL;
     }
 
     return ret;
@@ -503,8 +503,10 @@ static int handle_probe_req(struct blob_attr *msg) {
     return WLAN_STATUS_SUCCESS;
 }
 
+// FIXME: Seems to do nothing...
 static int handle_beacon_rep(struct blob_attr *msg) {
     dawnlog_debug_func("Entering...");
+
     if (parse_to_beacon_rep(msg) == 0) {
         // dawnlog_debug("Inserting beacon Report!\n");
         // insert_to_array(beacon_rep, 1);
@@ -936,7 +938,7 @@ void update_tcp_connections(struct uloop_timeout *t) {
     if (strcmp(network_config.server_ip, ""))
     {
         // nothing happens if tcp connection is already established
-        add_tcp_conncection(network_config.server_ip, network_config.tcp_port);
+        add_tcp_connection(network_config.server_ip, network_config.tcp_port);
     }
     if (network_config.network_option == 2) // mdns enabled?
     {
@@ -1093,7 +1095,7 @@ static void ubus_umdns_cb(struct ubus_request *req, int type, struct blob_attr *
         } else {
             return;
         }
-        add_tcp_conncection(blobmsg_get_string(tb_dawn[DAWN_UMDNS_IPV4]), blobmsg_get_u32(tb_dawn[DAWN_UMDNS_PORT]));
+        add_tcp_connection(blobmsg_get_string(tb_dawn[DAWN_UMDNS_IPV4]), blobmsg_get_u32(tb_dawn[DAWN_UMDNS_PORT]));
     }
 }
 

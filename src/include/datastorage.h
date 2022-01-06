@@ -9,16 +9,9 @@
 #include "mac_utils.h"
 #include "utils.h"
 
-// Core data storage array sizes
-#define ARRAY_AP_LEN 100
-#define ARRAY_CLIENT_LEN 300
-#define PROBE_ARRAY_LEN 1000
-#define DENY_REQ_ARRAY_LEN 100
-
 /* Mac */
 
 // ---------------- Defines -------------------
-#define MAC_LIST_LENGTH 100
 #define DEFAULT_RRM_MODE_ORDER "pat"
 #define RRM_MODE_COUNT 3
 
