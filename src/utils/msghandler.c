@@ -163,18 +163,21 @@ probe_entry *parse_to_probe_req(struct blob_attr* msg) {
     if (hwaddr_aton(blobmsg_data(tb[PROB_BSSID_ADDR]), prob_req->bssid_addr.u8))
     {
         dawn_free(prob_req);
+        prob_req = NULL;
         return NULL;
     }
 
     if (hwaddr_aton(blobmsg_data(tb[PROB_CLIENT_ADDR]), prob_req->client_addr.u8))
     {
         dawn_free(prob_req);
+        prob_req = NULL;
         return NULL;
     }
 
     if (hwaddr_aton(blobmsg_data(tb[PROB_TARGET_ADDR]), prob_req->target_addr.u8))
     {
         dawn_free(prob_req);
+        prob_req = NULL;
         return NULL;
     }
 
@@ -259,6 +262,7 @@ int handle_network_msg(char* msg) {
     dawnlog_debug_func("Entering...");
 
     blob_buf_init(&network_buf, 0);
+    // dawn_regmem(&network_buf);
     blobmsg_add_json_from_string(&network_buf, msg);
 
     blobmsg_parse(network_policy, __NETWORK_MAX, tb, blob_data(network_buf.head), blob_len(network_buf.head));
@@ -273,6 +277,7 @@ int handle_network_msg(char* msg) {
     dawnlog_debug("Network Method new: %s : %s\n", method, msg);
 
     blob_buf_init(&data_buf, 0);
+    // dawn_regmem(&data_buf);
     blobmsg_add_json_from_string(&data_buf, data);
 
     if (!data_buf.head) {
@@ -299,6 +304,7 @@ int handle_network_msg(char* msg) {
             {
                 // insert found an existing entry, rather than linking in our new one
                 dawn_free(entry);
+                entry = NULL;
             }
         }
     }
@@ -336,6 +342,12 @@ int handle_network_msg(char* msg) {
     {
         dawnlog_warning("No method found for: %s\n", method);
     }
+
+    blob_buf_free(&data_buf);
+    // dawn_unregmem(&data_buf);
+
+    blob_buf_free(&network_buf);
+    // dawn_unregmem(&network_buf);
 
     return 0;
 }
@@ -427,7 +439,11 @@ dump_client(struct blob_attr** tb, struct dawn_mac client_addr, const char* bssi
     pthread_mutex_lock(&client_array_mutex);
     // If entry was akraedy in list it won't be added, so free memorY
     if (client_entry != insert_client_to_array(client_entry, time(0)))
+    {
         dawn_free(client_entry);
+        client_entry = NULL;
+    }
+
     pthread_mutex_unlock(&client_array_mutex);
 }
 

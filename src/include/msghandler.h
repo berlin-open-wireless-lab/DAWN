@@ -41,7 +41,6 @@ int parse_to_hostapd_notify(struct blob_attr* msg, hostapd_notify_entry* notify_
  */
 int handle_network_msg(char* msg);
 
-
 int handle_deauth_req(struct blob_attr* msg);
 
 #endif

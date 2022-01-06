@@ -186,9 +186,9 @@ static int parse_rrm_mode(int *rrm_mode_order, const char *mode_string) {
 static struct mac_entry_s *insert_neighbor_mac(struct mac_entry_s *head, const char* mac) {
     dawnlog_debug_func("Entering...");
 
-    struct mac_entry_s *new;
+    struct mac_entry_s *new = dawn_malloc(sizeof(struct mac_entry_s));
 
-    if (!(new = dawn_malloc(sizeof (struct mac_entry_s)))) {
+    if (new == NULL) {
         dawnlog_error("Failed to allocate neighbor entry for '%s'\n", mac);
         return head;
     }
@@ -196,6 +196,7 @@ static struct mac_entry_s *insert_neighbor_mac(struct mac_entry_s *head, const c
     if (hwaddr_aton(mac, new->mac.u8) != 0) {
         dawnlog_error("Failed to parse MAC from '%s'\n", mac);
         dawn_free(new);
+        new = NULL;
         return head;
     }
     new->next_mac = head;
@@ -210,13 +211,14 @@ static void free_neighbor_mac_list(struct mac_entry_s *list) {
         ptr = list;
         list = list->next_mac;
         dawn_free(ptr);
+        ptr = NULL;
     }
 }
 
 static struct mac_entry_s* uci_lookup_mac_list(struct uci_option *o) {
-    struct uci_element *e;
+    struct uci_element *e = NULL;
     struct mac_entry_s *head = NULL;
-    char *str;
+    char* str = NULL;
 
     dawnlog_debug_func("Entering...");
 
@@ -337,6 +339,7 @@ struct probe_metric_s uci_get_dawn_metric() {
                                            uci_lookup_option_string(uci_ctx, global_s, "rrm_mode"));
         global_neighbors = uci_lookup_option(uci_ctx, global_s, "neighbors");
     }
+
     for (int band = 0; band < __DAWN_BAND_MAX; band++) {
         band_s[band] = uci_find_metric_section(band_config_name[band]);
         neighbors = band_s[band] ? uci_lookup_option(uci_ctx, band_s[band], "neighbors") : NULL;

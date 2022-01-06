@@ -98,16 +98,19 @@ char *gcrypt_decrypt_msg(char *msg, size_t msg_length) {
                 gcry_strsource(gcry_error_handle),
                 gcry_strerror(gcry_error_handle));
         dawn_free(out_buffer);
+        out_buffer = NULL;
         return NULL;
     }
     char *out = dawn_malloc(strlen(out_buffer) + 1);
     if (!out){
         dawn_free(out_buffer);
+        out_buffer = NULL;
         dawnlog_error("gcry_cipher_decrypt error: not enough memory\n");
         return NULL;
     }
     strcpy(out, out_buffer);
     dawn_free(out_buffer);
+    out_buffer = NULL;
     return out;
 }
 
