@@ -40,9 +40,11 @@ struct client {
 
 
 static void client_close(struct ustream *s) {
+    dawnlog_debug_func("Entering...");
+
     struct client *cl = container_of(s, struct client, s.stream);
 
-    fprintf(stderr, "Connection closed\n");
+    dawnlog_warning("Connection closed\n");
     ustream_free(s);
     close(cl->s.fd.fd);
     dawn_free(cl);
@@ -59,7 +61,7 @@ static void client_notify_state(struct ustream *s) {
     if (!s->eof)
         return;
 
-    fprintf(stderr, "eof!, pending: %d, total: %d\n", s->w.data_bytes, cl->ctr);
+    dawnlog_error("eof!, pending: %d, total: %d\n", s->w.data_bytes, cl->ctr);
 
     if (!s->w.data_bytes)
         return client_close(s);
@@ -70,7 +72,9 @@ static void client_to_server_close(struct ustream *s) {
     struct network_con_s *con = container_of(s,
     struct network_con_s, stream.stream);
 
-    fprintf(stderr, "Connection to server closed\n");
+    dawnlog_debug_func("Entering...");
+
+    dawnlog_warning("Connection to server closed\n");
     ustream_free(s);
     close(con->fd.fd);
     list_del(&con->list);
@@ -81,10 +85,12 @@ static void client_to_server_state(struct ustream *s) {
     struct client *cl = container_of(s,
     struct client, s.stream);
 
+    dawnlog_debug_func("Entering...");
+
     if (!s->eof)
         return;
 
-    fprintf(stderr, "eof!, pending: %d, total: %d\n", s->w.data_bytes, cl->ctr);
+    dawnlog_error("eof!, pending: %d, total: %d\n", s->w.data_bytes, cl->ctr);
 
     if (!s->w.data_bytes)
         return client_to_server_close(s);
@@ -94,18 +100,22 @@ static void client_to_server_state(struct ustream *s) {
 static void client_read_cb(struct ustream *s, int bytes) {
     struct client *cl = container_of(s, struct client, s.stream);
 
+    dawnlog_debug_func("Entering...");
+
     while(1) {
         if (cl->state == READ_STATUS_READY)
         {
+            dawnlog_debug("tcp_socket: commencing message...\n");
             cl->str = dawn_malloc(HEADER_SIZE);
             if (!cl->str) {
-                fprintf(stderr,"not enough memory (" STR_QUOTE(__LINE__) ")\n");
+                dawnlog_error("not enough memory (" STR_QUOTE(__LINE__) ")\n");
                 break;
             }
 
             uint32_t avail_len = ustream_pending_data(s, false);
 
             if (avail_len < HEADER_SIZE){//ensure recv sizeof(uint32_t)
+                dawnlog_debug("not complete msg, len:%d\n", avail_len);
                 dawn_free(cl->str);
                 cl->str = NULL;
                 break;
@@ -113,7 +123,7 @@ static void client_read_cb(struct ustream *s, int bytes) {
 
             if (ustream_read(s, cl->str, HEADER_SIZE) != HEADER_SIZE) // read msg length bytes
             {
-                fprintf(stdout,"msg length read failed\n");
+                dawnlog_error("msg length read failed\n");
                 dawn_free(cl->str);
                 cl->str = NULL;
                 break;
@@ -126,7 +136,7 @@ static void client_read_cb(struct ustream *s, int bytes) {
             // remains valid and may need to be deallocated.
             char *str_tmp = dawn_realloc(cl->str, cl->final_len);
             if (!str_tmp) {
-                fprintf(stderr,"not enough memory (%" PRIu32 " @ " STR_QUOTE(__LINE__) ")\n", cl->final_len);
+                dawnlog_error("not enough memory (%" PRIu32 " @ " STR_QUOTE(__LINE__) ")\n", cl->final_len);
                 dawn_free(cl->str);
                 cl->str = NULL;
                 break;
@@ -139,6 +149,7 @@ static void client_read_cb(struct ustream *s, int bytes) {
 
         if (cl->state == READ_STATUS_COMMENCED)
         {
+            dawnlog_debug("tcp_socket: reading message...\n");
             uint32_t read_len = ustream_pending_data(s, false);
 
             if (read_len == 0)
@@ -147,23 +158,26 @@ static void client_read_cb(struct ustream *s, int bytes) {
             if (read_len > (cl->final_len - cl->curr_len))
                     read_len = cl->final_len - cl->curr_len;
 
+            dawnlog_debug("tcp_socket: reading %" PRIu32 " bytes to add to %" PRIu32 " of %" PRIu32 "...\n",
+                    read_len, cl->curr_len, cl->final_len);
+
             uint32_t this_read = ustream_read(s, cl->str + cl->curr_len, read_len);
             cl->curr_len += this_read;
+            dawnlog_debug("tcp_socket: ...and we're back, now have %" PRIu32 " bytes\n", cl->curr_len);
             if (cl->curr_len == cl->final_len){//ensure recv final_len bytes.
                 // Full message now received
                 cl->state = READ_STATUS_COMPLETE;
+                dawnlog_debug("tcp_socket: message completed\n");
             }
         }
 
         if (cl->state == READ_STATUS_COMPLETE)
         {
-#ifndef DAWN_NO_OUTPUT
-            printf("tcp_socket: processing message...\n");
-#endif
+            dawnlog_debug("tcp_socket: processing message...\n");
             if (network_config.use_symm_enc) {
                 char *dec = gcrypt_decrypt_msg(cl->str + HEADER_SIZE, cl->final_len - HEADER_SIZE);//len of str is final_len
                 if (!dec) {
-                    fprintf(stderr,"not enough memory (" STR_QUOTE(__LINE__) ")\n");
+                    dawnlog_error("not enough memory (" STR_QUOTE(__LINE__) ")\n");
                     dawn_free(cl->str);
                     cl->str = NULL;
                     break;
@@ -182,6 +196,7 @@ static void client_read_cb(struct ustream *s, int bytes) {
         }
     }
 
+    dawnlog_debug("tcp_socket: leaving\n");
     return;
 }
 
@@ -190,6 +205,8 @@ static void server_cb(struct uloop_fd *fd, unsigned int events) {
     unsigned int sl = sizeof(struct sockaddr_in);
     int sfd;
 
+    dawnlog_debug_func("Entering...");
+
     if (!next_client)
         next_client = dawn_calloc(1, sizeof(*next_client));
 
@@ -197,7 +214,7 @@ static void server_cb(struct uloop_fd *fd, unsigned int events) {
 
     sfd = accept(server.fd, (struct sockaddr *) &cl->sin, &sl);
     if (sfd < 0) {
-        fprintf(stderr, "Accept failed\n");
+        dawnlog_error("Accept failed\n");
         return;
     }
 
@@ -207,17 +224,18 @@ static void server_cb(struct uloop_fd *fd, unsigned int events) {
     cl->s.stream.notify_write = client_notify_write;
     ustream_fd_init(&cl->s, sfd);
     next_client = NULL;  // TODO: Why is this here?  To avoid resetting if above return happens?
-    fprintf(stderr, "New connection\n");
+    dawnlog_info("New connection\n");
 }
 
 int run_server(int port) {
+    dawnlog_debug("Adding socket!\n");
     char port_str[12];
-    sprintf(port_str, "%d", port);
+    sprintf(port_str, "%d", port); // TODO: Manage buffer length
 
     server.cb = server_cb;
     server.fd = usock(USOCK_TCP | USOCK_SERVER | USOCK_IPV4ONLY | USOCK_NUMERIC, INADDR_ANY, port_str);
     if (server.fd < 0) {
-        perror("usock");
+        dawnlog_perror("usock");
         return 1;
     }
 
@@ -230,22 +248,28 @@ static void client_not_be_used_read_cb(struct ustream *s, int bytes) {
     int len;
     char buf[2048];
 
+    dawnlog_debug_func("Entering...");
+
     len = ustream_read(s, buf, sizeof(buf));
     buf[len] = '\0';
+    dawnlog_debug("Read %d bytes from SSL connection: %s\n", len, buf);
 }
 
 static void connect_cb(struct uloop_fd *f, unsigned int events) {
 
     struct network_con_s *entry = container_of(f, struct network_con_s, fd);
 
+    dawnlog_debug_func("Entering...");
+
     if (f->eof || f->error) {
-        fprintf(stderr, "Connection failed (%s)\n", f->eof ? "EOF" : "ERROR");
+        dawnlog_error("Connection failed (%s)\n", f->eof ? "EOF" : "ERROR");
         close(entry->fd.fd);
         list_del(&entry->list);
         dawn_free(entry);
         return;
     }
 
+    dawnlog_debug("Connection established\n");
     uloop_fd_delete(&entry->fd);
 
     entry->stream.stream.notify_read = client_not_be_used_read_cb;
@@ -258,8 +282,10 @@ static void connect_cb(struct uloop_fd *f, unsigned int events) {
 int add_tcp_conncection(char *ipv4, int port) {
     struct sockaddr_in serv_addr;
 
+    dawnlog_debug_func("Entering...");
+
     char port_str[12];
-    sprintf(port_str, "%d", port);
+    sprintf(port_str, "%d", port); // TODO: Manage buffer length
 
     memset(&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
@@ -290,20 +316,25 @@ int add_tcp_conncection(char *ipv4, int port) {
     tcp_entry->fd.cb = connect_cb;
     uloop_fd_add(&tcp_entry->fd, ULOOP_WRITE | ULOOP_EDGE_TRIGGER);
 
+    dawnlog_debug("New TCP connection to %s:%d\n", ipv4, port);
     list_add(&tcp_entry->list, &tcp_sock_list);
 
     return 0;
 }
 
 void send_tcp(char *msg) {
-    print_tcp_array();
+    dawnlog_debug_func("Entering...");
+
+    if (dawnlog_showing(DAWNLOG_DEBUG))
+        print_tcp_array();
+
     struct network_con_s *con, *tmp;
     if (network_config.use_symm_enc) {
         int length_enc;
         size_t msglen = strlen(msg)+1;
         char *enc = gcrypt_encrypt_msg(msg, msglen, &length_enc);
         if (!enc){
-            fprintf(stderr, "Ustream error: not enought memory (" STR_QUOTE(__LINE__) ")\n");
+            dawnlog_error("Ustream error: not enough memory (" STR_QUOTE(__LINE__) ")\n");
             return;
         }
 
@@ -311,7 +342,7 @@ void send_tcp(char *msg) {
         char *final_str = dawn_malloc(final_len);
         if (!final_str){
             dawn_free(enc);
-            fprintf(stderr, "Ustream error: not enought memory (" STR_QUOTE(__LINE__) ")\n");
+            dawnlog_error("Ustream error: not enough memory (" STR_QUOTE(__LINE__) ")\n");
             return;
         }
         uint32_t *msg_header = (uint32_t *)final_str;
@@ -321,8 +352,9 @@ void send_tcp(char *msg) {
         {
             if (con->connected) {
                 int len_ustream = ustream_write(&con->stream.stream, final_str, final_len, 0);
+                dawnlog_debug("Ustream send: %d\n", len_ustream);
                 if (len_ustream <= 0) {
-                    fprintf(stderr,"Ustream error(" STR_QUOTE(__LINE__) ")!\n");
+                    dawnlog_error("Ustream error(" STR_QUOTE(__LINE__) ")!\n");
                     //ERROR HANDLING!
                     if (con->stream.stream.write_error) {
                         ustream_free(&con->stream.stream);
@@ -342,7 +374,7 @@ void send_tcp(char *msg) {
         uint32_t final_len = msglen + sizeof(final_len);
         char *final_str = dawn_malloc(final_len);
         if (!final_str){
-            fprintf(stderr, "Ustream error: not enought memory (" STR_QUOTE(__LINE__) ")\n");
+            dawnlog_error("Ustream error: not enough memory (" STR_QUOTE(__LINE__) ")\n");
             return;
         }
         uint32_t *msg_header = (uint32_t *)final_str;
@@ -353,9 +385,10 @@ void send_tcp(char *msg) {
         {
             if (con->connected) {
                 int len_ustream = ustream_write(&con->stream.stream, final_str, final_len, 0);
+                dawnlog_debug("Ustream send: %d\n", len_ustream);
                 if (len_ustream <= 0) {
                     //ERROR HANDLING!
-                    fprintf(stderr,"Ustream error(" STR_QUOTE(__LINE__) ")!\n");
+                    dawnlog_error("Ustream error(" STR_QUOTE(__LINE__) ")!\n");
                     if (con->stream.stream.write_error) {
                         ustream_free(&con->stream.stream);
                         close(con->fd.fd);
@@ -372,6 +405,8 @@ void send_tcp(char *msg) {
 struct network_con_s* tcp_list_contains_address(struct sockaddr_in entry) {
     struct network_con_s *con;
 
+    dawnlog_debug_func("Entering...");
+
     list_for_each_entry(con, &tcp_sock_list, list)
     {
         if(entry.sin_addr.s_addr == con->sock_addr.sin_addr.s_addr)
@@ -383,14 +418,11 @@ struct network_con_s* tcp_list_contains_address(struct sockaddr_in entry) {
 }
 
 void print_tcp_array() {
-#ifndef DAWN_NO_OUTPUT
     struct network_con_s *con;
-
-    printf("--------Connections------\n");
+    dawnlog_debug("--------Connections------\n");
     list_for_each_entry(con, &tcp_sock_list, list)
     {
-        printf("Connecting to Port: %d, Connected: %s\n", ntohs(con->sock_addr.sin_port), con->connected ? "True" : "False");
+        dawnlog_debug("Connecting to Port: %d, Connected: %s\n", ntohs(con->sock_addr.sin_port), con->connected ? "True" : "False");
     }
-    printf("------------------\n");
-#endif
+    dawnlog_debug("------------------\n");
 }

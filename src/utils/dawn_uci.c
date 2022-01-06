@@ -25,6 +25,8 @@ static void set_if_present_int(int *ret, struct uci_section *s, const char* opti
 
 void uci_get_hostname(char* hostname)
 {
+    dawnlog_debug_func("Entering...");
+
     char path[]= "system.@system[0].hostname";
     struct  uci_ptr ptr;
     struct  uci_context *c = uci_alloc_context();
@@ -80,6 +82,8 @@ struct time_config_s uci_get_time_config() {
         .update_beacon_reports = 20,
     };
 
+    dawnlog_debug_func("Entering...");
+
     struct uci_element *e;
     uci_foreach_element(&uci_pkg->sections, e)
     {
@@ -97,6 +101,43 @@ struct time_config_s uci_get_time_config() {
             DAWN_SET_CONFIG_TIME(ret, s, update_beacon_reports);
             return ret;
         }
+    }
+
+    return ret;
+}
+
+struct local_config_s uci_get_local_config() {
+    struct local_config_s ret = {
+        .loglevel = 0,
+    };
+
+    dawnlog_debug_func("Entering...");
+
+    struct uci_element* e;
+    uci_foreach_element(&uci_pkg->sections, e)
+    {
+        struct uci_section* s = uci_to_section(e);
+
+        if (strcmp(s->type, "local") == 0) {
+            DAWN_SET_CONFIG_INT(ret, s, loglevel);
+        }
+    }
+
+    switch (ret.loglevel)
+    {
+    case 3:
+        dawnlog_minlevel(DAWNLOG_DEBUG);
+        break;
+    case 2:
+        dawnlog_minlevel(DAWNLOG_TRACE);
+        break;
+    case 1:
+        dawnlog_minlevel(DAWNLOG_INFO);
+        break;
+    case 0:
+    default:
+        dawnlog_minlevel(DAWNLOG_ALWAYS);
+        break;
     }
 
     return ret;
@@ -123,6 +164,8 @@ static int parse_rrm_mode(int *rrm_mode_order, const char *mode_string) {
     int len, mode_val;
     int mask = 0, order = 0, pos = 0;
 
+    dawnlog_debug_func("Entering...");
+
     if (!mode_string)
         mode_string = DEFAULT_RRM_MODE_ORDER;
     len = strlen(mode_string);
@@ -141,15 +184,17 @@ static int parse_rrm_mode(int *rrm_mode_order, const char *mode_string) {
 
 
 static struct mac_entry_s *insert_neighbor_mac(struct mac_entry_s *head, const char* mac) {
+    dawnlog_debug_func("Entering...");
+
     struct mac_entry_s *new;
 
     if (!(new = dawn_malloc(sizeof (struct mac_entry_s)))) {
-        fprintf(stderr, "Warning: Failed to create neighbor entry for '%s'\n", mac);
+        dawnlog_error("Failed to allocate neighbor entry for '%s'\n", mac);
         return head;
     }
     memset(new, 0, sizeof (struct mac_entry_s));
     if (hwaddr_aton(mac, new->mac.u8) != 0) {
-        fprintf(stderr, "Warning: Failed to parse MAC from '%s'\n", mac);
+        dawnlog_error("Failed to parse MAC from '%s'\n", mac);
         dawn_free(new);
         return head;
     }
@@ -159,6 +204,8 @@ static struct mac_entry_s *insert_neighbor_mac(struct mac_entry_s *head, const c
 
 static void free_neighbor_mac_list(struct mac_entry_s *list) {
     struct mac_entry_s *ptr = list;
+    dawnlog_debug_func("Entering...");
+
     while (list) {
         ptr = list;
         list = list->next_mac;
@@ -170,6 +217,8 @@ static struct mac_entry_s* uci_lookup_mac_list(struct uci_option *o) {
     struct uci_element *e;
     struct mac_entry_s *head = NULL;
     char *str;
+
+    dawnlog_debug_func("Entering...");
 
     if (o == NULL)
         return NULL;
@@ -195,6 +244,8 @@ static struct mac_entry_s* uci_lookup_mac_list(struct uci_option *o) {
 static struct uci_section *uci_find_metric_section(const char *name) {
     struct uci_section *s;
     struct uci_element *e;
+
+    dawnlog_debug_func("Entering...");
 
     uci_foreach_element(&uci_pkg->sections, e) {
         s = uci_to_section(e);
@@ -257,9 +308,9 @@ struct probe_metric_s uci_get_dawn_metric() {
 
     if (!(global_s = uci_find_metric_section("global"))) {
         if (!(global_s = uci_find_metric_section(NULL))) {
-            fprintf(stderr, "Warning: config metric global section not found! Using defaults.\n");
+            dawnlog_warning("config metric global section not found! Using defaults.\n");
         } else {
-            fprintf(stderr, "Warning: config metric global section not found. "
+            dawnlog_warning("config metric global section not found. "
                             "Using first unnamed config metric.\n"
                             "Consider naming a 'global' metric section to avoid ambiguity.\n");
         }
@@ -325,6 +376,8 @@ struct network_config_s uci_get_dawn_network() {
         .bandwidth = -1,
     };
 
+    dawnlog_debug_func("Entering...");
+
     struct uci_element *e;
     uci_foreach_element(&uci_pkg->sections, e)
     {
@@ -362,6 +415,8 @@ struct network_config_s uci_get_dawn_network() {
 }
 
 bool uci_get_dawn_hostapd_dir() {
+    dawnlog_debug_func("Entering...");
+
     struct uci_element *e;
     uci_foreach_element(&uci_pkg->sections, e)
     {
@@ -377,6 +432,8 @@ bool uci_get_dawn_hostapd_dir() {
 }
 
 bool uci_get_dawn_sort_order() {
+    dawnlog_debug_func("Entering...");
+
     struct uci_element *e;
     uci_foreach_element(&uci_pkg->sections, e)
     {
@@ -393,6 +450,8 @@ bool uci_get_dawn_sort_order() {
 
 int uci_reset()
 {
+    dawnlog_debug_func("Entering...");
+
     struct uci_context *ctx = uci_ctx;
 
     if (!ctx) {
@@ -410,6 +469,8 @@ int uci_reset()
 }
 
 int uci_init() {
+    dawnlog_debug_func("Entering...");
+
     struct uci_context *ctx = uci_ctx;
 
     if (!ctx) {
@@ -439,6 +500,8 @@ int uci_init() {
 }
 
 int uci_clear() {
+    dawnlog_debug_func("Entering...");
+
     for (int band = 0; band < __DAWN_BAND_MAX; band++)
         free_neighbor_mac_list(dawn_metric.neighbors[band]);
 
@@ -456,6 +519,8 @@ int uci_clear() {
 
 int uci_set_network(char* uci_cmd)
 {
+    dawnlog_debug_func("Entering...");
+
     struct uci_ptr ptr;
     int ret = UCI_OK;
     struct uci_context *ctx  = uci_ctx;
@@ -480,7 +545,7 @@ int uci_set_network(char* uci_cmd)
     }
 
     if (uci_commit(ctx, &ptr.p, 0) != UCI_OK) {
-        fprintf(stderr, "Failed to commit UCI cmd: %s\n", uci_cmd);
+        dawnlog_error("Failed to commit UCI cmd: %s\n", uci_cmd);
     }
 
     return ret;
