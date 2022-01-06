@@ -243,38 +243,6 @@ void blobmsg_add_macaddr(struct blob_buf *buf, const char *name, const struct da
     blobmsg_add_string_buffer(buf);
 }
 
-// TODO: Is it worth having this function?  Just inline the right bits at each caller?
-static int decide_function(probe_entry *prob_req, int req_type) {
-    if (mac_in_maclist(prob_req->client_addr)) {
-        return 1;
-    }
-
-    if (prob_req->counter < dawn_metric.min_probe_count) {
-        return 0;
-    }
-
-    if (req_type == REQ_TYPE_PROBE && dawn_metric.eval_probe_req <= 0) {
-        return 1;
-    }
-
-    if (req_type == REQ_TYPE_AUTH && dawn_metric.eval_auth_req <= 0) {
-        return 1;
-    }
-
-    if (req_type == REQ_TYPE_ASSOC && dawn_metric.eval_assoc_req <= 0) {
-        return 1;
-    }
-
-    // TODO: Bug?  This results in copious "Neigbor-Report is NULL" messages!
-    // find own probe entry and calculate score
-    ap* this_ap = ap_array_get_ap(prob_req->bssid_addr, prob_req->ssid);
-    if (this_ap != NULL && better_ap_available(this_ap, prob_req->client_addr, NULL)) {
-        return 0;
-    }
-
-    return 1;
-}
-
 int parse_to_auth_req(struct blob_attr *msg, auth_entry *auth_req) {
     struct blob_attr *tb[__AUTH_MAX];
 
@@ -401,7 +369,7 @@ bool discard_entry = true;
     if (auth_req == NULL)
     {
         dawnlog_error("Memory allocation of auth req failed!");
-        return -1;
+        return ret; // Allow if we can't evalute a reason to deny
     }
 
     parse_to_auth_req(msg, auth_req);
@@ -409,15 +377,55 @@ bool discard_entry = true;
     dawnlog_debug("Auth entry: ");
     print_auth_entry(DAWNLOG_DEBUG, auth_req);
 
-    if (!mac_in_maclist(auth_req->client_addr)) {
+    if (dawn_metric.eval_auth_req <= 0) {
+        dawnlog_trace("Allow authentication due to not evaluating requests");
+    }
+    else if (mac_in_maclist(auth_req->client_addr)) {
+        dawnlog_trace("Allow authentication due to mac_in_maclist()");
+    }
+    else {
         pthread_mutex_lock(&probe_array_mutex);
+
+        if (dawnlog_showing(DAWNLOG_DEBUG))
+            print_probe_array();
 
         probe_entry *tmp = probe_array_get_entry(auth_req->bssid_addr, auth_req->client_addr);
 
         pthread_mutex_unlock(&probe_array_mutex);
 
+        /*** Deprecated function decide_function() removed here ***/
+        int deny_request = 0;
+        
         // block if entry was not already found in probe database
-        if (tmp == NULL || !decide_function(tmp, REQ_TYPE_AUTH)) {
+        if (tmp == NULL) {
+            dawnlog_trace("Deny authentication due to no probe entry");
+            deny_request = 1;
+        }
+#if 0
+        // Already know this is false from outer test above
+        else if (mac_in_maclist(probe_req_updated->client_addr)) {
+            dawnlog_trace("Short cut due to mac_in_maclist()");
+        }
+#endif
+        else if (tmp->counter < dawn_metric.min_probe_count) {
+            dawnlog_trace("Deny authentication due to low probe count");
+            deny_request = 1;
+        }
+        else
+        {
+            // find own probe entry and calculate score
+            ap* this_ap = ap_array_get_ap(tmp->bssid_addr, tmp->ssid);
+            if (this_ap != NULL && better_ap_available(this_ap, tmp->client_addr, NULL) > 0) {
+                dawnlog_trace("Deny authentication due to better AP available");
+                deny_request = 1;
+            }
+            else
+                // maybe send here that the client is connected?
+                dawnlog_trace("Allow authentication!\n");
+        }
+        /*** End of decide_function() rework ***/
+
+        if (deny_request) {
             if (dawn_metric.use_driver_recog) {
                 if (auth_req == insert_to_denied_req_array(auth_req, 1, time(0)))
                     discard_entry = false;
@@ -440,29 +448,73 @@ int ret = WLAN_STATUS_SUCCESS;
 int discard_entry = true;
 
     dawnlog_debug_func("Entering...");
-    print_probe_array();
+
     auth_entry* assoc_req = dawn_malloc(sizeof(struct auth_entry_s));
     if (assoc_req == NULL)
-        return -1;
+    {
+        dawnlog_error("Memory allocation of assoc req failed!");
+        return ret; // Allow if we can't evalute a reason to deny
+    }
 
     parse_to_assoc_req(msg, assoc_req);
     dawnlog_debug("Association entry: ");
     print_auth_entry(DAWNLOG_DEBUG, assoc_req);
 
-    if (!mac_in_maclist(assoc_req->client_addr)) {
+    if (dawn_metric.eval_assoc_req <= 0) {
+        dawnlog_trace("Allow association due to not evaluating requests");
+    }
+    else if (mac_in_maclist(assoc_req->client_addr)) {
+        dawnlog_trace("Allow association due to mac_in_maclist()");
+    } else {
         pthread_mutex_lock(&probe_array_mutex);
+
+        if (dawnlog_showing(DAWNLOG_DEBUG))
+            print_probe_array();
 
         probe_entry *tmp = probe_array_get_entry(assoc_req->bssid_addr, assoc_req->client_addr);
 
         pthread_mutex_unlock(&probe_array_mutex);
 
+        /*** Deprecated function decide_function() removed here ***/
+        int deny_request = 0;
+        
         // block if entry was not already found in probe database
-        if (tmp == NULL || !decide_function(tmp, REQ_TYPE_ASSOC)) {
+        if (tmp == NULL) {
+            dawnlog_trace("Deny association due to no probe entry found");
+            deny_request = 1;
+        }
+#if 0
+        // Already know this is false from outer test above
+        else if (mac_in_maclist(tmp->client_addr)) {
+            dawnlog_trace("Allow due to mac_in_maclist()");
+        }
+#endif
+        else if (tmp->counter < dawn_metric.min_probe_count) {
+            dawnlog_trace("Deny association due to low probe count");
+            deny_request = 1;
+        }
+        else
+        {
+            // find own probe entry and calculate score
+            ap* this_ap = ap_array_get_ap(tmp->bssid_addr, tmp->ssid);
+            if (this_ap != NULL && better_ap_available(this_ap, tmp->client_addr, NULL) > 0) {
+                dawnlog_trace("Deny association due to better AP available");
+                deny_request = 1;
+            }
+            else
+                dawnlog_trace("Allow association!\n");
+        }
+        /*** End of decide_function() rework ***/
+
+        if (deny_request) {
+            if (tmp != NULL)
+                print_probe_entry(DAWNLOG_DEBUG, tmp);
+
             if (dawn_metric.use_driver_recog) {
                 if (assoc_req == insert_to_denied_req_array(assoc_req, 1, time(0)))
                     discard_entry = false;
             }
-            return dawn_metric.deny_assoc_reason;
+            ret = dawn_metric.deny_assoc_reason;
         }
     }
 
@@ -475,14 +527,21 @@ int discard_entry = true;
     return ret;
 }
 
-static int handle_probe_req(struct blob_attr *msg) {
+static int handle_probe_req(struct blob_attr* msg) {
     // MUSTDO: Untangle dawn_malloc() and linking of probe_entry
     probe_entry* probe_req = parse_to_probe_req(msg);
-    probe_entry* probe_req_updated = NULL;
+
     dawnlog_debug_func("Entering...");
 
-    if (probe_req != NULL) {
-        probe_req_updated = insert_to_array(probe_req, true, true, false, time(0));
+
+    if (probe_req == NULL)
+    {
+        dawnlog_error("Parse of probe req failed!");
+        return WLAN_STATUS_SUCCESS; // Allow if we can't evalute a reason to deny
+    }
+    else
+    {
+        probe_entry* probe_req_updated = insert_to_array(probe_req, true, true, false, time(0));
         // If insert finds an existing entry, rather than linking in our new one,
         // send new probe req because we want to stay synced.
         // If not, probe_req and probe_req_updated should be equivalent
@@ -494,7 +553,35 @@ static int handle_probe_req(struct blob_attr *msg) {
 
         ubus_send_probe_via_network(probe_req_updated);
 
-        if (!decide_function(probe_req_updated, REQ_TYPE_PROBE)) {
+        /*** Deprecated function decide_function() removed here ***/
+        int deny_request = 0;
+
+        if (dawn_metric.eval_probe_req <= 0) {
+            dawnlog_trace("Allow probe due to not evaluating requests");
+        }
+        else if (mac_in_maclist(probe_req_updated->client_addr)) {
+            dawnlog_trace("Allow probe due to mac_in_maclist()");
+        }
+        else if (probe_req_updated->counter < dawn_metric.min_probe_count) {
+            dawnlog_trace("Deny probe due to low probe count");
+            deny_request = 1;
+        }
+        else
+        {
+            // find own probe entry and calculate score
+            ap* this_ap = ap_array_get_ap(probe_req_updated->bssid_addr, probe_req_updated->ssid);
+            if (this_ap != NULL && better_ap_available(this_ap, probe_req_updated->client_addr, NULL) > 0) {
+                dawnlog_trace("Deny probe due to better AP available");
+                deny_request = 1;
+            }
+            else
+            {
+                dawnlog_trace("Allow probe request!");
+            }
+        }
+        /*** End of decide_function() rework ***/
+
+        if (deny_request) {
             return WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA; // no reason needed...
         }
     }
