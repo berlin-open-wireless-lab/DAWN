@@ -1233,15 +1233,12 @@ ap *insert_to_ap_array(ap* entry, time_t expiry) {
 
     pthread_mutex_lock(&ap_array_mutex);
 
-    // TODO: Why do we delete and add here?
+    // TODO: Why do we delete and add here rather than update existing?
     ap* old_entry = *ap_array_find_first_entry(entry->bssid_addr, entry->ssid);
 
     if (old_entry != NULL &&
-            !mac_is_equal_bb((old_entry)->bssid_addr, entry->bssid_addr) &&
+            mac_is_equal_bb((old_entry)->bssid_addr, entry->bssid_addr) &&
             !strcmp((char*)old_entry->ssid, (char*)entry->ssid))
-        old_entry = NULL;
-
-    if (old_entry != NULL)
         ap_array_delete(old_entry);
 
     entry->time = expiry;
