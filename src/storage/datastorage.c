@@ -21,8 +21,6 @@ struct local_config_s local_config;
 
 static int probe_compare(probe_entry *probe1, probe_entry *probe2);
 
-static int kick_client(ap* kicking_ap, struct client_s *client_entry, struct kicking_nr** neighbor_report);
-
 static int is_connected(struct dawn_mac bssid_mac, struct dawn_mac client_mac);
 
 static int compare_station_count(ap* ap_entry_own, ap* ap_entry_to_compare, struct dawn_mac client_addr);
@@ -599,7 +597,8 @@ int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, struct kicki
 
     int max_score = own_score;
     int kick = 0;
-    // Now carry on through entries for this client looking for better score
+    int ap_count = 0;
+    // Now go through all AP entries for this client looking for better score
     probe_entry* i = *probe_array_find_first_entry(client_mac, dawn_mac_null, false);
 
     while (i != NULL && mac_is_equal_bb(i->client_addr, client_mac)) {
@@ -624,64 +623,72 @@ int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, struct kicki
             continue;
         }
 
-        dawnlog_debug("Calculating score to compare!\n");
+        ap_count++;
+
         int score_to_compare = eval_probe_metric(i, candidate_ap);
+        dawnlog_trace("Candidate score = %d from:\n", score_to_compare);
+        print_probe_entry(DAWNLOG_TRACE, i);
+
+        int ap_outcome = 0; // No kicking
 
         // Find better score...
+        // FIXME: Do we mean to use 'kick' like this here?  It is set when we find an AP with bigger score
+        // then any more have to also be 'kicking_threshold' bigger
         if (score_to_compare > max_score + (kick ? 0 : dawn_metric.kicking_threshold)) {
-            if(neighbor_report == NULL)
-            {
-                dawnlog_error("Neighbor-Report is NULL!\n");
-                return 1;  // TODO: Should this be -1?
-            }
-
-            kick = 1;
-
-            // instead of returning we add the ap to the neighbor report list, pruning it first...
-            *neighbor_report = insert_kicking_nr(*neighbor_report, candidate_ap->neighbor_report, score_to_compare, true);
+            ap_outcome = 2; // Add and prune
 
             max_score = score_to_compare;
         }
-        // if ap have same value but station count is different...
+        // if AP have same value but station count might improve it...
         // TODO: Is absolute number meaningful when AP have diffeent capacity?
-        else if (dawn_metric.use_station_count > 0 && score_to_compare >= max_score ) {
+        else if (score_to_compare == max_score && dawn_metric.use_station_count > 0 ) {
             int compare = compare_station_count(kicking_ap, candidate_ap, client_mac);
 
             if (compare > 0) {
-                if (neighbor_report == NULL)
-                {
-                    dawnlog_error( "Neighbor-Report is NULL!\n");
-                    return 1;  // TODO: Should this be -1?
-                }
-
-                kick = 1;
-                *neighbor_report = insert_kicking_nr(*neighbor_report, candidate_ap->neighbor_report,
-                                                     score_to_compare, true);
+                ap_outcome = 2; // Add and prune
             }
             else if (compare == 0 && kick) {
-                *neighbor_report = insert_kicking_nr(*neighbor_report, candidate_ap->neighbor_report,
-                                                     score_to_compare, false);
+                ap_outcome = 1; // Add but no prune
             }
         }
         else if (score_to_compare >= max_score && kick) {
-            *neighbor_report = insert_kicking_nr(*neighbor_report, candidate_ap->neighbor_report,
-                                                 score_to_compare, false);
+            ap_outcome = 1; // Add but no prune
         }
 
-        i = i->next_probe;
+        if (ap_outcome == 0)
+        {
+            dawnlog_trace("Not a better AP after full evaluation\n");
+        }
+        else
+        {
+            dawnlog_trace("Better AP after full evaluation - add to NR (%s pruning)\n", ap_outcome == 2 ? "with" : "without");
+            // Pointer is NULL if we're only finding a better AP without actually using it
+            if (neighbor_report != NULL)
+            {
+                // Test this_kick_outcome for pruning
+                *neighbor_report = insert_kicking_nr(*neighbor_report, candidate_ap->neighbor_report,
+                    score_to_compare, ap_outcome == 2);
+            }
+
+            // If we find a single candidate then we will be kicking
+            kick = 1;
+        }
+
+        // Short circuit loop if we're only finding a better AP without actually using it
+        if (kick && neighbor_report == NULL)
+        {
+            i = NULL;
+        }
+        else
+        {
+            i = i->next_probe;
+        }
     }
+
+    if (neighbor_report != NULL)
+        dawnlog_info("Station " MACSTR ": Compared %d alternate AP candidates\n", MAC2STR(client_mac.u8), ap_count);
 
     return kick;
-}
-
-static int kick_client(ap* kicking_ap, struct client_s *client_entry, struct kicking_nr** neighbor_report) {
-    int ret = 0;
-
-    if (!mac_in_maclist(client_entry->client_addr)) {
-        ret = better_ap_available(kicking_ap, client_entry->client_addr, neighbor_report);
-    }
-
-    return ret;
 }
 
 int kick_clients(ap* kicking_ap, uint32_t id) {
@@ -701,9 +708,14 @@ int kick_clients(ap* kicking_ap, uint32_t id) {
     while (j  != NULL && mac_is_equal_bb(j->bssid_addr, kicking_ap->bssid_addr)) {
         struct kicking_nr *neighbor_report = NULL;
 
-        int do_kick = kick_client(kicking_ap, j, &neighbor_report);
-        for (struct kicking_nr *n = neighbor_report; n; n = n->next)
-           dawnlog_debug("Chosen AP candidate: " NR_MACSTR ", score=%d\n", NR_MAC2STR(n->nr), n->score);
+        int do_kick = 0;
+
+        if (mac_in_maclist(j->client_addr)) {
+            dawnlog_info("Station " MACSTR ": Suppressing check due to MAC list entry\n", MAC2STR(j->client_addr.u8));
+        }
+        else {
+            do_kick = better_ap_available(kicking_ap, j->client_addr, &neighbor_report);
+        }
 
         // better ap available
         if (do_kick > 0) {
@@ -713,17 +725,15 @@ int kick_clients(ap* kicking_ap, uint32_t id) {
             // + chan util is changing a lot
             // + ping pong behavior of clients will be reduced
             j->kick_count++;
-           dawnlog_debug("Comparing kick count! kickcount: %d to min_number_to_kick: %d!\n", j->kick_count,
-                dawn_metric.min_number_to_kick);
-            if (j->kick_count >= dawn_metric.min_number_to_kick) {
-               dawnlog_debug("Better AP available. Kicking client:\n");
-                print_client_entry(DAWNLOG_DEBUG, j);
-               dawnlog_debug("Check if client is active receiving!\n");
-
+            if (j->kick_count < dawn_metric.min_number_to_kick) {
+                dawnlog_info("Station " MACSTR ": kickcount %d below threshold of %d!\n", MAC2STR(j->client_addr.u8), j->kick_count,
+                    dawn_metric.min_number_to_kick);
+            }
+            else {
                 float rx_rate, tx_rate;
                 bool have_bandwidth_iwinfo = get_bandwidth_iwinfo(j->client_addr, &rx_rate, &tx_rate);
                 if (!have_bandwidth_iwinfo && dawn_metric.bandwidth_threshold > 0) {
-                   dawnlog_debug("No active transmission data for client. Don't kick!\n");
+                    dawnlog_info("Station " MACSTR ": No active transmission data for client. Don't kick!\n", MAC2STR(j->client_addr.u8));
                 }
                 else
                 {
@@ -770,8 +780,6 @@ int kick_clients(ap* kicking_ap, uint32_t id) {
                             // don't delete clients in a row. use update function again...
                             // -> chan_util update, ...
                             add_client_update_timer(timeout_config.update_client * 1000 / 4);
-                            remove_kicking_nr_list(neighbor_report);
-                            neighbor_report = NULL;
                             break;
                         }
                     }
@@ -795,6 +803,7 @@ int kick_clients(ap* kicking_ap, uint32_t id) {
 
         remove_kicking_nr_list(neighbor_report);
         neighbor_report = NULL;
+
         j = j->next_entry_bc;
     }
 
