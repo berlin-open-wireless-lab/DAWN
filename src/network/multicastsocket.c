@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "utils.h"
 #include "multicastsocket.h"
 
 // based on: http://openbook.rheinwerk-verlag.de/linux_unix_programmierung/Kap11-018.htm
@@ -18,7 +19,7 @@ int setup_multicast_socket(const char *_multicast_ip, unsigned short _multicast_
     addr->sin_port = htons (_multicast_port);
 
     if ((sock = socket(PF_INET, SOCK_DGRAM, 0)) == -1) {
-        perror("socket()");
+        dawnlog_perror("socket()");
         exit(EXIT_FAILURE);
     }
 
@@ -28,13 +29,13 @@ int setup_multicast_socket(const char *_multicast_ip, unsigned short _multicast_
                    SOL_SOCKET,
                    SO_REUSEADDR,
                    &loop, sizeof(loop)) < 0) {
-        perror("setsockopt:SO_REUSEADDR");
+        dawnlog_perror("setsockopt:SO_REUSEADDR");
         exit(EXIT_FAILURE);
     }
     if (bind(sock,
              (struct sockaddr *) addr,
              sizeof(*addr)) < 0) {
-        perror("bind");
+        dawnlog_perror("bind");
         exit(EXIT_FAILURE);
     }
 
@@ -44,7 +45,7 @@ int setup_multicast_socket(const char *_multicast_ip, unsigned short _multicast_
                    IPPROTO_IP,
                    IP_MULTICAST_LOOP,
                    &loop, sizeof(loop)) < 0) {
-        perror("setsockopt:IP_MULTICAST_LOOP");
+        dawnlog_perror("setsockopt:IP_MULTICAST_LOOP");
         exit(EXIT_FAILURE);
     }
 
@@ -52,14 +53,14 @@ int setup_multicast_socket(const char *_multicast_ip, unsigned short _multicast_
     command.imr_multiaddr.s_addr = inet_addr(_multicast_ip);
     command.imr_interface.s_addr = htonl (INADDR_ANY);
     if (command.imr_multiaddr.s_addr == -1) {
-        perror("Wrong multicast address!\n");
+        dawnlog_perror("Wrong multicast address!\n");
         exit(EXIT_FAILURE);
     }
     if (setsockopt(sock,
                    IPPROTO_IP,
                    IP_ADD_MEMBERSHIP,
                    &command, sizeof(command)) < 0) {
-        perror("setsockopt:IP_ADD_MEMBERSHIP");
+        dawnlog_perror("setsockopt:IP_ADD_MEMBERSHIP");
     }
     return sock;
 }
@@ -69,7 +70,7 @@ int remove_multicast_socket(int socket) {
                    IPPROTO_IP,
                    IP_DROP_MEMBERSHIP,
                    &command, sizeof(command)) < 0) {
-        perror("setsockopt:IP_DROP_MEMBERSHIP");
+        dawnlog_perror("setsockopt:IP_DROP_MEMBERSHIP");
         return -1;
     }
     return 0;

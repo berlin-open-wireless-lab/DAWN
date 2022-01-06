@@ -493,7 +493,8 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
         {
             args_required = 1;
 
-            print_probe_array();
+            if (dawnlog_showing(DAWNLOG_INFO))
+                print_probe_array();
         }
         else if (strcmp(*argv, "client_show") == 0)
         {
@@ -505,11 +506,11 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
         {
             args_required = 1;
 
-            printf("--------APs------\n");
+            dawnlog_info("--------APs------\n");
             for (auth_entry *i = denied_req_set; i != NULL; i = i->next_auth) {
-                print_auth_entry(i);
+                print_auth_entry(DAWNLOG_INFO, i);
             }
-            printf("------------------\n");
+            dawnlog_info("------------------\n");
         }
         else if (strcmp(*argv, "ap_add_auto") == 0)
         {
@@ -893,11 +894,9 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 else if (!strncmp(fn, "vht_cap=", 8)) load_u8(&pr0->vht_capabilities, fn + 8);
                 else if (!strncmp(fn, "time=", 5)) load_time(&pr0->time, fn + 5);
                 else if (!strncmp(fn, "counter=", 8)) load_int(&pr0->counter, fn + 8);
-#ifndef DAWN_NO_OUTPUT
                 else if (!strncmp(fn, "deny=", 5)) load_int(&pr0->deny_counter, fn + 5);
                 else if (!strncmp(fn, "max_rate=", 9)) load_u8(&pr0->max_supp_datarate, fn + 9);
                 else if (!strncmp(fn, "min_rate=", 9)) load_u8(&pr0->min_supp_datarate, fn + 9);
-#endif
                 else if (!strncmp(fn, "rcpi=", 5)) load_u32(&pr0->rcpi, fn + 5);
                 else if (!strncmp(fn, "rsni=", 5)) load_u32(&pr0->rsni, fn + 5);
                 else {
@@ -936,11 +935,9 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                         pr0->vht_capabilities = 0;
                         pr0->time = faketime;
                         pr0->counter = 0;
-#ifndef DAWN_NO_OUTPUT
                         pr0->deny_counter = 0;
                         pr0->max_supp_datarate = 0;
                         pr0->min_supp_datarate = 0;
-#endif
                         pr0->rcpi = 0;
                         pr0->rsni = 0;
 
@@ -1072,6 +1069,9 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                     ap* ap_entry = ap_array_get_ap(pr0->bssid_addr, NULL);
 
                     int this_metric = eval_probe_metric(pr0, ap_entry);
+                    dawnlog_info("Score: %d of:\n", this_metric);
+                    print_probe_entry(DAWNLOG_DEBUG, pr0);
+
                     printf("eval_probe_metric: Returned %d\n", this_metric);
                 }
 
@@ -1183,6 +1183,8 @@ int main(int argc, char* argv[])
 
     int ret = 0;
     int harness_verbosity = 1;
+
+    dawnlog_dest(DAWNLOG_DEST_STDIO); // Send messages to stderr / stdout
 
     printf("DAWN datastorage.c test harness...\n\n");
 

@@ -3,6 +3,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <syslog.h>
 
 #include "memory_utils.h"
 #include "datastorage.h"
@@ -47,11 +48,50 @@ void signal_handler(int sig) {
 }
 
 int main(int argc, char **argv) {
-
     const char *ubus_socket = NULL;
 
-    argc -= optind;
-    argv += optind;
+    /* Load local config now so command line can override it */
+    uci_init();
+    local_config = uci_get_local_config();
+
+    int logdest = DAWNLOG_DEST_SYSLOG;
+
+    int opt = getopt(argc, argv, "l:o:");
+
+    while (opt != -1) {
+        switch (opt) {
+        case 'l':
+            if (!strcmp(optarg, "info"))
+                dawnlog_minlevel(DAWNLOG_INFO);
+            else if (!strcmp(optarg, "trace"))
+                dawnlog_minlevel(DAWNLOG_TRACE);
+            else if (!strcmp(optarg, "debug"))
+                dawnlog_minlevel(DAWNLOG_DEBUG);
+            else
+                dawnlog_warning("Unrecognised option for -l: %s\n", optarg);
+        break;
+        case 'o':
+            if (!strcmp(optarg, "stdio"))
+                logdest = DAWNLOG_DEST_STDIO;
+            else if (!strcmp(optarg, "syslog"))
+                logdest = DAWNLOG_DEST_SYSLOG;
+            else
+                dawnlog_warning("Unrecognised option for -o: %s\n", optarg);
+            break;
+        default: /* '?' */
+            dawnlog_warning("Unrecognised option (%s), aborting read of them\n", argv[0]);
+            break;
+        }
+
+        opt = getopt(argc, argv, "l:o:");
+    }
+
+    if (logdest == DAWNLOG_DEST_SYSLOG)
+        openlog("dawn", LOG_PID, LOG_DAEMON);
+
+    dawnlog_dest(logdest);
+
+    dawnlog_info("DAWN instance built around %s on %s starting...", __TIME__, __DATE__);
 
     // connect signals
     signal_action.sa_handler = signal_handler;
@@ -61,7 +101,6 @@ int main(int argc, char **argv) {
     sigaction(SIGTERM, &signal_action, NULL);
     sigaction(SIGINT, &signal_action, NULL);
 
-    uci_init();
     // TODO: Why the extra loacl struct to retuen into?
     struct network_config_s net_config = uci_get_dawn_network();
     network_config = net_config;

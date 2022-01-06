@@ -4,6 +4,7 @@
 #include <string.h>
 #include <inttypes.h>
 
+#include "utils.h"
 #include "memory_utils.h"
 
 #define DAWN_MEM_FILENAME_LEN 20
@@ -73,7 +74,7 @@ void* dawn_memory_register(enum dawn_memop type, char* file, int line, size_t si
         type_c = 'X';
         break;
     default:
-        printf("mem-audit: Unexpected memory op tag!\n");
+        dawnlog_warning("mem-audit: Unexpected memory op tag!\n");
         break;
     }
 
@@ -84,7 +85,7 @@ void* dawn_memory_register(enum dawn_memop type, char* file, int line, size_t si
 
     if (*ipos != NULL && (*ipos)->ptr == ptr)
     {
-        printf("mem-audit: attempting to register memory already registered (%c@%s:%d)...\n", type_c, file, line);
+        dawnlog_warning("mem-audit: attempting to register memory already registered (%c@%s:%d)...\n", type_c, file, line);
     }
     else
     {
@@ -92,7 +93,7 @@ void* dawn_memory_register(enum dawn_memop type, char* file, int line, size_t si
 
         if (this_log == NULL)
         {
-            printf("mem-audit: Oh the irony! malloc() failed in dawn_memory_register()!\n");
+           dawnlog_warning("mem-audit: Oh the irony! malloc() failed in dawn_memory_register()!\n");
         }
         else
         {
@@ -140,7 +141,7 @@ char type_c = '?';
         type_c = 'R';
         break;
     default:
-        printf("mem-audit: Unexpected memory op tag!\n");
+        dawnlog_warning("mem-audit: Unexpected memory op tag!\n");
         break;
     }
 
@@ -152,7 +153,7 @@ char type_c = '?';
     }
     else
     {
-        printf("mem-audit: Releasing (%c) memory we hadn't registered (%s:%d)...\n", type_c, file, line);
+        dawnlog_warning("mem-audit: Releasing (%c) memory we hadn't registered (%s:%d)...\n", type_c, file, line);
     }
 
     return;
@@ -171,10 +172,10 @@ void dawn_memory_audit()
 {
 size_t    total = 0;
 
-     printf("mem-audit: Currently recorded allocations...\n");
+    dawnlog_always("mem-audit: Currently recorded allocations...\n");
      for (struct mem_list* mem = mem_base; mem != NULL; mem = mem->next_mem)
      {
-         printf("mem-audit: %8" PRIu64 "=%c - %s@%d: %zu\n", mem->ref, mem->type, mem->file, mem->line, mem->size);
+        dawnlog_always("mem-audit: %8" PRIu64 "=%c - %s@%d: %zu\n", mem->ref, mem->type, mem->file, mem->line, mem->size);
          total += mem->size;
      }
 
@@ -185,5 +186,5 @@ size_t    total = 0;
          suffix = "kbytes";
      }
 
-     printf("mem-audit: [End of list: %zu %s]\n", total, suffix);
+    dawnlog_always("mem-audit: [End of list: %zu %s]\n", total, suffix);
 }

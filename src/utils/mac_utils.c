@@ -49,7 +49,7 @@ int hwaddr_aton(const char* txt, uint8_t* addr) {
 void write_mac_to_file(char* path, struct dawn_mac addr) {
     FILE* f = fopen(path, "a");
     if (f == NULL) {
-        fprintf(stderr, "Error opening mac file!\n");
+        dawnlog_error("Error opening mac file!\n");
 
         // TODO: Should this be an exit()?
         exit(1);

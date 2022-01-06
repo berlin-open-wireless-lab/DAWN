@@ -33,7 +33,7 @@ int compare_essid_iwinfo(struct dawn_mac bssid_addr, struct dawn_mac bssid_addr_
     struct dirent *entry;
     dirp = opendir(hostapd_dir_glob);  // error handling?
     if (!dirp) {
-        fprintf(stderr, "[COMPARE ESSID] Failed to open %s\n", hostapd_dir_glob);
+        dawnlog_error("[COMPARE ESSID] Failed to open %s\n", hostapd_dir_glob);
         return 0;
     }
 
@@ -72,6 +72,8 @@ int compare_essid_iwinfo(struct dawn_mac bssid_addr, struct dawn_mac bssid_addr_
     }
     closedir(dirp);
 
+    dawnlog_debug("Comparing: %s with %s\n", essid, essid_to_compare);
+
     if (essid == NULL || essid_to_compare == NULL) {
         return -1;
     }
@@ -89,8 +91,12 @@ int get_bandwidth_iwinfo(struct dawn_mac client_addr, float *rx_rate, float *tx_
     struct dirent *entry;
     dirp = opendir(hostapd_dir_glob);  // error handling?
     if (!dirp) {
-        fprintf(stderr, "[BANDWIDTH INFO] Failed to open %s\n", hostapd_dir_glob);
+        dawnlog_error("[BANDWIDTH INFO] Failed to open %s\n", hostapd_dir_glob);
         return 0;
+    }
+    else
+    {
+        dawnlog_debug("[BANDWIDTH INFO] Opened %s\n", hostapd_dir_glob);
     }
 
     int sucess = 0;
@@ -145,7 +151,7 @@ int get_rssi_iwinfo(struct dawn_mac client_addr) {
     struct dirent *entry;
     dirp = opendir(hostapd_dir_glob);  // error handling?
     if (!dirp) {
-        fprintf(stderr, "[RSSI INFO] No hostapd sockets!\n");
+        dawnlog_error("[RSSI INFO] No hostapd sockets!\n");
         return INT_MIN;
     }
 
@@ -173,15 +179,11 @@ int get_rssi(const char *ifname, struct dawn_mac client_addr) {
     iw = iwinfo_backend(ifname);
 
     if (iw->assoclist(ifname, buf, &len)) {
-#ifndef DAWN_NO_OUTPUT
-        fprintf(stdout, "No information available\n");
-#endif
+        dawnlog_warning("No information available\n");
         iwinfo_finish();
         return INT_MIN;
     } else if (len <= 0) {
-#ifndef DAWN_NO_OUTPUT
-        fprintf(stdout, "No station connected\n");
-#endif
+        dawnlog_warning("No station connected\n");
         iwinfo_finish();
         return INT_MIN;
     }
@@ -205,7 +207,7 @@ int get_expected_throughput_iwinfo(struct dawn_mac client_addr) {
     struct dirent *entry;
     dirp = opendir(hostapd_dir_glob);  // error handling?
     if (!dirp) {
-        fprintf(stderr, "[RSSI INFO] Failed to open dir:%s\n", hostapd_dir_glob);
+        dawnlog_error("[RSSI INFO] Failed to open dir:%s\n", hostapd_dir_glob);
         return INT_MIN;
     }
 
@@ -233,15 +235,11 @@ int get_expected_throughput(const char *ifname, struct dawn_mac client_addr) {
     iw = iwinfo_backend(ifname);
 
     if (iw->assoclist(ifname, buf, &len)) {
-#ifndef DAWN_NO_OUTPUT
-        fprintf(stdout, "No information available\n");
-#endif
+        dawnlog_warning("No information available\n");
         iwinfo_finish();
         return INT_MIN;
     } else if (len <= 0) {
-#ifndef DAWN_NO_OUTPUT
-        fprintf(stdout, "No station connected\n");
-#endif
+        dawnlog_warning("No station connected\n");
         iwinfo_finish();
         return INT_MIN;
     }
@@ -310,13 +308,13 @@ int get_channel_utilization(const char *ifname, uint64_t *last_channel_time, uin
 
     if (iw->survey(ifname, buf, &len))
     {
-        fprintf(stderr, "Survey not possible!\n\n");
+        dawnlog_warning("Survey not possible!\n");
         iwinfo_finish();
         return 0;
     }
     else if (len <= 0)
     {
-        fprintf(stderr, "No survey results\n\n");
+        dawnlog_warning("No survey results\n");
         iwinfo_finish();
         return 0;
     }
@@ -352,6 +350,7 @@ int support_ht(const char *ifname) {
 
     if (iw->htmodelist(ifname, &htmodes))
     {
+        dawnlog_debug("No HT mode information available\n");
         iwinfo_finish();
         return 0;
     }
@@ -371,6 +370,7 @@ int support_vht(const char *ifname) {
 
     if (iw->htmodelist(ifname, &htmodes))
     {
+        dawnlog_error("No VHT mode information available\n");
         iwinfo_finish();
         return 0;
     }

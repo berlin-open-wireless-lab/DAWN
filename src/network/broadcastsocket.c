@@ -2,6 +2,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "utils.h"
 #include "broadcastsocket.h"
 
 int setup_broadcast_socket(const char *_broadcast_ip, unsigned short _broadcast_port, struct sockaddr_in *addr) {
@@ -10,7 +11,7 @@ int setup_broadcast_socket(const char *_broadcast_ip, unsigned short _broadcast_
 
     // Create socket
     if ((sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
-        fprintf(stderr, "Failed to create socket.\n");
+        dawnlog_error("Failed to create socket.\n");
         return -1;
     }
 
@@ -18,7 +19,7 @@ int setup_broadcast_socket(const char *_broadcast_ip, unsigned short _broadcast_
     broadcast_permission = 1;
     if (setsockopt(sock, SOL_SOCKET, SO_BROADCAST, (void *) &broadcast_permission,
                    sizeof(broadcast_permission)) < 0) {
-        fprintf(stderr, "Failed to create socket.\n");
+        dawnlog_error("Failed to create socket.\n");
         return -1;
     }
 
@@ -30,7 +31,7 @@ int setup_broadcast_socket(const char *_broadcast_ip, unsigned short _broadcast_
 
     // Bind socket
     while (bind(sock, (struct sockaddr *) addr, sizeof(*addr)) < 0) {
-        fprintf(stderr, "Binding socket failed!\n");
+        dawnlog_error("Binding socket failed!\n");
         sleep(1);
     }
     return sock;
