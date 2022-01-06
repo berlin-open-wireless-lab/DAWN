@@ -721,7 +721,7 @@ int kick_clients(ap* kicking_ap, uint32_t id) {
                dawnlog_debug("Check if client is active receiving!\n");
 
                 float rx_rate, tx_rate;
-                bool have_bandwidth_iwinfo = !(get_bandwidth_iwinfo(j->client_addr, &rx_rate, &tx_rate));
+                bool have_bandwidth_iwinfo = get_bandwidth_iwinfo(j->client_addr, &rx_rate, &tx_rate);
                 if (!have_bandwidth_iwinfo && dawn_metric.bandwidth_threshold > 0) {
                    dawnlog_debug("No active transmission data for client. Don't kick!\n");
                 }
