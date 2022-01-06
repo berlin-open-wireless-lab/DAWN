@@ -56,10 +56,12 @@ static void client_notify_write(struct ustream *s, int bytes) {
     return;
 }
 
-static void client_notify_state(struct ustream *s) {
-    struct client *cl = container_of(s,
-    struct client, s.stream);
 
+// FIXME: This void function tries to return a value sometimes...
+static void client_notify_state(struct ustream *s) {
+    dawnlog_debug_func("Entering...");
+
+    struct client *cl = container_of(s, struct client, s.stream);
     if (!s->eof)
         return;
 
@@ -71,8 +73,7 @@ static void client_notify_state(struct ustream *s) {
 }
 
 static void client_to_server_close(struct ustream *s) {
-    struct network_con_s *con = container_of(s,
-    struct network_con_s, stream.stream);
+    struct network_con_s *con = container_of(s, struct network_con_s, stream.stream);
 
     dawnlog_debug_func("Entering...");
 
@@ -87,8 +88,7 @@ static void client_to_server_close(struct ustream *s) {
 }
 
 static void client_to_server_state(struct ustream *s) {
-    struct client *cl = container_of(s,
-    struct client, s.stream);
+    struct client *cl = container_of(s, struct client, s.stream);
 
     dawnlog_debug_func("Entering...");
 
@@ -289,7 +289,7 @@ static void connect_cb(struct uloop_fd *f, unsigned int events) {
     entry->connected = 1;
 }
 
-int add_tcp_conncection(char *ipv4, int port) {
+int add_tcp_connection(char *ipv4, int port) {
     struct sockaddr_in serv_addr;
 
     dawnlog_debug_func("Entering...");
