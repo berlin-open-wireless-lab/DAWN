@@ -288,7 +288,7 @@ int parse_to_beacon_rep(struct blob_attr *msg) {
     }
 
     const uint8_t *ssid = (const uint8_t*)blobmsg_get_string(tb[BEACON_REP_SSID]);
-    ap *ap_entry_rep = ap_array_get_ap(msg_bssid, ssid);
+    ap *ap_entry_rep = ap_array_get_ap(msg_bssid);
 
     // no client from network!!
     if (ap_entry_rep == NULL) {
@@ -396,7 +396,7 @@ bool discard_entry = true;
         else
         {
             // find own probe entry and calculate score
-            ap* this_ap = ap_array_get_ap(tmp->bssid_addr, tmp->ssid);
+            ap* this_ap = ap_array_get_ap(tmp->bssid_addr);
             if (this_ap != NULL && better_ap_available(this_ap, tmp->client_addr, NULL) > 0) {
                 dawnlog_trace("Deny authentication due to better AP available");
                 deny_request = 1;
@@ -468,8 +468,8 @@ int discard_entry = true;
         else
         {
             // find own probe entry and calculate score
-            ap* this_ap = ap_array_get_ap(tmp->bssid_addr, tmp->ssid);
-            if (this_ap != NULL && better_ap_available(this_ap, tmp->client_addr, NULL) > 0) {
+            ap* this_ap = ap_array_get_ap(assoc_req->bssid_addr);
+            if (this_ap != NULL && better_ap_available(this_ap, assoc_req->client_addr, NULL) > 0) {
                 dawnlog_trace("Deny association due to better AP available");
                 deny_request = 1;
             }
@@ -537,7 +537,7 @@ static int handle_probe_req(struct blob_attr* msg) {
         else
         {
             // find own probe entry and calculate score
-            ap* this_ap = ap_array_get_ap(probe_req_updated->bssid_addr, probe_req_updated->ssid);
+            ap* this_ap = ap_array_get_ap(probe_req_updated->bssid_addr);
             if (this_ap != NULL && better_ap_available(this_ap, probe_req_updated->client_addr, NULL) > 0) {
                 dawnlog_trace("Deny probe due to better AP available");
                 deny_request = 1;
@@ -729,14 +729,15 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
 }
 
 static int get_band_from_bssid(struct dawn_mac bssid) {
-    ap *a;
-    dawnlog_debug_func("Entering...");
+int ret = -1;
 
-    for (a = ap_set; a; a = a->next_ap) {
-        if (mac_is_equal_bb(a->bssid_addr, bssid))
-            return get_band(a->freq);
-    }
-    return -1;
+    dawnlog_debug_func("Entering...");
+    ap* a = ap_array_get_ap(bssid);
+
+    if (a)
+        ret = get_band(a->freq);
+
+    return ret;
 }
 
 static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_attr *msg) {
@@ -979,7 +980,7 @@ void update_beacon_reports(struct uloop_timeout *t) {
     struct hostapd_sock_entry *sub;
     list_for_each_entry(sub, &hostapd_sock_list, list)
     {
-        if (sub->subscribed && (a = ap_array_get_ap(sub->bssid_addr, (uint8_t*)sub->ssid))) {
+        if (sub->subscribed && (a = ap_array_get_ap(sub->bssid_addr))) {
             dawnlog_debug("Sending beacon report Sub!\n");
             send_beacon_reports(a, sub->id);
         }
@@ -1715,7 +1716,7 @@ int build_hearing_map_sort_client(struct blob_buf *b) {
             ssid_list = blobmsg_open_table(b, (char*)m->ssid);
             probe_entry* i = probe_set;
             while (i != NULL) {
-                ap *ap_entry_i = ap_array_get_ap(i->bssid_addr, m->ssid);
+                ap *ap_entry_i = ap_array_get_ap(i->bssid_addr);
 
                 if (ap_entry_i == NULL) {
                     i = i->next_probe;
@@ -1734,7 +1735,7 @@ int build_hearing_map_sort_client(struct blob_buf *b) {
                 k != NULL && mac_is_equal_bb(k->client_addr, i->client_addr);
                 k = k->next_probe) {
 
-                    ap *ap_k = ap_array_get_ap(k->bssid_addr, m->ssid);
+                    ap *ap_k = ap_array_get_ap(k->bssid_addr);
 
                     if (ap_k == NULL || strcmp((char*)ap_k->ssid, (char*)m->ssid) != 0) {
                         continue;
@@ -1845,7 +1846,7 @@ int build_network_overview(struct blob_buf *b) {
                 }
                 blobmsg_add_u8(b, "ht", k->ht);
                 blobmsg_add_u8(b, "vht", k->vht);
-                blobmsg_add_u32(b, "collision_count", ap_get_collision_count(m->collision_domain));
+                //blobmsg_add_u32(b, "collision_count", ap_get_collision_count(m->collision_domain));
 
                 pthread_mutex_lock(&probe_array_mutex);
 
@@ -1912,7 +1913,7 @@ int ap_get_nr(struct blob_buf *b_local, struct dawn_mac own_bssid_addr, const ch
 
     void* nbs = blobmsg_open_array(b_local, "list");
 
-    own_ap = ap_array_get_ap(own_bssid_addr, (uint8_t*)ssid);
+    own_ap = ap_array_get_ap(own_bssid_addr);
     if (!own_ap)
         return -1;
     for (int band = 0; band < __DAWN_BAND_MAX; band++) {
@@ -1931,7 +1932,7 @@ int ap_get_nr(struct blob_buf *b_local, struct dawn_mac own_bssid_addr, const ch
     pthread_mutex_unlock(&ap_array_mutex);
 
     for (n = preferred_list; n; n = n->next_mac) {
-        if ((i = ap_array_get_ap(n->mac, (uint8_t*)ssid)))
+        if ((i = ap_array_get_ap(n->mac)))
             blobmsg_add_nr(b_local, i);
     }
     blobmsg_close_array(b_local, nbs);

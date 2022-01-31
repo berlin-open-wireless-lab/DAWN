@@ -158,52 +158,6 @@ static probe_entry** probe_array_find_first_entry(struct dawn_mac client_mac, st
     return lo_ptr;
 }
 
-static ap** ap_array_find_first_entry(struct dawn_mac bssid_mac, const uint8_t* ssid)
-{
-    int lo = 0;
-    ap** lo_ptr = &ap_set;
-    int hi = ap_entry_last;
-
-    dawnlog_debug_func("Entering...");
-
-    while (lo < hi) {
-        ap** i = lo_ptr;
-        int scan_pos = lo;
-        int this_cmp;
-
-        // m is next test position of binary search
-        int m = (lo + hi) / 2;
-
-        // find entry with ordinal position m
-        while (scan_pos++ < m)
-        {
-            i = &((*i)->next_ap);
-        }
-
-        if (ssid)
-        {
-            this_cmp = strcmp((char*)(*i)->ssid, (char*)ssid);
-        }
-        else
-        {
-            this_cmp = 0;
-        }
-        this_cmp = this_cmp ? this_cmp : mac_compare_bb((*i)->bssid_addr, bssid_mac);
-
-        if (this_cmp < 0)
-        {
-            lo = m + 1;
-            lo_ptr = &((*i)->next_ap);
-        }
-        else
-        {
-            hi = m;
-        }
-    }
-
-    return lo_ptr;
-}
-
 // Manage a list of client entries sorted by BSSID and client MAC
 static struct client_s** client_skip_array_find_first_entry(struct dawn_mac client_mac, struct dawn_mac bssid_mac, bool do_bssid)
 {
@@ -538,7 +492,7 @@ int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, struct kicki
             continue;
         }
 
-        ap* candidate_ap = ap_array_get_ap(i->bssid_addr, kicking_ap->ssid);
+        ap* candidate_ap = ap_array_get_ap(i->bssid_addr);
 
         if (candidate_ap == NULL) {
             dawnlog_trace("Candidate AP not in array\n");
@@ -621,8 +575,10 @@ int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, struct kicki
     return kick;
 }
 
-int kick_clients(ap* kicking_ap, uint32_t id) {
+int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
     dawnlog_debug_func("Entering...");
+
+    ap* kicking_ap = ap_array_get_ap(bssid_mac);
 
     pthread_mutex_lock(&client_array_mutex);
     pthread_mutex_lock(&probe_array_mutex);
@@ -1167,29 +1123,47 @@ probe_entry* insert_to_array(probe_entry* entry, int inc_counter, int save_80211
     return entry;  // return pointer to what we used, which may not be what was passed in
 }
 
-ap *insert_to_ap_array(ap* entry, time_t expiry) {
-    dawnlog_debug_func("Entering...");
-
-    pthread_mutex_lock(&ap_array_mutex);
-
-    // TODO: Why do we delete and add here rather than update existing?
-    ap* old_entry = *ap_array_find_first_entry(entry->bssid_addr, entry->ssid);
-
-    if (old_entry != NULL &&
-            mac_is_equal_bb((old_entry)->bssid_addr, entry->bssid_addr) &&
-            !strcmp((char*)old_entry->ssid, (char*)entry->ssid))
-        ap_array_delete(old_entry);
-
-    entry->time = expiry;
-    ap_array_insert(entry);
-    pthread_mutex_unlock(&ap_array_mutex);
-
-    print_ap_array();
+static __inline__ ap* ap_array_unlink_entry(ap** i)
+{
+    ap* entry = *i;
+    *i = entry->next_ap;
+    entry = NULL;
+    ap_entry_last--;
 
     return entry;
 }
 
+static ap* ap_array_update_entry(ap* entry) {
+    dawnlog_debug_func("Entering...");
 
+    ap* old_entry = NULL;
+    ap** i = &ap_set;
+    while (*i != NULL && mac_compare_bb(entry->bssid_addr, (*i)->bssid_addr) != 0) {
+        i = &((*i)->next_ap);
+    }
+
+    // Check that the SSID has not changed
+    if (*i && strcmp((char*)(*i)->ssid, (char*)entry->ssid) == 0)
+    {
+        // Swap entries if same SSID...
+        old_entry = *i;
+        entry->next_ap = old_entry->next_ap;
+        old_entry->next_ap = NULL;
+        *i = entry;
+    }
+    else
+    {
+        // ... otherwise find new position
+        if (*i)
+            old_entry = ap_array_unlink_entry(i);
+
+        ap_array_insert(entry);
+    }
+
+    return old_entry;
+}
+
+#if 0 // Delete pending if no longer required
 // TODO: What is collision domain used for?
 int ap_get_collision_count(int col_domain) {
 
@@ -1207,65 +1181,78 @@ int ap_get_collision_count(int col_domain) {
 
     return ret_sta_count;
 }
+#endif
+
+ap *insert_to_ap_array(ap* entry, time_t expiry) {
+    dawnlog_debug_func("Entering...");
+
+    entry->time = expiry;
+
+    pthread_mutex_lock(&ap_array_mutex);
+    ap* old_entry = ap_array_update_entry(entry);
+    pthread_mutex_unlock(&ap_array_mutex);
+
+    if (old_entry)
+        dawn_free(old_entry);
+
+    print_ap_array();
+
+    return entry;
+}
 
 
-// TODO: Do we need to order this set?  Scan of randomly arranged elements is just
-// as quick if we're not using an optimised search.
-void ap_array_insert(ap* entry) {
-    ap** i;
+// AP entries are sorted by SSID and BSSID to simplify display of network tree
+ void ap_array_insert(ap* entry) {
     dawnlog_debug_func("Entering...");;
 
-    for (i = &ap_set; *i != NULL; i = &((*i)->next_ap)) {
-        // TODO: Not sure these tests are right way around to ensure SSID / MAC ordering
-        // TODO: Do we do any SSID checks elsewhere?
-        int sc = strcmp((char*)entry->ssid, (char*)(*i)->ssid);
-        if ((sc < 0) || (sc == 0 && mac_compare_bb(entry->bssid_addr, (*i)->bssid_addr) < 0)) {
-            break;
+    ap** insert_pos = &ap_set;
+
+    while (*insert_pos != NULL)
+    {
+        int this_cmp = strcmp((char*)entry->ssid, (char*)(*insert_pos)->ssid);
+
+        if (this_cmp == 0)
+        {
+            this_cmp = mac_compare_bb(entry->bssid_addr, (*insert_pos)->bssid_addr);
         }
+
+        if (this_cmp <= 0)
+            break;
+
+        insert_pos = &((*insert_pos)->next_ap);
     }
 
-    entry->next_ap = *i;
-    *i = entry;
+    entry->next_ap = *insert_pos;
+    *insert_pos = entry;
     ap_entry_last++;
 }
 
-ap* ap_array_get_ap(struct dawn_mac bssid_mac, const uint8_t* ssid) {
+ap* ap_array_get_ap(struct dawn_mac bssid_mac) {
 
     dawnlog_debug_func("Entering...");;
 
     pthread_mutex_lock(&ap_array_mutex);
 
-    ap* ret = *ap_array_find_first_entry(bssid_mac, ssid);
+    ap* ret = ap_set;
+
+    while (ret && mac_compare_bb(bssid_mac, ret->bssid_addr) != 0) {
+        ret = ret->next_ap;
+    }
 
     pthread_mutex_unlock(&ap_array_mutex);
-
-    if (ret != NULL && !mac_is_equal_bb((ret)->bssid_addr, bssid_mac))
-        ret = NULL;
 
     return ret;
 }
 
-static __inline__ void ap_array_unlink_next(ap** i)
-{
-    dawnlog_debug_func("Entering...");;
-
-    ap* entry = *i;
-    *i = entry->next_ap;
-    dawn_free(entry);
-    entry = NULL;
-    ap_entry_last--;
-}
-
-int ap_array_delete(ap *entry) {
+int ap_array_delete(ap* entry) {
     int not_found = 1;
 
     dawnlog_debug_func("Entering...");;
 
-    // TODO: Some parts of AP entry management look at SSID as well.  Not this?
     ap** i = &ap_set;
-    while ( *i != NULL) {
+    while (*i != NULL) {
         if (*i == entry) {
-            ap_array_unlink_next(i);
+            dawn_free(ap_array_unlink_entry(i));
             not_found = 0;
             break;
         }
@@ -1308,7 +1295,7 @@ void remove_old_ap_entries(time_t current_time, long long int threshold) {
     ap **i = &ap_set;
     while (*i != NULL) {
         if (((*i)->time) < (current_time - threshold)) {
-            ap_array_unlink_next(i);
+            dawn_free(ap_array_unlink_entry(i));
         }
         else {
             i = &((*i)->next_ap);
@@ -1470,10 +1457,10 @@ void print_client_array() {
 static void print_ap_entry(int level, ap *entry) {
     if (dawnlog_showing(DAWNLOG_INFO))
     {
-        dawnlog_info("ssid: %s, bssid_addr: " MACSTR ", freq: %d, ht: %d, vht: %d, chan_utilz: %d, col_d: %d, bandwidth: %d, col_count: %d neighbor_report: %s\n",
-            entry->ssid, MAC2STR(entry->bssid_addr.u8), entry->freq, entry->ht_support, entry->vht_support,
-            entry->channel_utilization, entry->collision_domain, entry->bandwidth,
-            ap_get_collision_count(entry->collision_domain), entry->neighbor_report
+        dawnlog_info("ssid: %s, bssid_addr: " MACSTR ", freq: %d, ht: %d, vht: %d, chan_utilz: %d, neighbor_report: %s\n",
+            entry->ssid, MAC2STR(entry->bssid_addr.u8), entry->freq, entry->ht_support, entry->vht_support, entry->channel_utilization,
+	    //entry->collision_domain, ap_get_collision_count(entry->collision_domain), // TODO: Fix format string if readding
+	    entry->neighbor_report
         );
     }
 }
