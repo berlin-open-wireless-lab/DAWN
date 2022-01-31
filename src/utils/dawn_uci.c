@@ -144,44 +144,6 @@ struct local_config_s uci_get_local_config() {
 }
 
 
-static int get_rrm_mode_val(char mode) {
-    switch (tolower(mode)) {
-        case 'a':
-            return WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE;
-            break;
-        case 'p':
-            return WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE;
-            break;
-        case 'b':
-        case 't':
-             return WLAN_RRM_CAPS_BEACON_REPORT_TABLE;
-             break;
-    }
-    return 0;
-}
-
-static int parse_rrm_mode(int *rrm_mode_order, const char *mode_string) {
-    int len, mode_val;
-    int mask = 0, order = 0, pos = 0;
-
-    dawnlog_debug_func("Entering...");
-
-    if (!mode_string)
-        mode_string = DEFAULT_RRM_MODE_ORDER;
-    len = strlen(mode_string);
-
-    while (order < __RRM_BEACON_RQST_MODE_MAX) {
-        if (pos >= len) {
-            rrm_mode_order[order++] = 0;
-        } else {
-            mode_val = get_rrm_mode_val(mode_string[pos++]);
-            if (mode_val && !(mask & mode_val))
-                mask |= (rrm_mode_order[order++] = mode_val);
-        }
-    }
-    return mask;
-}
-
 
 static struct mac_entry_s *insert_neighbor_mac(struct mac_entry_s *head, const char* mac) {
     dawnlog_debug_func("Entering...");
