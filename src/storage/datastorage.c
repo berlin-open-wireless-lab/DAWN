@@ -5,7 +5,6 @@
 #include "dawn_iwinfo.h"
 #include "dawn_uci.h"
 #include "mac_utils.h"
-#include "ieee80211_utils.h"
 
 #include "datastorage.h"
 #include "test_storage.h"
@@ -389,14 +388,12 @@ int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, struct kicki
         // then any more have to also be 'kicking_threshold' bigger
         if (score_to_compare > max_score + (kick ? 0 : dawn_metric.kicking_threshold)) {
             ap_outcome = 2; // Add and prune
-
             max_score = score_to_compare;
         }
         // if AP have same value but station count might improve it...
         // TODO: Is absolute number meaningful when AP have diffeent capacity?
         else if (score_to_compare == max_score && dawn_metric.use_station_count > 0 ) {
             int compare = compare_station_count(kicking_ap, candidate_ap, client_mac);
-
             if (compare > 0) {
                 ap_outcome = 2; // Add and prune
             }
@@ -542,14 +539,12 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
                 }
             }
         }
-        // no entry in probe array for own bssid
-        // TODO: Is test against -1 from (1 && -1) portable?
         else if (do_kick == -1) {
+            // FIXME: Causes clients to be kicked until first probe is received, which is a bit brutal for pre-802.11k clients.
             dawnlog_info("Station " MACSTR ": No Information about client. Force reconnect:\n", MAC2STR(j->client_addr.u8));
             print_client_entry(DAWNLOG_TRACE, j);
             del_client_interface(id, j->client_addr, 0, 1, 0);
         }
-        // ap is best
         else {
             dawnlog_info("Station " MACSTR ": Current AP is best. Client will stay:\n", MAC2STR(j->client_addr.u8));
             print_client_entry(DAWNLOG_TRACE, j);
@@ -577,9 +572,7 @@ void update_iw_info(struct dawn_mac bssid_mac) {
     dawn_mutex_lock(&client_array_mutex);
     dawn_mutex_lock(&probe_array_mutex);
 
-
     dawnlog_trace("IW info update for AP " MACSTR "\n", MAC2STR(bssid_mac.u8));
-
 
     // Go through clients for BSSID
     for (client* j = *client_find_first_bc_entry(bssid_mac, dawn_mac_null, false);
