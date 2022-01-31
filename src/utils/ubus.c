@@ -341,10 +341,10 @@ bool discard_entry = true;
     print_client_req_entry(DAWNLOG_DEBUG, auth_req);
 
     if (dawn_metric.eval_auth_req <= 0) {
-        dawnlog_trace("Allow authentication due to not evaluating requests");
+        dawnlog_trace(MACSTR " Allow authentication due to not evaluating requests", MAC2STR(auth_req->client_addr.u8));
     }
     else if (mac_find_entry(auth_req->client_addr)) {
-        dawnlog_trace("Allow authentication due to mac_in_maclist()");
+        dawnlog_trace(MACSTR " Allow authentication due to mac_find_entry()", MAC2STR(auth_req->client_addr.u8));
     }
     else {
         dawn_mutex_lock(&probe_array_mutex);
@@ -361,11 +361,11 @@ bool discard_entry = true;
         
         // block if entry was not already found in probe database
         if (tmp == NULL) {
-            dawnlog_trace("Deny authentication due to no probe entry");
+            dawnlog_trace(MACSTR " Deny authentication due to no probe entry", MAC2STR(auth_req->client_addr.u8));
             deny_request = 1;
         }
         else if (tmp->counter < dawn_metric.min_probe_count) {
-            dawnlog_trace("Deny authentication due to low probe count");
+            dawnlog_trace(MACSTR " Deny authentication due to low probe count", MAC2STR(auth_req->client_addr.u8));
             deny_request = 1;
         }
         else
@@ -373,12 +373,12 @@ bool discard_entry = true;
             // find own probe entry and calculate score
             ap* this_ap = ap_array_get_ap(tmp->bssid_addr);
             if (this_ap != NULL && better_ap_available(this_ap, tmp->client_addr, NULL) > 0) {
-                dawnlog_trace("Deny authentication due to better AP available");
+                dawnlog_trace(MACSTR " Deny authentication due to better AP available", MAC2STR(auth_req->client_addr.u8));
                 deny_request = 1;
             }
             else
                 // maybe send here that the client is connected?
-                dawnlog_trace("Allow authentication!\n");
+                dawnlog_trace(MACSTR " Allow authentication!\n", MAC2STR(auth_req->client_addr.u8));
         }
         /*** End of decide_function() rework ***/
 
@@ -414,10 +414,10 @@ int discard_entry = true;
     print_client_req_entry(DAWNLOG_DEBUG, assoc_req);
 
     if (dawn_metric.eval_assoc_req <= 0) {
-        dawnlog_trace("Allow association due to not evaluating requests");
+        dawnlog_trace(MACSTR " Allow association due to not evaluating requests", MAC2STR(assoc_req->client_addr.u8));
     }
     else if (mac_find_entry(assoc_req->client_addr)) {
-        dawnlog_trace("Allow association due to mac_in_maclist()");
+        dawnlog_trace(MACSTR " Allow association due to mac_find_entry()", MAC2STR(assoc_req->client_addr.u8));
     } else {
         dawn_mutex_lock(&probe_array_mutex);
 
@@ -433,11 +433,11 @@ int discard_entry = true;
         
         // block if entry was not already found in probe database
         if (tmp == NULL) {
-            dawnlog_trace("Deny association due to no probe entry found");
+            dawnlog_trace(MACSTR " Deny association due to no probe entry found", MAC2STR(assoc_req->client_addr.u8));
             deny_request = 1;
         }
         else if (tmp->counter < dawn_metric.min_probe_count) {
-            dawnlog_trace("Deny association due to low probe count");
+            dawnlog_trace(MACSTR " Deny association due to low probe count", MAC2STR(assoc_req->client_addr.u8));
             deny_request = 1;
         }
         else
@@ -445,11 +445,12 @@ int discard_entry = true;
             // find own probe entry and calculate score
             ap* this_ap = ap_array_get_ap(assoc_req->bssid_addr);
             if (this_ap != NULL && better_ap_available(this_ap, assoc_req->client_addr, NULL) > 0) {
-                dawnlog_trace("Deny association due to better AP available");
+                dawnlog_trace(MACSTR " Deny association due to better AP available", MAC2STR(assoc_req->client_addr.u8));
                 deny_request = 1;
             }
-            else
-                dawnlog_trace("Allow association!\n");
+            else { // TODO: Should we reset probe counter to zero here?  Does active client do probe and if so what would a deny lead to?
+                dawnlog_trace(MACSTR " Allow association!\n", MAC2STR(assoc_req->client_addr.u8));
+            }
         }
         /*** End of decide_function() rework ***/
 
@@ -489,8 +490,14 @@ static int handle_probe_req(struct blob_attr* msg) {
         // If not, probe_req and probe_req_updated should be equivalent
         if (probe_req != probe_req_updated)
         {
+            dawnlog_info("Local PROBE used to update client / BSSID = " MACSTR " / " MACSTR " \n", MAC2STR(probe_req_updated->client_addr.u8), MAC2STR(probe_req_updated->bssid_addr.u8));
+
             dawn_free(probe_req);
             probe_req = NULL;
+        }
+        else
+        {
+            dawnlog_info("Local PROBE is new for client / BSSID = " MACSTR " / " MACSTR " \n", MAC2STR(probe_req_updated->client_addr.u8), MAC2STR(probe_req_updated->bssid_addr.u8));
         }
 
         ubus_send_probe_via_network(probe_req_updated);
@@ -499,13 +506,13 @@ static int handle_probe_req(struct blob_attr* msg) {
         int deny_request = 0;
 
         if (dawn_metric.eval_probe_req <= 0) {
-            dawnlog_trace("Allow probe due to not evaluating requests");
+            dawnlog_trace(MACSTR " Allow probe due to not evaluating requests", MAC2STR(probe_req_updated->client_addr.u8));
         }
         else if (mac_find_entry(probe_req_updated->client_addr)) {
-            dawnlog_trace("Allow probe due to mac_in_maclist()");
+            dawnlog_trace(MACSTR " Allow probe due to mac_find_entry()", MAC2STR(probe_req_updated->client_addr.u8));
         }
         else if (probe_req_updated->counter < dawn_metric.min_probe_count) {
-            dawnlog_trace("Deny probe due to low probe count");
+            dawnlog_trace(MACSTR " Deny probe due to low probe count", MAC2STR(probe_req_updated->client_addr.u8));
             deny_request = 1;
         }
         else
@@ -513,12 +520,12 @@ static int handle_probe_req(struct blob_attr* msg) {
             // find own probe entry and calculate score
             ap* this_ap = ap_array_get_ap(probe_req_updated->bssid_addr);
             if (this_ap != NULL && better_ap_available(this_ap, probe_req_updated->client_addr, NULL) > 0) {
-                dawnlog_trace("Deny probe due to better AP available");
+                dawnlog_trace(MACSTR " Deny probe due to better AP available", MAC2STR(probe_req_updated->client_addr.u8));
                 deny_request = 1;
             }
             else
             {
-                dawnlog_trace("Allow probe request!");
+                dawnlog_trace(MACSTR " Allow probe request!", MAC2STR(probe_req_updated->client_addr.u8));
             }
         }
         /*** End of decide_function() rework ***/
@@ -636,7 +643,7 @@ static int hostapd_notify(struct ubus_context* ctx_local, struct ubus_object* ob
     {
         char* str = blobmsg_format_json(msg, true);
         dawn_regmem(str);
-        dawnlog_debug("Method new: %s : %s\n", method, str);
+        dawnlog_info("hostapd sent %s = %s\n", method, str);
         dawn_free(str);
         str = NULL;
     }
@@ -1391,7 +1398,7 @@ static int get_network(struct ubus_context *ctx_local, struct ubus_object *obj,
     build_network_overview(&b);
     ret = ubus_send_reply(ctx_local, req, b.head);
     if (ret)
-        dawnlog_error("Failed to send reply: %s\n", ubus_strerror(ret));
+        dawnlog_error("Failed to send network overview: %s\n", ubus_strerror(ret));
     blob_buf_free(&b);
     dawn_unregmem(&b);
 
@@ -1451,9 +1458,9 @@ static void enable_rrm(uint32_t id) {
 
 static void hostapd_handle_remove(struct ubus_context *ctx_local,
                                   struct ubus_subscriber *s, uint32_t id) {
-    dawnlog_debug_func("Entering...");
+    dawnlog_debug_func("HOSTAPD: Object %08x went away\n", id);
 
-    dawnlog_debug("Object %08x went away\n", id);
+
     struct hostapd_sock_entry *hostapd_sock = container_of(s,
     struct hostapd_sock_entry, subscriber);
 
@@ -2057,27 +2064,27 @@ void remove_probe_array_cb(struct uloop_timeout* t) {
     uloop_timeout_set(&probe_timeout, timeout_config.remove_probe * 1000);
 }
 
-// TODO: Move mutex handling to remove_??? function to make test harness simpler?
-// Or not needed as test harness not threaded?
+
+
 void remove_client_array_cb(struct uloop_timeout* t) {
-    dawnlog_debug_func("Entering...");
+    dawnlog_debug_func("[ULOOP] : Removing old client entries!\n");
 
     dawn_mutex_lock(&client_array_mutex);
-    dawnlog_debug("[Thread] : Removing old client entries!\n");
-    remove_old_client_entries(time(0), timeout_config.update_client);
+    remove_old_client_entries(time(0), timeout_config.remove_client);
     dawn_mutex_unlock(&client_array_mutex);
-    uloop_timeout_set(&client_timeout, timeout_config.update_client * 1000);
+
+    uloop_timeout_set(&client_timeout, timeout_config.remove_client * 1000);
 }
 
-// TODO: Move mutex handling to remove_??? function to make test harness simpler?
-// Or not needed as test harness not threaded?
+
+
 void remove_ap_array_cb(struct uloop_timeout* t) {
-    dawnlog_debug_func("Entering...");
+    dawnlog_debug_func("[ULOOP] : Removing old ap entries!\n");
 
     dawn_mutex_lock(&ap_array_mutex);
-    dawnlog_debug("[ULOOP] : Removing old ap entries!\n");
     remove_old_ap_entries(time(0), timeout_config.remove_ap);
     dawn_mutex_unlock(&ap_array_mutex);
+
     uloop_timeout_set(&ap_timeout, timeout_config.remove_ap * 1000);
 }
 

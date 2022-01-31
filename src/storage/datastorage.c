@@ -341,9 +341,10 @@ int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, struct kicki
         dawnlog_trace("Current AP score = %d for:\n", own_score);
         print_probe_entry(DAWNLOG_TRACE, own_probe);
     }
-    // no entry for own ap - should never happen?
+    // no entry for own ap - may happen if DAWN is started after client has connected, and then "sleeps" so sends no BEACON / PROBE
     else {
-        dawnlog_warning("Current AP not found in probe array!\n");
+        dawnlog_info("Current AP " MACSTR " for client " MACSTR " not found in probe array!\n", MAC2STR(kicking_ap->bssid_addr.u8), MAC2STR(client_mac.u8));
+        print_probe_array();
         return -1;
     }
 
@@ -495,12 +496,12 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
                     // <= 6MBits <- probably no transmission
                     // tx_rate has always some weird value so don't use ist
                     if (have_bandwidth_iwinfo && rx_rate > dawn_metric.bandwidth_threshold) {
-                        dawnlog_info("Station " MACSTR ": Client is probably in active transmisison. Don't kick! RxRate is: %f\n", MAC2STR(j->client_addr.u8), rx_rate);
+                        dawnlog_info("Station " MACSTR ": Client is probably in active transmission. Don't kick! RxRate is: %f\n", MAC2STR(j->client_addr.u8), rx_rate);
                     }
                     else
                     {
                         if (have_bandwidth_iwinfo)
-                            dawnlog_always("Station " MACSTR ": Kicking as probably NOT in active transmisison. RxRate is: %f\n", MAC2STR(j->client_addr.u8), rx_rate);
+                            dawnlog_always("Station " MACSTR ": Kicking as probably NOT in active transmission. RxRate is: %f\n", MAC2STR(j->client_addr.u8), rx_rate);
                         else
                             dawnlog_always("Station " MACSTR ": Kicking as no active transmission data for client, but bandwidth_threshold=%d is OK.\n",
                                 MAC2STR(j->client_addr.u8), dawn_metric.bandwidth_threshold);
@@ -576,11 +577,11 @@ void update_iw_info(struct dawn_mac bssid_mac) {
     dawn_mutex_lock(&client_array_mutex);
     dawn_mutex_lock(&probe_array_mutex);
 
-    dawnlog_trace("-------- IW INFO UPDATE!!!---------\n");
-    dawnlog_trace("EVAL " MACSTR "\n", MAC2STR(bssid_mac.u8));
 
-    // Seach for BSSID
-    // Go through clients
+    dawnlog_trace("IW info update for AP " MACSTR "\n", MAC2STR(bssid_mac.u8));
+
+
+    // Go through clients for BSSID
     for (client* j = *client_find_first_bc_entry(bssid_mac, dawn_mac_null, false);
             j != NULL && mac_is_equal_bb(j->bssid_addr, bssid_mac); j = j->next_entry_bc) {
         // update rssi
