@@ -303,10 +303,10 @@ int handle_network_msg(char* msg) {
             dawn_mutex_require(&probe_array_mutex);
             if (entry != insert_to_probe_array(entry, false, true, false, time(0))) // use 802.11k values
             {
+                // insert found an existing entry, rather than linking in our new one
                 dawnlog_info("Remote PROBE updated client / BSSID = " MACSTR " / " MACSTR " \n",
                         MAC2STR(entry->client_addr.u8), MAC2STR(entry->bssid_addr.u8));
 
-                // insert found an existing entry, rather than linking in our new one
                 dawn_free(entry);
                 entry = NULL;
             }
@@ -664,7 +664,7 @@ enum {
 };
 
 static const struct blobmsg_policy uci_table_policy[__UCI_TABLE_MAX] = {
-        [UCI_CONFIG_VERSION ] = {.name = "version", .type = BLOBMSG_TYPE_STRING},
+        [UCI_CONFIG_VERSION] = {.name = "version", .type = BLOBMSG_TYPE_STRING},
         [UCI_TABLE_METRIC] = {.name = "metric", .type = BLOBMSG_TYPE_TABLE},
         [UCI_TABLE_TIMES] = {.name = "times", .type = BLOBMSG_TYPE_TABLE}
 };
@@ -803,7 +803,7 @@ static int handle_uci_config(struct blob_attr* msg) {
         int band;
 
         blobmsg_parse(uci_band_metric_policy, __UCI_BAND_METRIC_MAX, tb_band_metric,
-                      blobmsg_data(attr), blobmsg_len(attr));
+                blobmsg_data(attr), blobmsg_len(attr));
 
         for (band = 0; band < __DAWN_BAND_MAX; band++) {
             if (!strcmp(band_name, band_config_name[band]))

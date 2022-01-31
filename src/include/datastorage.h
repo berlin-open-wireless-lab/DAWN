@@ -213,7 +213,7 @@ struct probe_head_s {
 
     struct probe_entry_s* first_probe;
     struct probe_entry_s* first_probe_skip;
-}; 
+};
 
 extern struct probe_head_s probe_set;
 extern pthread_mutex_t probe_array_mutex;
