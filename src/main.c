@@ -114,7 +114,6 @@ int main(int argc, char **argv) {
     timeout_config = time_config; // TODO: Refactor...
 
     uci_get_dawn_hostapd_dir();
-    uci_get_dawn_sort_order();
 
     init_mutex();
 

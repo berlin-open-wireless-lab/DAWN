@@ -46,12 +46,6 @@ struct network_config_s uci_get_dawn_network();
  */
 bool uci_get_dawn_hostapd_dir();
 
-/**
- * Function that returns the sort order.
- * @return the sort order.
- */
-bool uci_get_dawn_sort_order();
-
 int uci_set_network(char* uci_cmd);
 
 /**

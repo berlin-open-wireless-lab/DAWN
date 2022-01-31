@@ -399,23 +399,6 @@ bool uci_get_dawn_hostapd_dir() {
     return false;
 }
 
-bool uci_get_dawn_sort_order() {
-    dawnlog_debug_func("Entering...");
-
-    struct uci_element *e;
-    uci_foreach_element(&uci_pkg->sections, e)
-    {
-        struct uci_section *s = uci_to_section(e);
-
-        if (strcmp(s->type, "ordering") == 0) {
-            const char* str = uci_lookup_option_string(uci_ctx, s, "sort_order");
-            strncpy(sort_string, str, SORT_LENGTH);
-            return true;
-        }
-    }
-    return false;
-}
-
 int uci_reset()
 {
     dawnlog_debug_func("Entering...");

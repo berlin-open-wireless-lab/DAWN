@@ -19,8 +19,6 @@ struct local_config_s local_config;
 
 #define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
 
-static int probe_compare(probe_entry *probe1, probe_entry *probe2);
-
 static int is_connected(struct dawn_mac bssid_mac, struct dawn_mac client_mac);
 
 static int compare_station_count(ap* ap_entry_own, ap* ap_entry_to_compare, struct dawn_mac client_addr);
@@ -40,13 +38,8 @@ const int max_band_freq[__DAWN_BAND_MAX] = {
     5925 // This may cause trouble because there's overlap between bands in different countries
 };
 
-// Ratio of skiping entries to all entries.
-// Approx sqrt() of large data set, and power of 2 for efficient division when adding entries.
-#define DAWN_PROBE_SKIP_RATIO 128
-static struct probe_entry_s* probe_skip_set = NULL;
-static uint32_t probe_skip_entry_last = 0;
-struct probe_entry_s* probe_set = NULL;
-static uint32_t probe_entry_last = 0;
+// FIXME: Using ratio of 4 to exercise skip handling in small network.  Set to 32, 64 or 128 for real use on larger network.
+struct probe_head_s probe_set = { 0, 0, 4, NULL, NULL };
 pthread_mutex_t probe_array_mutex;
 
 struct ap_s *ap_set = NULL;
@@ -65,9 +58,6 @@ pthread_mutex_t client_array_mutex;
 struct mac_entry_s* mac_set = NULL;
 int mac_set_last = 0;
 
-// TODO: No longer used in code: retained to not break message xfer, etc
-char sort_string[SORT_LENGTH];
-
 /*
 ** The ..._find_first() functions perform an efficient search of the core storage linked lists.
 ** "Skipping" linear searches and binary searches are used depending on anticipated array size.
@@ -81,83 +71,50 @@ char sort_string[SORT_LENGTH];
 ** then the target element does not exist, but can be inserted by using the returned reference.
 */
 
-static struct probe_entry_s** probe_skip_array_find_first_entry(struct dawn_mac client_mac, struct dawn_mac bssid_mac, bool do_bssid)
+// Probe entries are ordered by client MAC and BSSID so that all APs for a client appear in a block
+probe_entry* probe_array_find_first_entry(struct dawn_mac client_mac, struct dawn_mac bssid_mac, int do_bssid)
 {
-    int lo = 0;
-    struct probe_entry_s** lo_ptr = &probe_skip_set;
-    int hi = probe_skip_entry_last;
-
     dawnlog_debug_func("Entering...");
 
-    while (lo < hi) {
-        struct probe_entry_s** i = lo_ptr;
-        int scan_pos = lo;
+    struct probe_entry_s* curr_node = probe_set.first_probe;
+    struct probe_entry_s* curr_skip = probe_set.first_probe_skip;
 
-        // m is next test position of binary search
-        int m = (lo + hi) / 2;
-
-        // find entry with ordinal position m
-        while (scan_pos++ < m)
-        {
-            i = &((*i)->next_probe_skip);
-        }
-
-        int this_cmp = mac_compare_bb((*i)->client_addr, client_mac);
+    int this_cmp = 0;
+    while (curr_skip != NULL) {
+        this_cmp = mac_compare_bb(curr_skip->client_addr, client_mac);
 
         if (this_cmp == 0 && do_bssid)
-            this_cmp = mac_compare_bb((*i)->bssid_addr, bssid_mac);
+            this_cmp = mac_compare_bb(curr_skip->bssid_addr, bssid_mac);
 
-        if (this_cmp < 0)
-        {
-            lo = m + 1;
-            lo_ptr = &((*i)->next_probe_skip);
-        }
-        else
-        {
-            hi = m;
-        }
-    }
-
-    return lo_ptr;
-}
-
-static probe_entry** probe_array_find_first_entry(struct dawn_mac client_mac, struct dawn_mac bssid_mac, bool do_bssid)
-{
-    probe_entry** lo_skip_ptr = &probe_skip_set;
-    probe_entry** lo_ptr = &probe_set;
-
-    dawnlog_debug_func("Entering...");
-
-    while ((*lo_skip_ptr != NULL))
-    {
-        int this_cmp = mac_compare_bb(((*lo_skip_ptr))->client_addr, client_mac);
-
-        if (this_cmp == 0 && do_bssid)
-            this_cmp = mac_compare_bb(((*lo_skip_ptr))->bssid_addr, bssid_mac);
-
-        if (this_cmp >= 0)
+        if (this_cmp >= 0) {
             break;
-
-        lo_ptr = &((*lo_skip_ptr)->next_probe);
-        lo_skip_ptr = &((*lo_skip_ptr)->next_probe_skip);
+        }
+        else {
+            curr_node = curr_skip;
+            curr_skip = curr_skip->next_probe_skip;
+        }
     }
 
-    while ((*lo_ptr != NULL))
-    {
-        int this_cmp = mac_compare_bb((*lo_ptr)->client_addr, client_mac);
+    while (curr_node != NULL) {
+        this_cmp = mac_compare_bb(curr_node->client_addr, client_mac);
 
         if (this_cmp == 0 && do_bssid)
-            this_cmp = mac_compare_bb((*lo_ptr)->bssid_addr, bssid_mac);
+            this_cmp = mac_compare_bb(curr_node->bssid_addr, bssid_mac);
 
-        if (this_cmp >= 0)
+        if (this_cmp >= 0) {
             break;
-
-        lo_ptr = &((*lo_ptr)->next_probe);
+        }
+        else {
+            curr_node = curr_node->next_probe;
+        }
     }
 
-    return lo_ptr;
-}
+    // Search including BSSID means that an exact match is required
+    if (do_bssid && curr_node && this_cmp != 0)
+        curr_node = NULL;
 
+    return curr_node;
+}
 // Manage a list of client entries sorted by BSSID and client MAC
 static struct client_s** client_skip_array_find_first_entry(struct dawn_mac client_mac, struct dawn_mac bssid_mac, bool do_bssid)
 {
@@ -199,7 +156,7 @@ static struct client_s** client_skip_array_find_first_entry(struct dawn_mac clie
     return lo_ptr;
 }
 
-static client** client_find_first_bc_entry(struct dawn_mac bssid_mac, struct dawn_mac client_mac, bool do_client)
+client** client_find_first_bc_entry(struct dawn_mac bssid_mac, struct dawn_mac client_mac, int do_client)
 {
     client ** lo_skip_ptr = &client_skip_set;
     client ** lo_ptr = &client_set_bc;
@@ -290,7 +247,7 @@ struct mac_entry_s* mac_find_entry(struct dawn_mac mac)
     return ret;
 }
 
-void send_beacon_reports(ap *a, int id) {
+void send_beacon_requests(ap *a, int id) {
     pthread_mutex_lock(&client_array_mutex);
 
     dawnlog_debug_func("Entering...");
@@ -308,7 +265,7 @@ void send_beacon_reports(ap *a, int id) {
                 !!(i->rrm_enabled_capa & WLAN_RRM_CAPS_BEACON_REPORT_TABLE));
 
         if (i->rrm_enabled_capa & dawn_metric.rrm_mode_mask)
-            ubus_send_beacon_report(i, a, id);
+            ubus_send_beacon_request(i, a, id);
 
         i = i->next_entry_bc;
     }
@@ -464,11 +421,9 @@ int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, struct kicki
     dawnlog_debug_func("Entering...");
 
     // This remains set to the current AP of client for rest of function
-    probe_entry* own_probe = *probe_array_find_first_entry(client_mac, kicking_ap->bssid_addr, true);
+    probe_entry* own_probe = probe_array_get_entry(client_mac, kicking_ap->bssid_addr);
     int own_score = -1;
-    if (own_probe != NULL
-            && mac_is_equal_bb(own_probe->client_addr, client_mac)
-            && mac_is_equal_bb(own_probe->bssid_addr, kicking_ap->bssid_addr)) {
+    if (own_probe != NULL) {
         own_score = eval_probe_metric(own_probe, kicking_ap);  //TODO: Should the -2 return be handled?
         dawnlog_trace("Current AP score = %d for:\n", own_score);
         print_probe_entry(DAWNLOG_TRACE, own_probe);
@@ -482,8 +437,8 @@ int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, struct kicki
     int max_score = own_score;
     int kick = 0;
     int ap_count = 0;
-    // Now go through all AP entries for this client looking for better score
-    probe_entry* i = *probe_array_find_first_entry(client_mac, dawn_mac_null, false);
+    // Now go through all probe entries for this client looking for better score
+    probe_entry* i = probe_array_find_first_entry(client_mac, dawn_mac_null, false);
 
     while (i != NULL && mac_is_equal_bb(i->client_addr, client_mac)) {
         if (i == own_probe) {
@@ -720,8 +675,8 @@ void update_iw_info(struct dawn_mac bssid_mac) {
                 iee80211_calculate_expected_throughput_mbit(get_expected_throughput_iwinfo(j->client_addr)));
 
         if (rssi != INT_MIN) {
-            if (!probe_array_update_rssi(j->bssid_addr, j->client_addr, rssi, true)) {
-                dawnlog_warning("Failed to update rssi!\n");
+            if (!probe_array_update_rssi(j->client_addr, j->bssid_addr, rssi, true)) {
+                dawnlog_info("Failed to update rssi!\n");
             }
             else {
                 dawnlog_trace("Updated rssi: %d\n", rssi);
@@ -891,71 +846,56 @@ client *client_array_delete(client *entry, int unlink_only) {
     return ret;
 }
 
-static __inline__ int probe_compare(probe_entry* probe1, probe_entry* probe2) {
-    int ret = 0;
-
-    if (ret == 0)
-    {
-        ret = mac_compare_bb(probe1->client_addr, probe2->client_addr);
-    }
-
-    if (ret == 0)
-    {
-        ret = mac_compare_bb(probe1->bssid_addr, probe2->bssid_addr);
-    }
-
-#if 0
-    // TODO: Is this needed for ordering?  Is it a key field?
-    if (ret == 0)
-    {
-        ret = ((probe1->freq < 5000) && (probe2->freq >= 5000));
-    }
-
-    // TODO: Is this needed for ordering?  Is it a key field?
-    if (ret == 0)
-    {
-        ret = (probe1->signal < probe2->signal);
-    }
-#endif
-
-    return ret;
-}
-
-static __inline__ void probe_array_unlink_next(probe_entry** i)
-{
-probe_entry* victim = *i;
-
-    dawnlog_debug_func("Entering...");
-
-    // TODO: Can we pre-test that entry is in skip set with 
-    // if ((*s)->next_probe_skip != NULL)... ???
-    for (struct probe_entry_s** s = &probe_skip_set; *s != NULL; s = &((*s)->next_probe_skip)) {
-        if (*s == victim) {
-            *s = (*s)->next_probe_skip;
-
-            probe_skip_entry_last--;
-            break;
-        }
-    }
-
-    *i = victim->next_probe;
-    dawn_free(victim);
-    victim = NULL;
-
-    probe_entry_last--;
-}
-
-int probe_array_delete(probe_entry *entry) {
+int probe_array_delete(struct dawn_mac client_mac, struct dawn_mac bssid_mac) {
     int found_in_array = false;
+    struct probe_entry_s** node_ref = &probe_set.first_probe;
+    struct probe_entry_s** skip_ref = &probe_set.first_probe_skip;
 
-    dawnlog_debug_func("Entering...");
+    int cmp = 0;
+    while ((*skip_ref) != NULL) {
+        cmp = mac_compare_bb((*skip_ref)->client_addr, client_mac);
 
-    for (probe_entry** i = &probe_set; *i != NULL; i = &((*i)->next_probe)) {
-        if (*i == entry) {
-            probe_array_unlink_next(i);
-            found_in_array = true;
+        if (cmp == 0)
+            cmp = mac_compare_bb((*skip_ref)->bssid_addr, bssid_mac);
+
+        if (cmp >= 0) {
             break;
         }
+        else {
+            node_ref = &((*skip_ref)->next_probe);
+            skip_ref = &((*skip_ref)->next_probe_skip);
+        }
+    }
+
+    while ((*node_ref) != NULL) {
+        cmp = mac_compare_bb((*node_ref)->client_addr, client_mac);
+
+        if (cmp == 0)
+            cmp = mac_compare_bb((*node_ref)->bssid_addr, bssid_mac);
+
+        if (cmp >= 0) {
+            break;
+        }
+        else {
+            node_ref = &((*node_ref)->next_probe);
+        }
+    }
+
+    if (*node_ref && cmp == 0) {
+        struct probe_entry_s* victim = *node_ref;
+
+        *node_ref = victim->next_probe;
+        probe_set.node_count--;
+
+        if (*skip_ref == victim)
+        {
+            *skip_ref = victim->next_probe_skip;
+            probe_set.skip_count--;
+        }
+
+        dawn_free(victim);
+        victim = NULL;
+        found_in_array = true;
     }
 
     return found_in_array;
@@ -969,72 +909,58 @@ int probe_array_set_all_probe_count(struct dawn_mac client_addr, uint32_t probe_
 
     // MUSTDO: Has some code been lost here?  updated never set... Certain to hit not found...
     pthread_mutex_lock(&probe_array_mutex);
-    for (probe_entry *i = probe_set; i != NULL; i = i->next_probe) {
-        if (mac_is_equal_bb(client_addr, i->client_addr)) {
-            dawnlog_debug("Setting probecount for given mac!\n");
-            i->counter = probe_count;
-        } else if (mac_compare_bb(client_addr, i->client_addr) > 0) {
-            dawnlog_info("MAC not found!\n");
-            break;
-        }
+    for (probe_entry *i = probe_array_find_first_entry(client_addr, dawn_mac_null, false);
+            i != NULL && mac_is_equal_bb(client_addr, i->client_addr); 
+            i = i->next_probe) {
+        dawnlog_debug("Setting probecount for given mac!\n");
+        i->counter = probe_count;
     }
     pthread_mutex_unlock(&probe_array_mutex);
 
     return updated;
 }
 
-int probe_array_update_rssi(struct dawn_mac bssid_addr, struct dawn_mac client_addr, uint32_t rssi, int send_network)
+probe_entry* probe_array_update_rssi(struct dawn_mac client_addr, struct dawn_mac bssid_addr, uint32_t rssi, int send_network)
 {
-    int updated = 0;
-
     dawnlog_debug_func("Entering...");
 
-    probe_entry* i = probe_array_get_entry(bssid_addr, client_addr);
+    probe_entry* entry = probe_array_get_entry(client_addr, bssid_addr);
 
-    if (i != NULL) {
-        i->signal = rssi;
-        updated = 1;
-        if (send_network)
-        {
-            ubus_send_probe_via_network(i);
-        }
-    }
-
-    return updated;
-}
-
-int probe_array_update_rcpi_rsni(struct dawn_mac bssid_addr, struct dawn_mac client_addr, uint32_t rcpi, uint32_t rsni, int send_network)
-{
-    int updated = 0;
-
-    dawnlog_debug_func("Entering...");
-
-    pthread_mutex_lock(&probe_array_mutex);
-
-    probe_entry* i = probe_array_get_entry(bssid_addr, client_addr);
-
-    if (i != NULL) {
-        i->rcpi = rcpi;
-        i->rsni = rsni;
-        updated = 1;
+    if (entry) {
+        entry->signal = rssi;
 
         if (send_network)
-            ubus_send_probe_via_network(i);
+            ubus_send_probe_via_network(entry);
     }
 
-    pthread_mutex_unlock(&probe_array_mutex);
-
-    return updated;
+    return entry;
 }
 
-probe_entry *probe_array_get_entry(struct dawn_mac bssid_mac, struct dawn_mac client_mac) {
+probe_entry* probe_array_update_rcpi_rsni(struct dawn_mac client_addr, struct dawn_mac bssid_addr, uint32_t rcpi, uint32_t rsni, int send_network)
+{
     dawnlog_debug_func("Entering...");
 
-    probe_entry* ret = *probe_array_find_first_entry(client_mac, bssid_mac, true);
+    probe_entry* entry = probe_array_get_entry(client_addr, bssid_addr);
 
-    // Check if we've been given the insert position rather than actually finding the entry
-    if ((ret == NULL) || !mac_is_equal_bb(ret->client_addr, client_mac) || !mac_is_equal_bb(ret->bssid_addr, bssid_mac))
-        ret = NULL;
+    if (entry) {
+        // FIXME: Do we need the -1 tests here?
+        if (rcpi != -1)
+            entry->rcpi = rcpi;
+
+        if (rsni != -1)
+            entry->rsni = rsni;
+
+        if (send_network)
+            ubus_send_probe_via_network(entry);
+    }
+
+    return entry;
+}
+
+probe_entry *probe_array_get_entry(struct dawn_mac client_mac, struct dawn_mac bssid_mac) {
+    dawnlog_debug_func("Entering...");
+
+    probe_entry* ret = probe_array_find_first_entry(client_mac, bssid_mac, true);
 
     return ret;
 }
@@ -1043,79 +969,105 @@ void print_probe_array() {
     if (dawnlog_showing(DAWNLOG_DEBUG))
     {
         dawnlog_debug("------------------\n");
-        dawnlog_debug("Probe Entry Last: %d\n", probe_entry_last);
-        for (probe_entry* i = probe_set; i != NULL; i = i->next_probe) {
+        // dawnlog_debug("Probe Entry Last: %d\n", probe_entry_last);
+        for (probe_entry* i = probe_set.first_probe; i != NULL; i = i->next_probe) {
             print_probe_entry(DAWNLOG_DEBUG, i);
         }
         dawnlog_debug("------------------\n");
     }
 }
 
-static struct probe_entry_s* insert_to_skip_array(struct probe_entry_s* entry) {
-
-    dawnlog_debug_func("Entering...");
-
-    struct probe_entry_s** insert_pos = probe_skip_array_find_first_entry(entry->client_addr, entry->bssid_addr, true);
-
-    entry->next_probe_skip = *insert_pos;
-    *insert_pos = entry;
-    probe_skip_entry_last++;
-
-    return entry;
-}
-
-probe_entry* insert_to_array(probe_entry* entry, int inc_counter, int save_80211k, int is_beacon, time_t expiry) {
+probe_entry* insert_to_probe_array(probe_entry* entry, int is_local, int save_80211k, int is_beacon, time_t expiry) {
     dawnlog_debug_func("Entering...");
 
     pthread_mutex_lock(&probe_array_mutex);
 
-    entry->time = expiry;
+    struct probe_entry_s** node_ref = &probe_set.first_probe;
+    struct probe_entry_s** skip_ref = &probe_set.first_probe_skip;
 
-    // TODO: Add a packed / unpacked wrapper pair?
-    probe_entry** existing_entry = probe_array_find_first_entry(entry->client_addr, entry->bssid_addr, true);
+    int cmp = 0;
+    while ((*skip_ref) != NULL) {
+        cmp = mac_compare_bb((*skip_ref)->client_addr, entry->client_addr);
 
-    if (((*existing_entry) != NULL)
-            && mac_is_equal_bb((*existing_entry)->client_addr, entry->client_addr)
-            && mac_is_equal_bb((*existing_entry)->bssid_addr, entry->bssid_addr)) {
-        (*existing_entry)->time = expiry;
-        if (inc_counter)
-            (*existing_entry)->counter++;
+        if (cmp == 0)
+            cmp = mac_compare_bb((*skip_ref)->bssid_addr, entry->bssid_addr);
 
-        if (entry->signal)
-            (*existing_entry)->signal = entry->signal;
+        if (cmp >= 0) {
+            break;
+        }
+        else {
+            node_ref = &((*skip_ref)->next_probe);
+            skip_ref = &((*skip_ref)->next_probe_skip);
+        }
+    }
 
-        if(entry->ht_capabilities)
-            (*existing_entry)->ht_capabilities = entry->ht_capabilities;
+    while ((*node_ref) != NULL) {
+        cmp = mac_compare_bb((*node_ref)->client_addr, entry->client_addr);
 
-        if(entry->vht_capabilities)
-            (*existing_entry)->vht_capabilities = entry->vht_capabilities;
+        if (cmp == 0)
+            cmp = mac_compare_bb((*node_ref)->bssid_addr, entry->bssid_addr);
+
+        if (cmp >= 0) {
+            break;
+        }
+        else {
+            node_ref = &((*node_ref)->next_probe);
+        }
+    }
+
+    if (*node_ref && cmp == 0) {
+        dawnlog_debug("Updating...\n");
+
+        if (!is_beacon)
+        {
+            if (is_local)
+                (*node_ref)->counter++;
+
+            // Beacon reports don't have these fields, so only update them from probes
+            (*node_ref)->signal = entry->signal;
+            (*node_ref)->ht_capabilities = entry->ht_capabilities;
+            (*node_ref)->vht_capabilities = entry->vht_capabilities;
+        }
+        else
+        {
+            // FIXME: Equivalent to inserting BEACON based entry
+            (*node_ref)->counter = dawn_metric.min_probe_count;
+        }
 
         if (save_80211k && entry->rcpi != -1)
-            (*existing_entry)->rcpi = entry->rcpi;
+            (*node_ref)->rcpi = entry->rcpi;
 
         if (save_80211k && entry->rsni != -1)
-            (*existing_entry)->rsni = entry->rsni;
+            (*node_ref)->rsni = entry->rsni;
 
-        entry = *existing_entry;
+        entry = *node_ref;
     }
     else
     {
         dawnlog_debug("Adding...\n");
-        if (inc_counter)
+        if (is_local  && !is_beacon)
             entry->counter = 1;
         else
             entry->counter = 0;
 
-        entry->next_probe_skip = NULL;
-        entry->next_probe = *existing_entry;
-        *existing_entry = entry;
-        probe_entry_last++;
+        entry->next_probe = *node_ref;
+        *node_ref = entry;
 
-        // Try to keep skip list density stable
-        if ((probe_entry_last / DAWN_PROBE_SKIP_RATIO) > probe_skip_entry_last)
+        probe_set.node_count++;
+
+        if (probe_set.node_count > (probe_set.skip_count * probe_set.skip_ratio))
         {
-            insert_to_skip_array(entry);
+            probe_set.skip_count++;
+
+            entry->next_probe_skip = *skip_ref;
+            *skip_ref = entry;
         }
+        else
+        {
+            entry->next_probe_skip = NULL;
+        }
+
+        entry->time = expiry;
     }
 
     pthread_mutex_unlock(&probe_array_mutex);
@@ -1280,12 +1232,29 @@ void remove_old_client_entries(time_t current_time, long long int threshold) {
 void remove_old_probe_entries(time_t current_time, long long int threshold) {
     dawnlog_debug_func("Entering...");
 
-    probe_entry **i = &probe_set;
+    probe_entry** i = &(probe_set.first_probe);
+    probe_entry** s = &(probe_set.first_probe_skip);
+
     while (*i != NULL ) {
         if (((*i)->time < current_time - threshold) && !is_connected((*i)->bssid_addr, (*i)->client_addr)) {
-            probe_array_unlink_next(i);
+            probe_entry* victim = *i;
+
+            *i = victim->next_probe;
+
+            if (*s == victim)
+            {
+                *s = victim->next_probe_skip;
+            }
+
+            dawn_free(victim);
+            victim = NULL;
         }
         else {
+            if ((*i)->next_probe_skip != NULL)
+            {
+                s = &((*i)->next_probe_skip);
+            }
+
             i = &((*i)->next_probe);
         }
     }
