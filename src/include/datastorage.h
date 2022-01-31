@@ -246,24 +246,26 @@ typedef struct client_s {
     uint8_t rrm_enabled_capa; //the first byte is enough
 } client;
 
+// (1) Set in parse_to_clients()
+// (2) Set by list insert operations
 typedef struct ap_s {
-    struct ap_s* next_ap;
-    struct dawn_mac bssid_addr;
-    uint32_t freq; // ap_get_nr()
-    uint8_t ht_support; // eval_probe_metric()
-    uint8_t vht_support; // eval_probe_metric()
-    uint32_t channel_utilization; // eval_probe_metric()
-    time_t time; // remove_old...entries
-    uint32_t station_count; // compare_station_count() <- better_ap_available()
-    uint8_t ssid[SSID_MAX_LEN + 1]; // compare_sid() < -better_ap_available()
-    char neighbor_report[NEIGHBOR_REPORT_LEN];
-    uint32_t op_class; // ubus_send_beacon_report()
-    uint32_t channel; // ubus_send_beacon_report()
-    uint32_t collision_domain;  // TODO: ap_get_collision_count() never evaluated?
-    uint32_t bandwidth; // TODO: Never evaluated?
-    uint32_t ap_weight; // eval_probe_metric()
-    char iface[MAX_INTERFACE_NAME];
-    char hostname[HOST_NAME_MAX];
+    struct ap_s* next_ap; // (2)
+    struct dawn_mac bssid_addr; // (1)
+    uint32_t freq; // ap_get_nr() // (1)
+    uint8_t ht_support; // eval_probe_metric() // (1)
+    uint8_t vht_support; // eval_probe_metric() // (1)
+    uint32_t channel_utilization; // eval_probe_metric() // (1)
+    time_t time; // remove_old...entries // (2)
+    uint32_t station_count; // compare_station_count() <- better_ap_available() // (1)
+    uint8_t ssid[SSID_MAX_LEN + 1]; // compare_sid() < -better_ap_available() // (1)
+    char neighbor_report[NEIGHBOR_REPORT_LEN]; // (1)  // TODO: Check whether we should store and AP one or generate on fly for client
+    uint32_t op_class; // ubus_send_beacon_report() // (1)
+    uint32_t channel; // ubus_send_beacon_report() // (1)
+    //uint32_t collision_domain;  // TODO: ap_get_collision_count() never evaluated?
+    //uint32_t bandwidth; // TODO: Never evaluated?
+    uint32_t ap_weight; // eval_probe_metric() // (1)
+    char iface[MAX_INTERFACE_NAME]; // (1)
+    char hostname[HOST_NAME_MAX]; // (1)
 } ap;
 
 // ---------------- Defines ----------------
@@ -307,7 +309,7 @@ void remove_old_client_entries(time_t current_time, long long int threshold);
 
 client *insert_client_to_array(client *entry, time_t expiry);
 
-int kick_clients(ap* kicking_ap, uint32_t id);
+int kick_clients(struct dawn_mac bssid, uint32_t id);
 
 void update_iw_info(struct dawn_mac bssid);
 
@@ -329,11 +331,11 @@ void remove_old_ap_entries(time_t current_time, long long int threshold);
 
 void print_ap_array();
 
-ap *ap_array_get_ap(struct dawn_mac bssid_mac, const uint8_t* ssid);
+ap *ap_array_get_ap(struct dawn_mac bssid_mac);
 
 int probe_array_set_all_probe_count(struct dawn_mac client_addr, uint32_t probe_count);
 
-int ap_get_collision_count(int col_domain);
+//int ap_get_collision_count(int col_domain);
 
 void send_beacon_reports(ap *a, int id);
 

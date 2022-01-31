@@ -175,7 +175,7 @@ static int array_auto_helper(int action, int i0, int i1)
                 time_moves_on();
             }
             else
-                ap_array_delete(ap_array_get_ap(this_mac, NULL));
+                ap_array_delete(ap_array_get_ap(this_mac));
             break;
         case HELPER_CLIENT:
             ; // Empty statement to allow label before declaration
@@ -681,8 +681,8 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
             memset(ap0->ssid, '*', SSID_MAX_LEN);
             ap0->ssid[SSID_MAX_LEN] = '\0';
             ap0->neighbor_report[0] = 0;
-            ap0->collision_domain = 0;
-            ap0->bandwidth = 0;
+            //ap0->collision_domain = 0;
+            //ap0->bandwidth = 0;
             ap0->ap_weight = 0;
 
             args_required = 1;
@@ -701,8 +701,8 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 else if (!strncmp(fn, "stations=", 9)) load_u32(&ap0->station_count, fn + 9);
                 else if (!strncmp(fn, "ssid=", 5)) load_ssid(ap0->ssid, fn + 5);
                 else if (!strncmp(fn, "neighbors=", 10)) load_string(NEIGHBOR_REPORT_LEN, ap0->neighbor_report, fn + 10);
-                else if (!strncmp(fn, "col_d=", 6)) load_u32(&ap0->collision_domain, fn + 6);
-                else if (!strncmp(fn, "bandwidth=", 10)) load_u32(&ap0->bandwidth, fn + 10);
+                //else if (!strncmp(fn, "col_d=", 6)) load_u32(&ap0->collision_domain, fn + 6);
+                //else if (!strncmp(fn, "bandwidth=", 10)) load_u32(&ap0->bandwidth, fn + 10);
                 else if (!strncmp(fn, "weight=", 7)) load_u32(&ap0->ap_weight, fn + 7);
                 else {
                     printf("ERROR: Loading AP, but don't recognise assignment \"%s\"\n", fn);
@@ -876,7 +876,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 hwaddr_aton(argv[1], kick_mac.u8);
                 load_u32(&kick_id, argv[2]);
 
-                while ((kick_clients(ap_array_get_ap(kick_mac, NULL), kick_id) != 0) && safety_count--);
+                while ((kick_clients(kick_mac, kick_id) != 0) && safety_count--);
             }
         }
         else if (strcmp(*argv, "better_ap_available") == 0)
@@ -911,11 +911,11 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                         strcpy(nb, argv[4]);
                     }
                     strncpy(neighbor.nr, nb, NEIGHBOR_REPORT_LEN);
-                    tr = better_ap_available(ap_array_get_ap(bssid_mac, NULL), client_mac, &neighbor_list);
+                    tr = better_ap_available(ap_array_get_ap(bssid_mac), client_mac, &neighbor_list);
                 }
                 else
                 {
-                    tr = better_ap_available(ap_array_get_ap(bssid_mac, NULL), client_mac, NULL);
+                    tr = better_ap_available(ap_array_get_ap(bssid_mac), client_mac, NULL);
                 }
 
                 printf("better_ap_available returned %d (with neighbour report %s)\n", tr, nb);
@@ -940,7 +940,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 }
                 else
                 {
-                    ap* ap_entry = ap_array_get_ap(pr0->bssid_addr, NULL);
+                    ap* ap_entry = ap_array_get_ap(pr0->bssid_addr);
 
                     int this_metric = eval_probe_metric(pr0, ap_entry);
                     dawnlog_info("Score: %d of:\n", this_metric);

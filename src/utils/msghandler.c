@@ -66,8 +66,8 @@ enum {
     CLIENT_TABLE_VHT,
     CLIENT_TABLE_CHAN_UTIL,
     CLIENT_TABLE_NUM_STA,
-    CLIENT_TABLE_COL_DOMAIN,
-    CLIENT_TABLE_BANDWIDTH,
+    //CLIENT_TABLE_COL_DOMAIN,
+    //CLIENT_TABLE_BANDWIDTH,
     CLIENT_TABLE_WEIGHT,
     CLIENT_TABLE_NEIGHBOR,
     CLIENT_TABLE_IFACE,
@@ -84,8 +84,8 @@ static const struct blobmsg_policy client_table_policy[__CLIENT_TABLE_MAX] = {
         [CLIENT_TABLE_VHT] = {.name = "vht_supported", .type = BLOBMSG_TYPE_INT8},
         [CLIENT_TABLE_CHAN_UTIL] = {.name = "channel_utilization", .type = BLOBMSG_TYPE_INT32},
         [CLIENT_TABLE_NUM_STA] = {.name = "num_sta", .type = BLOBMSG_TYPE_INT32},
-        [CLIENT_TABLE_COL_DOMAIN] = {.name = "collision_domain", .type = BLOBMSG_TYPE_INT32},
-        [CLIENT_TABLE_BANDWIDTH] = {.name = "bandwidth", .type = BLOBMSG_TYPE_INT32},
+        //[CLIENT_TABLE_COL_DOMAIN] = {.name = "collision_domain", .type = BLOBMSG_TYPE_INT32},
+        //[CLIENT_TABLE_BANDWIDTH] = {.name = "bandwidth", .type = BLOBMSG_TYPE_INT32},
         [CLIENT_TABLE_WEIGHT] = {.name = "ap_weight", .type = BLOBMSG_TYPE_INT32},
         [CLIENT_TABLE_NEIGHBOR] = {.name = "neighbor_report", .type = BLOBMSG_TYPE_STRING},
         [CLIENT_TABLE_IFACE] = {.name = "iface", .type = BLOBMSG_TYPE_STRING},
@@ -530,7 +530,7 @@ int parse_to_clients(struct blob_attr* msg, int do_kick, uint32_t id) {
         if (tb[CLIENT_TABLE_SSID]) {
             strcpy((char*)ap_entry->ssid, blobmsg_get_string(tb[CLIENT_TABLE_SSID]));
         }
-
+#if 0 // Pending deletion if no longer required
         if (tb[CLIENT_TABLE_COL_DOMAIN]) {
             ap_entry->collision_domain = blobmsg_get_u32(tb[CLIENT_TABLE_COL_DOMAIN]);
         }
@@ -544,7 +544,7 @@ int parse_to_clients(struct blob_attr* msg, int do_kick, uint32_t id) {
         else {
             ap_entry->bandwidth = -1;
         }
-
+#endif
         ap_entry->station_count = num_stations;
 
         if (tb[CLIENT_TABLE_WEIGHT]) {
@@ -582,7 +582,7 @@ int parse_to_clients(struct blob_attr* msg, int do_kick, uint32_t id) {
 
         if (do_kick && dawn_metric.kicking) {
             update_iw_info(ap_entry->bssid_addr);
-            kick_clients(ap_entry, id);
+            kick_clients(ap_entry->bssid_addr, id);
         }
     }
     return 0;
