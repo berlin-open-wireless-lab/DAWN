@@ -6,21 +6,13 @@
 #include <time.h>
 #include <limits.h>
 
+#include "ieee80211_utils.h"
 #include "mac_utils.h"
 #include "utils.h"
 
 /* Mac */
 
 // ---------------- Defines -------------------
-#define DEFAULT_RRM_MODE_ORDER "pat"
-#define RRM_MODE_COUNT 3
-
-enum rrm_beacon_rqst_mode {
-    RRM_BEACON_RQST_MODE_PASSIVE,
-    RRM_BEACON_RQST_MODE_ACTIVE,
-    RRM_BEACON_RQST_MODE_BEACON_TABLE,
-    __RRM_BEACON_RQST_MODE_MAX
-};
 
 // ---------------- Global variables ----------------
 extern struct mac_entry_s *mac_set;
@@ -212,12 +204,6 @@ typedef struct auth_entry_s assoc_entry;
 #define NR_OP_CLASS     20
 #define NR_CHANNEL      22
 #define NR_PHY          24
-#ifndef BIT
-#define BIT(x) (1U << (x))
-#endif
-#define WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE BIT(4)
-#define WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE BIT(5)
-#define WLAN_RRM_CAPS_BEACON_REPORT_TABLE BIT(6)
 
 // ---------------- Global variables ----------------
 extern struct auth_entry_s *denied_req_set;
