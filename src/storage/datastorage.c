@@ -267,14 +267,10 @@ static int compare_station_count(ap* ap_entry_own, ap* ap_entry_to_compare, stru
         dawnlog_debug("Comparing station is already connected! Decrease counter!\n");
         sta_count_to_compare--;
     }
+
     dawnlog_info("Comparing own station count %d to %d\n", sta_count, sta_count_to_compare);
 
-    if (sta_count - sta_count_to_compare > dawn_metric.max_station_diff)
-        return 1;
-    else if (sta_count_to_compare - sta_count > dawn_metric.max_station_diff)
-        return -1;
-    else
-        return 0;
+    return sta_count - sta_count_to_compare;
 }
 
 static void remove_kicking_nr_list(struct kicking_nr *nr_list) {
@@ -359,38 +355,21 @@ static  void insert_kicking_nr_by_score(struct kicking_nr** nrlist, ap* nr_ap, i
 
     return;
 }
-int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, struct kicking_nr **neighbor_report) {
+
+int better_ap_available(ap *kicking_ap, probe_entry *own_probe, int own_score, struct kicking_nr **neighbor_report) {
 
     dawnlog_debug_func("Entering...");
     dawn_mutex_require(&ap_array_mutex);
     dawn_mutex_require(&probe_array_mutex);
 
-    // This remains set to the current AP of client for rest of function
-    dawn_mutex_require(&probe_array_mutex);
-    probe_entry* own_probe = probe_array_get_entry(client_mac, kicking_ap->bssid_addr);
-    int own_score = -1;
-    if (own_probe != NULL) {
-        own_score = eval_probe_metric(own_probe, kicking_ap);  //TODO: Should the -2 return be handled?
-        dawnlog_trace("Current AP score = %d for:\n", own_score);
-        print_probe_entry(DAWNLOG_TRACE, own_probe);
-    }
-    // no entry for own ap - may happen if DAWN is started after client has connected, and then "sleeps" so sends no BEACON / PROBE
-    else {
-        dawnlog_info("Current AP " MACSTR " for client " MACSTR " not found in probe array!\n", MAC2STR(kicking_ap->bssid_addr.u8), MAC2STR(client_mac.u8));
-        print_probe_array();
-        return -1;
-    }
-
-    int max_score = own_score;
-    dawn_mutex_require(&ap_array_mutex);
-    dawn_mutex_require(&probe_array_mutex);
-    int kick = 0;
+    int tgt_score = own_score + dawn_metric.kicking_threshold;
+    int better_ap_found = 0;
     int ap_count = 0;
     // Now go through all probe entries for this client looking for better score
     dawn_mutex_require(&probe_array_mutex);
-    probe_entry* i = probe_array_find_first_entry(client_mac, dawn_mac_null, false);
+    probe_entry* i = probe_array_find_first_entry(own_probe->client_addr, dawn_mac_null, false);
 
-    while (i != NULL && mac_is_equal_bb(i->client_addr, client_mac)) {
+    while (i != NULL && mac_is_equal_bb(i->client_addr, own_probe->client_addr)) {
         if (i == own_probe) {
             dawnlog_trace("Own Score! Skipping!\n");
             i = i->next_probe;
@@ -422,24 +401,24 @@ int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, struct kicki
         int ap_outcome = 0; // No kicking
 
         // Find better score...
-        // FIXME: Do we mean to use 'kick' like this here?  It is set when we find an AP with bigger score
-        // then any more have to also be 'kicking_threshold' bigger
-        if (score_to_compare > max_score + (kick ? 0 : dawn_metric.kicking_threshold)) {
+        if (score_to_compare > tgt_score) {
             ap_outcome = 2; // Add and prune
-            max_score = score_to_compare;
+            // TODO: Should we adjust this, or just stick with original "better than current AP" target?
+            tgt_score = score_to_compare;
         }
-        // if AP have same value but station count might improve it...
+        // Give a few marks for candidate AP having fewer clients than current
         // TODO: Is absolute number meaningful when AP have diffeent capacity?
-        else if (score_to_compare == max_score && dawn_metric.use_station_count > 0 ) {
-            int compare = compare_station_count(kicking_ap, candidate_ap, client_mac);
-            if (compare > 0) {
+        // TODO: This test doesn't really make sense if we have adjusted target score to best found so far
+        else if (score_to_compare == tgt_score && dawn_metric.use_station_count > 0 ) {
+            int compare = compare_station_count(kicking_ap, candidate_ap, own_probe->client_addr);
+            if (compare > dawn_metric.max_station_diff) {
                 ap_outcome = 2; // Add and prune
             }
-            else if (compare == 0 && kick) {
+            else if (compare == 0) {
                 ap_outcome = 1; // Add but no prune
             }
         }
-        else if (score_to_compare >= max_score && kick) {
+        else if (score_to_compare == tgt_score) {
             ap_outcome = 1; // Add but no prune
         }
 
@@ -449,10 +428,22 @@ int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, struct kicki
         }
         else
         {
-            dawnlog_trace("Better AP after full evaluation - add to NR (%s pruning)\n", ap_outcome == 2 ? "with" : "without");
-            // NR is NULL if we're only testing for a better AP without actually using it
+            dawnlog_trace("Better AP after full evaluation\n");
+            better_ap_found = 1;
+        }
+
+        // NR is NULL if we're only testing for a better AP without actually using it
+        if (better_ap_found && neighbor_report == NULL)
+        {
+            // Short circuit loop if we're only finding a better AP without actually using it
+            i = NULL;
+        }
+        else
+        {
+            // Always add the NR as we use it to adjust the "own AP" semi-static NR as well
             if (neighbor_report != NULL)
             {
+                dawnlog_trace("Add to NR (%s pruning)\n", ap_outcome == 2 ? "with" : "without");
                 // FIXME: Do we need to prune this list as we build it?  trying new approach to send N best entries to hostapd
                 // if (ap_outcome == 2)
                 //     prune_kicking_nr_list(neighbor_report, score_to_compare - dawn_metric.kicking_threshold);
@@ -460,25 +451,14 @@ int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, struct kicki
                 insert_kicking_nr_by_score(neighbor_report, candidate_ap, score_to_compare);
             }
 
-            // If we find a single candidate then we will be kicking
-            kick = 1;
-        }
-
-        // Short circuit loop if we're only finding a better AP without actually using it
-        if (kick && neighbor_report == NULL)
-        {
-            i = NULL;
-        }
-        else
-        {
             i = i->next_probe;
         }
     }
 
     if (neighbor_report != NULL)
-        dawnlog_info("Client " MACSTR ": Compared %d alternate AP candidates\n", MAC2STR(client_mac.u8), ap_count);
+        dawnlog_info("Client " MACSTR ": Compared %d alternate AP candidates\n", MAC2STR(own_probe->client_addr.u8), ap_count);
 
-    return kick;
+    return better_ap_found;
 }
 
 int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
@@ -506,12 +486,26 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
         struct kicking_nr *kick_nr_list = NULL;
 
         int do_kick = 0;
+        int own_score = 0;
 
         if (mac_find_entry(j->client_addr)) {
             dawnlog_info("Client " MACSTR ": Suppressing check due to MAC list entry\n", MAC2STR(j->client_addr.u8));
         }
         else {
-            do_kick = better_ap_available(kicking_ap, j->client_addr, &kick_nr_list);
+            dawn_mutex_require(&probe_array_mutex);
+            probe_entry* own_probe = probe_array_get_entry(j->client_addr, kicking_ap->bssid_addr);
+            if (own_probe == NULL) {
+                // no entry for own ap - may happen if DAWN is started after client has connected, and then "sleeps" so sends no BEACON / PROBE
+                dawnlog_info("Current AP " MACSTR " for client " MACSTR " not found in probe array!\n", MAC2STR(kicking_ap->bssid_addr.u8), MAC2STR(j->client_addr.u8));
+                print_probe_array();
+            }
+            else {
+                own_score = eval_probe_metric(own_probe, kicking_ap);
+                dawnlog_trace("Current AP score = %d for:\n", own_score);
+                print_probe_entry(DAWNLOG_TRACE, own_probe);
+
+                do_kick = better_ap_available(kicking_ap, own_probe, own_score, &kick_nr_list);
+            }
         }
 
         // If we found any candidates (even if too low to kick to) add the highest scoring one to local AP NR set
@@ -570,7 +564,7 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
                         // don't deauth station? <- deauth is better!
                         // maybe we can use handovers...
                         //del_client_interface(id, client_array[j].client_addr, NO_MORE_STAS, 1, 1000);
-                        int sync_kick = wnm_disassoc_imminent(id, j->client_addr, kick_nr_list, 12);
+                        int sync_kick = wnm_disassoc_imminent(id, j->client_addr, kick_nr_list, own_score + dawn_metric.kicking_threshold, 12);
 
                         // Synchronous kick is a test harness feature to indicate arrays have been updated, so don't change further
                         if (sync_kick)

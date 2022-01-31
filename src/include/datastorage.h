@@ -352,7 +352,7 @@ struct kicking_nr {
 };
 
 // ---------------- Functions -------------------
-int better_ap_available(ap *kicking_ap, struct dawn_mac client_addr, struct kicking_nr** neighbor_report);
+int better_ap_available(ap *kicking_ap, probe_entry *own_probe, int own_score, struct kicking_nr** neighbor_report);
 
 // All users of datastorage should call init_ / destroy_mutex at initialisation and termination respectively
 int init_mutex();
