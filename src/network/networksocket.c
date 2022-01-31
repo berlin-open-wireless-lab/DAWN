@@ -124,7 +124,7 @@ void *receive_msg_enc(void *args) {
 }
 
 int send_string(char *msg, bool is_enc) {
-    pthread_mutex_lock(&send_mutex);
+    dawn_mutex_lock(&send_mutex);
 
     char* final_msg = NULL;
     size_t msglen = 0;
@@ -143,7 +143,7 @@ int send_string(char *msg, bool is_enc) {
         char* gcrypt_buf = gcrypt_encrypt_msg(msg, strlen(msg) + 1, &gcrypt_len);
         if (!gcrypt_buf) {
             dawnlog_error("sendto() error: not enough memory\n");
-            pthread_mutex_unlock(&send_mutex);
+            dawn_mutex_unlock(&send_mutex);
             exit(EXIT_FAILURE);
         }
 
@@ -153,7 +153,7 @@ int send_string(char *msg, bool is_enc) {
             dawnlog_error("sendto() error: not enough memory\n");
             dawn_free(gcrypt_buf);
             gcrypt_buf = NULL;
-            pthread_mutex_unlock(&send_mutex);
+            dawn_mutex_unlock(&send_mutex);
             exit(EXIT_FAILURE);
         }
 
@@ -175,7 +175,7 @@ int send_string(char *msg, bool is_enc) {
         // Tidy up probbaly unnecessary if we're exiting, but...
         if (is_enc)
             dawn_free(final_msg);
-        pthread_mutex_unlock(&send_mutex);
+        dawn_mutex_unlock(&send_mutex);
 
         exit(EXIT_FAILURE);
     }
@@ -186,7 +186,7 @@ int send_string(char *msg, bool is_enc) {
         final_msg = NULL;
     }
 
-    pthread_mutex_unlock(&send_mutex);
+    dawn_mutex_unlock(&send_mutex);
     return 0;
 }
 

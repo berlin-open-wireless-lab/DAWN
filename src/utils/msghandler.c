@@ -229,11 +229,11 @@ int handle_deauth_req(struct blob_attr* msg) {
 
     dawnlog_debug_func("Entering...");
 
-    pthread_mutex_lock(&client_array_mutex);
+    dawn_mutex_lock(&client_array_mutex);
 
     client_array_delete_bc(notify_req.bssid_addr, notify_req.client_addr);
 
-    pthread_mutex_unlock(&client_array_mutex);
+    dawn_mutex_unlock(&client_array_mutex);
 
     dawnlog_debug("[WC] Deauth: %s\n", "deauth");
 
@@ -434,7 +434,7 @@ dump_client(struct blob_attr** tb, struct dawn_mac client_addr, const char* bssi
         memset(client_entry->signature, 0, SIGNATURE_LEN);
     }
 
-    pthread_mutex_lock(&client_array_mutex);
+    dawn_mutex_lock(&client_array_mutex);
     // If entry was already in list we get back the old entry, which needs to be freed
     client* prev_entry = client_array_update_entry(client_entry, time(0));
     if (prev_entry)
@@ -443,7 +443,7 @@ dump_client(struct blob_attr** tb, struct dawn_mac client_addr, const char* bssi
         prev_entry = NULL;
     }
 
-    pthread_mutex_unlock(&client_array_mutex);
+    dawn_mutex_unlock(&client_array_mutex);
 }
 
 static int

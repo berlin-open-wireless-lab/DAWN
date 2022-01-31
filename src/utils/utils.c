@@ -5,6 +5,7 @@
 #include <stdarg.h>
 #include <syslog.h>
 #include <stdio.h>
+#include <inttypes.h>
 
 #include "utils.h"
 
@@ -127,4 +128,16 @@ const char* dawnlog_basename(const char* file)
     char* xfile = strrchr(file, '/');
 
     return(xfile ? xfile + 1 : file);
+}
+
+int _dawn_mutex_lock(pthread_mutex_t* m, char * f, int l)
+{
+    dawnlog_debug("MUTEX   lock = %" PRIXPTR "@%s:%d", m, dawnlog_basename(f), l);
+    return pthread_mutex_lock(m);
+}
+
+int _dawn_mutex_unlock(pthread_mutex_t* m, char* f, int l)
+{
+    dawnlog_debug("MUTEX unlock = %" PRIXPTR "@%s:%d", m, dawnlog_basename(f), l);
+    return pthread_mutex_unlock(m);
 }

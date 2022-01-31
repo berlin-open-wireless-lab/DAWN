@@ -161,7 +161,7 @@ struct mac_entry_s* mac_find_entry(struct dawn_mac mac)
 }
 
 void send_beacon_requests(ap *a, int id) {
-    pthread_mutex_lock(&client_array_mutex);
+    dawn_mutex_lock(&client_array_mutex);
 
     dawnlog_debug_func("Entering...");
 
@@ -183,7 +183,7 @@ void send_beacon_requests(ap *a, int id) {
         i = i->next_entry_bc;
     }
 
-    pthread_mutex_unlock(&client_array_mutex);
+    dawn_mutex_unlock(&client_array_mutex);
 }
 
 int get_band(int freq) {
@@ -448,8 +448,8 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
 
     ap* kicking_ap = ap_array_get_ap(bssid_mac);
 
-    pthread_mutex_lock(&client_array_mutex);
-    pthread_mutex_lock(&probe_array_mutex);
+    dawn_mutex_lock(&client_array_mutex);
+    dawn_mutex_lock(&probe_array_mutex);
 
     int kicked_clients = 0;
 
@@ -564,8 +564,8 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
 
     dawnlog_trace("KICKING: --------- AP Finished ---------\n");
 
-    pthread_mutex_unlock(&probe_array_mutex);
-    pthread_mutex_unlock(&client_array_mutex);
+    dawn_mutex_unlock(&probe_array_mutex);
+    dawn_mutex_unlock(&client_array_mutex);
 
     return kicked_clients;
 }
@@ -573,8 +573,8 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
 void update_iw_info(struct dawn_mac bssid_mac) {
     dawnlog_debug_func("Entering...");
 
-    pthread_mutex_lock(&client_array_mutex);
-    pthread_mutex_lock(&probe_array_mutex);
+    dawn_mutex_lock(&client_array_mutex);
+    dawn_mutex_lock(&probe_array_mutex);
 
     dawnlog_trace("-------- IW INFO UPDATE!!!---------\n");
     dawnlog_trace("EVAL " MACSTR "\n", MAC2STR(bssid_mac.u8));
@@ -600,8 +600,8 @@ void update_iw_info(struct dawn_mac bssid_mac) {
 
     dawnlog_trace("---------------------------\n");
 
-    pthread_mutex_unlock(&probe_array_mutex);
-    pthread_mutex_unlock(&client_array_mutex);
+    dawn_mutex_unlock(&probe_array_mutex);
+    dawn_mutex_unlock(&client_array_mutex);
 }
 
 client *client_array_get_client(const struct dawn_mac client_addr)
@@ -727,14 +727,14 @@ int probe_array_set_all_probe_count(struct dawn_mac client_addr, uint32_t probe_
     dawnlog_debug_func("Entering...");
 
     // MUSTDO: Has some code been lost here?  updated never set... Certain to hit not found...
-    pthread_mutex_lock(&probe_array_mutex);
+    dawn_mutex_lock(&probe_array_mutex);
     for (probe_entry *i = probe_array_find_first_entry(client_addr, dawn_mac_null, false);
             i != NULL && mac_is_equal_bb(client_addr, i->client_addr); 
             i = i->next_probe) {
         dawnlog_debug("Setting probecount for given mac!\n");
         i->counter = probe_count;
     }
-    pthread_mutex_unlock(&probe_array_mutex);
+    dawn_mutex_unlock(&probe_array_mutex);
 
     return updated;
 }
@@ -799,7 +799,7 @@ void print_probe_array() {
 probe_entry* insert_to_probe_array(probe_entry* entry, int is_local, int save_80211k, int is_beacon, time_t expiry) {
     dawnlog_debug_func("Entering...");
 
-    pthread_mutex_lock(&probe_array_mutex);
+    dawn_mutex_lock(&probe_array_mutex);
 
     struct probe_entry_s** node_ref = &probe_set.first_probe;
     struct probe_entry_s** skip_ref = &probe_set.first_probe_skip;
@@ -889,7 +889,7 @@ probe_entry* insert_to_probe_array(probe_entry* entry, int is_local, int save_80
         entry->time = expiry;
     }
 
-    pthread_mutex_unlock(&probe_array_mutex);
+    dawn_mutex_unlock(&probe_array_mutex);
 
     return entry;  // return pointer to what we used, which may not be what was passed in
 }
@@ -959,9 +959,9 @@ ap *insert_to_ap_array(ap* entry, time_t expiry) {
 
     entry->time = expiry;
 
-    pthread_mutex_lock(&ap_array_mutex);
+    dawn_mutex_lock(&ap_array_mutex);
     ap* old_entry = ap_array_update_entry(entry);
-    pthread_mutex_unlock(&ap_array_mutex);
+    dawn_mutex_unlock(&ap_array_mutex);
 
     if (old_entry)
         dawn_free(old_entry);
@@ -1002,7 +1002,7 @@ ap* ap_array_get_ap(struct dawn_mac bssid_mac) {
 
     dawnlog_debug_func("Entering...");;
 
-    pthread_mutex_lock(&ap_array_mutex);
+    dawn_mutex_lock(&ap_array_mutex);
 
     ap* ret = ap_set;
 
@@ -1010,7 +1010,7 @@ ap* ap_array_get_ap(struct dawn_mac bssid_mac) {
         ret = ret->next_ap;
     }
 
-    pthread_mutex_unlock(&ap_array_mutex);
+    dawn_mutex_unlock(&ap_array_mutex);
 
     return ret;
 }

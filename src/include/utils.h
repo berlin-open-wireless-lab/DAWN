@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <syslog.h>
+#include <pthread.h>
 
 /**
  * Check if a string is greater than another one.
@@ -99,4 +100,20 @@ void dawnlog(int level, const char* fmt, ...);
  * @return
  */
 const char* dawnlog_basename(const char* file);
+
+/**
+ ** Wrap mutex operations to help track down mis-matches
+ */
+#define DAWN_MUTEX_WRAP
+
+#ifndef DAWN_MUTEX_WRAP
+#define dawn_mutex_lock(m) pthread_mutex_lock(m)
+#define dawn_mutex_unlock(m) pthread_mutex_unlock(m)
+#else
+#define dawn_mutex_lock(m) _dawn_mutex_lock(m, __FILE__, __LINE__)
+int _dawn_mutex_lock(pthread_mutex_t* m, char* f, int l);
+
+#define dawn_mutex_unlock(m) _dawn_mutex_unlock(m, __FILE__, __LINE__)
+int _dawn_mutex_unlock(pthread_mutex_t* m, char* f, int l);
+#endif
 #endif
