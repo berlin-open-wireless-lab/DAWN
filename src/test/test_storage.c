@@ -237,32 +237,8 @@ static int array_auto_helper(int action, int i0, int i1)
                 }
             }
             break;
-        case HELPER_AUTH_ENTRY:
-            ; // Empty statement to allow label before declaration
-            if ((action & HELPER_ACTION_MASK) == HELPER_ACTION_ADD)
-            {
-                auth_entry* auth_entry0 = dawn_malloc(sizeof(struct auth_entry_s));
-                auth_entry0->bssid_addr = this_mac;
-                auth_entry0->client_addr = this_mac;
 
-                insert_to_denied_req_array(auth_entry0, true, 0); // TODO: Check bool flags
-            }
-            else if ((action & HELPER_ACTION_MASK) == HELPER_ACTION_STRESS) {
-                auth_entry* auth_entry0 = dawn_malloc(sizeof(struct auth_entry_s));
-                set_random_mac(auth_entry0->bssid_addr.u8);
-                set_random_mac(auth_entry0->client_addr.u8);
 
-                insert_to_denied_req_array(auth_entry0, true, faketime);
-                remove_old_denied_req_entries(faketime, 10, false);
-                time_moves_on();
-            }
-            else
-            {
-                auth_entry* auth_entry0 = *auth_entry_find_first_entry(this_mac, this_mac);
-                if (auth_entry0 != NULL && mac_is_equal_bb(this_mac, auth_entry0->bssid_addr) && mac_is_equal_bb(this_mac, auth_entry0->client_addr))
-                    denied_req_array_delete(auth_entry0);
-            }
-            break;
         default:
             printf("HELPER error - which entity?\n");
             ret = -1;
@@ -474,16 +450,6 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
 
             print_client_array();
         }
-        else if (strcmp(*argv, "auth_entry_show") == 0)
-        {
-            args_required = 1;
-
-            dawnlog_info("--------APs------\n");
-            for (auth_entry *i = denied_req_set; i != NULL; i = i->next_auth) {
-                print_auth_entry(DAWNLOG_INFO, i);
-            }
-            dawnlog_info("------------------\n");
-        }
         else if (strcmp(*argv, "ap_add_auto") == 0)
         {
             args_required = 3;
@@ -556,31 +522,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 ret = array_auto_helper(HELPER_CLIENT | HELPER_ACTION_STRESS, 1, atoi(*(argv + 1)));
             }
         }
-        else if (strcmp(*argv, "auth_entry_add_auto") == 0)
-        {
-            args_required = 3;
-            if (curr_arg + args_required <= argc)
-            {
-                ret = array_auto_helper(HELPER_AUTH_ENTRY | HELPER_ACTION_ADD, atoi(*(argv + 1)), atoi(*(argv + 2)));
-            }
-        }
-        else if (strcmp(*argv, "auth_entry_del_auto") == 0)
-        {
-            args_required = 3;
-            if (curr_arg + args_required <= argc)
-            {
-                ret = array_auto_helper(HELPER_AUTH_ENTRY | HELPER_ACTION_DEL, atoi(*(argv + 1)), atoi(*(argv + 2)));
-            }
-        }
-        else if (strcmp(*argv, "auth_entry_stress") == 0)
-        {
-            args_required = 2;
-            if (curr_arg + args_required <= argc)
-            {
-                ret = array_auto_helper(HELPER_AUTH_ENTRY | HELPER_ACTION_STRESS, 1, atoi(*(argv + 1)));
-            }
-        }
-        else if (strcmp(*argv, "remove_old_ap_entries") == 0)
+       else if (strcmp(*argv, "remove_old_ap_entries") == 0)
         {
             args_required = 2;
             if (curr_arg + args_required <= argc)
@@ -919,46 +861,6 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
 
                 if (ret == 0)
                     args_required++;
-            }
-        }
-        else if (strcmp(*argv, "auth_entry") == 0)
-        {
-            auth_entry *au0 = dawn_malloc(sizeof(struct auth_entry_s));
-
-            memset(au0->bssid_addr.u8, 0, ETH_ALEN);
-            memset(au0->client_addr.u8, 0, ETH_ALEN);
-            memset(au0->target_addr.u8, 0, ETH_ALEN);
-            au0->signal = 0;
-            au0->freq = 0;
-            au0->time = faketime;
-            au0->counter = 0;
-
-            args_required = 1;
-            while (ret == 0 && curr_arg + args_required < argc)
-            {
-                char* fn = *(argv + args_required);
-
-                //TODO: Somewhat hacky parsing of value strings to get us going...
-                if (false);  // Hack to allow easy paste of generated code
-                else if (!strncmp(fn, "bssid=", 6)) hwaddr_aton(fn + 6, au0->bssid_addr.u8);
-                else if (!strncmp(fn, "client=", 7)) hwaddr_aton(fn + 7, au0->client_addr.u8);
-                else if (!strncmp(fn, "target=", 7)) hwaddr_aton(fn + 7, au0->target_addr.u8);
-                else if (!strncmp(fn, "signal=", 7)) load_u32(&au0->signal, fn + 7);
-                else if (!strncmp(fn, "freq=", 5)) load_u32(&au0->freq, fn + 5);
-                else if (!strncmp(fn, "time=", 5)) load_time(&au0->time, fn + 5);
-                else if (!strncmp(fn, "counter=", 8)) load_int(&au0->counter, fn + 8);
-                else {
-                    printf("ERROR: Loading AUTH, but don't recognise assignment \"%s\"\n", fn);
-                    ret = 1;
-                }
-
-                if (ret == 0)
-                    args_required++;
-            }
-
-            if (ret == 0)
-            {
-                insert_to_denied_req_array(au0, true, au0->time);
             }
         }
         else if (strcmp(*argv, "kick") == 0) // Perform kicking evaluation

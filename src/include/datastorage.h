@@ -174,8 +174,8 @@ typedef struct probe_entry_s {
 //    struct probe_entry_s* entry;
 //};
 
-typedef struct auth_entry_s {
-    struct auth_entry_s* next_auth;
+typedef struct client_req_entry_s {
+    // struct client_req_entry_s* next_deny;
     struct dawn_mac bssid_addr;
     struct dawn_mac client_addr;
     struct dawn_mac target_addr; // TODO: Never evaluated?
@@ -183,14 +183,12 @@ typedef struct auth_entry_s {
     uint32_t freq; // TODO: Never evaluated?
     time_t time; // Never used for removal?
     int counter;
-} auth_entry;
+} client_req_entry;
 
 typedef struct hostapd_notify_entry_s {
     struct dawn_mac bssid_addr;
     struct dawn_mac client_addr;
 } hostapd_notify_entry;
-
-typedef struct auth_entry_s assoc_entry;
 
 // ---------------- Defines ----------------
 
@@ -206,8 +204,6 @@ typedef struct auth_entry_s assoc_entry;
 #define NR_PHY          24
 
 // ---------------- Global variables ----------------
-extern struct auth_entry_s *denied_req_set;
-extern pthread_mutex_t denied_array_mutex;
 
 extern struct probe_entry_s *probe_set;
 extern pthread_mutex_t probe_array_mutex;
@@ -299,13 +295,7 @@ void print_probe_entry(int level, probe_entry *entry);
 
 int eval_probe_metric(struct probe_entry_s * probe_entry, ap *ap_entry);
 
-void denied_req_array_delete(auth_entry *entry);
-
-auth_entry *insert_to_denied_req_array(auth_entry*entry, int inc_counter, time_t expiry);
-
-void remove_old_denied_req_entries(time_t current_time, long long int threshold, int logmac);
-
-void print_auth_entry(int level, auth_entry *entry);
+void print_client_req_entry(int level, client_req_entry *entry);
 
 // ---------------- Functions ----------------
 

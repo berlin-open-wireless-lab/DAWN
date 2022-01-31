@@ -38,20 +38,12 @@ void start_tcp_con_update();
 int ubus_call_umdns();
 
 /**
- * Parse to authentication request.
+ * Parse to client request.
  * @param msg
  * @param auth_req
  * @return
  */
-int parse_to_auth_req(struct blob_attr *msg, auth_entry *auth_req);
-
-/**
- * Parse to association request.
- * @param msg
- * @param assoc_req
- * @return
- */
-int parse_to_assoc_req(struct blob_attr *msg, assoc_entry *assoc_req);
+int parse_to_client_req(struct blob_attr *msg, client_req_entry *client_req);
 
 /**
  * Kick client from all hostapd interfaces.

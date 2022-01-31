@@ -11,6 +11,5 @@ void ap_array_insert(ap *entry);
 
 int ap_array_delete(ap *entry);
 
-auth_entry** auth_entry_find_first_entry(struct dawn_mac bssid_mac, struct dawn_mac client_mac);
 
 #endif

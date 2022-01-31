@@ -44,8 +44,6 @@ struct uloop_timeout channel_utilization_timer = {
 
 void remove_ap_array_cb(struct uloop_timeout* t);
 
-void denied_req_array_cb(struct uloop_timeout* t);
-
 void remove_client_array_cb(struct uloop_timeout* t);
 
 void remove_probe_array_cb(struct uloop_timeout* t);
@@ -60,10 +58,6 @@ struct uloop_timeout client_timeout = {
 
 struct uloop_timeout ap_timeout = {
         .cb = remove_ap_array_cb
-};
-
-struct uloop_timeout denied_req_timeout = {
-        .cb = denied_req_array_cb
 };
 
 // TODO: Never scheduled?
@@ -243,37 +237,31 @@ void blobmsg_add_macaddr(struct blob_buf *buf, const char *name, const struct da
     blobmsg_add_string_buffer(buf);
 }
 
-int parse_to_auth_req(struct blob_attr *msg, auth_entry *auth_req) {
+int parse_to_client_req(struct blob_attr *msg, client_req_entry *client_req) {
     struct blob_attr *tb[__AUTH_MAX];
 
     dawnlog_debug_func("Entering...");
 
     blobmsg_parse(auth_policy, __AUTH_MAX, tb, blob_data(msg), blob_len(msg));
 
-    if (hwaddr_aton(blobmsg_data(tb[AUTH_BSSID_ADDR]), auth_req->bssid_addr.u8))
+    if (hwaddr_aton(blobmsg_data(tb[AUTH_BSSID_ADDR]), client_req->bssid_addr.u8))
         return UBUS_STATUS_INVALID_ARGUMENT;
 
-    if (hwaddr_aton(blobmsg_data(tb[AUTH_CLIENT_ADDR]), auth_req->client_addr.u8))
+    if (hwaddr_aton(blobmsg_data(tb[AUTH_CLIENT_ADDR]), client_req->client_addr.u8))
         return UBUS_STATUS_INVALID_ARGUMENT;
 
-    if (hwaddr_aton(blobmsg_data(tb[AUTH_TARGET_ADDR]), auth_req->target_addr.u8))
+    if (hwaddr_aton(blobmsg_data(tb[AUTH_TARGET_ADDR]), client_req->target_addr.u8))
         return UBUS_STATUS_INVALID_ARGUMENT;
 
     if (tb[AUTH_SIGNAL]) {
-        auth_req->signal = blobmsg_get_u32(tb[AUTH_SIGNAL]);
+        client_req->signal = blobmsg_get_u32(tb[AUTH_SIGNAL]);
     }
 
     if (tb[AUTH_FREQ]) {
-        auth_req->freq = blobmsg_get_u32(tb[AUTH_FREQ]);
+        client_req->freq = blobmsg_get_u32(tb[AUTH_FREQ]);
     }
 
     return 0;
-}
-
-int parse_to_assoc_req(struct blob_attr *msg, assoc_entry *assoc_req) {
-    dawnlog_debug_func("Entering...");
-
-    return (parse_to_auth_req(msg, assoc_req));
 }
 
 int parse_to_beacon_rep(struct blob_attr *msg) {
@@ -365,17 +353,17 @@ bool discard_entry = true;
 
     dawnlog_debug_func("Entering...");
 
-    auth_entry *auth_req = dawn_malloc(sizeof(struct auth_entry_s));
+    client_req_entry *auth_req = dawn_malloc(sizeof(struct client_req_entry_s));
     if (auth_req == NULL)
     {
         dawnlog_error("Memory allocation of auth req failed!");
         return ret; // Allow if we can't evalute a reason to deny
     }
 
-    parse_to_auth_req(msg, auth_req);
+    parse_to_client_req(msg, auth_req);
 
     dawnlog_debug("Auth entry: ");
-    print_auth_entry(DAWNLOG_DEBUG, auth_req);
+    print_client_req_entry(DAWNLOG_DEBUG, auth_req);
 
     if (dawn_metric.eval_auth_req <= 0) {
         dawnlog_trace("Allow authentication due to not evaluating requests");
@@ -426,10 +414,6 @@ bool discard_entry = true;
         /*** End of decide_function() rework ***/
 
         if (deny_request) {
-            if (dawn_metric.use_driver_recog) {
-                if (auth_req == insert_to_denied_req_array(auth_req, 1, time(0)))
-                    discard_entry = false;
-            }
             ret = dawn_metric.deny_auth_reason;
         }
     }
@@ -449,16 +433,16 @@ int discard_entry = true;
 
     dawnlog_debug_func("Entering...");
 
-    auth_entry* assoc_req = dawn_malloc(sizeof(struct auth_entry_s));
+    client_req_entry* assoc_req = dawn_malloc(sizeof(struct client_req_entry_s));
     if (assoc_req == NULL)
     {
         dawnlog_error("Memory allocation of assoc req failed!");
         return ret; // Allow if we can't evalute a reason to deny
     }
 
-    parse_to_assoc_req(msg, assoc_req);
+    parse_to_client_req(msg, assoc_req);
     dawnlog_debug("Association entry: ");
-    print_auth_entry(DAWNLOG_DEBUG, assoc_req);
+    print_client_req_entry(DAWNLOG_DEBUG, assoc_req);
 
     if (dawn_metric.eval_assoc_req <= 0) {
         dawnlog_trace("Allow association due to not evaluating requests");
@@ -510,10 +494,6 @@ int discard_entry = true;
             if (tmp != NULL)
                 print_probe_entry(DAWNLOG_DEBUG, tmp);
 
-            if (dawn_metric.use_driver_recog) {
-                if (assoc_req == insert_to_denied_req_array(assoc_req, 1, time(0)))
-                    discard_entry = false;
-            }
             ret = dawn_metric.deny_assoc_reason;
         }
     }
@@ -1976,10 +1956,6 @@ void uloop_add_data_cbs() {
     uloop_timeout_add(&probe_timeout);  //  callback = remove_probe_array_cb
     uloop_timeout_add(&client_timeout);  //  callback = remove_client_array_cb
     uloop_timeout_add(&ap_timeout);  //  callback = remove_ap_array_cb
-
-    if (dawn_metric.use_driver_recog) {
-        uloop_timeout_add(&denied_req_timeout);  //  callback = denied_req_array_cb
-    }
 }
 
 // TODO: Move mutex handling to remove_??? function to make test harness simpler?
@@ -2017,20 +1993,6 @@ void remove_ap_array_cb(struct uloop_timeout* t) {
     remove_old_ap_entries(time(0), timeout_config.remove_ap);
     pthread_mutex_unlock(&ap_array_mutex);
     uloop_timeout_set(&ap_timeout, timeout_config.remove_ap * 1000);
-}
-
-// TODO: Move mutex handling to (new) remove_??? function to make test harness simpler?
-// Or not needed as test harness not threaded?
-void denied_req_array_cb(struct uloop_timeout* t) {
-    dawnlog_debug_func("Entering...");
-
-    pthread_mutex_lock(&denied_array_mutex);
-    dawnlog_debug("[ULOOP] : Processing denied authentication!\n");
-
-    remove_old_denied_req_entries(time(0), timeout_config.denied_req_threshold, true);
-
-    pthread_mutex_unlock(&denied_array_mutex);
-    uloop_timeout_set(&denied_req_timeout, timeout_config.denied_req_threshold * 1000);
 }
 
 int send_add_mac(struct dawn_mac client_addr) {
