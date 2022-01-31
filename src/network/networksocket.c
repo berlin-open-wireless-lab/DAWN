@@ -62,115 +62,130 @@ int init_socket_runopts(const char *_ip, int _port, int _multicast_socket) {
     return 0;
 }
 
-void *receive_msg(void *args) {
+// TODO: Will all messages arrive in a single read? Borrow looping partial read from tcpsocket.c?
+static void* receive_msg_inner(void* args, bool is_enc) {
+
     while (1) {
-        if ((recv_string_len =
-                     recvfrom(sock, recv_string, MAX_RECV_STRING, 0, NULL, 0)) < 0) {
+        recv_string_len = recvfrom(sock, recv_string, MAX_RECV_STRING, 0, NULL, 0);
+
+        //FIXME: Next few lines look a bit mangled, with odd strlen() tests, etc...
+        if (recv_string_len < 0) {
             dawnlog_error("Could not receive message!");
             continue;
         }
 
-        if (strlen(recv_string) <= 0) {
+        if (recv_string_len == 0) {
             return 0;
         }
-        recv_string[recv_string_len] = '\0';
 
-        dawnlog_debug("Received network message: %s\n", recv_string);
-        handle_network_msg(recv_string);
+        char* final_msg = NULL;
+        if (!is_enc)
+        {
+            final_msg = recv_string;
+        }
+        else
+        {
+            size_t gcrypt_max_len = B64_DECODE_LEN(strlen(recv_string));
+            char* gcrypt_buf = dawn_malloc(gcrypt_max_len);
+            if (!gcrypt_buf) {
+                dawnlog_error("Received network error: not enough memory\n");
+                return 0;
+            }
+
+            size_t gcrypt_len = b64_decode(recv_string, gcrypt_buf, gcrypt_max_len);
+            final_msg = gcrypt_decrypt_msg(gcrypt_buf, gcrypt_len);
+
+            dawn_free(gcrypt_buf);
+            gcrypt_buf = NULL;
+
+            if (!final_msg) {
+                dawnlog_error("Received network error: not enough memory\n");
+                return 0;
+            }
+        }
+
+        dawnlog_debug("Received network message: %s\n", final_msg);
+        handle_network_msg(final_msg);
+
+        if (is_enc)
+        {
+            dawn_free(final_msg);
+            final_msg = NULL;
+        }
     }
+}
+
+void* receive_msg(void* args) {
+    return receive_msg_inner(args, false);
 }
 
 void *receive_msg_enc(void *args) {
-    while (1) {
-        if ((recv_string_len =
-                     recvfrom(sock, recv_string, MAX_RECV_STRING, 0, NULL, 0)) < 0) {
-            dawnlog_error("Could not receive message!\n");
-            continue;
-        }
-
-        if (strlen(recv_string) <= 0) {
-            return 0;
-        }
-        recv_string[recv_string_len] = '\0';
-
-        char *base64_dec_str = dawn_malloc(B64_DECODE_LEN(strlen(recv_string)));
-        if (!base64_dec_str){
-            dawnlog_error("Received network error: not enough memory\n");
-            return 0;
-        }
-        int base64_dec_length = b64_decode(recv_string, base64_dec_str, B64_DECODE_LEN(strlen(recv_string)));
-        char *dec = gcrypt_decrypt_msg(base64_dec_str, base64_dec_length);
-        if (!dec){
-            dawn_free(base64_dec_str);
-            base64_dec_str = NULL;
-            dawnlog_error("Received network error: not enough memory\n");
-            return 0;
-        }
-
-        dawnlog_debug("Received network message: %s\n", dec);
-        dawn_free(base64_dec_str);
-        base64_dec_str = NULL;
-        handle_network_msg(dec);
-        dawn_free(dec);
-        dec = NULL;
-    }
+    return receive_msg_inner(args, true);
 }
 
-int send_string(char *msg) {
-    pthread_mutex_lock(&send_mutex);
-    size_t msglen = strlen(msg);
-
-    if (sendto(sock,
-               msg,
-               msglen,
-               0,
-               (struct sockaddr *) &addr,
-               sizeof(addr)) < 0) {
-        dawnlog_perror("sendto()");
-        pthread_mutex_unlock(&send_mutex);
-        exit(EXIT_FAILURE);
-    }
-    pthread_mutex_unlock(&send_mutex);
-
-    return 0;
-}
-
-int send_string_enc(char *msg) {
+int send_string(char *msg, bool is_enc) {
     pthread_mutex_lock(&send_mutex);
 
-    int length_enc;
-    size_t msglen = strlen(msg);
-    char *enc = gcrypt_encrypt_msg(msg, msglen + 1, &length_enc);
-    if (!enc){
-        dawnlog_error("sendto() error: not enough memory\n");
-        pthread_mutex_unlock(&send_mutex);
-        exit(EXIT_FAILURE);
-    }
+    char* final_msg = NULL;
+    size_t msglen = 0;
 
-    char *base64_enc_str = dawn_malloc(B64_ENCODE_LEN(length_enc));
-    if (!base64_enc_str){
-        dawn_free(enc);
-        enc = NULL;
-        dawnlog_error("sendto() error: not enough memory\n");
-        pthread_mutex_unlock(&send_mutex);
-        exit(EXIT_FAILURE);
+    if (!is_enc)
+    {
+        // Include NUL terminator in message
+        final_msg = msg;
+        msglen = strlen(msg) + 1;
+
     }
-    size_t base64_enc_length = b64_encode(enc, length_enc, base64_enc_str, B64_ENCODE_LEN(length_enc));
+    else
+    {
+        int gcrypt_len = 0;
+        // Include NUL terminator in encrypted message
+        char* gcrypt_buf = gcrypt_encrypt_msg(msg, strlen(msg) + 1, &gcrypt_len);
+        if (!gcrypt_buf) {
+            dawnlog_error("sendto() error: not enough memory\n");
+            pthread_mutex_unlock(&send_mutex);
+            exit(EXIT_FAILURE);
+        }
+
+        size_t b64_max_len = B64_ENCODE_LEN(gcrypt_len);
+        char* final_msg = dawn_malloc(b64_max_len);
+        if (!final_msg) {
+            dawnlog_error("sendto() error: not enough memory\n");
+            dawn_free(gcrypt_buf);
+            gcrypt_buf = NULL;
+            pthread_mutex_unlock(&send_mutex);
+            exit(EXIT_FAILURE);
+        }
+
+        // very important to use actual length of string because of '\0' in encrypted msg
+        msglen = b64_encode(gcrypt_buf, gcrypt_len, final_msg, b64_max_len);
+
+        dawn_free(gcrypt_buf);
+        gcrypt_buf = NULL;
+    }
 
     if (sendto(sock,
-               base64_enc_str,
-               base64_enc_length, // very important to use actual length of string because of '\0' in encrypted msg
-               0,
-               (struct sockaddr *) &addr,
-               sizeof(addr)) < 0) {
+        final_msg,
+        msglen,
+        0,
+        (struct sockaddr*)&addr,
+        sizeof(addr)) < 0) {
         dawnlog_perror("sendto()");
+
+        // Tidy up probbaly unnecessary if we're exiting, but...
+        if (is_enc)
+            dawn_free(final_msg);
         pthread_mutex_unlock(&send_mutex);
+
         exit(EXIT_FAILURE);
     }
-    dawn_free(base64_enc_str);
-    base64_enc_str = NULL;
-    dawn_free(enc);
-    enc = NULL;
+
+    if (is_enc)
+    {
+        dawn_free(final_msg);
+        final_msg = NULL;
+    }
+
     pthread_mutex_unlock(&send_mutex);
     return 0;
 }

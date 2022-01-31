@@ -20,6 +20,8 @@ int setup_broadcast_socket(const char *_broadcast_ip, unsigned short _broadcast_
     if (setsockopt(sock, SOL_SOCKET, SO_BROADCAST, (void *) &broadcast_permission,
                    sizeof(broadcast_permission)) < 0) {
         dawnlog_error("Failed to create socket.\n");
+        // FIXME: Is close() required?
+        close(sock);
         return -1;
     }
 

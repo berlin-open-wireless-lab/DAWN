@@ -15,16 +15,10 @@ int init_socket_runopts(const char *_ip, int _port, int _multicast_socket);
 /**
  * Send message via network.
  * @param msg
+ * @param is_enc
  * @return
  */
-int send_string(char *msg);
-
-/**
- * Send encrypted message via network.
- * @param msg
- * @return
- */
-int send_string_enc(char *msg);
+int send_string(char *msg, bool is_enc);
 
 /**
  * Close socket.
