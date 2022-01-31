@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "utils.h"
 #include "multicastsocket.h"
@@ -30,12 +31,16 @@ int setup_multicast_socket(const char *_multicast_ip, unsigned short _multicast_
                    SO_REUSEADDR,
                    &loop, sizeof(loop)) < 0) {
         dawnlog_perror("setsockopt:SO_REUSEADDR");
+        // FIXME: Is close() required?
+        close(sock);
         exit(EXIT_FAILURE);
     }
     if (bind(sock,
              (struct sockaddr *) addr,
              sizeof(*addr)) < 0) {
         dawnlog_perror("bind");
+        // FIXME: Is close() required?
+        close(sock);
         exit(EXIT_FAILURE);
     }
 
@@ -46,6 +51,8 @@ int setup_multicast_socket(const char *_multicast_ip, unsigned short _multicast_
                    IP_MULTICAST_LOOP,
                    &loop, sizeof(loop)) < 0) {
         dawnlog_perror("setsockopt:IP_MULTICAST_LOOP");
+        // FIXME: Is close() required?
+        close(sock);
         exit(EXIT_FAILURE);
     }
 
@@ -54,6 +61,8 @@ int setup_multicast_socket(const char *_multicast_ip, unsigned short _multicast_
     command.imr_interface.s_addr = htonl (INADDR_ANY);
     if (command.imr_multiaddr.s_addr == -1) {
         dawnlog_perror("Wrong multicast address!\n");
+        // FIXME: Is close() required?
+        close(sock);
         exit(EXIT_FAILURE);
     }
     if (setsockopt(sock,
@@ -61,6 +70,8 @@ int setup_multicast_socket(const char *_multicast_ip, unsigned short _multicast_
                    IP_ADD_MEMBERSHIP,
                    &command, sizeof(command)) < 0) {
         dawnlog_perror("setsockopt:IP_ADD_MEMBERSHIP");
+        // FIXME: Is close() required?
+        close(sock);
     }
     return sock;
 }
