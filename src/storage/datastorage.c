@@ -49,6 +49,7 @@ struct client_s* client_set_bc = NULL; // Ordered by BSSID + client MAC
 pthread_mutex_t client_array_mutex;
 
 // TODO: How big does this get?
+// TODO: No mutex on this - is it required?
 struct mac_entry_s* mac_set = NULL;
 int mac_set_last = 0;
 
@@ -70,6 +71,7 @@ probe_entry* probe_array_find_first_entry(struct dawn_mac client_mac, struct daw
 {
     dawnlog_debug_func("Entering...");
 
+    dawn_mutex_require(&probe_array_mutex);
     struct probe_entry_s* curr_node = probe_set.first_probe;
     struct probe_entry_s* curr_skip = probe_set.first_probe_skip;
 
@@ -115,6 +117,7 @@ client** client_find_first_bc_entry(struct dawn_mac bssid_mac, struct dawn_mac c
 {
     dawnlog_debug_func("Entering...");
 
+    dawn_mutex_require(&client_array_mutex);
     client** ret = &client_set_bc;
 
     while ((*ret != NULL))
@@ -160,6 +163,7 @@ struct mac_entry_s* mac_find_entry(struct dawn_mac mac)
 }
 
 void send_beacon_requests(ap *a, int id) {
+    dawn_mutex_require(&ap_array_mutex);
     dawn_mutex_lock(&client_array_mutex);
 
     dawnlog_debug_func("Entering...");
@@ -202,6 +206,9 @@ int get_band(int freq) {
 // TODO: Can metric be cached once calculated? Add score_fresh indicator and reset when signal changes
 // TODO: as rest of values look to be static fr any given entry.
 int eval_probe_metric(struct probe_entry_s* probe_entry, ap* ap_entry) {
+    dawnlog_debug_func("Entering...");
+    dawn_mutex_require(&ap_array_mutex);
+    dawn_mutex_require(&probe_array_mutex);
 
     int band, score = 0;
 
@@ -245,13 +252,17 @@ static int compare_station_count(ap* ap_entry_own, ap* ap_entry_to_compare, stru
 
     dawnlog_info("Comparing own %d to %d\n", ap_entry_own->station_count, ap_entry_to_compare->station_count);
 
+    dawn_mutex_require(&ap_array_mutex);
     int sta_count = ap_entry_own->station_count;
     int sta_count_to_compare = ap_entry_to_compare->station_count;
+
+    dawn_mutex_require(&client_array_mutex);
     if (client_array_get_client_for_bssid(ap_entry_own->bssid_addr, client_addr)) {
         dawnlog_debug("Own is already connected! Decrease counter!\n");
         sta_count--;
     }
 
+    dawn_mutex_require(&client_array_mutex);
     if (client_array_get_client_for_bssid(ap_entry_to_compare->bssid_addr, client_addr)) {
         dawnlog_debug("Comparing station is already connected! Decrease counter!\n");
         sta_count_to_compare--;
@@ -331,8 +342,11 @@ static struct kicking_nr *insert_kicking_nr(struct kicking_nr *head, char *nr, i
 int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, struct kicking_nr **neighbor_report) {
 
     dawnlog_debug_func("Entering...");
+    dawn_mutex_require(&ap_array_mutex);
+    dawn_mutex_require(&probe_array_mutex);
 
     // This remains set to the current AP of client for rest of function
+    dawn_mutex_require(&probe_array_mutex);
     probe_entry* own_probe = probe_array_get_entry(client_mac, kicking_ap->bssid_addr);
     int own_score = -1;
     if (own_probe != NULL) {
@@ -348,9 +362,12 @@ int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, struct kicki
     }
 
     int max_score = own_score;
+    dawn_mutex_require(&ap_array_mutex);
+    dawn_mutex_require(&probe_array_mutex);
     int kick = 0;
     int ap_count = 0;
     // Now go through all probe entries for this client looking for better score
+    dawn_mutex_require(&probe_array_mutex);
     probe_entry* i = probe_array_find_first_entry(client_mac, dawn_mac_null, false);
 
     while (i != NULL && mac_is_equal_bb(i->client_addr, client_mac)) {
@@ -360,6 +377,7 @@ int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, struct kicki
             continue;
         }
 
+        dawn_mutex_require(&ap_array_mutex);
         ap* candidate_ap = ap_array_get_ap(i->bssid_addr);
 
         if (candidate_ap == NULL) {
@@ -444,10 +462,12 @@ int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, struct kicki
 int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
     dawnlog_debug_func("Entering...");
 
-    ap* kicking_ap = ap_array_get_ap(bssid_mac);
-
     dawn_mutex_lock(&client_array_mutex);
     dawn_mutex_lock(&probe_array_mutex);
+    dawn_mutex_lock(&ap_array_mutex);
+
+    dawn_mutex_require(&ap_array_mutex);
+    ap* kicking_ap = ap_array_get_ap(bssid_mac);
 
     int kicked_clients = 0;
 
@@ -560,6 +580,7 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
 
     dawnlog_trace("KICKING: --------- AP Finished ---------\n");
 
+    dawn_mutex_unlock(&ap_array_mutex);
     dawn_mutex_unlock(&probe_array_mutex);
     dawn_mutex_unlock(&client_array_mutex);
 
@@ -602,6 +623,7 @@ client *client_array_get_client(const struct dawn_mac client_addr)
 {
     dawnlog_debug_func("Entering...");
 
+    dawn_mutex_require(&client_array_mutex);
     client* ret = client_set_bc;
     while (ret != NULL && !mac_is_equal_bb(client_addr, ret->client_addr))
     {
@@ -637,6 +659,7 @@ client* client_array_delete_bc(struct dawn_mac bssid_mac, struct dawn_mac client
     client* ret = NULL;
     client** client_entry = client_find_first_bc_entry(bssid_mac, client_mac, true);
 
+    dawn_mutex_require(&client_array_mutex);
     if (*client_entry && mac_is_equal_bb(bssid_mac, (*client_entry)->bssid_addr) && mac_is_equal_bb(client_mac, (*client_entry)->client_addr))
         ret = client_array_unlink_entry(client_entry, false);
 
@@ -650,6 +673,7 @@ client* client_array_delete(client* entry, int unlink_only) {
     client** ref_bc = NULL;
 
     // Bodyless for-loop: test done in control logic
+    dawn_mutex_require(&client_array_mutex);
     for (ref_bc = &client_set_bc; (*ref_bc != NULL) && (*ref_bc != entry); ref_bc = &((*ref_bc)->next_entry_bc));
 
     // Should never fail, but better to be safe...
@@ -661,6 +685,7 @@ client* client_array_delete(client* entry, int unlink_only) {
 
 int probe_array_delete(struct dawn_mac client_mac, struct dawn_mac bssid_mac) {
     int found_in_array = false;
+    dawn_mutex_require(&probe_array_mutex);
     struct probe_entry_s** node_ref = &probe_set.first_probe;
     struct probe_entry_s** skip_ref = &probe_set.first_probe_skip;
 
@@ -722,6 +747,7 @@ int probe_array_set_all_probe_count(struct dawn_mac client_addr, uint32_t probe_
 
     // MUSTDO: Has some code been lost here?  updated never set... Certain to hit not found...
     dawn_mutex_lock(&probe_array_mutex);
+    dawn_mutex_require(&probe_array_mutex);
     for (probe_entry *i = probe_array_find_first_entry(client_addr, dawn_mac_null, false);
             i != NULL && mac_is_equal_bb(client_addr, i->client_addr); 
             i = i->next_probe) {
@@ -737,6 +763,7 @@ probe_entry* probe_array_update_rssi(struct dawn_mac client_addr, struct dawn_ma
 {
     dawnlog_debug_func("Entering...");
 
+    dawn_mutex_require(&probe_array_mutex);
     probe_entry* entry = probe_array_get_entry(client_addr, bssid_addr);
 
     if (entry) {
@@ -753,6 +780,7 @@ probe_entry* probe_array_update_rcpi_rsni(struct dawn_mac client_addr, struct da
 {
     dawnlog_debug_func("Entering...");
 
+    dawn_mutex_require(&probe_array_mutex);
     probe_entry* entry = probe_array_get_entry(client_addr, bssid_addr);
 
     if (entry) {
@@ -773,6 +801,7 @@ probe_entry* probe_array_update_rcpi_rsni(struct dawn_mac client_addr, struct da
 probe_entry *probe_array_get_entry(struct dawn_mac client_mac, struct dawn_mac bssid_mac) {
     dawnlog_debug_func("Entering...");
 
+    dawn_mutex_require(&probe_array_mutex);
     probe_entry* ret = probe_array_find_first_entry(client_mac, bssid_mac, true);
 
     return ret;
@@ -783,6 +812,7 @@ void print_probe_array() {
     {
         dawnlog_debug("------------------\n");
         // dawnlog_debug("Probe Entry Last: %d\n", probe_entry_last);
+        dawn_mutex_require(&probe_array_mutex);
         for (probe_entry* i = probe_set.first_probe; i != NULL; i = i->next_probe) {
             print_probe_entry(DAWNLOG_DEBUG, i);
         }
@@ -793,8 +823,7 @@ void print_probe_array() {
 probe_entry* insert_to_probe_array(probe_entry* entry, int is_local, int save_80211k, int is_beacon, time_t expiry) {
     dawnlog_debug_func("Entering...");
 
-    dawn_mutex_lock(&probe_array_mutex);
-
+    dawn_mutex_require(&probe_array_mutex);
     struct probe_entry_s** node_ref = &probe_set.first_probe;
     struct probe_entry_s** skip_ref = &probe_set.first_probe_skip;
 
@@ -883,8 +912,6 @@ probe_entry* insert_to_probe_array(probe_entry* entry, int is_local, int save_80
         entry->time = expiry;
     }
 
-    dawn_mutex_unlock(&probe_array_mutex);
-
     return entry;  // return pointer to what we used, which may not be what was passed in
 }
 
@@ -902,6 +929,7 @@ static ap* ap_array_update_entry(ap* entry) {
     dawnlog_debug_func("Entering...");
 
     ap* old_entry = NULL;
+    dawn_mutex_require(&ap_array_mutex);
     ap** i = &ap_set;
     while (*i != NULL && mac_compare_bb(entry->bssid_addr, (*i)->bssid_addr) != 0) {
         i = &((*i)->next_ap);
@@ -954,13 +982,15 @@ ap *insert_to_ap_array(ap* entry, time_t expiry) {
     entry->time = expiry;
 
     dawn_mutex_lock(&ap_array_mutex);
-    ap* old_entry = ap_array_update_entry(entry);
-    dawn_mutex_unlock(&ap_array_mutex);
 
+    dawn_mutex_require(&ap_array_mutex);
+    ap* old_entry = ap_array_update_entry(entry);
     if (old_entry)
         dawn_free(old_entry);
 
     print_ap_array();
+
+    dawn_mutex_unlock(&ap_array_mutex);
 
     return entry;
 }
@@ -970,6 +1000,7 @@ ap *insert_to_ap_array(ap* entry, time_t expiry) {
  void ap_array_insert(ap* entry) {
     dawnlog_debug_func("Entering...");;
 
+    dawn_mutex_require(&ap_array_mutex);
     ap** insert_pos = &ap_set;
 
     while (*insert_pos != NULL)
@@ -996,15 +1027,12 @@ ap* ap_array_get_ap(struct dawn_mac bssid_mac) {
 
     dawnlog_debug_func("Entering...");;
 
-    dawn_mutex_lock(&ap_array_mutex);
-
+    dawn_mutex_require(&ap_array_mutex);
     ap* ret = ap_set;
 
     while (ret && mac_compare_bb(bssid_mac, ret->bssid_addr) != 0) {
         ret = ret->next_ap;
     }
-
-    dawn_mutex_unlock(&ap_array_mutex);
 
     return ret;
 }
@@ -1014,6 +1042,7 @@ int ap_array_delete(ap* entry) {
 
     dawnlog_debug_func("Entering...");;
 
+    dawn_mutex_require(&ap_array_mutex);
     ap** i = &ap_set;
     while (*i != NULL) {
         if (*i == entry) {
@@ -1031,6 +1060,7 @@ int ap_array_delete(ap* entry) {
 void remove_old_client_entries(time_t current_time, long long int threshold) {
     dawnlog_debug_func("Entering...");
 
+    dawn_mutex_require(&client_array_mutex);
     client **i = &client_set_bc;
     while (*i  != NULL) {
         if ((*i)->time < current_time - threshold) {
@@ -1045,8 +1075,11 @@ void remove_old_client_entries(time_t current_time, long long int threshold) {
 void remove_old_probe_entries(time_t current_time, long long int threshold) {
     dawnlog_debug_func("Entering...");
 
+    dawn_mutex_require(&probe_array_mutex);
     probe_entry** i = &(probe_set.first_probe);
     probe_entry** s = &(probe_set.first_probe_skip);
+
+    dawn_mutex_lock(&client_array_mutex);
 
     while (*i != NULL ) {
         if (((*i)->time < current_time - threshold) && !client_array_get_client_for_bssid((*i)->bssid_addr, (*i)->client_addr)) {
@@ -1071,9 +1104,12 @@ void remove_old_probe_entries(time_t current_time, long long int threshold) {
             i = &((*i)->next_probe);
         }
     }
+
+    dawn_mutex_unlock(&client_array_mutex);
 }
 
 void remove_old_ap_entries(time_t current_time, long long int threshold) {
+    dawn_mutex_require(&ap_array_mutex);
     ap **i = &ap_set;
     while (*i != NULL) {
         if (((*i)->time) < (current_time - threshold)) {
@@ -1087,6 +1123,7 @@ void remove_old_ap_entries(time_t current_time, long long int threshold) {
 
 client* client_array_update_entry(client* entry, time_t expiry) {
     dawnlog_debug_func("Entering...");
+    dawn_mutex_require(&client_array_mutex);
 
     client* old_entry = NULL;
     client** entry_pos = client_find_first_bc_entry(entry->bssid_addr, entry->client_addr, true);
@@ -1118,9 +1155,10 @@ client* client_array_update_entry(client* entry, time_t expiry) {
 }
 
 client *insert_client_to_array(client *entry, time_t expiry) {
-client * ret = NULL;
-
     dawnlog_debug_func("Entering...");
+    dawn_mutex_require(&client_array_mutex);
+
+    client * ret = NULL;
 
     client **client_tmp = client_find_first_bc_entry(entry->bssid_addr, entry->client_addr, true);
 
@@ -1230,6 +1268,7 @@ struct mac_entry_s *insert_to_maclist(struct dawn_mac mac) {
 }
 
 void print_probe_entry(int level, probe_entry *entry) {
+    dawn_mutex_require(&probe_array_mutex);
     if (dawnlog_showing(level))
     {
         dawnlog(level,
@@ -1251,6 +1290,7 @@ void print_client_req_entry(int level, client_req_entry *entry) {
 }
 
 void print_client_entry(int level, client *entry) {
+    dawn_mutex_require(&client_array_mutex);
     if (dawnlog_showing(level))
     {
         dawnlog(level, "bssid_addr: " MACSTR ", client_addr: " MACSTR ", freq: %d, ht_supported: %d, vht_supported: %d, ht: %d, vht: %d, kick: %d\n",
@@ -1264,6 +1304,7 @@ void print_client_array() {
     {
         dawnlog_debug("--------Clients------\n");
         //dawnlog_debug("Client Entry Last: %d\n", client_entry_last);
+        dawn_mutex_require(&client_array_mutex);
         for (client* i = client_set_bc; i != NULL; i = i->next_entry_bc) {
             print_client_entry(DAWNLOG_DEBUG, i);
         }
@@ -1272,6 +1313,7 @@ void print_client_array() {
 }
 
 static void print_ap_entry(int level, ap *entry) {
+    dawn_mutex_require(&ap_array_mutex);
     if (dawnlog_showing(DAWNLOG_INFO))
     {
         dawnlog_info("ssid: %s, bssid_addr: " MACSTR ", freq: %d, ht: %d, vht: %d, chan_utilz: %d, neighbor_report: %s\n",
@@ -1286,6 +1328,7 @@ void print_ap_array() {
     if (dawnlog_showing(DAWNLOG_DEBUG))
     {
         dawnlog_debug("--------APs------\n");
+        dawn_mutex_require(&ap_array_mutex);
         for (ap* i = ap_set; i != NULL; i = i->next_ap) {
             print_ap_entry(DAWNLOG_DEBUG, i);
         }

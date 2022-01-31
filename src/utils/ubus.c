@@ -286,6 +286,9 @@ static probe_entry* parse_to_beacon_rep(struct blob_attr *msg) {
     }
     else
     {
+        dawn_mutex_lock(&ap_array_mutex);
+
+        dawn_mutex_require(&ap_array_mutex);
         ap* ap_entry_rep = ap_array_get_ap(msg_bssid);
 
         // no client from network!!
@@ -317,6 +320,8 @@ static probe_entry* parse_to_beacon_rep(struct blob_attr *msg) {
                 beacon_rep->vht_capabilities = false; // that is very problematic!!!
             }
         }
+
+        dawn_mutex_unlock(&ap_array_mutex);
     }
 
     return beacon_rep;
@@ -354,7 +359,7 @@ bool discard_entry = true;
 
         probe_entry *tmp = probe_array_get_entry(auth_req->client_addr, auth_req->bssid_addr);
 
-        dawn_mutex_unlock(&probe_array_mutex);
+            dawn_mutex_require(&probe_array_mutex);
 
         /*** Deprecated function decide_function() removed here ***/
         int deny_request = 0;
@@ -370,7 +375,9 @@ bool discard_entry = true;
         }
         else
         {
-            // find own probe entry and calculate score
+            dawn_mutex_lock(&ap_array_mutex);
+
+                dawn_mutex_require(&ap_array_mutex);
             ap* this_ap = ap_array_get_ap(tmp->bssid_addr);
             if (this_ap != NULL && better_ap_available(this_ap, tmp->client_addr, NULL) > 0) {
                 dawnlog_trace(MACSTR " Deny authentication due to better AP available", MAC2STR(auth_req->client_addr.u8));
@@ -379,12 +386,16 @@ bool discard_entry = true;
             else
                 // maybe send here that the client is connected?
                 dawnlog_trace(MACSTR " Allow authentication!\n", MAC2STR(auth_req->client_addr.u8));
+
+            dawn_mutex_unlock(&ap_array_mutex);
         }
         /*** End of decide_function() rework ***/
 
         if (deny_request) {
             ret = dawn_metric.deny_auth_reason;
         }
+
+        dawn_mutex_unlock(&probe_array_mutex);
     }
 
     if (discard_entry)
@@ -426,7 +437,7 @@ int discard_entry = true;
 
         probe_entry *tmp = probe_array_get_entry(assoc_req->client_addr, assoc_req->bssid_addr);
 
-        dawn_mutex_unlock(&probe_array_mutex);
+            dawn_mutex_require(&probe_array_mutex);
 
         /*** Deprecated function decide_function() removed here ***/
         int deny_request = 0;
@@ -443,6 +454,9 @@ int discard_entry = true;
         else
         {
             // find own probe entry and calculate score
+            dawn_mutex_lock(&ap_array_mutex);
+
+                dawn_mutex_require(&ap_array_mutex);
             ap* this_ap = ap_array_get_ap(assoc_req->bssid_addr);
             if (this_ap != NULL && better_ap_available(this_ap, assoc_req->client_addr, NULL) > 0) {
                 dawnlog_trace(MACSTR " Deny association due to better AP available", MAC2STR(assoc_req->client_addr.u8));
@@ -451,6 +465,7 @@ int discard_entry = true;
             else { // TODO: Should we reset probe counter to zero here?  Does active client do probe and if so what would a deny lead to?
                 dawnlog_trace(MACSTR " Allow association!\n", MAC2STR(assoc_req->client_addr.u8));
             }
+            dawn_mutex_unlock(&ap_array_mutex);
         }
         /*** End of decide_function() rework ***/
 
@@ -460,6 +475,8 @@ int discard_entry = true;
 
             ret = dawn_metric.deny_assoc_reason;
         }
+
+        dawn_mutex_unlock(&probe_array_mutex);
     }
 
     if (discard_entry)
@@ -484,6 +501,9 @@ static int handle_probe_req(struct blob_attr* msg) {
     }
     else
     {
+        dawn_mutex_lock(&probe_array_mutex);
+
+        dawn_mutex_require(&probe_array_mutex);
         probe_entry* probe_req_updated = insert_to_probe_array(probe_req, true, true, false, time(0));
         // If insert finds an existing entry, rather than linking in our new one,
         // send new probe req because we want to stay synced.
@@ -518,6 +538,9 @@ static int handle_probe_req(struct blob_attr* msg) {
         else
         {
             // find own probe entry and calculate score
+            dawn_mutex_lock(&ap_array_mutex);
+
+            dawn_mutex_require(&ap_array_mutex);
             ap* this_ap = ap_array_get_ap(probe_req_updated->bssid_addr);
             if (this_ap != NULL && better_ap_available(this_ap, probe_req_updated->client_addr, NULL) > 0) {
                 dawnlog_trace(MACSTR " Deny probe due to better AP available", MAC2STR(probe_req_updated->client_addr.u8));
@@ -527,12 +550,14 @@ static int handle_probe_req(struct blob_attr* msg) {
             {
                 dawnlog_trace(MACSTR " Allow probe request!", MAC2STR(probe_req_updated->client_addr.u8));
             }
+
+            dawn_mutex_unlock(&ap_array_mutex);
         }
         /*** End of decide_function() rework ***/
-
         if (deny_request) {
             return WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA; // no reason needed...
         }
+        dawn_mutex_unlock(&probe_array_mutex);
     }
 
     // TODO: Return for dawn_malloc() failure?
@@ -557,9 +582,8 @@ static int handle_beacon_rep(struct blob_attr *msg) {
             // Update RxxI of current entry if it exists
             dawn_mutex_lock(&probe_array_mutex);
 
+            dawn_mutex_require(&probe_array_mutex);
             probe_entry* entry_updated = probe_array_update_rcpi_rsni(entry->client_addr, entry->bssid_addr, entry->rcpi, entry->rsni, true);
-
-            dawn_mutex_unlock(&probe_array_mutex);
 
             if (entry_updated)
             {
@@ -571,12 +595,14 @@ static int handle_beacon_rep(struct blob_attr *msg) {
                 dawnlog_info("Local BEACON is for new client / BSSID = " MACSTR " / " MACSTR " \n", MAC2STR(entry->client_addr.u8), MAC2STR(entry->bssid_addr.u8));
 
                 // BEACON will never set RSSI, but may have RCPI and RSNI
+                dawn_mutex_require(&probe_array_mutex);
                 entry = insert_to_probe_array(entry, false, false, true, time(0));
-
                 ubus_send_probe_via_network(entry);
 
                 ret = 0;
             }
+
+            dawn_mutex_unlock(&probe_array_mutex);
         }
     }
 
@@ -744,10 +770,15 @@ static int get_band_from_bssid(struct dawn_mac bssid) {
 int ret = -1;
 
     dawnlog_debug_func("Entering...");
+    dawn_mutex_lock(&ap_array_mutex);
+
+    dawn_mutex_require(&ap_array_mutex);
     ap* a = ap_array_get_ap(bssid);
 
     if (a)
         ret = get_band(a->freq);
+
+    dawn_mutex_unlock(&ap_array_mutex);
 
     return ret;
 }
@@ -813,8 +844,13 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
 
     parse_to_clients(b.head);
 
+    dawn_mutex_lock(&client_array_mutex);
     print_client_array();
+    dawn_mutex_unlock(&client_array_mutex);
+
+    dawn_mutex_lock(&ap_array_mutex);
     print_ap_array();
+    dawn_mutex_unlock(&ap_array_mutex);
 
     dawn_free(data_str);
     data_str = NULL;
@@ -965,6 +1001,7 @@ static int get_mode_from_capability(int capability) {
 
 void ubus_send_beacon_request(client *c, ap *a, int id)
 {
+    dawn_mutex_require(&ap_array_mutex);
     struct blob_buf b = {0};
     dawnlog_debug_func("Entering...");
 
@@ -999,10 +1036,15 @@ void update_beacon_reports(struct uloop_timeout *t) {
     struct hostapd_sock_entry *sub;
     list_for_each_entry(sub, &hostapd_sock_list, list)
     {
+        dawn_mutex_lock(&ap_array_mutex);
+
+        dawn_mutex_require(&ap_array_mutex);
         if (sub->subscribed && (a = ap_array_get_ap(sub->bssid_addr))) {
             dawnlog_debug("Sending beacon request Sub!\n");
             send_beacon_requests(a, sub->id);
         }
+
+        dawn_mutex_unlock(&ap_array_mutex);
     }
     uloop_timeout_set(&beacon_reports_timer, timeout_config.update_beacon_reports * 1000);
 }
@@ -1752,16 +1794,19 @@ static void blobmsg_add_rrm_string(struct blob_buf* b, char* n, uint8_t caps)
 int build_hearing_map_sort_client(struct blob_buf *b) {
     dawnlog_debug_func("Entering...");
 
+    dawn_mutex_lock(&probe_array_mutex);
+    dawn_mutex_lock(&ap_array_mutex);
+
     if (dawnlog_showing(DAWNLOG_DEBUG))
         print_probe_array();
 
-    dawn_mutex_lock(&probe_array_mutex);
-
     // Build a linked list of probe entried in correct order for hearing map
     struct probe_sort_entry *hearing_list = NULL;
+    dawn_mutex_require(&probe_array_mutex);
     probe_entry* i = probe_set.first_probe;
     while (i != NULL) {
         // check if ap entry is available - returns NULL if not in list
+        dawn_mutex_require(&ap_array_mutex);
         ap *ap_k = ap_array_get_ap(i->bssid_addr);
 
         if (ap_k)
@@ -1813,6 +1858,7 @@ int build_hearing_map_sort_client(struct blob_buf *b) {
         }
 
         // Find the client if it is actually connected somewhere...
+        dawn_mutex_require(&client_array_mutex);
         client* this_client = client_array_get_client(this_entry->k->client_addr);
 
         // Add the probe details
@@ -1874,6 +1920,7 @@ int build_hearing_map_sort_client(struct blob_buf *b) {
         this_entry = next_entry;
     }
 
+    dawn_mutex_unlock(&ap_array_mutex);
     dawn_mutex_unlock(&probe_array_mutex);
 
     return 0;
@@ -1890,6 +1937,7 @@ int build_network_overview(struct blob_buf *b) {
     struct hostapd_sock_entry *sub;
 
     bool add_ssid = true;
+    dawn_mutex_require(&ap_array_mutex);
     for (ap* m = ap_set; m != NULL; m = m->next_ap) {
         if(add_ssid)
         {
@@ -1932,6 +1980,7 @@ int build_network_overview(struct blob_buf *b) {
         blobmsg_add_string_buffer(b);
 
         // TODO: Could optimise this by exporting search func, but not a core process
+        dawn_mutex_require(&client_array_mutex);
         client *k = *client_find_first_bc_entry(m->bssid_addr, dawn_mac_null, false);
         while (k != NULL && mac_is_equal_bb(m->bssid_addr, k->bssid_addr)) {
 
@@ -1979,7 +2028,9 @@ int build_network_overview(struct blob_buf *b) {
 }
 
 
-static void blobmsg_add_nr(struct blob_buf *b_local, ap *i) {
+
+static void blobmsg_add_nr(struct blob_buf* b_local, ap* i) {
+    dawn_mutex_require(&ap_array_mutex);
     void* nr_entry = blobmsg_open_array(b_local, NULL);
     char mac_buf[20];
 
@@ -2016,6 +2067,7 @@ int ap_get_nr(struct blob_buf *b_local, struct dawn_mac own_bssid_addr, const ch
 
     void* nbs = blobmsg_open_array(b_local, "list");
 
+    dawn_mutex_require(&ap_array_mutex);
     own_ap = ap_array_get_ap(own_bssid_addr);
     if (!own_ap)
         return -1;
@@ -2024,7 +2076,6 @@ int ap_get_nr(struct blob_buf *b_local, struct dawn_mac own_bssid_addr, const ch
         if (own_ap->freq <= max_band_freq[band])
            break;
     }
-    dawn_mutex_lock(&ap_array_mutex);
 
     for (i = ap_set; i != NULL; i = i->next_ap) {
         if (i != own_ap && !strncmp((char *)i->ssid, ssid, SSID_MAX_LEN) &&
@@ -2033,7 +2084,6 @@ int ap_get_nr(struct blob_buf *b_local, struct dawn_mac own_bssid_addr, const ch
             blobmsg_add_nr(b_local, i);
         }
     }
-    dawn_mutex_unlock(&ap_array_mutex);
 
     for (n = preferred_list; n; n = n->next_mac) {
         if ((i = ap_array_get_ap(n->mac)))

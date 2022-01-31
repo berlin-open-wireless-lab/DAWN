@@ -11,6 +11,18 @@
 #include "test_storage.h"
 
 /*** Test Stub Functions - Called by SUT ***/
+
+// It is an accident of Uni* / C history that the below is not stubbed in libc...
+int pthread_mutex_trylock(pthread_mutex_t* m)
+{
+    return EBUSY;  // Tell SUT that it was locked, so no errors, warnings, etc
+}
+
+void ubus_set_nr_from_clients(struct kicking_nr* ap_list) {
+    printf("ubus_set_nr_from_clients() was called...\n");
+}
+
+
 void ubus_send_beacon_request(client *c, ap *a, int id)
 {
     printf("ubus_send_beacon_request() was called...\n");
