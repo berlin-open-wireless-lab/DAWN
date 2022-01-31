@@ -218,6 +218,7 @@ static probe_entry* parse_to_beacon_rep(struct blob_attr *msg);
 
 void ubus_set_nr();
 
+static int build_hearing_map_sort_client(struct blob_buf* b);
 
 /*** CODE START ***/
 void add_client_update_timer(time_t time) {
@@ -1367,7 +1368,7 @@ static int get_hearing_map(struct ubus_context *ctx_local, struct ubus_object *o
     build_hearing_map_sort_client(&b);
     ret = ubus_send_reply(ctx_local, req, b.head);
     if (ret)
-        dawnlog_error("Failed to send reply: %s\n", ubus_strerror(ret));
+        dawnlog_error("Failed to send hearing map: %s\n", ubus_strerror(ret));
     blob_buf_free(&b);
     dawn_unregmem(&b);
 
@@ -1706,6 +1707,27 @@ int uci_send_via_network()
     return 0;
 }
 
+// Allow probe entries to be arranged in arbitary way
+struct probe_sort_entry
+{
+struct probe_sort_entry* next;
+probe_entry *k;
+struct ap_s *ap_k;
+};
+
+static int probe_cmp_ssid_client_bssid(struct probe_sort_entry *a, struct probe_sort_entry *b)
+{
+    int ret = strcmp((char*)a->ap_k->ssid, (char*)b->ap_k->ssid);
+
+    if (ret == 0)
+        ret = mac_compare_bb(a->k->client_addr, b->k->client_addr);
+        
+    if (ret == 0)
+        ret = mac_compare_bb(a->k->bssid_addr, b->k->bssid_addr);
+        
+    return ret;
+}
+
 // FIXME: Not sure if we need to create a NUL terminated string. Is unterminated length of 8 enough?
 static void blobmsg_add_rrm_string(struct blob_buf* b, char* n, uint8_t caps)
 {
@@ -1728,90 +1750,137 @@ int build_hearing_map_sort_client(struct blob_buf *b) {
 
     dawn_mutex_lock(&probe_array_mutex);
 
-    void *client_list, *ap_list, *ssid_list;
-    char ap_mac_buf[20];
-    char client_mac_buf[20];
-    bool same_ssid = false;
+    // Build a linked list of probe entried in correct order for hearing map
+    struct probe_sort_entry *hearing_list = NULL;
+    probe_entry* i = probe_set.first_probe;
+    while (i != NULL) {
+        // check if ap entry is available - returns NULL if not in list
+        ap *ap_k = ap_array_get_ap(i->bssid_addr);
 
-    for (ap* m = ap_set; m != NULL; m = m->next_ap) {
-        // MUSTDO: Ensure SSID / BSSID ordering.  Lost when switched to linked list!
-        // Scan AP list to find first of each SSID
-        if (!same_ssid) {
-            ssid_list = blobmsg_open_table(b, (char*)m->ssid);
-            probe_entry* i = probe_set.first_probe;
-            while (i != NULL) {
-                ap *ap_entry_i = ap_array_get_ap(i->bssid_addr);
-
-                if (ap_entry_i == NULL) {
-                    i = i->next_probe;
-                    continue;
+        if (ap_k)
+        {
+            struct probe_sort_entry *this_entry = dawn_malloc(sizeof(struct probe_sort_entry));
+            if (!this_entry)
+            {
+                dawnlog_error("Allocation of member for hearing map failed");
+            }
+            else
+            {
+                this_entry->k = i;
+                this_entry->ap_k = ap_k;
+                struct probe_sort_entry **hearing_entry = &hearing_list;
+                while (*hearing_entry && probe_cmp_ssid_client_bssid(this_entry, *hearing_entry) > 0)
+                {
+                    hearing_entry = &((*hearing_entry)->next);
                 }
 
-                if (strcmp((char*)ap_entry_i->ssid, (char*)m->ssid) != 0) {
-                    i = i->next_probe;
-                    continue;
-                }
-
-                sprintf(client_mac_buf, MACSTR, MAC2STR(i->client_addr.u8));
-                client_list = blobmsg_open_table(b, client_mac_buf);
-                probe_entry *k;
-                for (k = i;
-                k != NULL && mac_is_equal_bb(k->client_addr, i->client_addr);
-                k = k->next_probe) {
-
-                    ap *ap_k = ap_array_get_ap(k->bssid_addr);
-
-                    if (ap_k == NULL || strcmp((char*)ap_k->ssid, (char*)m->ssid) != 0) {
-                        continue;
-                    }
-
-                    sprintf(ap_mac_buf, MACSTR, MAC2STR(k->bssid_addr.u8));
-                    ap_list = blobmsg_open_table(b, ap_mac_buf);
-                    blobmsg_add_u32(b, "signal", k->signal);
-                    blobmsg_add_u32(b, "rcpi", k->rcpi);
-                    blobmsg_add_u32(b, "rsni", k->rsni);
-                    blobmsg_add_u32(b, "freq", k->freq);
-                    blobmsg_add_u8(b, "ht_capabilities", k->ht_capabilities);
-                    blobmsg_add_u8(b, "vht_capabilities", k->vht_capabilities);
-
-
-                    // check if ap entry is available
-                    blobmsg_add_u32(b, "channel_utilization", ap_k->channel_utilization);
-                    blobmsg_add_u32(b, "num_sta", ap_k->station_count);
-                    blobmsg_add_u8(b, "ht_support", ap_k->ht_support);
-                    blobmsg_add_u8(b, "vht_support", ap_k->vht_support);
-
-                    blobmsg_add_u32(b, "score", eval_probe_metric(k, ap_k));
-                    blobmsg_close_table(b, ap_list);
-                }
-
-                blobmsg_close_table(b, client_list);
-
-                // TODO: Change this so that i and k are single loop?
-                i = k;
+                this_entry->next = *hearing_entry;
+                *hearing_entry = this_entry;
             }
         }
 
-        if ((m->next_ap == NULL) || strcmp((char*)m->ssid, (char*)((m->next_ap)->ssid)) != 0)
+        i = i->next_probe;
+    }
+
+    // Output of list is the hearing map
+    bool same_ssid = false;
+    void* ssid_list = NULL;
+
+    bool same_client = false;
+    void* client_list = NULL;
+
+    struct probe_sort_entry *this_entry = hearing_list;
+    while (this_entry != NULL)
+    {
+        // Add new outer sections if needed
+        if (!same_ssid) {
+            ssid_list = blobmsg_open_table(b, (char*)this_entry->ap_k->ssid);
+            same_ssid = true;
+        }
+
+        if (!same_client) {
+            char client_mac_buf[20];
+            sprintf(client_mac_buf, MACSTR, MAC2STR(this_entry->k->client_addr.u8));
+            client_list = blobmsg_open_table(b, client_mac_buf);
+            same_client = true;
+        }
+
+        // Find the client if it is actually connected somewhere...
+        client* this_client = client_array_get_client(this_entry->k->client_addr);
+
+        // Add the probe details
+        char ap_mac_buf[20];
+        sprintf(ap_mac_buf, MACSTR, MAC2STR(this_entry->k->bssid_addr.u8));
+        void* ap_list = blobmsg_open_table(b, ap_mac_buf);
+
+        blobmsg_add_u32(b, "signal", this_entry->k->signal);
+        blobmsg_add_u32(b, "rcpi", this_entry->k->rcpi);
+        blobmsg_add_u32(b, "rsni", this_entry->k->rsni);
+        blobmsg_add_u32(b, "freq", this_entry->k->freq);
+        blobmsg_add_u8(b, "ht_capabilities", this_entry->k->ht_capabilities);
+        blobmsg_add_u8(b, "vht_capabilities", this_entry->k->vht_capabilities);
+
+        blobmsg_add_u32(b, "channel_utilization", this_entry->ap_k->channel_utilization);
+        blobmsg_add_u32(b, "num_sta", this_entry->ap_k->station_count);
+        blobmsg_add_u8(b, "ht_support", this_entry->ap_k->ht_support);
+        blobmsg_add_u8(b, "vht_support", this_entry->ap_k->vht_support);
+
+        if (this_client != NULL)
+            blobmsg_add_rrm_string(b, "rrm-caps", this_client->rrm_enabled_capa);
+
+        blobmsg_add_u32(b, "score", eval_probe_metric(this_entry->k, this_entry->ap_k));
+
+        blobmsg_close_table(b, ap_list);
+
+        // Close any outer sections as required
+        int actions = 0;
+        struct probe_sort_entry *next_entry = this_entry->next;
+        if (next_entry == NULL)
+        {
+            actions = 2 + 1; // Close SSID and client
+        }
+        else if (strcmp((char*)this_entry->ap_k->ssid, (char*)next_entry->ap_k->ssid))
+        {
+            actions = 2 + 1; // Close SSID and client
+        }
+        else if (mac_compare_bb(this_entry->k->client_addr, next_entry->k->client_addr) != 0)
+        {
+            actions = 1; // Close client only
+        }
+
+        if ((actions & 1) == 1)
+        {
+            blobmsg_close_table(b, client_list);
+            client_list = NULL;
+            same_client = false;
+        }
+
+        if ((actions & 2) == 2)
         {
             blobmsg_close_table(b, ssid_list);
+            ssid_list = NULL;
             same_ssid = false;
         }
-        else
-            same_ssid = true;
+
+        // Dispose of each entry as we show it
+        dawn_free(this_entry);
+        this_entry = next_entry;
     }
 
     dawn_mutex_unlock(&probe_array_mutex);
+
     return 0;
 }
 
+
+// FIXME: Should we have more mutex protection while accessing these lists?
 int build_network_overview(struct blob_buf *b) {
+    dawnlog_debug_func("Entering...");
+
     void *client_list, *ap_list, *ssid_list;
     char ap_mac_buf[20];
     char client_mac_buf[20];
     struct hostapd_sock_entry *sub;
-
-    dawnlog_debug_func("Entering...");
 
     bool add_ssid = true;
     for (ap* m = ap_set; m != NULL; m = m->next_ap) {
@@ -1823,11 +1892,13 @@ int build_network_overview(struct blob_buf *b) {
         sprintf(ap_mac_buf, MACSTR, MAC2STR(m->bssid_addr.u8));
         ap_list = blobmsg_open_table(b, ap_mac_buf);
 
+        blobmsg_add_u32(b, "channel", m->channel);
         blobmsg_add_u32(b, "freq", m->freq);
         blobmsg_add_u32(b, "channel_utilization", m->channel_utilization);
         blobmsg_add_u32(b, "num_sta", m->station_count);
         blobmsg_add_u8(b, "ht_support", m->ht_support);
         blobmsg_add_u8(b, "vht_support", m->vht_support);
+        blobmsg_add_u32(b, "op_class", m->op_class);
 
         bool local_ap = false;
         list_for_each_entry(sub, &hostapd_sock_list, list)
@@ -1893,9 +1964,6 @@ int build_network_overview(struct blob_buf *b) {
         // Rely on short-circuit of OR to protect NULL reference in 2nd clause
         if ((m->next_ap == NULL) || strcmp((char*)m->ssid, (char*)(m->next_ap)->ssid) != 0) {
             blobmsg_close_table(b, ssid_list);
-        }
-
-        if ((m->next_ap != NULL) && strcmp((char*)m->ssid, (char*)(m->next_ap)->ssid) != 0) {
             add_ssid = true;
         }
     }
@@ -1950,6 +2018,7 @@ int ap_get_nr(struct blob_buf *b_local, struct dawn_mac own_bssid_addr, const ch
            break;
     }
     dawn_mutex_lock(&ap_array_mutex);
+
     for (i = ap_set; i != NULL; i = i->next_ap) {
         if (i != own_ap && !strncmp((char *)i->ssid, ssid, SSID_MAX_LEN) &&
             !mac_is_in_entry_list(i->bssid_addr, preferred_list))
