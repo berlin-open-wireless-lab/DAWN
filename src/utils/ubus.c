@@ -218,6 +218,8 @@ static probe_entry* parse_to_beacon_rep(struct blob_attr *msg);
 
 void ubus_set_nr();
 
+
+/*** CODE START ***/
 void add_client_update_timer(time_t time) {
     uloop_timeout_set(&client_timer, time);
 }
@@ -699,7 +701,7 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
     uloop_add_data_cbs();
 
     // get clients
-    uloop_timeout_add(&client_timer);  // callback = update_clients
+    uloop_timeout_add(&client_timer);  // callback = update_client_nr
 
     uloop_timeout_add(&channel_utilization_timer);  // callback = update_channel_utilization
 
@@ -800,8 +802,8 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     blobmsg_add_string(&b, "hostname", entry->hostname);
 
     send_blob_attr_via_network(b.head, "clients");
-    // TODO: Have we just bit-packed data to send to something locally to unpack it again?  Performance / scalability?
-    parse_to_clients(b.head, 1, req->peer);
+
+    parse_to_clients(b.head);
 
     print_client_array();
     print_ap_array();
@@ -811,6 +813,13 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
 
     blob_buf_free(&b);
     dawn_unregmem(&b);
+
+    if (dawn_metric.kicking) {
+        //FIXME: Should we do this?  Does it mix up STA and AP RSSI values, and does that matter?
+        update_iw_info(entry->bssid_addr);
+
+        kick_clients(entry->bssid_addr, req->peer);
+    }
 }
 
 static int ubus_get_clients() {
