@@ -70,7 +70,8 @@ void write_mac_to_file(char* path, struct dawn_mac addr) {
     if (f == NULL)
         dawnlog_error("Error opening mac file!\n");
     else
+    {   
         fprintf(f, MACSTR "\n", MAC2STR(addr.u8));
-
-    fclose(f);
+        fclose(f);
+    }
 }

@@ -225,6 +225,7 @@ probe_entry *parse_to_probe_req(struct blob_attr* msg) {
 int handle_deauth_req(struct blob_attr* msg) {
 
     dawnlog_debug_func("Entering...");
+
     hostapd_notify_entry notify_req;
     parse_to_hostapd_notify(msg, &notify_req);
 
@@ -330,7 +331,7 @@ int handle_network_msg(char* msg) {
     else if (strncmp(method, "macfile", 5) == 0) {
         parse_add_mac_to_file(data_buf.head);
     }
-    else if (strncmp(method, "uci", 2) == 0) {
+    else if (strncmp(method, "uci", 2) == 0) { // TODO: Should this be 3 or is something special happening?
         dawnlog_debug("HANDLING UCI!\n");
         handle_uci_config(data_buf.head);
     }

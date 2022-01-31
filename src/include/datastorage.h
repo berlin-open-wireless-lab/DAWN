@@ -116,17 +116,18 @@ struct local_config_s {
     int loglevel;
 };
 
+// FIXME: Are these with or without NUL terminator?  Adjust values, string allocation and strncpy() to agree.
 #define MAX_IP_LENGTH 46
 #define MAX_KEY_LENGTH 65
 
 struct network_config_s {
-    char broadcast_ip[MAX_IP_LENGTH];
+    char broadcast_ip[MAX_IP_LENGTH + 1];
     int broadcast_port;
-    char server_ip[MAX_IP_LENGTH];
+    char server_ip[MAX_IP_LENGTH + 1];
     int tcp_port;
     int network_option;
-    char shared_key[MAX_KEY_LENGTH];
-    char iv[MAX_KEY_LENGTH];
+    char shared_key[MAX_KEY_LENGTH + 1];
+    char iv[MAX_KEY_LENGTH + 1];
     int use_symm_enc;
     int collision_domain;
     int bandwidth;
@@ -160,7 +161,7 @@ typedef struct probe_entry_s {
     uint8_t ht_capabilities; // eval_probe_metric()
     uint8_t vht_capabilities; // eval_probe_metric()
     time_t time; // remove_old...entries
-    int counter;
+    int counter; // FIXME: Never gets reset to zero.  Rely on deletion to create new for non-802.11k client?
     int deny_counter; // TODO: Never used?
     uint8_t max_supp_datarate; // TODO: Never used?
     uint8_t min_supp_datarate; // TODO: Never used?

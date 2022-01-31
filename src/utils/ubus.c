@@ -87,7 +87,7 @@ struct hostapd_sock_entry {
     uint64_t last_channel_time_busy;
     int chan_util_samples_sum;
     int chan_util_num_sample_periods;
-    int chan_util_average; //TODO: Never evaluated?
+    int chan_util_average;
     int band;
 
     // add neighbor report string
@@ -684,10 +684,10 @@ static int hostapd_notify(struct ubus_context* ctx_local, struct ubus_object* ob
 }
 
 int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
+    dawnlog_debug_func("Entering...");
+
     uloop_init();
     signal(SIGPIPE, SIG_IGN);
-
-    dawnlog_debug_func("Entering...");
 
     ctx = ubus_connect(ubus_socket);
     if (!ctx) {
@@ -1170,7 +1170,7 @@ static void ubus_umdns_cb(struct ubus_request *req, int type, struct blob_attr *
             dawnlog_debug("IPV4: %s\n", blobmsg_get_string(tb_dawn[DAWN_UMDNS_IPV4]));
             dawnlog_debug("Port: %d\n", blobmsg_get_u32(tb_dawn[DAWN_UMDNS_PORT]));
         } else {
-            return;
+            return; // TODO: We're in a loop. Should this be return or continue?
         }
         add_tcp_connection(blobmsg_get_string(tb_dawn[DAWN_UMDNS_IPV4]), blobmsg_get_u32(tb_dawn[DAWN_UMDNS_PORT]));
     }
@@ -1460,7 +1460,6 @@ static void hostapd_handle_remove(struct ubus_context *ctx_local,
                                   struct ubus_subscriber *s, uint32_t id) {
     dawnlog_debug_func("HOSTAPD: Object %08x went away\n", id);
 
-
     struct hostapd_sock_entry *hostapd_sock = container_of(s,
     struct hostapd_sock_entry, subscriber);
 
@@ -1592,6 +1591,7 @@ void subscribe_to_new_interfaces(const char *hostapd_sock_path) {
         dawnlog_error("[SUBSCRIBING] No hostapd sockets!\n");
         return;
     }
+
     while ((entry = readdir(dirp)) != NULL) {
         if (entry->d_type == DT_SOCK) {
             bool do_subscribe = true;
@@ -2064,8 +2064,6 @@ void remove_probe_array_cb(struct uloop_timeout* t) {
     uloop_timeout_set(&probe_timeout, timeout_config.remove_probe * 1000);
 }
 
-
-
 void remove_client_array_cb(struct uloop_timeout* t) {
     dawnlog_debug_func("[ULOOP] : Removing old client entries!\n");
 
@@ -2075,8 +2073,6 @@ void remove_client_array_cb(struct uloop_timeout* t) {
 
     uloop_timeout_set(&client_timeout, timeout_config.remove_client * 1000);
 }
-
-
 
 void remove_ap_array_cb(struct uloop_timeout* t) {
     dawnlog_debug_func("[ULOOP] : Removing old ap entries!\n");
