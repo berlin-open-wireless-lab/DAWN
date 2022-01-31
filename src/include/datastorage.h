@@ -222,16 +222,8 @@ extern pthread_mutex_t probe_array_mutex;
 #define MAX_INTERFACE_NAME 64
 
 // ---------------- Structs ----------------
-// Testing only: Removes the ability to find clients via secondary search, hence replicates
-// the pre-optimisation behaviour of only scanning the BSSID+MAC orderd list
-//#define DAWN_CLIENT_SCAN_BC_ONLY
-
 typedef struct client_s {
     struct client_s* next_entry_bc;
-    struct client_s* next_skip_entry_bc;
-#ifndef DAWN_CLIENT_SCAN_BC_ONLY
-    struct client_s* next_entry_c;
-#endif
     struct dawn_mac bssid_addr;
     struct dawn_mac client_addr;
     char signature[SIGNATURE_LEN]; // TODO: Never evaluated?
@@ -317,6 +309,8 @@ probe_entry* probe_array_update_rcpi_rsni(struct dawn_mac client_addr, struct da
 
 void remove_old_client_entries(time_t current_time, long long int threshold);
 
+client* client_array_update_entry(client* entry, time_t expiry);
+
 client *insert_client_to_array(client *entry, time_t expiry);
 
 int kick_clients(struct dawn_mac bssid, uint32_t id);
@@ -325,17 +319,15 @@ void update_iw_info(struct dawn_mac bssid);
 
 client** client_find_first_bc_entry(struct dawn_mac bssid_mac, struct dawn_mac client_mac, int do_client);
 
-void client_array_insert(client *entry, client ** insert_pos);
-
 client *client_array_get_client(const struct dawn_mac client_addr);
+
+client *client_array_delete_bc(struct dawn_mac bssid_mac, struct dawn_mac client_mac);
 
 client *client_array_delete(client *entry, int unlink_only);
 
 void print_client_array();
 
 void print_client_entry(int level, client *entry);
-
-int is_connected_somehwere(struct dawn_mac client_addr);
 
 ap *insert_to_ap_array(ap *entry, time_t expiry);
 

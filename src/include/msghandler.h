@@ -20,7 +20,7 @@ probe_entry *parse_to_probe_req(struct blob_attr* msg);
  * @param id - ubus id.
  * @return
  */
-int parse_to_clients(struct blob_attr* msg, int do_kick, uint32_t id);
+int parse_to_clients(struct blob_attr* msg);
 
 /**
  * Parse to hostapd notify.

@@ -231,9 +231,7 @@ int handle_deauth_req(struct blob_attr* msg) {
 
     pthread_mutex_lock(&client_array_mutex);
 
-    client* client_entry = client_array_get_client(notify_req.client_addr);
-    if (client_entry != NULL)
-        client_array_delete(client_entry, false);
+    client_array_delete_bc(notify_req.bssid_addr, notify_req.client_addr);
 
     pthread_mutex_unlock(&client_array_mutex);
 
@@ -309,7 +307,7 @@ int handle_network_msg(char* msg) {
         }
     }
     else if (strncmp(method, "clients", 5) == 0) {
-        parse_to_clients(data_buf.head, 0, 0);
+        parse_to_clients(data_buf.head);
     }
     else if (strncmp(method, "deauth", 5) == 0) {
         dawnlog_debug("METHOD DEAUTH\n");
@@ -437,11 +435,12 @@ dump_client(struct blob_attr** tb, struct dawn_mac client_addr, const char* bssi
     }
 
     pthread_mutex_lock(&client_array_mutex);
-    // If entry was akraedy in list it won't be added, so free memorY
-    if (client_entry != insert_client_to_array(client_entry, time(0)))
+    // If entry was already in list we get back the old entry, which needs to be freed
+    client* prev_entry = client_array_update_entry(client_entry, time(0));
+    if (prev_entry)
     {
-        dawn_free(client_entry);
-        client_entry = NULL;
+        dawn_free(prev_entry);
+        prev_entry = NULL;
     }
 
     pthread_mutex_unlock(&client_array_mutex);
@@ -464,19 +463,13 @@ dump_client_table(struct blob_attr* head, int len, const char* bssid_addr, uint3
         blobmsg_parse(client_policy, __CLIENT_MAX, tb, blobmsg_data(attr), blobmsg_len(attr));
         //char* str = blobmsg_format_json_indent(attr, true, -1);
 
-        int tmp_int_mac[ETH_ALEN];
-        struct dawn_mac tmp_mac;
-        sscanf((char*)hdr->name, MACSTR, STR2MAC(tmp_int_mac));
-        for (int i = 0; i < ETH_ALEN; ++i)
-            tmp_mac.u8[i] = (uint8_t)tmp_int_mac[i];
-
-        dump_client(tb, tmp_mac, bssid_addr, freq, ht_supported, vht_supported);
+        dump_client(tb, str2mac((char*)hdr->name), bssid_addr, freq, ht_supported, vht_supported);
         station_count++;
     }
     return station_count;
 }
 
-int parse_to_clients(struct blob_attr* msg, int do_kick, uint32_t id) {
+int parse_to_clients(struct blob_attr* msg) {
     struct blob_attr* tb[__CLIENT_TABLE_MAX];
 
     dawnlog_debug_func("Entering...");
@@ -495,11 +488,14 @@ int parse_to_clients(struct blob_attr* msg, int do_kick, uint32_t id) {
 
     blobmsg_parse(client_table_policy, __CLIENT_TABLE_MAX, tb, blob_data(msg), blob_len(msg));
 
+    // Get clients
     if (tb[CLIENT_TABLE] && tb[CLIENT_TABLE_BSSID] && tb[CLIENT_TABLE_FREQ]) {
         int num_stations = 0;
         num_stations = dump_client_table(blobmsg_data(tb[CLIENT_TABLE]), blobmsg_data_len(tb[CLIENT_TABLE]),
             blobmsg_data(tb[CLIENT_TABLE_BSSID]), blobmsg_get_u32(tb[CLIENT_TABLE_FREQ]),
             blobmsg_get_u8(tb[CLIENT_TABLE_HT]), blobmsg_get_u8(tb[CLIENT_TABLE_VHT]));
+
+        // Get AP
         ap *ap_entry = dawn_malloc(sizeof(struct ap_s));
         hwaddr_aton(blobmsg_data(tb[CLIENT_TABLE_BSSID]), ap_entry->bssid_addr.u8);
         ap_entry->freq = blobmsg_get_u32(tb[CLIENT_TABLE_FREQ]);
@@ -579,11 +575,6 @@ int parse_to_clients(struct blob_attr* msg, int do_kick, uint32_t id) {
         }
 
         insert_to_ap_array(ap_entry, time(0));
-
-        if (do_kick && dawn_metric.kicking) {
-            update_iw_info(ap_entry->bssid_addr);
-            kick_clients(ap_entry->bssid_addr, id);
-        }
     }
     return 0;
 }

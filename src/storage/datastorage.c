@@ -19,7 +19,7 @@ struct local_config_s local_config;
 
 #define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
 
-static int is_connected(struct dawn_mac bssid_mac, struct dawn_mac client_mac);
+static client* client_array_get_client_for_bssid(struct dawn_mac bssid_mac, struct dawn_mac client_mac);
 
 static int compare_station_count(ap* ap_entry_own, ap* ap_entry_to_compare, struct dawn_mac client_addr);
 
@@ -46,12 +46,7 @@ struct ap_s *ap_set = NULL;
 static int ap_entry_last = 0;
 pthread_mutex_t ap_array_mutex;
 
-#define DAWN_CLIENT_SKIP_RATIO 32
-static struct client_s* client_skip_set = NULL;
-static uint32_t client_skip_entry_last = 0;
 struct client_s* client_set_bc = NULL; // Ordered by BSSID + client MAC
-struct client_s* client_set_c = NULL; // Ordered by client MAC only
-static int client_entry_last = 0;
 pthread_mutex_t client_array_mutex;
 
 // TODO: How big does this get?
@@ -115,123 +110,41 @@ probe_entry* probe_array_find_first_entry(struct dawn_mac client_mac, struct daw
 
     return curr_node;
 }
+
 // Manage a list of client entries sorted by BSSID and client MAC
-static struct client_s** client_skip_array_find_first_entry(struct dawn_mac client_mac, struct dawn_mac bssid_mac, bool do_bssid)
-{
-    int lo = 0;
-    struct client_s** lo_ptr = &client_skip_set;
-    int hi = client_skip_entry_last;
-
-    dawnlog_debug_func("Entering...");
-
-    while (lo < hi) {
-        struct client_s** i = lo_ptr;
-        int scan_pos = lo;
-
-        // m is next test position of binary search
-        int m = (lo + hi) / 2;
-
-        // find entry with ordinal position m
-        while (scan_pos++ < m)
-        {
-            i = &((*i)->next_skip_entry_bc);
-        }
-
-        int this_cmp = mac_compare_bb((*i)->client_addr, client_mac);
-
-        if (this_cmp == 0 && do_bssid)
-            this_cmp = mac_compare_bb((*i)->bssid_addr, bssid_mac);
-
-        if (this_cmp < 0)
-        {
-            lo = m + 1;
-            lo_ptr = &((*i)->next_skip_entry_bc);
-        }
-        else
-        {
-            hi = m;
-        }
-    }
-
-    return lo_ptr;
-}
-
 client** client_find_first_bc_entry(struct dawn_mac bssid_mac, struct dawn_mac client_mac, int do_client)
 {
-    client ** lo_skip_ptr = &client_skip_set;
-    client ** lo_ptr = &client_set_bc;
-
     dawnlog_debug_func("Entering...");
 
-    while ((*lo_skip_ptr != NULL))
+    client** ret = &client_set_bc;
+
+    while ((*ret != NULL))
     {
-        int this_cmp = mac_compare_bb(((*lo_skip_ptr))->bssid_addr, bssid_mac);
+        int this_cmp = mac_compare_bb((*ret)->bssid_addr, bssid_mac);
 
         if (this_cmp == 0 && do_client)
-            this_cmp = mac_compare_bb(((*lo_skip_ptr))->client_addr, client_mac);
+            this_cmp = mac_compare_bb((*ret)->client_addr, client_mac);
 
         if (this_cmp >= 0)
             break;
 
-        lo_ptr = &((*lo_skip_ptr)->next_entry_bc);
-        lo_skip_ptr = &((*lo_skip_ptr)->next_skip_entry_bc);
+        ret = &((*ret)->next_entry_bc);
     }
 
-    while ((*lo_ptr != NULL))
-    {
-        int this_cmp = mac_compare_bb((*lo_ptr)->bssid_addr, bssid_mac);
-
-        if (this_cmp == 0 && do_client)
-            this_cmp = mac_compare_bb((*lo_ptr)->client_addr, client_mac);
-
-        if (this_cmp >= 0)
-            break;
-
-        lo_ptr = &((*lo_ptr)->next_entry_bc);
-    }
-
-    return lo_ptr;
+    return ret;
 }
 
-#ifndef DAWN_CLIENT_SCAN_BC_ONLY
-// Manage a list of client entries srted by client MAC only
-static client** client_find_first_c_entry(struct dawn_mac client_mac)
-{
-    int lo = 0;
-    client** lo_ptr = &client_set_c;
-    int hi = client_entry_last;
-
+static client* client_array_get_client_for_bssid(struct dawn_mac bssid_mac, struct dawn_mac client_mac) {
     dawnlog_debug_func("Entering...");
 
-    while (lo < hi) {
-        client** i = lo_ptr;
-        int scan_pos = lo;
+    client* i = *client_find_first_bc_entry(bssid_mac, client_mac, true);
 
-        // m is next test position of binary search
-        int m = (lo + hi) / 2;
+    if (i != NULL)
+        if (!mac_is_equal_bb((i)->bssid_addr, bssid_mac) || !mac_is_equal_bb((i)->client_addr, client_mac))
+            i = NULL;
 
-        // find entry with ordinal position m
-        while (scan_pos++ < m)
-        {
-            i = &((*i)->next_entry_c);
-        }
-
-        int this_cmp = mac_compare_bb((*i)->client_addr, client_mac);
-
-        if (this_cmp < 0)
-        {
-            lo = m + 1;
-            lo_ptr = &((*i)->next_entry_c);
-        }
-        else
-        {
-            hi = m;
-        }
-    }
-
-    return lo_ptr;
+    return i;
 }
-#endif
 
 struct mac_entry_s* mac_find_entry(struct dawn_mac mac)
 {
@@ -335,12 +248,12 @@ static int compare_station_count(ap* ap_entry_own, ap* ap_entry_to_compare, stru
 
     int sta_count = ap_entry_own->station_count;
     int sta_count_to_compare = ap_entry_to_compare->station_count;
-    if (is_connected(ap_entry_own->bssid_addr, client_addr)) {
+    if (client_array_get_client_for_bssid(ap_entry_own->bssid_addr, client_addr)) {
         dawnlog_debug("Own is already connected! Decrease counter!\n");
         sta_count--;
     }
 
-    if (is_connected(ap_entry_to_compare->bssid_addr, client_addr)) {
+    if (client_array_get_client_for_bssid(ap_entry_to_compare->bssid_addr, client_addr)) {
         dawnlog_debug("Comparing station is already connected! Decrease counter!\n");
         sta_count_to_compare--;
     }
@@ -620,6 +533,7 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
 
                             // don't delete clients in a row. use update function again...
                             // -> chan_util update, ...
+                            //FIXME: Why / 4?
                             add_client_update_timer(timeout_config.update_client * 1000 / 4);
                             break;
                         }
@@ -690,135 +604,29 @@ void update_iw_info(struct dawn_mac bssid_mac) {
     pthread_mutex_unlock(&client_array_mutex);
 }
 
-int is_connected_somehwere(struct dawn_mac client_addr) {
-    int found_in_array = 0;
-
+client *client_array_get_client(const struct dawn_mac client_addr)
+{
     dawnlog_debug_func("Entering...");
 
-#ifndef DAWN_CLIENT_SCAN_BC_ONLY
-    client* i = *client_find_first_c_entry(client_addr);
-#else
-    client* i = client_set_bc;
-    while (i != NULL && !mac_is_equal_bb(client_addr, i->client_addr))
-    {
-        i = i->next_entry_bc;
-    }
-#endif
-
-    if (i != NULL && mac_is_equal_bb(client_addr, i->client_addr))
-    {
-        found_in_array = 1;
-    }
-
-    return found_in_array;
-}
-
-static int is_connected(struct dawn_mac bssid_mac, struct dawn_mac client_mac) {
-    int found_in_array = 0;
-
-    dawnlog_debug_func("Entering...");
-
-    client** i = client_find_first_bc_entry(bssid_mac, client_mac, true);
-
-    if (*i != NULL && mac_is_equal_bb((*i)->bssid_addr, bssid_mac) && mac_is_equal_bb((*i)->client_addr, client_mac))
-        found_in_array = 1;
-
-    return found_in_array;
-}
-
-static struct client_s* insert_to_client_bc_skip_array(struct client_s* entry) {
-    dawnlog_debug_func("Entering...");
-
-
-    struct client_s** insert_pos = client_skip_array_find_first_entry(entry->client_addr, entry->bssid_addr, true);
-
-    entry->next_skip_entry_bc = *insert_pos;
-    *insert_pos = entry;
-    client_skip_entry_last++;
-
-    return entry;
-}
-
-void client_array_insert(client *entry, client** insert_pos) {
-    dawnlog_debug_func("Entering...");
-
-    // Passed insert_pos is where to insert in bc set
-    if (insert_pos == NULL)
-        insert_pos = client_find_first_bc_entry(entry->bssid_addr, entry->client_addr, true);
-    entry->next_entry_bc = *insert_pos;
-    *insert_pos = entry;
-
-#ifndef DAWN_CLIENT_SCAN_BC_ONLY
-    insert_pos = client_find_first_c_entry(entry->client_addr);
-    entry->next_entry_c = *insert_pos;
-    *insert_pos = entry;
-#endif
-
-    client_entry_last++;
-
-    // Try to keep skip list density stable
-    if ((client_entry_last / DAWN_CLIENT_SKIP_RATIO) > client_skip_entry_last)
-    {
-        entry->next_skip_entry_bc = NULL;
-        insert_to_client_bc_skip_array(entry);
-    }
-}
-
-client *client_array_get_client(const struct dawn_mac client_addr) {
-    dawnlog_debug_func("Entering...");
-
-    //pthread_mutex_lock(&client_array_mutex);
-
-#ifndef DAWN_CLIENT_SCAN_BC_ONLY
-    client* ret = *client_find_first_c_entry(client_addr);
-#else
     client* ret = client_set_bc;
     while (ret != NULL && !mac_is_equal_bb(client_addr, ret->client_addr))
     {
         ret = ret->next_entry_bc;
     }
-#endif
-
-    if (ret != NULL && !mac_is_equal_bb(client_addr, ret->client_addr))
-        ret = NULL;
-
-    //pthread_mutex_unlock(&client_array_mutex);
 
     return ret;
 }
 
 static client* client_array_unlink_entry(client** ref_bc, int unlink_only)
 {
-    client* entry = *ref_bc; // Both ref_bc and ref_c point to the entry we're deleting
-
     dawnlog_debug_func("Entering...");
+    client* entry = *ref_bc;
 
-    for (struct client_s** s = &client_skip_set; *s != NULL; s = &((*s)->next_skip_entry_bc)) {
-        if (*s == entry) {
-            *s = (*s)->next_skip_entry_bc;
-
-            client_skip_entry_last--;
-            break;
-        }
-    }
-
-    //  Accident of history that we always pass in the _bc ref, so need to find _c ref
-#ifndef DAWN_CLIENT_SCAN_BC_ONLY
-    client** ref_c = &client_set_c;
-    while ( *ref_c != NULL && *ref_c != entry)
-        ref_c = &((*ref_c)->next_entry_c);
-
-    *ref_c = entry->next_entry_c;
-#endif
     *ref_bc = entry->next_entry_bc;
-    client_entry_last--;
 
     if (unlink_only)
     {
         entry->next_entry_bc = NULL;
-#ifndef DAWN_CLIENT_SCAN_BC_ONLY
-        entry->next_entry_c = NULL;
-#endif
     }
     else
     {
@@ -829,12 +637,23 @@ static client* client_array_unlink_entry(client** ref_bc, int unlink_only)
     return entry;
 }
 
-client *client_array_delete(client *entry, int unlink_only) {
-    client* ret = NULL;
-
-    client** ref_bc = NULL;
-
+client* client_array_delete_bc(struct dawn_mac bssid_mac, struct dawn_mac client_mac) {
     dawnlog_debug_func("Entering...");
+
+    client* ret = NULL;
+    client** client_entry = client_find_first_bc_entry(bssid_mac, client_mac, true);
+
+    if (*client_entry && mac_is_equal_bb(bssid_mac, (*client_entry)->bssid_addr) && mac_is_equal_bb(client_mac, (*client_entry)->client_addr))
+        ret = client_array_unlink_entry(client_entry, false);
+
+    return ret;
+}
+
+client* client_array_delete(client* entry, int unlink_only) {
+    dawnlog_debug_func("Entering...");
+
+    client* ret = NULL;
+    client** ref_bc = NULL;
 
     // Bodyless for-loop: test done in control logic
     for (ref_bc = &client_set_bc; (*ref_bc != NULL) && (*ref_bc != entry); ref_bc = &((*ref_bc)->next_entry_bc));
@@ -1236,7 +1055,7 @@ void remove_old_probe_entries(time_t current_time, long long int threshold) {
     probe_entry** s = &(probe_set.first_probe_skip);
 
     while (*i != NULL ) {
-        if (((*i)->time < current_time - threshold) && !is_connected((*i)->bssid_addr, (*i)->client_addr)) {
+        if (((*i)->time < current_time - threshold) && !client_array_get_client_for_bssid((*i)->bssid_addr, (*i)->client_addr)) {
             probe_entry* victim = *i;
 
             *i = victim->next_probe;
@@ -1272,6 +1091,37 @@ void remove_old_ap_entries(time_t current_time, long long int threshold) {
     }
 }
 
+client* client_array_update_entry(client* entry, time_t expiry) {
+    dawnlog_debug_func("Entering...");
+
+    client* old_entry = NULL;
+    client** entry_pos = client_find_first_bc_entry(entry->bssid_addr, entry->client_addr, true);
+
+    entry->time = expiry;
+
+    if (*entry_pos && mac_compare_bb(entry->bssid_addr, (*entry_pos)->bssid_addr) == 0 && mac_compare_bb(entry->client_addr, (*entry_pos)->client_addr) == 0)
+    {
+        dawnlog_debug_func("Replacing entry...");
+        // Swap entries if same BSSID + MAC...
+        old_entry = *entry_pos;
+        entry->kick_count = old_entry->kick_count;  // TODO: Not sure we need to keep this...
+
+        entry->next_entry_bc = old_entry->next_entry_bc;
+        old_entry->next_entry_bc = NULL;
+        *entry_pos = entry;
+    }
+    else
+    {
+        dawnlog_debug_func("Adding entry...");
+        // ... or add if new
+        entry->kick_count = 0;
+
+        entry->next_entry_bc = *entry_pos;
+        *entry_pos = entry;
+    }
+
+    return old_entry;
+}
 
 client *insert_client_to_array(client *entry, time_t expiry) {
 client * ret = NULL;
@@ -1283,11 +1133,15 @@ client * ret = NULL;
     if (*client_tmp == NULL || !mac_is_equal_bb(entry->bssid_addr, (*client_tmp)->bssid_addr) || !mac_is_equal_bb(entry->client_addr, (*client_tmp)->client_addr)) {
         entry->kick_count = 0;
         entry->time = expiry;
-        client_array_insert(entry, client_tmp);
+
+        entry->next_entry_bc = *client_tmp;
+        *client_tmp = entry;
+
         ret = entry;
     }
-    else
+    else {
         (*client_tmp)->time = expiry;
+    }
 
     return ret;
 }
@@ -1415,7 +1269,7 @@ void print_client_array() {
     if (dawnlog_showing(DAWNLOG_DEBUG))
     {
         dawnlog_debug("--------Clients------\n");
-        dawnlog_debug("Client Entry Last: %d\n", client_entry_last);
+        //dawnlog_debug("Client Entry Last: %d\n", client_entry_last);
         for (client* i = client_set_bc; i != NULL; i = i->next_entry_bc) {
             print_client_entry(DAWNLOG_DEBUG, i);
         }
