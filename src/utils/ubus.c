@@ -346,14 +346,14 @@ bool discard_entry = true;
         dawnlog_trace("Allow authentication due to mac_in_maclist()");
     }
     else {
-        pthread_mutex_lock(&probe_array_mutex);
+        dawn_mutex_lock(&probe_array_mutex);
 
         if (dawnlog_showing(DAWNLOG_DEBUG))
             print_probe_array();
 
         probe_entry *tmp = probe_array_get_entry(auth_req->client_addr, auth_req->bssid_addr);
 
-        pthread_mutex_unlock(&probe_array_mutex);
+        dawn_mutex_unlock(&probe_array_mutex);
 
         /*** Deprecated function decide_function() removed here ***/
         int deny_request = 0;
@@ -418,14 +418,14 @@ int discard_entry = true;
     else if (mac_find_entry(assoc_req->client_addr)) {
         dawnlog_trace("Allow association due to mac_in_maclist()");
     } else {
-        pthread_mutex_lock(&probe_array_mutex);
+        dawn_mutex_lock(&probe_array_mutex);
 
         if (dawnlog_showing(DAWNLOG_DEBUG))
             print_probe_array();
 
         probe_entry *tmp = probe_array_get_entry(assoc_req->client_addr, assoc_req->bssid_addr);
 
-        pthread_mutex_unlock(&probe_array_mutex);
+        dawn_mutex_unlock(&probe_array_mutex);
 
         /*** Deprecated function decide_function() removed here ***/
         int deny_request = 0;
@@ -547,11 +547,11 @@ static int handle_beacon_rep(struct blob_attr *msg) {
         else
         {
             // Update RxxI of current entry if it exists
-            pthread_mutex_lock(&probe_array_mutex);
+            dawn_mutex_lock(&probe_array_mutex);
 
             probe_entry* entry_updated = probe_array_update_rcpi_rsni(entry->client_addr, entry->bssid_addr, entry->rcpi, entry->rsni, true);
 
-            pthread_mutex_unlock(&probe_array_mutex);
+            dawn_mutex_unlock(&probe_array_mutex);
 
             if (entry_updated)
             {
@@ -1726,7 +1726,7 @@ int build_hearing_map_sort_client(struct blob_buf *b) {
     if (dawnlog_showing(DAWNLOG_DEBUG))
         print_probe_array();
 
-    pthread_mutex_lock(&probe_array_mutex);
+    dawn_mutex_lock(&probe_array_mutex);
 
     void *client_list, *ap_list, *ssid_list;
     char ap_mac_buf[20];
@@ -1801,7 +1801,7 @@ int build_hearing_map_sort_client(struct blob_buf *b) {
             same_ssid = true;
     }
 
-    pthread_mutex_unlock(&probe_array_mutex);
+    dawn_mutex_unlock(&probe_array_mutex);
     return 0;
 }
 
@@ -1872,7 +1872,7 @@ int build_network_overview(struct blob_buf *b) {
 
             blobmsg_add_rrm_string(b, "rrm-caps", k->rrm_enabled_capa);
 
-            pthread_mutex_lock(&probe_array_mutex);
+            dawn_mutex_lock(&probe_array_mutex);
             probe_entry* n = probe_array_get_entry(k->client_addr, k->bssid_addr);
 
             if (n != NULL) {
@@ -1882,7 +1882,7 @@ int build_network_overview(struct blob_buf *b) {
                     blobmsg_add_u32(b, "rsni", n->rsni);
                 }
             }
-            pthread_mutex_unlock(&probe_array_mutex);
+            dawn_mutex_unlock(&probe_array_mutex);
 
             blobmsg_close_table(b, client_list);
 
@@ -1949,7 +1949,7 @@ int ap_get_nr(struct blob_buf *b_local, struct dawn_mac own_bssid_addr, const ch
         if (own_ap->freq <= max_band_freq[band])
            break;
     }
-    pthread_mutex_lock(&ap_array_mutex);
+    dawn_mutex_lock(&ap_array_mutex);
     for (i = ap_set; i != NULL; i = i->next_ap) {
         if (i != own_ap && !strncmp((char *)i->ssid, ssid, SSID_MAX_LEN) &&
             !mac_is_in_entry_list(i->bssid_addr, preferred_list))
@@ -1957,7 +1957,7 @@ int ap_get_nr(struct blob_buf *b_local, struct dawn_mac own_bssid_addr, const ch
             blobmsg_add_nr(b_local, i);
         }
     }
-    pthread_mutex_unlock(&ap_array_mutex);
+    dawn_mutex_unlock(&ap_array_mutex);
 
     for (n = preferred_list; n; n = n->next_mac) {
         if ((i = ap_array_get_ap(n->mac)))
@@ -1979,9 +1979,9 @@ void uloop_add_data_cbs() {
 void remove_probe_array_cb(struct uloop_timeout* t) {
     dawnlog_debug_func("[Thread] : Removing old probe entries!\n");
 
-    pthread_mutex_lock(&probe_array_mutex);
+    dawn_mutex_lock(&probe_array_mutex);
     remove_old_probe_entries(time(0), timeout_config.remove_probe);
-    pthread_mutex_unlock(&probe_array_mutex);
+    dawn_mutex_unlock(&probe_array_mutex);
 
     dawnlog_debug("[Thread] : Removing old entries finished!\n");
 
@@ -1993,10 +1993,10 @@ void remove_probe_array_cb(struct uloop_timeout* t) {
 void remove_client_array_cb(struct uloop_timeout* t) {
     dawnlog_debug_func("Entering...");
 
-    pthread_mutex_lock(&client_array_mutex);
+    dawn_mutex_lock(&client_array_mutex);
     dawnlog_debug("[Thread] : Removing old client entries!\n");
     remove_old_client_entries(time(0), timeout_config.update_client);
-    pthread_mutex_unlock(&client_array_mutex);
+    dawn_mutex_unlock(&client_array_mutex);
     uloop_timeout_set(&client_timeout, timeout_config.update_client * 1000);
 }
 
@@ -2005,10 +2005,10 @@ void remove_client_array_cb(struct uloop_timeout* t) {
 void remove_ap_array_cb(struct uloop_timeout* t) {
     dawnlog_debug_func("Entering...");
 
-    pthread_mutex_lock(&ap_array_mutex);
+    dawn_mutex_lock(&ap_array_mutex);
     dawnlog_debug("[ULOOP] : Removing old ap entries!\n");
     remove_old_ap_entries(time(0), timeout_config.remove_ap);
-    pthread_mutex_unlock(&ap_array_mutex);
+    dawn_mutex_unlock(&ap_array_mutex);
     uloop_timeout_set(&ap_timeout, timeout_config.remove_ap * 1000);
 }
 
