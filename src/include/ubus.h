@@ -60,6 +60,8 @@ void del_client_all_interfaces(const struct dawn_mac client_addr, uint32_t reaso
  */
 void update_hostapd_sockets(struct uloop_timeout *t);
 
+void ubus_set_nr_from_clients(struct kicking_nr* ap_list);
+
 void ubus_send_beacon_request(client *c, ap *a, int id);
 
 void uloop_add_data_cbs();

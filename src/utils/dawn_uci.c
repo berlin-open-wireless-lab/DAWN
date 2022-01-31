@@ -241,6 +241,7 @@ struct probe_metric_s uci_get_dawn_metric() {
         .eval_probe_req = 0,
         .min_number_to_kick = 3,
         .set_hostapd_nr = 1,
+        .disassoc_nr_length = 6,
         .max_station_diff = 1,
         .bandwidth_threshold = 6,
         .use_driver_recog = 1,
@@ -295,6 +296,7 @@ struct probe_metric_s uci_get_dawn_metric() {
         DAWN_SET_CONFIG_INT(ret, global_s, eval_probe_req);
         DAWN_SET_CONFIG_INT(ret, global_s, min_number_to_kick);
         DAWN_SET_CONFIG_INT(ret, global_s, set_hostapd_nr);
+        DAWN_SET_CONFIG_INT(ret, global_s, disassoc_nr_length);
         DAWN_SET_CONFIG_INT(ret, global_s, max_station_diff);
         DAWN_SET_CONFIG_INT(ret, global_s, bandwidth_threshold);
         DAWN_SET_CONFIG_INT(ret, global_s, use_driver_recog);

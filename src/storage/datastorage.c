@@ -277,68 +277,88 @@ static int compare_station_count(ap* ap_entry_own, ap* ap_entry_to_compare, stru
         return 0;
 }
 
-static struct kicking_nr *find_position(struct kicking_nr *nrlist, int score) {
-    struct kicking_nr *ret = NULL;
-
-    dawnlog_debug_func("Entering...");
-
-    while (nrlist && nrlist->score < score) {
-        ret = nrlist;
-        nrlist = nrlist->next;
-    }
-    return ret;
-}
-
 static void remove_kicking_nr_list(struct kicking_nr *nr_list) {
-    struct kicking_nr *n;
-
     dawnlog_debug_func("Entering...");
 
     while(nr_list) {
-        n = nr_list->next;
-        dawn_free(nr_list);
-        nr_list = n;
-    }
-}
-
-static struct kicking_nr *prune_kicking_nr_list(struct kicking_nr *nr_list, int min_score) {
-    struct kicking_nr *next;
-
-    dawnlog_debug_func("Entering...");
-
-    while (nr_list && nr_list->score <= min_score) {
-        next = nr_list->next;
+        struct kicking_nr* next = nr_list->next;
         dawn_free(nr_list);
         nr_list = next;
     }
-    return nr_list;
 }
 
-static struct kicking_nr *insert_kicking_nr(struct kicking_nr *head, char *nr, int score, bool prune) {
-    struct kicking_nr *new_entry, *pos;
-
+#if 0
+static void prune_kicking_nr_list(struct kicking_nr **nr_list, int min_score) {
     dawnlog_debug_func("Entering...");
 
-    if (prune)
-        head = prune_kicking_nr_list(head, score - dawn_metric.kicking_threshold);
-
-    // we are giving no error information here (not really critical)
-    if (!(new_entry = dawn_malloc(sizeof (struct kicking_nr))))
-        return head;
-
-    strncpy(new_entry->nr, nr, NEIGHBOR_REPORT_LEN);
-    new_entry->score = score;
-    pos = find_position(head, score);
-    if (pos) {
-        new_entry->next = pos->next;
-        pos -> next = new_entry;
-    } else {
-        new_entry->next = head;
-        head = new_entry;
+    while (*nr_list) {
+        if ((*nr_list)->score <= min_score)
+        {
+            struct kicking_nr* next = (*nr_list)->next;
+            dawn_free(*nr_list);
+            *nr_list = next;
+        }
+        else
+        {
+            nr_list = &((*nr_list)->next);
+        }
     }
-    return head;
+
+    return;
+}
+#endif
+
+static  void insert_kicking_nr_by_bssid(struct kicking_nr** nrlist, ap* nr_ap) {
+    dawnlog_debug_func("Entering...");
+    dawn_mutex_require(&ap_array_mutex);
+
+    //  Look for the proposed BSSID in the current list
+    while (*nrlist && mac_compare_bb((*nrlist)->nr_ap->bssid_addr, nr_ap->bssid_addr) < 0) {
+        nrlist = &((*nrlist)->next);
+    }
+
+    // If it isn't there then add it
+    if (!*nrlist || mac_compare_bb((*nrlist)->nr_ap->bssid_addr, nr_ap->bssid_addr) != 0)
+    {
+        // we are giving no error information here (not really critical)
+        struct kicking_nr* new_entry = dawn_malloc(sizeof(struct kicking_nr));
+
+        if (new_entry)
+        {
+            new_entry->nr_ap = nr_ap;
+            new_entry->score = 0;
+
+            new_entry->next = *nrlist;
+            *nrlist = new_entry;
+        }
+    }
+
+    return;
 }
 
+static  void insert_kicking_nr_by_score(struct kicking_nr** nrlist, ap* nr_ap, int score) {
+    dawnlog_debug_func("Entering...");
+    dawn_mutex_require(&ap_array_mutex);
+
+    // we are giving no error information here (not really critical)
+    struct kicking_nr* new_entry = dawn_malloc(sizeof(struct kicking_nr));
+
+    if (!new_entry)
+        return;
+
+    new_entry->nr_ap = nr_ap;
+    new_entry->score = score;
+
+    // Order entries high-low score so we can read first N highest values
+    while (*nrlist && (*nrlist)->score > score) {
+        nrlist = &((*nrlist)->next);
+    }
+
+    new_entry->next = *nrlist;
+    *nrlist = new_entry;
+
+    return;
+}
 int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, struct kicking_nr **neighbor_report) {
 
     dawnlog_debug_func("Entering...");
@@ -430,12 +450,14 @@ int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, struct kicki
         else
         {
             dawnlog_trace("Better AP after full evaluation - add to NR (%s pruning)\n", ap_outcome == 2 ? "with" : "without");
-            // Pointer is NULL if we're only finding a better AP without actually using it
+            // NR is NULL if we're only testing for a better AP without actually using it
             if (neighbor_report != NULL)
             {
-                // Test this_kick_outcome for pruning
-                *neighbor_report = insert_kicking_nr(*neighbor_report, candidate_ap->neighbor_report,
-                    score_to_compare, ap_outcome == 2);
+                // FIXME: Do we need to prune this list as we build it?  trying new approach to send N best entries to hostapd
+                // if (ap_outcome == 2)
+                //     prune_kicking_nr_list(neighbor_report, score_to_compare - dawn_metric.kicking_threshold);
+
+                insert_kicking_nr_by_score(neighbor_report, candidate_ap, score_to_compare);
             }
 
             // If we find a single candidate then we will be kicking
@@ -471,6 +493,9 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
 
     int kicked_clients = 0;
 
+    // Keep a list of nearby APs to update local AP Neighbor Report from
+    struct kicking_nr* ap_nr_list = NULL;
+
     dawnlog_info("AP BSSID " MACSTR ": Looking for candidates to kick\n", MAC2STR(kicking_ap->bssid_addr.u8));
 
     // Seach for BSSID
@@ -478,7 +503,7 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
 
     // Go through clients
     while (j  != NULL && mac_is_equal_bb(j->bssid_addr, kicking_ap->bssid_addr)) {
-        struct kicking_nr *neighbor_report = NULL;
+        struct kicking_nr *kick_nr_list = NULL;
 
         int do_kick = 0;
 
@@ -486,7 +511,14 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
             dawnlog_info("Station " MACSTR ": Suppressing check due to MAC list entry\n", MAC2STR(j->client_addr.u8));
         }
         else {
-            do_kick = better_ap_available(kicking_ap, j->client_addr, &neighbor_report);
+            do_kick = better_ap_available(kicking_ap, j->client_addr, &kick_nr_list);
+        }
+
+        // If we found any candidates (even if too low to kick to) add the highest scoring one to local AP NR set
+        if (dawn_metric.set_hostapd_nr == 2 && kick_nr_list)
+        {
+            dawnlog_trace("Adding " MACSTR "as local NR entry candidate\n", MAC2STR(kick_nr_list->nr_ap->bssid_addr.u8));
+            insert_kicking_nr_by_bssid(&ap_nr_list, kick_nr_list->nr_ap);
         }
 
         // better ap available
@@ -527,8 +559,8 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
 
                         if (dawnlog_showing(DAWNLOG_INFO))
                         {
-                            for (struct kicking_nr* n = neighbor_report; n; n = n->next)
-                                dawnlog_info("Kicking NR entry: " NR_MACSTR ", score=%d\n", NR_MAC2STR(n->nr), n->score);
+                            for (struct kicking_nr* n = kick_nr_list; n; n = n->next)
+                                dawnlog_info("Kicking NR entry: " NR_MACSTR ", score=%d\n", NR_MAC2STR(n->nr_ap->neighbor_report), n->score);
                         }
 
                         // here we should send a messsage to set the probe.count for all aps to the min that there is no delay between switching
@@ -538,7 +570,7 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
                         // don't deauth station? <- deauth is better!
                         // maybe we can use handovers...
                         //del_client_interface(id, client_array[j].client_addr, NO_MORE_STAS, 1, 1000);
-                        int sync_kick = wnm_disassoc_imminent(id, j->client_addr, neighbor_report, 12);
+                        int sync_kick = wnm_disassoc_imminent(id, j->client_addr, kick_nr_list, 12);
 
                         // Synchronous kick is a test harness feature to indicate arrays have been updated, so don't change further
                         if (sync_kick)
@@ -572,11 +604,17 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
             j->kick_count = 0;
         }
 
-        remove_kicking_nr_list(neighbor_report);
-        neighbor_report = NULL;
+        remove_kicking_nr_list(kick_nr_list);
+        kick_nr_list = NULL;
 
         j = j->next_entry_bc;
     }
+
+    if (dawn_metric.set_hostapd_nr == 2)
+        ubus_set_nr_from_clients(ap_nr_list);
+
+    remove_kicking_nr_list(ap_nr_list);
+    ap_nr_list = NULL;
 
     dawnlog_trace("KICKING: --------- AP Finished ---------\n");
 
@@ -1318,9 +1356,9 @@ static void print_ap_entry(int level, ap *entry) {
     {
         dawnlog_info("ssid: %s, bssid_addr: " MACSTR ", freq: %d, ht: %d, vht: %d, chan_utilz: %d, neighbor_report: %s\n",
             entry->ssid, MAC2STR(entry->bssid_addr.u8), entry->freq, entry->ht_support, entry->vht_support, entry->channel_utilization,
-	    //entry->collision_domain, ap_get_collision_count(entry->collision_domain), // TODO: Fix format string if readding
-	    entry->neighbor_report
-        );
+	        //entry->collision_domain, ap_get_collision_count(entry->collision_domain), // TODO: Fix format string if readding
+	        entry->neighbor_report
+            );
     }
 }
 

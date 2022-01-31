@@ -94,7 +94,7 @@ struct hostapd_sock_entry {
     /*
     [Elemen ID|1][LENGTH|1][BSSID|6][BSSID INFORMATION|4][Operating Class|1][Channel Number|1][PHY Type|1][Operational Subelements]
     */
-    char neighbor_report[NEIGHBOR_REPORT_LEN];
+    char neighbor_report[NEIGHBOR_REPORT_LEN + 1];
 
     struct ubus_subscriber subscriber;
     struct ubus_event_handler wait_handler;
@@ -947,7 +947,7 @@ void update_clients(struct uloop_timeout *t) {
     dawnlog_debug_func("Entering...");
 
     ubus_get_clients();
-    if(dawn_metric.set_hostapd_nr)
+    if(dawn_metric.set_hostapd_nr == 1)
         ubus_set_nr();
     // maybe to much?! don't set timer again...
     uloop_timeout_set(&client_timer, timeout_config.update_client * 1000);
@@ -1084,6 +1084,7 @@ void ubus_set_nr(){
     struct hostapd_sock_entry *sub;
     int timeout = 1;
 
+    // FIXME: Should we then call ubus_get_nr() to cache it locally?
     list_for_each_entry(sub, &hostapd_sock_list, list)
     {
         if (sub->subscribed) {
@@ -1160,10 +1161,14 @@ int wnm_disassoc_imminent(uint32_t id, const struct dawn_mac client_addr, struct
     blobmsg_add_u8(&b, "abridged", 1); // prefer aps in neighborlist
 
     void* nbs = blobmsg_open_array(&b, "neighbors");
-    while(neighbor_list != NULL) {
-        dawnlog_info("BSS TRANSITION NEIGHBOR " NR_MACSTR ", Score=%d\n", NR_MAC2STR(neighbor_list->nr), neighbor_list->score);
-        blobmsg_add_string(&b, NULL, neighbor_list->nr);
+
+    // Add the first N AP, where list order id high->low score
+    int neighbors_added = 0;
+    while(neighbors_added < dawn_metric.disassoc_nr_length && neighbor_list != NULL) {
+        dawnlog_info("BSS TRANSITION NEIGHBOR " NR_MACSTR ", Score=%d\n", NR_MAC2STR(neighbor_list->nr_ap->neighbor_report), neighbor_list->score);
+        blobmsg_add_string(&b, NULL, neighbor_list->nr_ap->neighbor_report);
         neighbor_list = neighbor_list->next;
+        neighbors_added++;
     }
 
     blobmsg_close_array(&b, nbs);
@@ -1708,6 +1713,7 @@ int uci_send_via_network()
     blobmsg_add_u32(&b, "min_number_to_kick", dawn_metric.min_number_to_kick);
     blobmsg_add_u32(&b, "chan_util_avg_period", dawn_metric.chan_util_avg_period);
     blobmsg_add_u32(&b, "set_hostapd_nr", dawn_metric.set_hostapd_nr);
+    blobmsg_add_u32(&b, "disassoc_nr_length", dawn_metric.disassoc_nr_length);
     blobmsg_add_u32(&b, "duration", dawn_metric.duration);
     blobmsg_add_string(&b, "rrm_mode", get_rrm_mode_string(dawn_metric.rrm_mode_order));
     band_table = blobmsg_open_table(&b, "band_metrics");
@@ -1966,7 +1972,7 @@ int build_network_overview(struct blob_buf *b) {
 
         char *nr;
         nr = blobmsg_alloc_string_buffer(b, "neighbor_report", NEIGHBOR_REPORT_LEN);
-        sprintf(nr, "%s", m->neighbor_report); // TODO: Why not strcpy()
+        strcpy(nr, m->neighbor_report);
         blobmsg_add_string_buffer(b);
 
         char *iface;
@@ -2053,45 +2059,96 @@ static int mac_is_in_entry_list(const struct dawn_mac mac, const struct mac_entr
     return 0;
 }
 
-// TODO: Does all APs constitute neighbor report?  How about using list of AP connected
-// clients can also see (from probe_set) to give more (physically) local set?
 // Here, we let the user configure a list of preferred APs that clients can see, and then
 // add the rest of all APs.  hostapd inserts this list backwards, so we must start with
 // the regular APs, then add the preferred ones, which are already ordered backwards.
-int ap_get_nr(struct blob_buf *b_local, struct dawn_mac own_bssid_addr, const char *ssid) {
-
-    ap *i, *own_ap;
-    struct mac_entry_s *preferred_list, *n;
-
+int ap_get_nr(struct blob_buf* b_local, struct dawn_mac own_bssid_addr, const char* ssid) {
     dawnlog_debug_func("Entering...");
 
-    void* nbs = blobmsg_open_array(b_local, "list");
+    int ret = 0;
+
+    dawn_mutex_lock(&ap_array_mutex);
 
     dawn_mutex_require(&ap_array_mutex);
-    own_ap = ap_array_get_ap(own_bssid_addr);
+    ap* own_ap = ap_array_get_ap(own_bssid_addr);
+
     if (!own_ap)
-        return -1;
-    for (int band = 0; band < __DAWN_BAND_MAX; band++) {
-        preferred_list = dawn_metric.neighbors[band];
-        if (own_ap->freq <= max_band_freq[band])
-           break;
+        ret = -1;
+    else
+    {
+        void* nbs = blobmsg_open_array(b_local, "list");
+
+        struct mac_entry_s* preferred_list = NULL;
+        for (int band = 0; band < __DAWN_BAND_MAX; band++) {
+            preferred_list = dawn_metric.neighbors[band];
+            if (own_ap->freq <= max_band_freq[band])
+                break;
+        }
+
+        for (ap* i = ap_set; i != NULL; i = i->next_ap) {
+            if (i != own_ap && !strncmp((char*)i->ssid, ssid, SSID_MAX_LEN) &&
+                !mac_is_in_entry_list(i->bssid_addr, preferred_list))
+            {
+                blobmsg_add_nr(b_local, i);
+            }
+        }
+
+        for (struct mac_entry_s* n = preferred_list; n; n = n->next_mac) {
+            dawn_mutex_require(&ap_array_mutex);
+            ap* j = ap_array_get_ap(n->mac);
+            if (j)
+                blobmsg_add_nr(b_local, j);
+        }
+
+        blobmsg_close_array(b_local, nbs);
     }
 
-    for (i = ap_set; i != NULL; i = i->next_ap) {
-        if (i != own_ap && !strncmp((char *)i->ssid, ssid, SSID_MAX_LEN) &&
-            !mac_is_in_entry_list(i->bssid_addr, preferred_list))
-        {
-            blobmsg_add_nr(b_local, i);
+    dawn_mutex_unlock(&ap_array_mutex);
+
+    return ret;
+}
+
+// Use list of specifc AP to create local NR
+// TODO: Do we need to do the reverse insert thing mentioned above?
+void ubus_set_nr_from_clients(struct kicking_nr *ap_list) {
+    dawnlog_debug_func("Entering...");
+
+    struct hostapd_sock_entry* sub;
+    int timeout = 1;
+
+    int has_content = 0;
+
+    list_for_each_entry(sub, &hostapd_sock_list, list)
+    {
+        if (sub->subscribed) {
+            struct blob_buf b = { 0 };
+            blob_buf_init(&b, 0);
+            dawn_regmem(&b);
+
+            void* nbs = blobmsg_open_array(&b, "list");
+
+            struct kicking_nr* this_ap = ap_list;
+            while (this_ap)
+            {
+                // Candidates in this list will be for one SSID - so match that to the hostapd socket
+                if (strncmp((char*)this_ap->nr_ap->ssid, sub->ssid, SSID_MAX_LEN) == 0)
+                {
+                    blobmsg_add_nr(&b, this_ap->nr_ap);
+                    has_content = 1;
+                }
+
+                this_ap = this_ap->next;
+            }
+
+            blobmsg_close_array(&b, nbs);
+
+            if (has_content)
+                ubus_invoke(ctx, sub->id, "rrm_nr_set", b.head, NULL, NULL, timeout * 1000);
+
+            blob_buf_free(&b);
+            dawn_unregmem(&b);
         }
     }
-
-    for (n = preferred_list; n; n = n->next_mac) {
-        if ((i = ap_array_get_ap(n->mac)))
-            blobmsg_add_nr(b_local, i);
-    }
-    blobmsg_close_array(b_local, nbs);
-
-    return 0;
 }
 
 void uloop_add_data_cbs() {
