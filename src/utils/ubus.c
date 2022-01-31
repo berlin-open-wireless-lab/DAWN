@@ -214,7 +214,7 @@ bool subscriber_to_interface(const char *ifname);
 
 bool subscribe(struct ubus_context *ctx_local, struct hostapd_sock_entry *hostapd_entry);
 
-int parse_to_beacon_rep(struct blob_attr *msg);
+static probe_entry* parse_to_beacon_rep(struct blob_attr *msg);
 
 void ubus_set_nr();
 
@@ -264,7 +264,8 @@ int parse_to_client_req(struct blob_attr *msg, client_req_entry *client_req) {
     return 0;
 }
 
-int parse_to_beacon_rep(struct blob_attr *msg) {
+static probe_entry* parse_to_beacon_rep(struct blob_attr *msg) {
+    probe_entry* beacon_rep = NULL;
     struct blob_attr *tb[__BEACON_REP_MAX];
     struct dawn_mac msg_bssid;
     struct dawn_mac msg_client;
@@ -273,78 +274,49 @@ int parse_to_beacon_rep(struct blob_attr *msg) {
 
     blobmsg_parse(beacon_rep_policy, __BEACON_REP_MAX, tb, blob_data(msg), blob_len(msg));
 
-    if(!tb[BEACON_REP_BSSID] || !tb[BEACON_REP_ADDR])
+    if (!tb[BEACON_REP_BSSID] ||
+        !tb[BEACON_REP_ADDR] ||
+        hwaddr_aton(blobmsg_data(tb[BEACON_REP_BSSID]), msg_bssid.u8) ||
+        hwaddr_aton(blobmsg_data(tb[BEACON_REP_ADDR]), msg_client.u8))
     {
-        return -1;
+        dawnlog_warning("Parse of beacon report failed!\n");
     }
-
-    if (hwaddr_aton(blobmsg_data(tb[BEACON_REP_BSSID]), msg_bssid.u8))
-        return UBUS_STATUS_INVALID_ARGUMENT;
-
-    if(mac_is_null(msg_bssid.u8))
+    else
     {
-        dawnlog_warning("Received NULL MAC! Client is strange!\n");
-        return -1;
-    }
+        ap* ap_entry_rep = ap_array_get_ap(msg_bssid);
 
-    const uint8_t *ssid = (const uint8_t*)blobmsg_get_string(tb[BEACON_REP_SSID]);
-    ap *ap_entry_rep = ap_array_get_ap(msg_bssid);
-
-    // no client from network!!
-    if (ap_entry_rep == NULL) {
-        return -1; //TODO: Check this
-    }
-
-    if (hwaddr_aton(blobmsg_data(tb[BEACON_REP_ADDR]), msg_client.u8))
-        return UBUS_STATUS_INVALID_ARGUMENT;
-
-    int rcpi = blobmsg_get_u16(tb[BEACON_REP_RCPI]);
-    int rsni = blobmsg_get_u16(tb[BEACON_REP_RSNI]);
-
-
-    // HACKY WORKAROUND!
-    dawnlog_debug("Try update RCPI and RSNI for beacon report!\n");
-    if(!probe_array_update_rcpi_rsni(msg_bssid, msg_client, rcpi, rsni, true))
-    {
-        dawnlog_debug("Beacon: No Probe Entry Existing!\n");
-
-        probe_entry* beacon_rep = dawn_malloc(sizeof(probe_entry));
-        probe_entry* beacon_rep_updated = NULL;
-        if (beacon_rep == NULL)
-        {
-            dawnlog_error("dawn_malloc of probe_entry failed!\n");
-            return -1;
-        }
-
-        beacon_rep->next_probe = NULL;
-        beacon_rep->bssid_addr = msg_bssid;
-        beacon_rep->client_addr = msg_client;
-        strncpy((char*)beacon_rep->ssid, (char*)ssid, SSID_MAX_LEN);
-        beacon_rep->ssid[SSID_MAX_LEN] = '\0';
-        beacon_rep->counter = dawn_metric.min_probe_count;
-        hwaddr_aton(blobmsg_data(tb[BEACON_REP_ADDR]), beacon_rep->target_addr.u8);  // TODO: What is this for?
-        beacon_rep->signal = 0;
-        beacon_rep->freq = ap_entry_rep->freq;
-        beacon_rep->rcpi = rcpi;
-        beacon_rep->rsni = rsni;
-
-        beacon_rep->ht_capabilities = false; // that is very problematic!!!
-        beacon_rep->vht_capabilities = false; // that is very problematic!!!
-        dawnlog_debug("Inserting to array!\n");
-
-        // TODO: kept original code order here - send on network first to simplify?
-        beacon_rep_updated = insert_to_array(beacon_rep, false, false, true, time(0));
-        if (beacon_rep != beacon_rep_updated) // use 802.11k values  // TODO: Change 0 to false?
-        {
-            // insert found an existing entry, rather than linking in our new one
-            ubus_send_probe_via_network(beacon_rep_updated);
-            dawn_free(beacon_rep);
-            beacon_rep = NULL;
+        // no client from network!!
+        if (!ap_entry_rep) {
+            dawnlog_warning("No AP for beacon report entry!\n");
         }
         else
-            ubus_send_probe_via_network(beacon_rep_updated);
+        {
+            beacon_rep = dawn_malloc(sizeof(probe_entry));
+            if (beacon_rep == NULL)
+            {
+                dawnlog_error("dawn_malloc of beacon report failed!\n");
+            }
+            else
+            {
+                beacon_rep->next_probe = NULL;
+                beacon_rep->bssid_addr = msg_bssid;
+                beacon_rep->client_addr = msg_client;
+                beacon_rep->counter = dawn_metric.min_probe_count;  // TODO: Why is this?  To allow a 802.11k client to meet proe count check immediately?
+                hwaddr_aton(blobmsg_data(tb[BEACON_REP_ADDR]), beacon_rep->target_addr.u8);  // TODO: What is this for?
+                beacon_rep->freq = ap_entry_rep->freq;
+                beacon_rep->rcpi = blobmsg_get_u16(tb[BEACON_REP_RCPI]);
+                beacon_rep->rsni = blobmsg_get_u16(tb[BEACON_REP_RSNI]);
+
+                // These fields, can't be set from a BEACON REPORT, so we ignore them later if updating an existing PROBE
+                // TODO: See if hostapd can send optional elements which might allow these to be set
+                beacon_rep->signal = 0;
+                beacon_rep->ht_capabilities = false; // that is very problematic!!!
+                beacon_rep->vht_capabilities = false; // that is very problematic!!!
+            }
+        }
     }
-    return 0;
+
+    return beacon_rep;
 }
 
 int handle_auth_req(struct blob_attr* msg) {
@@ -377,7 +349,7 @@ bool discard_entry = true;
         if (dawnlog_showing(DAWNLOG_DEBUG))
             print_probe_array();
 
-        probe_entry *tmp = probe_array_get_entry(auth_req->bssid_addr, auth_req->client_addr);
+        probe_entry *tmp = probe_array_get_entry(auth_req->client_addr, auth_req->bssid_addr);
 
         pthread_mutex_unlock(&probe_array_mutex);
 
@@ -449,7 +421,7 @@ int discard_entry = true;
         if (dawnlog_showing(DAWNLOG_DEBUG))
             print_probe_array();
 
-        probe_entry *tmp = probe_array_get_entry(assoc_req->bssid_addr, assoc_req->client_addr);
+        probe_entry *tmp = probe_array_get_entry(assoc_req->client_addr, assoc_req->bssid_addr);
 
         pthread_mutex_unlock(&probe_array_mutex);
 
@@ -496,11 +468,10 @@ int discard_entry = true;
 }
 
 static int handle_probe_req(struct blob_attr* msg) {
-    // MUSTDO: Untangle dawn_malloc() and linking of probe_entry
-    probe_entry* probe_req = parse_to_probe_req(msg);
-
     dawnlog_debug_func("Entering...");
 
+    // MUSTDO: Untangle dawn_malloc() and linking of probe_entry
+    probe_entry* probe_req = parse_to_probe_req(msg);
 
     if (probe_req == NULL)
     {
@@ -509,7 +480,7 @@ static int handle_probe_req(struct blob_attr* msg) {
     }
     else
     {
-        probe_entry* probe_req_updated = insert_to_array(probe_req, true, true, false, time(0));
+        probe_entry* probe_req_updated = insert_to_probe_array(probe_req, true, true, false, time(0));
         // If insert finds an existing entry, rather than linking in our new one,
         // send new probe req because we want to stay synced.
         // If not, probe_req and probe_req_updated should be equivalent
@@ -558,17 +529,48 @@ static int handle_probe_req(struct blob_attr* msg) {
     return WLAN_STATUS_SUCCESS;
 }
 
-// FIXME: Seems to do nothing...
 static int handle_beacon_rep(struct blob_attr *msg) {
     dawnlog_debug_func("Entering...");
+    int ret = UBUS_STATUS_INVALID_ARGUMENT;
 
-    if (parse_to_beacon_rep(msg) == 0) {
-        // dawnlog_debug("Inserting beacon Report!\n");
-        // insert_to_array(beacon_rep, 1);
-        // dawnlog_debug("Sending via network!\n");
-        // send_blob_attr_via_network(msg, "beacon-report");
+    probe_entry* entry = parse_to_beacon_rep(msg);
+
+    if (entry)
+    {
+        if (mac_is_null(entry->bssid_addr.u8))
+        {
+            dawnlog_warning("Received NULL MAC! Client is strange!\n");
+            dawn_free(entry);
+        }
+        else
+        {
+            // Update RxxI of current entry if it exists
+            pthread_mutex_lock(&probe_array_mutex);
+
+            probe_entry* entry_updated = probe_array_update_rcpi_rsni(entry->client_addr, entry->bssid_addr, entry->rcpi, entry->rsni, true);
+
+            pthread_mutex_unlock(&probe_array_mutex);
+
+            if (entry_updated)
+            {
+                dawnlog_info("Local BEACON used to update RCPI and RSNI for client / BSSID = " MACSTR " / " MACSTR " \n", MAC2STR(entry->client_addr.u8), MAC2STR(entry->bssid_addr.u8));
+                dawn_free(entry);
+            }
+            else
+            {
+                dawnlog_info("Local BEACON is for new client / BSSID = " MACSTR " / " MACSTR " \n", MAC2STR(entry->client_addr.u8), MAC2STR(entry->bssid_addr.u8));
+
+                // BEACON will never set RSSI, but may have RCPI and RSNI
+                entry = insert_to_probe_array(entry, false, false, true, time(0));
+
+                ubus_send_probe_via_network(entry);
+
+                ret = 0;
+            }
+        }
     }
-    return 0;
+
+    return ret;
 }
 
 
@@ -944,7 +946,7 @@ static int get_mode_from_capability(int capability) {
     return -1;
 }
 
-void ubus_send_beacon_report(client *c, ap *a, int id)
+void ubus_send_beacon_request(client *c, ap *a, int id)
 {
     struct blob_buf b = {0};
     dawnlog_debug_func("Entering...");
@@ -961,7 +963,7 @@ void ubus_send_beacon_report(client *c, ap *a, int id)
     blobmsg_add_u32(&b, "mode", get_mode_from_capability(c->rrm_enabled_capa));
     blobmsg_add_string(&b, "ssid", (char*)a->ssid);
 
-    dawnlog_debug("Invoking beacon report!\n");
+    dawnlog_debug("Invoking beacon request!\n");
     ubus_invoke(ctx, id, "rrm_beacon_req", b.head, NULL, NULL, timeout * 1000);
     blob_buf_free(&b);
     dawn_unregmem(&b);
@@ -976,13 +978,13 @@ void update_beacon_reports(struct uloop_timeout *t) {
     {
         return;
     }
-    dawnlog_debug("Sending beacon report!\n");
+    dawnlog_debug("Sending beacon requests!\n");
     struct hostapd_sock_entry *sub;
     list_for_each_entry(sub, &hostapd_sock_list, list)
     {
         if (sub->subscribed && (a = ap_array_get_ap(sub->bssid_addr))) {
-            dawnlog_debug("Sending beacon report Sub!\n");
-            send_beacon_reports(a, sub->id);
+            dawnlog_debug("Sending beacon request Sub!\n");
+            send_beacon_requests(a, sub->id);
         }
     }
     uloop_timeout_set(&beacon_reports_timer, timeout_config.update_beacon_reports * 1000);
@@ -1326,7 +1328,6 @@ static int reload_config(struct ubus_context *ctx_local, struct ubus_object *obj
     dawn_metric = uci_get_dawn_metric();
     timeout_config = uci_get_time_config();
     uci_get_dawn_hostapd_dir();
-    uci_get_dawn_sort_order();
 
     if(timeout_config.update_beacon_reports) // allow setting timeout to 0
         uloop_timeout_add(&beacon_reports_timer); // callback = update_beacon_reports
@@ -1696,6 +1697,20 @@ int uci_send_via_network()
     return 0;
 }
 
+// FIXME: Not sure if we need to create a NUL terminated string. Is unterminated length of 8 enough?
+static void blobmsg_add_rrm_string(struct blob_buf* b, char* n, uint8_t caps)
+{
+    char* s = blobmsg_alloc_string_buffer(b, n, 9);
+    s[8] = '\0';
+    for (int i = 7; i >= 0; i--)
+    {
+        // Treat string literal as char[] to get a mnemonic character for the capability
+        s[i] = (caps & 0x01) ? "?TAP??NL"[i] : '.';
+        caps >>= 1;
+    }
+    blobmsg_add_string_buffer(b);
+}
+
 int build_hearing_map_sort_client(struct blob_buf *b) {
     dawnlog_debug_func("Entering...");
 
@@ -1714,7 +1729,7 @@ int build_hearing_map_sort_client(struct blob_buf *b) {
         // Scan AP list to find first of each SSID
         if (!same_ssid) {
             ssid_list = blobmsg_open_table(b, (char*)m->ssid);
-            probe_entry* i = probe_set;
+            probe_entry* i = probe_set.first_probe;
             while (i != NULL) {
                 ap *ap_entry_i = ap_array_get_ap(i->bssid_addr);
 
@@ -1830,34 +1845,38 @@ int build_network_overview(struct blob_buf *b) {
         blobmsg_add_string_buffer(b);
 
         // TODO: Could optimise this by exporting search func, but not a core process
-        client *k = client_set_bc;
-        while (k != NULL) {
+        client *k = *client_find_first_bc_entry(m->bssid_addr, dawn_mac_null, false);
+        while (k != NULL && mac_is_equal_bb(m->bssid_addr, k->bssid_addr)) {
 
-            if (mac_is_equal_bb(m->bssid_addr, k->bssid_addr)) {
-                sprintf(client_mac_buf, MACSTR, MAC2STR(k->client_addr.u8));
-                client_list = blobmsg_open_table(b, client_mac_buf);
+            sprintf(client_mac_buf, MACSTR, MAC2STR(k->client_addr.u8));
+            client_list = blobmsg_open_table(b, client_mac_buf);
 
-                if(strlen(k->signature) != 0)
-                {
-                    char *s;
-                    s = blobmsg_alloc_string_buffer(b, "signature", 1024);
-                    sprintf(s, "%s", k->signature);
-                    blobmsg_add_string_buffer(b);
-                }
-                blobmsg_add_u8(b, "ht", k->ht);
-                blobmsg_add_u8(b, "vht", k->vht);
-                //blobmsg_add_u32(b, "collision_count", ap_get_collision_count(m->collision_domain));
-
-                pthread_mutex_lock(&probe_array_mutex);
-
-                probe_entry* n = probe_array_get_entry(k->bssid_addr, k->client_addr);
-                pthread_mutex_unlock(&probe_array_mutex);
-
-                if (n != NULL) {
-                    blobmsg_add_u32(b, "signal", n->signal);
-                }
-                blobmsg_close_table(b, client_list);
+            if (strlen(k->signature) != 0)
+            {
+                char* s;
+                s = blobmsg_alloc_string_buffer(b, "signature", 1024);
+                sprintf(s, "%s", k->signature);
+                blobmsg_add_string_buffer(b);
             }
+            blobmsg_add_u8(b, "ht", k->ht);
+            blobmsg_add_u8(b, "vht", k->vht);
+
+            blobmsg_add_rrm_string(b, "rrm-caps", k->rrm_enabled_capa);
+
+            pthread_mutex_lock(&probe_array_mutex);
+            probe_entry* n = probe_array_get_entry(k->client_addr, k->bssid_addr);
+
+            if (n != NULL) {
+                {
+                    blobmsg_add_u32(b, "signal", n->signal);
+                    blobmsg_add_u32(b, "rcpi", n->rcpi);
+                    blobmsg_add_u32(b, "rsni", n->rsni);
+                }
+            }
+            pthread_mutex_unlock(&probe_array_mutex);
+
+            blobmsg_close_table(b, client_list);
+
             k = k->next_entry_bc;
         }
         blobmsg_close_table(b, ap_list);
@@ -1948,16 +1967,15 @@ void uloop_add_data_cbs() {
     uloop_timeout_add(&ap_timeout);  //  callback = remove_ap_array_cb
 }
 
-// TODO: Move mutex handling to remove_??? function to make test harness simpler?
-// Or not needed as test harness not threaded?
 void remove_probe_array_cb(struct uloop_timeout* t) {
-    dawnlog_debug_func("Entering...");
+    dawnlog_debug_func("[Thread] : Removing old probe entries!\n");
 
     pthread_mutex_lock(&probe_array_mutex);
-    dawnlog_debug("[Thread] : Removing old probe entries!\n");
     remove_old_probe_entries(time(0), timeout_config.remove_probe);
-    dawnlog_debug("[Thread] : Removing old entries finished!\n");
     pthread_mutex_unlock(&probe_array_mutex);
+
+    dawnlog_debug("[Thread] : Removing old entries finished!\n");
+
     uloop_timeout_set(&probe_timeout, timeout_config.remove_probe * 1000);
 }
 

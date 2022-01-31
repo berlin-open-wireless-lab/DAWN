@@ -300,7 +300,7 @@ int handle_network_msg(char* msg) {
     if (strncmp(method, "probe", 5) == 0) {
         probe_entry *entry = parse_to_probe_req(data_buf.head);
         if (entry != NULL) {
-            if (entry != insert_to_array(entry, false, true, false, time(0))) // use 802.11k values
+            if (entry != insert_to_probe_array(entry, false, true, false, time(0))) // use 802.11k values
             {
                 // insert found an existing entry, rather than linking in our new one
                 dawn_free(entry);

@@ -153,7 +153,7 @@ typedef struct probe_entry_s {
     struct probe_entry_s* next_probe_skip;
     struct dawn_mac client_addr;
     struct dawn_mac bssid_addr;
-    uint8_t ssid[SSID_MAX_LEN + 1]; // parse_to_beacon_rep()
+    //uint8_t ssid[SSID_MAX_LEN + 1]; // parse_to_beacon_rep()
     struct dawn_mac target_addr; // TODO: Never evaluated?
     uint32_t signal; // eval_probe_metric()
     uint32_t freq; // eval_probe_metric()
@@ -204,8 +204,16 @@ typedef struct hostapd_notify_entry_s {
 #define NR_PHY          24
 
 // ---------------- Global variables ----------------
+struct probe_head_s {
+    int node_count;
+    int skip_count;
+    int skip_ratio;
 
-extern struct probe_entry_s *probe_set;
+    struct probe_entry_s* first_probe;
+    struct probe_entry_s* first_probe_skip;
+}; 
+
+extern struct probe_head_s probe_set;
 extern pthread_mutex_t probe_array_mutex;
 
 /* AP, Client */
@@ -283,11 +291,13 @@ extern struct client_s *client_set_bc;
 extern pthread_mutex_t client_array_mutex;
 
 // ---------------- Functions ----------------
-probe_entry *insert_to_array(probe_entry *entry, int inc_counter, int save_80211k, int is_beacon, time_t expiry);
+probe_entry *insert_to_probe_array(probe_entry *entry, int is_local, int save_80211k, int is_beacon, time_t expiry);
 
-int probe_array_delete(probe_entry *entry);
+int probe_array_delete(struct dawn_mac client_addr, struct dawn_mac bssid_addr);
 
-probe_entry *probe_array_get_entry(struct dawn_mac bssid_addr, struct dawn_mac client_addr);
+probe_entry* probe_array_find_first_entry(struct dawn_mac client_mac, struct dawn_mac bssid_mac, int do_bssid);
+
+probe_entry *probe_array_get_entry(struct dawn_mac client_addr, struct dawn_mac bssid_addr);
 
 void remove_old_probe_entries(time_t current_time, long long int threshold);
 
@@ -301,9 +311,9 @@ void print_client_req_entry(int level, client_req_entry *entry);
 
 // ---------------- Functions ----------------
 
-int probe_array_update_rssi(struct dawn_mac bssid_addr, struct dawn_mac client_addr, uint32_t rssi, int send_network);
+probe_entry* probe_array_update_rssi(struct dawn_mac client_addr, struct dawn_mac bssid_addr, uint32_t rssi, int send_network);
 
-int probe_array_update_rcpi_rsni(struct dawn_mac bssid_addr, struct dawn_mac client_addr, uint32_t rcpi, uint32_t rsni, int send_network);
+probe_entry* probe_array_update_rcpi_rsni(struct dawn_mac client_addr, struct dawn_mac bssid_addr, uint32_t rcpi, uint32_t rsni, int send_network);
 
 void remove_old_client_entries(time_t current_time, long long int threshold);
 
@@ -312,6 +322,8 @@ client *insert_client_to_array(client *entry, time_t expiry);
 int kick_clients(struct dawn_mac bssid, uint32_t id);
 
 void update_iw_info(struct dawn_mac bssid);
+
+client** client_find_first_bc_entry(struct dawn_mac bssid_mac, struct dawn_mac client_mac, int do_client);
 
 void client_array_insert(client *entry, client ** insert_pos);
 
@@ -336,14 +348,9 @@ ap *ap_array_get_ap(struct dawn_mac bssid_mac);
 int probe_array_set_all_probe_count(struct dawn_mac client_addr, uint32_t probe_count);
 
 //int ap_get_collision_count(int col_domain);
-
-void send_beacon_reports(ap *a, int id);
+void send_beacon_requests(ap *a, int id);
 
 /* Utils */
-// deprecate use of this - it makes things slow
-#define SORT_LENGTH 5
-extern char sort_string[];
-
 struct kicking_nr {
     char nr[NEIGHBOR_REPORT_LEN];
     int score;

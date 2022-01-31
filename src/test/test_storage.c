@@ -11,9 +11,9 @@
 #include "test_storage.h"
 
 /*** Test Stub Functions - Called by SUT ***/
-void ubus_send_beacon_report(client *c, ap *a, int id)
+void ubus_send_beacon_request(client *c, ap *a, int id)
 {
-    printf("send_beacon_report() was called...\n");
+    printf("ubus_send_beacon_request() was called...\n");
 }
 
 int send_set_probe(struct dawn_mac client_addr)
@@ -213,32 +213,21 @@ static int array_auto_helper(int action, int i0, int i1)
                 probe0->client_addr = this_mac;
                 probe0->bssid_addr = this_mac;
 
-                insert_to_array(probe0, true, true, true, 0); // TODO: Check bool flags
+                insert_to_probe_array(probe0, true, true, true, 0); // TODO: Check bool flags
             }
             else if ((action & HELPER_ACTION_MASK) == HELPER_ACTION_STRESS) {
                 probe0 = dawn_malloc(sizeof(probe_entry));
                 set_random_mac(probe0->client_addr.u8);
                 set_random_mac(probe0->bssid_addr.u8);
 
-                insert_to_array(probe0, true, true, true, faketime);
+                insert_to_probe_array(probe0, true, true, true, faketime);
                 remove_old_probe_entries(faketime, 10);
                 time_moves_on();
             }
-            else
-            {
-                probe0 = probe_array_get_entry(this_mac, this_mac);
-                if (probe0 == NULL)
-                {
-                    printf("Can't find entry to delete!\n");
-                }
-                else
-                {
-                    probe_array_delete(probe0);
-                }
+            else if ((action & HELPER_ACTION_MASK) == HELPER_ACTION_DEL) {
+                probe_array_delete(this_mac, this_mac);
             }
             break;
-
-
         default:
             printf("HELPER error - which entity?\n");
             ret = -1;
@@ -384,15 +373,6 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
             args_required = 1;
 
             dawn_memory_audit();
-        }
-        else if (strcmp(*argv, "probe_sort") == 0)
-        {
-            args_required = 2;
-            if (curr_arg + args_required <= argc)
-            {
-                // sort_string is a datastorage.c global used for sorting probe entries
-                strcpy(sort_string, argv[1]);
-            }
         }
         else if (strcmp(*argv, "faketime") == 0)
         {
@@ -823,7 +803,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                     key_check = -1;
 
                     // See if this entry already exists
-                    pr0 = probe_array_get_entry(bmac, cmac);
+                    pr0 = probe_array_get_entry(cmac, bmac);
 
                     // If not, create and initialise it
                     if (pr0 != NULL)
@@ -855,7 +835,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                         pr0->rcpi = 0;
                         pr0->rsni = 0;
 
-                        insert_to_array(pr0, true, true, true, pr0->time);
+                        insert_to_probe_array(pr0, true, true, true, pr0->time);
                     }
                 }
 
@@ -932,7 +912,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 hwaddr_aton(argv[2], client_mac.u8);
                 hwaddr_aton(argv[1], bssid_mac.u8);
 
-                probe_entry *pr0 = probe_array_get_entry(bssid_mac, client_mac);
+                probe_entry *pr0 = probe_array_get_entry(client_mac, bssid_mac);
 
                 if (pr0 == NULL )
                 {
@@ -1075,7 +1055,6 @@ int main(int argc, char* argv[])
     }
     else
     {
-        strcpy(sort_string, "bcfs");
         init_mutex();
 
         // Step past command name on args, ie argv[0]
