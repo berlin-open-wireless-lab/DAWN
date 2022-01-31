@@ -174,7 +174,7 @@ void send_beacon_requests(ap *a, int id) {
     // Go through clients
     while (i != NULL && mac_is_equal_bb(i->bssid_addr, a->bssid_addr)) {
         if (dawnlog_showing(DAWNLOG_DEBUG))
-            dawnlog_debug("Station " MACSTR ": rrm_enabled_capa=%02x: PASSIVE=%d, ACTIVE=%d, TABLE=%d\n",
+            dawnlog_debug("Client " MACSTR ": rrm_enabled_capa=%02x: PASSIVE=%d, ACTIVE=%d, TABLE=%d\n",
                 MAC2STR(i->client_addr.u8), i->rrm_enabled_capa,
                 !!(i->rrm_enabled_capa & WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE),
                 !!(i->rrm_enabled_capa & WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE),
@@ -476,7 +476,7 @@ int better_ap_available(ap *kicking_ap, struct dawn_mac client_mac, struct kicki
     }
 
     if (neighbor_report != NULL)
-        dawnlog_info("Station " MACSTR ": Compared %d alternate AP candidates\n", MAC2STR(client_mac.u8), ap_count);
+        dawnlog_info("Client " MACSTR ": Compared %d alternate AP candidates\n", MAC2STR(client_mac.u8), ap_count);
 
     return kick;
 }
@@ -508,7 +508,7 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
         int do_kick = 0;
 
         if (mac_find_entry(j->client_addr)) {
-            dawnlog_info("Station " MACSTR ": Suppressing check due to MAC list entry\n", MAC2STR(j->client_addr.u8));
+            dawnlog_info("Client " MACSTR ": Suppressing check due to MAC list entry\n", MAC2STR(j->client_addr.u8));
         }
         else {
             do_kick = better_ap_available(kicking_ap, j->client_addr, &kick_nr_list);
@@ -530,14 +530,14 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
             // + ping pong behavior of clients will be reduced
             j->kick_count++;
             if (j->kick_count < dawn_metric.min_number_to_kick) {
-                dawnlog_info("Station " MACSTR ": kickcount %d below threshold of %d!\n", MAC2STR(j->client_addr.u8), j->kick_count,
+                dawnlog_info("Client " MACSTR ": kickcount %d below threshold of %d!\n", MAC2STR(j->client_addr.u8), j->kick_count,
                     dawn_metric.min_number_to_kick);
             }
             else {
                 float rx_rate, tx_rate;
                 bool have_bandwidth_iwinfo = get_bandwidth_iwinfo(j->client_addr, &rx_rate, &tx_rate);
                 if (!have_bandwidth_iwinfo && dawn_metric.bandwidth_threshold > 0) {
-                    dawnlog_info("Station " MACSTR ": No active transmission data for client. Don't kick!\n", MAC2STR(j->client_addr.u8));
+                    dawnlog_info("Client " MACSTR ": No active transmission data for client. Don't kick!\n", MAC2STR(j->client_addr.u8));
                 }
                 else
                 {
@@ -545,14 +545,14 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
                     // <= 6MBits <- probably no transmission
                     // tx_rate has always some weird value so don't use ist
                     if (have_bandwidth_iwinfo && rx_rate > dawn_metric.bandwidth_threshold) {
-                        dawnlog_info("Station " MACSTR ": Client is probably in active transmission. Don't kick! RxRate is: %f\n", MAC2STR(j->client_addr.u8), rx_rate);
+                        dawnlog_info("Client " MACSTR ": Client is probably in active transmission. Don't kick! RxRate is: %f\n", MAC2STR(j->client_addr.u8), rx_rate);
                     }
                     else
                     {
                         if (have_bandwidth_iwinfo)
-                            dawnlog_always("Station " MACSTR ": Kicking as probably NOT in active transmission. RxRate is: %f\n", MAC2STR(j->client_addr.u8), rx_rate);
+                            dawnlog_always("Client " MACSTR ": Kicking as probably NOT in active transmission. RxRate is: %f\n", MAC2STR(j->client_addr.u8), rx_rate);
                         else
-                            dawnlog_always("Station " MACSTR ": Kicking as no active transmission data for client, but bandwidth_threshold=%d is OK.\n",
+                            dawnlog_always("Client " MACSTR ": Kicking as no active transmission data for client, but bandwidth_threshold=%d is OK.\n",
                                 MAC2STR(j->client_addr.u8), dawn_metric.bandwidth_threshold);
 
                         print_client_entry(DAWNLOG_TRACE, j);
@@ -593,12 +593,12 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
         }
         else if (do_kick == -1) {
             // FIXME: Causes clients to be kicked until first probe is received, which is a bit brutal for pre-802.11k clients.
-            dawnlog_info("Station " MACSTR ": No Information about client. Force reconnect:\n", MAC2STR(j->client_addr.u8));
+            dawnlog_info("Client " MACSTR ": No Information about client. Force reconnect:\n", MAC2STR(j->client_addr.u8));
             print_client_entry(DAWNLOG_TRACE, j);
             del_client_interface(id, j->client_addr, 0, 1, 0);
         }
         else {
-            dawnlog_info("Station " MACSTR ": Current AP is best. Client will stay:\n", MAC2STR(j->client_addr.u8));
+            dawnlog_info("Client " MACSTR ": Current AP is best. Client will stay:\n", MAC2STR(j->client_addr.u8));
             print_client_entry(DAWNLOG_TRACE, j);
             // set kick counter to 0 again
             j->kick_count = 0;
@@ -1120,6 +1120,7 @@ void remove_old_probe_entries(time_t current_time, long long int threshold) {
     dawn_mutex_lock(&client_array_mutex);
 
     while (*i != NULL ) {
+        // FIXME: Why do we not delete the old probe just because it is a client?  Maybe because legacy devices are slow to send another?
         if (((*i)->time < current_time - threshold) && !client_array_get_client_for_bssid((*i)->bssid_addr, (*i)->client_addr)) {
             probe_entry* victim = *i;
 
@@ -1168,7 +1169,9 @@ client* client_array_update_entry(client* entry, time_t expiry) {
 
     entry->time = expiry;
 
-    if (*entry_pos && mac_compare_bb(entry->bssid_addr, (*entry_pos)->bssid_addr) == 0 && mac_compare_bb(entry->client_addr, (*entry_pos)->client_addr) == 0)
+	    if (*entry_pos != NULL &&
+	            mac_compare_bb(entry->bssid_addr, (*entry_pos)->bssid_addr) == 0 && 
+	            mac_compare_bb(entry->client_addr, (*entry_pos)->client_addr) == 0)
     {
         dawnlog_debug_func("Replacing entry...");
         // Swap entries if same BSSID + MAC...

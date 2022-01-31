@@ -811,14 +811,17 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
         return;
     }
 
-    char *data_str = blobmsg_format_json(msg, 1);
-    dawn_regmem(data_str);
-
     struct blob_buf b = {0};
     blob_buf_init(&b, 0);
     dawn_regmem(&b);
 
+    char* data_str = blobmsg_format_json(msg, 1);
+    dawn_regmem(data_str);
+
     blobmsg_add_json_from_string(&b, data_str);
+    dawn_free(data_str);
+    data_str = NULL;
+
     blobmsg_add_u32(&b, "collision_domain", network_config.collision_domain);
     blobmsg_add_u32(&b, "bandwidth", network_config.bandwidth);
 
@@ -851,9 +854,6 @@ static void ubus_get_clients_cb(struct ubus_request *req, int type, struct blob_
     dawn_mutex_lock(&ap_array_mutex);
     print_ap_array();
     dawn_mutex_unlock(&ap_array_mutex);
-
-    dawn_free(data_str);
-    data_str = NULL;
 
     blob_buf_free(&b);
     dawn_unregmem(&b);
@@ -1078,7 +1078,7 @@ void update_hostapd_sockets(struct uloop_timeout *t) {
     uloop_timeout_set(&hostapd_timer, timeout_config.update_hostapd * 1000);
 }
 
-void ubus_set_nr(){
+void ubus_set_nr() {
     dawnlog_debug_func("Entering...");
 
     struct hostapd_sock_entry *sub;
@@ -2053,9 +2053,13 @@ static void blobmsg_add_nr(struct blob_buf* b_local, ap* i) {
 static int mac_is_in_entry_list(const struct dawn_mac mac, const struct mac_entry_s *list) {
     dawnlog_debug_func("Entering...");
 
-    for (const struct mac_entry_s *i = list; i; i = i->next_mac)
-        if (mac_is_equal_bb(i->mac, mac))
+    while (list)
+    {
+        if (mac_is_equal_bb(list->mac, mac))
             return 1;
+        list = list->next_mac;
+    }
+
     return 0;
 }
 
