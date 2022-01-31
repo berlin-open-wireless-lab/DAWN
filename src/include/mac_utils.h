@@ -23,6 +23,9 @@ struct __attribute__((__packed__)) dawn_mac
         uint8_t u8[ETH_ALEN];
 };
 
+// Used as a filler where a value is required but not used functionally
+extern const struct dawn_mac dawn_mac_null;
+
 // Compare a raw MAC address to 00:00:00:00:00:00
 #define mac_is_null(a1) ((a1)[0] == 0) && ((a1)[1] == 0) && ((a1)[2] == 0) && ((a1)[3] == 0) && ((a1)[4] == 0) && ((a1)[5] == 0)
 
@@ -40,6 +43,12 @@ struct __attribute__((__packed__)) dawn_mac
  * @return
  */
 int hwaddr_aton(const char* txt, uint8_t* addr);
+
+/**
+ * Parse MAC from string.
+ * @param s
+ */
+struct dawn_mac str2mac(char* s);
 
 /**
  * Write mac to a file.

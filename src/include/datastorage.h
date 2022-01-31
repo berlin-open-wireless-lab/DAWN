@@ -25,11 +25,11 @@ struct mac_entry_s {
 // ---------------- Functions ----------
 void insert_macs_from_file();
 
-int insert_to_maclist(struct dawn_mac mac);
+struct mac_entry_s* insert_to_maclist(struct dawn_mac mac);
 
-int mac_in_maclist(struct dawn_mac mac);
+struct mac_entry_s* mac_find_entry(struct dawn_mac mac);
 
-struct mac_entry_s* insert_to_mac_array(struct mac_entry_s* entry, struct mac_entry_s** insert_pos);
+struct mac_entry_s* insert_to_mac_array(struct mac_entry_s* entry);
 
 void mac_array_delete(struct mac_entry_s* entry);
 

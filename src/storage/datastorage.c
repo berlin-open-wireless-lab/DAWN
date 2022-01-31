@@ -68,9 +68,6 @@ int mac_set_last = 0;
 // TODO: No longer used in code: retained to not break message xfer, etc
 char sort_string[SORT_LENGTH];
 
-// Used as a filler where a value is required but not used functionally
-static const struct dawn_mac dawn_mac_null = { .u8 = {0,0,0,0,0,0} };
-
 /*
 ** The ..._find_first() functions perform an efficient search of the core storage linked lists.
 ** "Skipping" linear searches and binary searches are used depending on anticipated array size.
@@ -325,42 +322,18 @@ static client** client_find_first_c_entry(struct dawn_mac client_mac)
 }
 #endif
 
-
-static struct mac_entry_s** mac_find_first_entry(struct dawn_mac mac)
+struct mac_entry_s* mac_find_entry(struct dawn_mac mac)
 {
-    int lo = 0;
-    struct mac_entry_s** lo_ptr = &mac_set;
-    int hi = mac_set_last;
-
     dawnlog_debug_func("Entering...");
 
-    while (lo < hi) {
-        struct mac_entry_s** i = lo_ptr;
-        int scan_pos = lo;
+    struct mac_entry_s* ret = mac_set;
 
-        // m is next test position of binary search
-        int m = (lo + hi) / 2;
-
-        // find entry with ordinal position m
-        while (scan_pos++ < m)
-        {
-            i = &((*i)->next_mac);
-        }
-
-        int this_cmp = mac_compare_bb((*i)->mac, mac);
-
-        if (this_cmp < 0)
-        {
-            lo = m + 1;
-            lo_ptr = &((*i)->next_mac);
-        }
-        else
-        {
-            hi = m;
-        }
+    while (ret && mac_compare_bb(ret->mac, mac) != 0)
+    {
+        ret = ret->next_mac;
     }
 
-    return lo_ptr;
+    return ret;
 }
 
 void send_beacon_reports(ap *a, int id) {
@@ -667,7 +640,7 @@ int kick_clients(ap* kicking_ap, uint32_t id) {
 
         int do_kick = 0;
 
-        if (mac_in_maclist(j->client_addr)) {
+        if (mac_find_entry(j->client_addr)) {
             dawnlog_info("Station " MACSTR ": Suppressing check due to MAC list entry\n", MAC2STR(j->client_addr.u8));
         }
         else {
@@ -1391,24 +1364,7 @@ void insert_macs_from_file() {
         dawnlog_debug("Retrieved line of length %zu :\n", read);
         dawnlog_debug("%s", line);
 
-        // Need to scanf to an array of ints as there is no byte format specifier
-        int tmp_int_mac[ETH_ALEN];
-        sscanf(line, MACSTR, STR2MAC(tmp_int_mac));
-
-        struct mac_entry_s* new_mac = dawn_malloc(sizeof(struct mac_entry_s));
-        if (new_mac == NULL)
-        {
-            dawnlog_error("malloc of MAC struct failed!\n");
-        }
-        else
-        {
-            new_mac->next_mac = NULL;
-            for (int i = 0; i < ETH_ALEN; ++i) {
-                new_mac->mac.u8[i] = (uint8_t)tmp_int_mac[i];
-            }
-
-            insert_to_mac_array(new_mac, NULL);
-        }
+        insert_to_maclist(str2mac(line));
 
 #ifdef DAWN_MEMORY_AUDITING
         char* old_line = line;
@@ -1444,17 +1400,12 @@ void insert_macs_from_file() {
 
 
 // TODO: This list only ever seems to get longer.  Why do we need it?
-int insert_to_maclist(struct dawn_mac mac) {
-int ret = 0;
-struct mac_entry_s** i = mac_find_first_entry(mac);
-
+struct mac_entry_s *insert_to_maclist(struct dawn_mac mac) {
     dawnlog_debug_func("Entering...");
 
-    if (*i != NULL && mac_is_equal_bb((*i)->mac, mac))
-    {
-        ret = -1;
-    }
-    else
+    struct mac_entry_s* new_mac = NULL;
+
+    if (mac_find_entry(mac) == NULL)
     {
         struct mac_entry_s* new_mac = dawn_malloc(sizeof(struct mac_entry_s));
         if (new_mac == NULL)
@@ -1463,61 +1414,15 @@ struct mac_entry_s** i = mac_find_first_entry(mac);
         }
         else
         {
-            new_mac->next_mac = NULL;
             new_mac->mac = mac;
 
-            insert_to_mac_array(new_mac, i);
+            new_mac->next_mac = mac_set;
+            mac_set = new_mac;
+            mac_set_last++;
         }
     }
 
-    return ret;
-}
-
-// TODO: How big is it in a large network?
-int mac_in_maclist(struct dawn_mac mac) {
-int ret = 0;
-struct mac_entry_s** i = mac_find_first_entry(mac);
-
-    dawnlog_debug_func("Entering...");
-
-    if (*i != NULL && mac_is_equal_bb((*i)->mac, mac))
-    {
-        ret = 1;
-    }
-
-    return ret;
-}
-
-
-struct mac_entry_s* insert_to_mac_array(struct mac_entry_s* entry, struct mac_entry_s** insert_pos) {
-    dawnlog_debug_func("Entering...");;
-
-    if (insert_pos == NULL)
-        insert_pos = mac_find_first_entry(entry->mac);
-
-    entry->next_mac = *insert_pos;
-    *insert_pos = entry;
-    mac_set_last++;
-
-    return entry;
-}
-
-void mac_array_delete(struct mac_entry_s* entry) {
-
-    struct mac_entry_s** i;
-
-    dawnlog_debug_func("Entering...");;
-
-    for (i = &mac_set; *i != NULL; i = &((*i)->next_mac)) {
-        if (*i == entry) {
-            *i = entry->next_mac;
-            mac_set_last--;
-            dawn_free(entry);
-            entry = NULL;
-        }
-    }
-
-    return;
+    return new_mac;
 }
 
 void print_probe_entry(int level, probe_entry *entry) {
