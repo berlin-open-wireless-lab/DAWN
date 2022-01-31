@@ -27,10 +27,6 @@ static int compare_station_count(ap* ap_entry_own, ap* ap_entry_to_compare, stru
 
 
 // ---------------- Global variables ----------------
-struct auth_entry_s *denied_req_set = NULL;
-int denied_req_last = 0;
-pthread_mutex_t denied_array_mutex;
-
 // config section name
 const char *band_config_name[__DAWN_BAND_MAX] = {
     "802_11g",
@@ -329,45 +325,6 @@ static client** client_find_first_c_entry(struct dawn_mac client_mac)
 }
 #endif
 
-auth_entry** auth_entry_find_first_entry(struct dawn_mac bssid_mac, struct dawn_mac client_mac)
-{
-    int lo = 0;
-    auth_entry** lo_ptr = &denied_req_set;
-    int hi = denied_req_last;
-
-    dawnlog_debug_func("Entering...");
-
-    while (lo < hi) {
-        auth_entry** i = lo_ptr;
-        int scan_pos = lo;
-
-        // m is next test position of binary search
-        int m = (lo + hi) / 2;
-
-        // find entry with ordinal position m
-        while (scan_pos++ < m)
-        {
-            i = &((*i)->next_auth);
-        }
-
-        int this_cmp = mac_compare_bb((*i)->bssid_addr, bssid_mac);
-
-        if (this_cmp == 0)
-            this_cmp = mac_compare_bb((*i)->client_addr, client_mac);
-
-        if (this_cmp < 0)
-        {
-            lo = m + 1;
-            lo_ptr = &((*i)->next_auth);
-        }
-        else
-        {
-            hi = m;
-        }
-    }
-
-    return lo_ptr;
-}
 
 static struct mac_entry_s** mac_find_first_entry(struct dawn_mac mac)
 {
@@ -1386,38 +1343,6 @@ void remove_old_ap_entries(time_t current_time, long long int threshold) {
     }
 }
 
-void remove_old_denied_req_entries(time_t current_time, long long int threshold, int logmac) {
-    dawnlog_debug_func("Entering...");
-
-    auth_entry** i = &denied_req_set;
-    while (*i != NULL) {
-        // check counter
-
-        //check timer
-        if ((*i)->time < (current_time - threshold)) {
-
-            // client is not connected for a given time threshold!
-            if (logmac && !is_connected_somehwere((*i)->client_addr)) {
-                dawnlog_warning("Client has probably a bad driver!\n");
-
-                // problem that somehow station will land into this list
-                // maybe delete again?
-                if (insert_to_maclist((*i)->client_addr) == 0) {
-                    send_add_mac((*i)->client_addr);
-                    // TODO: File can grow arbitarily large.  Resource consumption risk.
-                    // TODO: Consolidate use of file across source: shared resource for name, single point of access?
-                    write_mac_to_file("/tmp/dawn_mac_list", (*i)->client_addr);
-                }
-            }
-            // TODO: Add unlink function to save rescan to find element
-            denied_req_array_delete(*i);
-        }
-        else
-        {
-            i = &((*i)->next_auth);
-        }
-    }
-}
 
 client *insert_client_to_array(client *entry, time_t expiry) {
 client * ret = NULL;
@@ -1563,58 +1488,6 @@ struct mac_entry_s** i = mac_find_first_entry(mac);
     return ret;
 }
 
-auth_entry* insert_to_denied_req_array(auth_entry* entry, int inc_counter, time_t expiry) {
-    dawnlog_debug_func("Entering...");
-
-    pthread_mutex_lock(&denied_array_mutex);
-
-    auth_entry** i = auth_entry_find_first_entry(entry->bssid_addr, entry->client_addr);
-
-    if ((*i) != NULL && mac_is_equal_bb(entry->bssid_addr, (*i)->bssid_addr) && mac_is_equal_bb(entry->client_addr, (*i)->client_addr)) {
-
-        entry = *i;
-
-        entry->time = expiry;
-        if (inc_counter) {
-            entry->counter++;
-        }
-    }
-    else
-    {
-        entry->time = expiry;
-        if (inc_counter)
-            entry->counter++;
-        else
-            entry->counter = 0;
-
-        entry->next_auth = *i;
-        *i = entry;
-        denied_req_last++;
-    }
-
-    pthread_mutex_unlock(&denied_array_mutex);
-
-    return entry;
-}
-
-void denied_req_array_delete(auth_entry* entry) {
-
-    auth_entry** i;
-
-    dawnlog_debug_func("Entering...");
-
-    for (i = &denied_req_set; *i != NULL; i = &((*i)->next_auth)) {
-        if (*i == entry) {
-            *i = entry->next_auth;
-            denied_req_last--;
-            dawn_free(entry);
-            entry = NULL;
-            break;
-        }
-    }
-
-    return;
-}
 
 struct mac_entry_s* insert_to_mac_array(struct mac_entry_s* entry, struct mac_entry_s** insert_pos) {
     dawnlog_debug_func("Entering...");;
@@ -1659,7 +1532,7 @@ void print_probe_entry(int level, probe_entry *entry) {
     }
 }
 
-void print_auth_entry(int level, auth_entry *entry) {
+void print_client_req_entry(int level, client_req_entry *entry) {
     if (dawnlog_showing(DAWNLOG_INFO))
     {
         dawnlog_info(
@@ -1718,7 +1591,6 @@ void destroy_mutex() {
     pthread_mutex_destroy(&probe_array_mutex);
     pthread_mutex_destroy(&client_array_mutex);
     pthread_mutex_destroy(&ap_array_mutex);
-    pthread_mutex_destroy(&denied_array_mutex);
 
     return;
 }
@@ -1740,9 +1612,5 @@ int init_mutex() {
         return 1;
     }
 
-    if (pthread_mutex_init(&denied_array_mutex, NULL) != 0) {
-        dawnlog_error("Mutex init failed!\n");
-        return 1;
-    }
     return 0;
 }
