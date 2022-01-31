@@ -174,7 +174,7 @@ static int array_auto_helper(int action, int i0, int i1)
                 remove_old_ap_entries(faketime, 10);
                 time_moves_on();
             }
-            else
+            else if ((action & HELPER_ACTION_MASK) == HELPER_ACTION_DEL)
                 ap_array_delete(ap_array_get_ap(this_mac));
             break;
         case HELPER_CLIENT:
@@ -196,7 +196,7 @@ static int array_auto_helper(int action, int i0, int i1)
                 remove_old_client_entries(faketime, 10);
                 time_moves_on();
             }
-            else
+            else if ((action & HELPER_ACTION_MASK) == HELPER_ACTION_DEL)
             {
                 client* client0 = client_array_get_client(this_mac);
 
@@ -502,7 +502,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 ret = array_auto_helper(HELPER_CLIENT | HELPER_ACTION_STRESS, 1, atoi(*(argv + 1)));
             }
         }
-       else if (strcmp(*argv, "remove_old_ap_entries") == 0)
+        else if (strcmp(*argv, "remove_old_ap_entries") == 0)
         {
             args_required = 2;
             if (curr_arg + args_required <= argc)
