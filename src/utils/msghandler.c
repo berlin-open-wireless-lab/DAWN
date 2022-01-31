@@ -298,10 +298,13 @@ int handle_network_msg(char* msg) {
     if (strncmp(method, "probe", 5) == 0) {
         probe_entry *entry = parse_to_probe_req(data_buf.head);
         if (entry != NULL) {
+            dawn_mutex_lock(&probe_array_mutex);
+
+            dawn_mutex_require(&probe_array_mutex);
             if (entry != insert_to_probe_array(entry, false, true, false, time(0))) // use 802.11k values
             {
                 dawnlog_info("Remote PROBE updated client / BSSID = " MACSTR " / " MACSTR " \n",
-		        MAC2STR(entry->client_addr.u8), MAC2STR(entry->bssid_addr.u8));
+                        MAC2STR(entry->client_addr.u8), MAC2STR(entry->bssid_addr.u8));
 
                 // insert found an existing entry, rather than linking in our new one
                 dawn_free(entry);
@@ -310,8 +313,10 @@ int handle_network_msg(char* msg) {
             else
             {
                 dawnlog_info("Remote PROBE is for new client / BSSID = " MACSTR " / " MACSTR " \n",
-		        MAC2STR(entry->client_addr.u8), MAC2STR(entry->bssid_addr.u8));
+                        MAC2STR(entry->client_addr.u8), MAC2STR(entry->bssid_addr.u8));
             }
+
+            dawn_mutex_unlock(&probe_array_mutex);
         }
     }
     else if (strncmp(method, "clients", 5) == 0) {

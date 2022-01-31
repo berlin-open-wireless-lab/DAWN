@@ -104,16 +104,27 @@ const char* dawnlog_basename(const char* file);
 /**
  ** Wrap mutex operations to help track down mis-matches
  */
+#if DAWNLOG_COMPILING(DAWNLOG_DEBUG)
 #define DAWN_MUTEX_WRAP
+#endif
 
-#ifndef DAWN_MUTEX_WRAP
-#define dawn_mutex_lock(m) pthread_mutex_lock(m)
-#define dawn_mutex_unlock(m) pthread_mutex_unlock(m)
-#else
+#ifdef DAWN_MUTEX_WRAP
+ // Log that a mutex managed resource is being accessed so that messages can be scrutinised for bugs
+ // Place these liberally near any code that accesses or retains a pointer to resources that could go away
+#define dawn_mutex_require(m) _dawn_mutex_require(m, __FILE__, __LINE__)
+void _dawn_mutex_require(pthread_mutex_t* m, char* f, int l);
+
+// Log that a mutex managed resource is being locked so that messages can be scrutinised for bugs
 #define dawn_mutex_lock(m) _dawn_mutex_lock(m, __FILE__, __LINE__)
 int _dawn_mutex_lock(pthread_mutex_t* m, char* f, int l);
 
+// Log that a mutex managed resource is being unlocked so that messages can be scrutinised for bugs
 #define dawn_mutex_unlock(m) _dawn_mutex_unlock(m, __FILE__, __LINE__)
 int _dawn_mutex_unlock(pthread_mutex_t* m, char* f, int l);
+#else
+#define dawn_mutex_require(m)
+#define dawn_mutex_lock(m) pthread_mutex_lock(m)
+#define dawn_mutex_unlock(m) pthread_mutex_unlock(m)
 #endif
+
 #endif

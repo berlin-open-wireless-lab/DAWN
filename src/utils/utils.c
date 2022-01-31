@@ -130,14 +130,57 @@ const char* dawnlog_basename(const char* file)
     return(xfile ? xfile + 1 : file);
 }
 
-int _dawn_mutex_lock(pthread_mutex_t* m, char * f, int l)
+
+#ifdef DAWN_MUTEX_WRAP
+// Log that a mutex managed resource is being accessed so that messages can be scrutinised for bugs
+void _dawn_mutex_require(pthread_mutex_t* m, char* f, int l)
 {
-    dawnlog_debug("MUTEX   lock = %" PRIXPTR "@%s:%d", m, dawnlog_basename(f), l);
+    // Rely on compile time hack that we can see pthread_t is unsigned long on this dev platform
+    if (sizeof(pthread_t) == sizeof(unsigned long))
+    {
+        pthread_t moi = pthread_self();
+
+        if (0 == pthread_mutex_trylock(m))
+        {
+            pthread_mutex_unlock(m);
+            dawnlog_warning("MUTEX require = %" PRIXPTR "@%s:%d[%ul] - appears to be UNLOCKED!", m, dawnlog_basename(f), l, moi);
+        }
+        else
+            dawnlog_debug("MUTEX require = %" PRIXPTR "@%s:%d[%ul]", m, dawnlog_basename(f), l, moi);
+    }
+
+    return;
+}
+
+// Log that a mutex managed resource is being locked so that messages can be scrutinised for bugs
+int _dawn_mutex_lock(pthread_mutex_t* m, char* f, int l)
+{
+    // Rely on compile time hack that we can see pthread_t is unsigned long on this dev platform
+    if (sizeof(pthread_t) == sizeof(unsigned long))
+    {
+        pthread_t moi = pthread_self();
+
+        dawnlog_debug("MUTEX    lock = %" PRIXPTR "@%s:%d[%ul]", m, dawnlog_basename(f), l, moi);
+    }
+    else
+        dawnlog_debug("MUTEX    lock = %" PRIXPTR "@%s:%d", m, dawnlog_basename(f), l);
+
     return pthread_mutex_lock(m);
 }
 
+// Log that a mutex managed resource is being unlocked so that messages can be scrutinised for bugs
 int _dawn_mutex_unlock(pthread_mutex_t* m, char* f, int l)
 {
-    dawnlog_debug("MUTEX unlock = %" PRIXPTR "@%s:%d", m, dawnlog_basename(f), l);
+    // Rely on compile time hack that we can see pthread_t is unsigned long on this dev platform
+    if (sizeof(pthread_t) == sizeof(unsigned long))
+    {
+        pthread_t moi = pthread_self();
+
+        dawnlog_debug("MUTEX  unlock = %" PRIXPTR "@%s:%d[%ul]", m, dawnlog_basename(f), l, moi);
+    }
+    else
+        dawnlog_debug("MUTEX  unlock = %" PRIXPTR "@%s:%d", m, dawnlog_basename(f), l);
+
     return pthread_mutex_unlock(m);
 }
+#endif
