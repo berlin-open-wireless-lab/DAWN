@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
     }
 
     if (logdest == DAWNLOG_DEST_SYSLOG)
-        openlog("dawn", LOG_PID, LOG_DAEMON);
+        openlog("dawn", LOG_CONS, LOG_DAEMON);
 
     dawnlog_dest(logdest);
 

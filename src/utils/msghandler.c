@@ -224,10 +224,9 @@ probe_entry *parse_to_probe_req(struct blob_attr* msg) {
 
 int handle_deauth_req(struct blob_attr* msg) {
 
+    dawnlog_debug_func("Entering...");
     hostapd_notify_entry notify_req;
     parse_to_hostapd_notify(msg, &notify_req);
-
-    dawnlog_debug_func("Entering...");
 
     dawn_mutex_lock(&client_array_mutex);
 
@@ -300,9 +299,17 @@ int handle_network_msg(char* msg) {
         if (entry != NULL) {
             if (entry != insert_to_probe_array(entry, false, true, false, time(0))) // use 802.11k values
             {
+                dawnlog_info("Remote PROBE updated client / BSSID = " MACSTR " / " MACSTR " \n",
+		        MAC2STR(entry->client_addr.u8), MAC2STR(entry->bssid_addr.u8));
+
                 // insert found an existing entry, rather than linking in our new one
                 dawn_free(entry);
                 entry = NULL;
+            }
+            else
+            {
+                dawnlog_info("Remote PROBE is for new client / BSSID = " MACSTR " / " MACSTR " \n",
+		        MAC2STR(entry->client_addr.u8), MAC2STR(entry->bssid_addr.u8));
             }
         }
     }
