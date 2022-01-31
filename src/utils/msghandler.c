@@ -566,8 +566,16 @@ int parse_to_clients(struct blob_attr* msg) {
 
         ap_entry->op_class = ap_entry->channel = 0;
         if (tb[CLIENT_TABLE_NEIGHBOR]) {
+            // Copy part of report that we have space for, and discard remainder
             strncpy(ap_entry->neighbor_report, blobmsg_get_string(tb[CLIENT_TABLE_NEIGHBOR]), NEIGHBOR_REPORT_LEN);
+            ap_entry->neighbor_report[NEIGHBOR_REPORT_LEN] = '\0';
             sscanf(ap_entry->neighbor_report + NR_OP_CLASS, "%2x%2x", &ap_entry->op_class, &ap_entry->channel);
+
+            int nrl = strlen(ap_entry->neighbor_report);
+            if (nrl == NEIGHBOR_REPORT_LEN)
+                dawnlog_warning("Neighbor Report possibly truncated - hex length of %d\n", nrl);
+            else
+                dawnlog_debug("Neighbor Report - hex length of %d\n", nrl);
         }
         else {
             ap_entry->neighbor_report[0] = '\0';

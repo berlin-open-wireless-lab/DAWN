@@ -42,7 +42,7 @@ int ret = 0;
 
     if (neighbor_list != NULL)
     {
-        // Fake a client being disassociated and then rejoining on the recommended neoghbor
+        // Fake a client being disassociated and then rejoining on the recommended neighbor
         client *mc = client_array_get_client(client_addr);
         mc = client_array_delete(mc, true);
         // Originally, there was only one AP, not a list of them; that AP is at the tail of the list
@@ -50,9 +50,9 @@ int ret = 0;
         while (neighbor_list && neighbor_list->next)
             neighbor_list = neighbor_list->next;
         for (int n=0; n < ETH_ALEN; n++)
-            sscanf(neighbor_list->nr + n*2, "%2hhx", mc->bssid_addr.u8 + n);
+            sscanf(neighbor_list->nr_ap->neighbor_report + n*2, "%2hhx", mc->bssid_addr.u8 + n);
         insert_client_to_array(mc, 0);
-        printf("BSS TRANSITION TO " NR_MACSTR "\n", NR_MAC2STR(neighbor_list->nr));
+        printf("BSS TRANSITION TO " NR_MACSTR "\n", NR_MAC2STR(neighbor_list->nr_ap->neighbor_report));
 
         // Tell caller not to change the arrays any further
         ret = 1;
@@ -588,6 +588,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                     dawn_metric.min_number_to_kick = 3;
                     dawn_metric.chan_util_avg_period = 3;
                     dawn_metric.set_hostapd_nr = 1;
+                    dawn_metric.disassoc_nr_length = 6;
                     dawn_metric.kicking = 0;
                     dawn_metric.duration = 0;
                     dawn_metric.rrm_mode_mask = WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE |
@@ -624,6 +625,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 else if (!strncmp(fn, "min_number_to_kick=", 19)) load_int(&dawn_metric.min_number_to_kick, fn + 19);
                 else if (!strncmp(fn, "chan_util_avg_period=", 21)) load_int(&dawn_metric.chan_util_avg_period, fn + 21);
                 else if (!strncmp(fn, "set_hostapd_nr=", 15)) load_int(&dawn_metric.set_hostapd_nr, fn + 15);
+                else if (!strncmp(fn, "disassoc_nr_length=", 19)) load_int(&dawn_metric.disassoc_nr_length, fn + 19);
                 else if (!strncmp(fn, "kicking=", 8)) load_int(&dawn_metric.kicking, fn + 8);
                 else if (!strncmp(fn, "duration=", 9)) load_int(&dawn_metric.duration, fn + 9);
                 else if (!strncmp(fn, "rrm_mode=", 9)) dawn_metric.rrm_mode_mask = parse_rrm_mode(dawn_metric.rrm_mode_order, fn + 9);
@@ -873,44 +875,26 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
         }
         else if (strcmp(*argv, "better_ap_available") == 0)
         {
-            args_required = 4;
+            args_required = 5;
             if (curr_arg + args_required <= argc)
             {
                 struct dawn_mac bssid_mac;
                 struct dawn_mac client_mac;
                 uint32_t autokick;
+                uint32_t with_nr;
 
                 int tr = 9999; // Tamper evident value
 
                 hwaddr_aton(argv[1], bssid_mac.u8);
                 hwaddr_aton(argv[2], client_mac.u8);
                 load_u32(&autokick, argv[3]);
+                load_u32(&with_nr, argv[4]);
 
-                char nb[NEIGHBOR_REPORT_LEN] = "TAMPER EVIDENT NEIGHBOR REPORT INITIALISATION STRING";
-                struct kicking_nr neighbor = {0};
-                struct kicking_nr *neighbor_list = &neighbor;
+                struct kicking_nr *neighbor_list = NULL;
 
-                if (curr_arg + 5 <= argc)
-                {
-                    args_required = 5;
+                tr = better_ap_available(ap_array_get_ap(bssid_mac), client_mac, with_nr ? &neighbor_list : NULL);
 
-                    if (strcmp(argv[4], "\0") == 0) // Provide a way to set an empty string
-                    {
-                        strcpy(nb, "");
-                    }
-                    else
-                    {
-                        strcpy(nb, argv[4]);
-                    }
-                    strncpy(neighbor.nr, nb, NEIGHBOR_REPORT_LEN);
-                    tr = better_ap_available(ap_array_get_ap(bssid_mac), client_mac, &neighbor_list);
-                }
-                else
-                {
-                    tr = better_ap_available(ap_array_get_ap(bssid_mac), client_mac, NULL);
-                }
-
-                printf("better_ap_available returned %d (with neighbour report %s)\n", tr, nb);
+                printf("better_ap_available returned %d (with neighbour report %s)\n", tr, neighbor_list ? neighbor_list->nr_ap->neighbor_report : "NONE");
             }
         }
         else if (strcmp(*argv, "eval_probe_metric") == 0)

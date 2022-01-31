@@ -74,6 +74,7 @@ struct probe_metric_s {
     int min_number_to_kick; // kick_clients()
     int chan_util_avg_period;
     int set_hostapd_nr;
+    int disassoc_nr_length; // FIXME: Is there a standard for how many?  Use 6 as default to suit iOS.
     int kicking;
     int kicking_threshold;
     int duration;
@@ -192,7 +193,7 @@ typedef struct hostapd_notify_entry_s {
 } hostapd_notify_entry;
 
 // ---------------- Defines ----------------
-
+// FIXME: Is this enough of the NR to allow 802.11 operations to work?  Should we go for max possible length of 256 * 2 + 1
 #define NEIGHBOR_REPORT_LEN 200
 /* Neighbor report string elements
  * [Elemen ID|1][LENGTH|1][BSSID|6][BSSID INFORMATION|4][Operating Class|1][Channel Number|1][PHY Type|1][Operational Subelements]
@@ -259,7 +260,7 @@ typedef struct ap_s {
     time_t time; // remove_old...entries // (2)
     uint32_t station_count; // compare_station_count() <- better_ap_available() // (1)
     uint8_t ssid[SSID_MAX_LEN + 1]; // compare_sid() < -better_ap_available() // (1)
-    char neighbor_report[NEIGHBOR_REPORT_LEN]; // (1)  // TODO: Check whether we should store and AP one or generate on fly for client
+    char neighbor_report[NEIGHBOR_REPORT_LEN + 1]; // (1)  // This is the self-NR of the AP
     uint32_t op_class; // ubus_send_beacon_report() // (1)
     uint32_t channel; // ubus_send_beacon_report() // (1)
     //uint32_t collision_domain;  // TODO: ap_get_collision_count() never evaluated?
@@ -345,7 +346,7 @@ void send_beacon_requests(ap *a, int id);
 
 /* Utils */
 struct kicking_nr {
-    char nr[NEIGHBOR_REPORT_LEN];
+    ap *nr_ap;
     int score;
     struct kicking_nr *next;
 };
