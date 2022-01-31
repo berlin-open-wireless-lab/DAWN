@@ -34,7 +34,7 @@ int send_set_probe(struct dawn_mac client_addr)
     return 0;
 }
 
-int wnm_disassoc_imminent(uint32_t id, const struct dawn_mac client_addr, struct kicking_nr* neighbor_list, uint32_t duration)
+int wnm_disassoc_imminent(uint32_t id, const struct dawn_mac client_addr, struct kicking_nr* neighbor_list, int threshold, uint32_t duration)
 {
 int ret = 0;
 
@@ -892,7 +892,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
 
                 struct kicking_nr *neighbor_list = NULL;
 
-                tr = better_ap_available(ap_array_get_ap(bssid_mac), client_mac, with_nr ? &neighbor_list : NULL);
+                tr = better_ap_available(ap_array_get_ap(bssid_mac), probe_array_get_entry(client_mac, bssid_mac), 100, with_nr ? &neighbor_list : NULL);
 
                 printf("better_ap_available returned %d (with neighbour report %s)\n", tr, neighbor_list ? neighbor_list->nr_ap->neighbor_report : "NONE");
             }

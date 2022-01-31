@@ -328,78 +328,79 @@ static probe_entry* parse_to_beacon_rep(struct blob_attr *msg) {
 }
 
 int handle_auth_req(struct blob_attr* msg) {
-int ret = WLAN_STATUS_SUCCESS;
-bool discard_entry = true;
-
     dawnlog_debug_func("Entering...");
+
+    // Allow if we can't evalute an active reason to deny
+    int ret = WLAN_STATUS_SUCCESS;
 
     client_req_entry *auth_req = dawn_malloc(sizeof(struct client_req_entry_s));
     if (auth_req == NULL)
     {
         dawnlog_error("Memory allocation of auth req failed!");
-        return ret; // Allow if we can't evalute a reason to deny
     }
+    else
+    {
+        parse_to_client_req(msg, auth_req);
 
-    parse_to_client_req(msg, auth_req);
+        dawnlog_debug("Auth entry: ");
+        print_client_req_entry(DAWNLOG_DEBUG, auth_req);
 
-    dawnlog_debug("Auth entry: ");
-    print_client_req_entry(DAWNLOG_DEBUG, auth_req);
+        if (dawn_metric.eval_auth_req <= 0) {
+            dawnlog_trace(MACSTR " Allow authentication due to not evaluating requests", MAC2STR(auth_req->client_addr.u8));
+        }
+        else if (mac_find_entry(auth_req->client_addr)) {
+            dawnlog_trace(MACSTR " Allow authentication due to whitelisted MAC", MAC2STR(auth_req->client_addr.u8));
+        }
+        else {
+            dawn_mutex_lock(&probe_array_mutex);
 
-    if (dawn_metric.eval_auth_req <= 0) {
-        dawnlog_trace(MACSTR " Allow authentication due to not evaluating requests", MAC2STR(auth_req->client_addr.u8));
-    }
-    else if (mac_find_entry(auth_req->client_addr)) {
-        dawnlog_trace(MACSTR " Allow authentication due to mac_find_entry()", MAC2STR(auth_req->client_addr.u8));
-    }
-    else {
-        dawn_mutex_lock(&probe_array_mutex);
-
-        if (dawnlog_showing(DAWNLOG_DEBUG))
-            print_probe_array();
-
-        probe_entry *tmp = probe_array_get_entry(auth_req->client_addr, auth_req->bssid_addr);
+            if (dawnlog_showing(DAWNLOG_DEBUG))
+                print_probe_array();
 
             dawn_mutex_require(&probe_array_mutex);
+            probe_entry* own_probe = probe_array_get_entry(auth_req->client_addr, auth_req->bssid_addr);
 
-        /*** Deprecated function decide_function() removed here ***/
-        int deny_request = 0;
-        
-        // block if entry was not already found in probe database
-        if (tmp == NULL) {
-            dawnlog_trace(MACSTR " Deny authentication due to no probe entry", MAC2STR(auth_req->client_addr.u8));
-            deny_request = 1;
-        }
-        else if (tmp->counter < dawn_metric.min_probe_count) {
-            dawnlog_trace(MACSTR " Deny authentication due to low probe count", MAC2STR(auth_req->client_addr.u8));
-            deny_request = 1;
-        }
-        else
-        {
-            dawn_mutex_lock(&ap_array_mutex);
-
-                dawn_mutex_require(&ap_array_mutex);
-            ap* this_ap = ap_array_get_ap(tmp->bssid_addr);
-            if (this_ap != NULL && better_ap_available(this_ap, tmp->client_addr, NULL) > 0) {
-                dawnlog_trace(MACSTR " Deny authentication due to better AP available", MAC2STR(auth_req->client_addr.u8));
-                deny_request = 1;
+            // block if entry was not already found in probe database
+            if (own_probe == NULL) {
+                dawnlog_trace(MACSTR " Deny authentication due to no probe entry", MAC2STR(auth_req->client_addr.u8));
+                ret = dawn_metric.deny_auth_reason;
+            }
+            else if (own_probe->counter < dawn_metric.min_probe_count) {
+                dawnlog_trace(MACSTR " Deny authentication due to low probe count", MAC2STR(auth_req->client_addr.u8));
+                ret = dawn_metric.deny_auth_reason;
             }
             else
-                // maybe send here that the client is connected?
-                dawnlog_trace(MACSTR " Allow authentication!\n", MAC2STR(auth_req->client_addr.u8));
+            {
+                dawn_mutex_lock(&ap_array_mutex);
 
-            dawn_mutex_unlock(&ap_array_mutex);
+                dawn_mutex_require(&ap_array_mutex);
+                ap* this_ap = ap_array_get_ap(auth_req->bssid_addr);
+                if (this_ap == NULL)
+                {
+                    dawnlog_trace(MACSTR " Allow authentication due to no AP entry", MAC2STR(auth_req->client_addr.u8));
+                }
+                else
+                {
+                    int own_score = eval_probe_metric(own_probe, this_ap);
+                    dawnlog_trace("Current AP score = %d for:\n", own_score);
+                    print_probe_entry(DAWNLOG_TRACE, own_probe);
+
+                    if (better_ap_available(this_ap, own_probe, own_score, NULL) > 0) {
+                        dawnlog_trace(MACSTR " Deny authentication due to better AP available", MAC2STR(auth_req->client_addr.u8));
+                        ret = dawn_metric.deny_auth_reason;
+                    }
+                    else {
+                        // maybe send here that the client is connected?
+                        dawnlog_trace(MACSTR " Allow authentication request due to AP score\n", MAC2STR(auth_req->client_addr.u8));
+                    }
+                }
+
+                dawn_mutex_unlock(&ap_array_mutex);
+            }
+
+            dawn_mutex_unlock(&probe_array_mutex);
         }
-        /*** End of decide_function() rework ***/
 
-        if (deny_request) {
-            ret = dawn_metric.deny_auth_reason;
-        }
-
-        dawn_mutex_unlock(&probe_array_mutex);
-    }
-
-    if (discard_entry)
-    {
         dawn_free(auth_req);
         auth_req = NULL;
     }
@@ -408,79 +409,77 @@ bool discard_entry = true;
 }
 
 static int handle_assoc_req(struct blob_attr *msg) {
-int ret = WLAN_STATUS_SUCCESS;
-int discard_entry = true;
-
     dawnlog_debug_func("Entering...");
 
+    // Allow if we can't evalute an active reason to deny
+    int ret = WLAN_STATUS_SUCCESS;
+ 
     client_req_entry* assoc_req = dawn_malloc(sizeof(struct client_req_entry_s));
     if (assoc_req == NULL)
     {
         dawnlog_error("Memory allocation of assoc req failed!");
-        return ret; // Allow if we can't evalute a reason to deny
     }
+    else
+    {
+        parse_to_client_req(msg, assoc_req);
+        dawnlog_debug("Association entry: ");
+        print_client_req_entry(DAWNLOG_DEBUG, assoc_req);
 
-    parse_to_client_req(msg, assoc_req);
-    dawnlog_debug("Association entry: ");
-    print_client_req_entry(DAWNLOG_DEBUG, assoc_req);
+        if (dawn_metric.eval_assoc_req <= 0) {
+            dawnlog_trace(MACSTR " Allow association due to not evaluating requests", MAC2STR(assoc_req->client_addr.u8));
+        }
+        else if (mac_find_entry(assoc_req->client_addr)) {
+            dawnlog_trace(MACSTR " Allow association due to whitelisted MAC", MAC2STR(assoc_req->client_addr.u8));
+        }
+        else {
+            dawn_mutex_lock(&probe_array_mutex);
 
-    if (dawn_metric.eval_assoc_req <= 0) {
-        dawnlog_trace(MACSTR " Allow association due to not evaluating requests", MAC2STR(assoc_req->client_addr.u8));
-    }
-    else if (mac_find_entry(assoc_req->client_addr)) {
-        dawnlog_trace(MACSTR " Allow association due to mac_find_entry()", MAC2STR(assoc_req->client_addr.u8));
-    } else {
-        dawn_mutex_lock(&probe_array_mutex);
-
-        if (dawnlog_showing(DAWNLOG_DEBUG))
-            print_probe_array();
-
-        probe_entry *tmp = probe_array_get_entry(assoc_req->client_addr, assoc_req->bssid_addr);
+            if (dawnlog_showing(DAWNLOG_DEBUG))
+                print_probe_array();
 
             dawn_mutex_require(&probe_array_mutex);
+            probe_entry* own_probe = probe_array_get_entry(assoc_req->client_addr, assoc_req->bssid_addr);
 
-        /*** Deprecated function decide_function() removed here ***/
-        int deny_request = 0;
-        
-        // block if entry was not already found in probe database
-        if (tmp == NULL) {
-            dawnlog_trace(MACSTR " Deny association due to no probe entry found", MAC2STR(assoc_req->client_addr.u8));
-            deny_request = 1;
-        }
-        else if (tmp->counter < dawn_metric.min_probe_count) {
-            dawnlog_trace(MACSTR " Deny association due to low probe count", MAC2STR(assoc_req->client_addr.u8));
-            deny_request = 1;
-        }
-        else
-        {
-            // find own probe entry and calculate score
-            dawn_mutex_lock(&ap_array_mutex);
+            // block if entry was not already found in probe database
+            if (own_probe == NULL) {
+                dawnlog_trace(MACSTR " Deny association due to no probe entry found", MAC2STR(assoc_req->client_addr.u8));
+            }
+            else if (own_probe->counter < dawn_metric.min_probe_count) {
+                dawnlog_trace(MACSTR " Deny association due to low probe count", MAC2STR(assoc_req->client_addr.u8));
+                ret = dawn_metric.deny_auth_reason;
+            }
+            else
+            {
+                // find own probe entry and calculate score
+                dawn_mutex_lock(&ap_array_mutex);
 
                 dawn_mutex_require(&ap_array_mutex);
-            ap* this_ap = ap_array_get_ap(assoc_req->bssid_addr);
-            if (this_ap != NULL && better_ap_available(this_ap, assoc_req->client_addr, NULL) > 0) {
-                dawnlog_trace(MACSTR " Deny association due to better AP available", MAC2STR(assoc_req->client_addr.u8));
-                deny_request = 1;
+                ap* this_ap = ap_array_get_ap(assoc_req->bssid_addr);
+                if (this_ap == NULL)
+                {
+                    dawnlog_trace(MACSTR " Allow association due to no AP entry", MAC2STR(assoc_req->client_addr.u8));
+                }
+                else
+                {
+                    int own_score = eval_probe_metric(own_probe, this_ap);
+                    dawnlog_trace("Current AP score = %d for:\n", own_score);
+                    print_probe_entry(DAWNLOG_TRACE, own_probe);
+
+                    if (better_ap_available(this_ap, own_probe, own_score, NULL) > 0) {
+                        dawnlog_trace(MACSTR " Deny association due to better AP available", MAC2STR(assoc_req->client_addr.u8));
+                        ret = dawn_metric.deny_assoc_reason;
+                    }
+                    else { // TODO: Should we reset probe counter to zero here?  Does active client do probe and if so what would a deny lead to?
+                        dawnlog_trace(MACSTR " Allow association request due to AP score\n", MAC2STR(assoc_req->client_addr.u8));
+                    }
+                }
+
+                dawn_mutex_unlock(&ap_array_mutex);
             }
-            else { // TODO: Should we reset probe counter to zero here?  Does active client do probe and if so what would a deny lead to?
-                dawnlog_trace(MACSTR " Allow association!\n", MAC2STR(assoc_req->client_addr.u8));
-            }
-            dawn_mutex_unlock(&ap_array_mutex);
-        }
-        /*** End of decide_function() rework ***/
 
-        if (deny_request) {
-            if (tmp != NULL)
-                print_probe_entry(DAWNLOG_DEBUG, tmp);
-
-            ret = dawn_metric.deny_assoc_reason;
+            dawn_mutex_unlock(&probe_array_mutex);
         }
 
-        dawn_mutex_unlock(&probe_array_mutex);
-    }
-
-    if (discard_entry)
-    {
         dawn_free(assoc_req);
         assoc_req = NULL;
     }
@@ -491,29 +490,30 @@ int discard_entry = true;
 static int handle_probe_req(struct blob_attr* msg) {
     dawnlog_debug_func("Entering...");
 
-    // MUSTDO: Untangle dawn_malloc() and linking of probe_entry
-    probe_entry* probe_req = parse_to_probe_req(msg);
+    // Allow if we can't evalute an active reason to deny
+    int ret = WLAN_STATUS_SUCCESS;
 
-    if (probe_req == NULL)
+    probe_entry* probe_req_new = parse_to_probe_req(msg);
+
+    if (probe_req_new == NULL)
     {
         dawnlog_error("Parse of probe req failed!");
-        return WLAN_STATUS_SUCCESS; // Allow if we can't evalute a reason to deny
     }
     else
     {
         dawn_mutex_lock(&probe_array_mutex);
 
         dawn_mutex_require(&probe_array_mutex);
-        probe_entry* probe_req_updated = insert_to_probe_array(probe_req, true, true, false, time(0));
+        probe_entry* probe_req_updated = insert_to_probe_array(probe_req_new, true, true, false, time(0));
         // If insert finds an existing entry, rather than linking in our new one,
         // send new probe req because we want to stay synced.
         // If not, probe_req and probe_req_updated should be equivalent
-        if (probe_req != probe_req_updated)
+        if (probe_req_new != probe_req_updated)
         {
             dawnlog_info("Local PROBE used to update client / BSSID = " MACSTR " / " MACSTR " \n", MAC2STR(probe_req_updated->client_addr.u8), MAC2STR(probe_req_updated->bssid_addr.u8));
 
-            dawn_free(probe_req);
-            probe_req = NULL;
+            dawn_free(probe_req_new);
+            probe_req_new = NULL;
         }
         else
         {
@@ -522,46 +522,50 @@ static int handle_probe_req(struct blob_attr* msg) {
 
         ubus_send_probe_via_network(probe_req_updated);
 
-        /*** Deprecated function decide_function() removed here ***/
-        int deny_request = 0;
-
         if (dawn_metric.eval_probe_req <= 0) {
             dawnlog_trace(MACSTR " Allow probe due to not evaluating requests", MAC2STR(probe_req_updated->client_addr.u8));
         }
         else if (mac_find_entry(probe_req_updated->client_addr)) {
-            dawnlog_trace(MACSTR " Allow probe due to mac_find_entry()", MAC2STR(probe_req_updated->client_addr.u8));
+            dawnlog_trace(MACSTR " Allow probe due to whitelisted MAC", MAC2STR(probe_req_updated->client_addr.u8));
         }
         else if (probe_req_updated->counter < dawn_metric.min_probe_count) {
             dawnlog_trace(MACSTR " Deny probe due to low probe count", MAC2STR(probe_req_updated->client_addr.u8));
-            deny_request = 1;
+            ret = WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA;
         }
         else
         {
-            // find own probe entry and calculate score
+            // Evaluate whether to allow probe to succeed
             dawn_mutex_lock(&ap_array_mutex);
 
             dawn_mutex_require(&ap_array_mutex);
             ap* this_ap = ap_array_get_ap(probe_req_updated->bssid_addr);
-            if (this_ap != NULL && better_ap_available(this_ap, probe_req_updated->client_addr, NULL) > 0) {
-                dawnlog_trace(MACSTR " Deny probe due to better AP available", MAC2STR(probe_req_updated->client_addr.u8));
-                deny_request = 1;
+            if (this_ap == NULL)
+            {
+                dawnlog_trace(MACSTR " Allow probe due to no AP entry", MAC2STR(probe_req_updated->client_addr.u8));
             }
             else
             {
-                dawnlog_trace(MACSTR " Allow probe request!", MAC2STR(probe_req_updated->client_addr.u8));
+                int own_score = eval_probe_metric(probe_req_updated, this_ap);  //TODO: Should the -2 return be handled?
+                dawnlog_trace("Current AP score = %d for:\n", own_score);
+                print_probe_entry(DAWNLOG_TRACE, probe_req_updated);
+
+                if (better_ap_available(this_ap, probe_req_updated, own_score, NULL) > 0) {
+                    dawnlog_trace(MACSTR " Deny probe due to better AP available", MAC2STR(probe_req_updated->client_addr.u8));
+                    ret = WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA;
+                }
+                else
+                {
+                    dawnlog_trace(MACSTR " Allow probe request due to AP score", MAC2STR(probe_req_updated->client_addr.u8));
+                }
             }
 
             dawn_mutex_unlock(&ap_array_mutex);
         }
-        /*** End of decide_function() rework ***/
-        if (deny_request) {
-            return WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA; // no reason needed...
-        }
+
         dawn_mutex_unlock(&probe_array_mutex);
     }
 
-    // TODO: Return for dawn_malloc() failure?
-    return WLAN_STATUS_SUCCESS;
+    return ret;
 }
 
 static int handle_beacon_rep(struct blob_attr *msg) {
@@ -1146,7 +1150,7 @@ void del_client_interface(uint32_t id, const struct dawn_mac client_addr, uint32
     dawn_unregmem(&b);
 }
 
-int wnm_disassoc_imminent(uint32_t id, const struct dawn_mac client_addr, struct kicking_nr* neighbor_list, uint32_t duration) {
+int wnm_disassoc_imminent(uint32_t id, const struct dawn_mac client_addr, struct kicking_nr* neighbor_list, int threshold, uint32_t duration) {
     struct hostapd_sock_entry *sub;
     struct blob_buf b = {0};
 
@@ -1162,9 +1166,9 @@ int wnm_disassoc_imminent(uint32_t id, const struct dawn_mac client_addr, struct
 
     void* nbs = blobmsg_open_array(&b, "neighbors");
 
-    // Add the first N AP, where list order id high->low score
+    // Add the first N AP that reach threshold, where list order id high->low score
     int neighbors_added = 0;
-    while(neighbors_added < dawn_metric.disassoc_nr_length && neighbor_list != NULL) {
+    while(neighbors_added < dawn_metric.disassoc_nr_length && neighbor_list != NULL && neighbor_list->score >= threshold) {
         dawnlog_info("BSS TRANSITION NEIGHBOR " NR_MACSTR ", Score=%d\n", NR_MAC2STR(neighbor_list->nr_ap->neighbor_report), neighbor_list->score);
         blobmsg_add_string(&b, NULL, neighbor_list->nr_ap->neighbor_report);
         neighbor_list = neighbor_list->next;
