@@ -665,7 +665,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 struct dawn_mac mac0;
 
                 hwaddr_aton(argv[1], mac0.u8);
-                printf("Looking for MAC %s - result %d\n", argv[1], mac_in_maclist(mac0));
+                printf("Looking for MAC %s - result %d\n", argv[1], mac_find_entry(mac0) == NULL);
             }
         }
         else if (strcmp(*argv, "ap") == 0)

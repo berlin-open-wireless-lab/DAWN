@@ -6,6 +6,9 @@
 #include "utils.h"
 #include "mac_utils.h"
 
+// Used as a filler where a value is required but not used functionally
+const struct dawn_mac dawn_mac_null = { .u8 = {0,0,0,0,0,0} };
+
 // source: https://elixir.bootlin.com/linux/v4.9/source/lib/hexdump.c#L28
 // based on: hostapd src/utils/common.c
 int hwaddr_aton(const char* txt, uint8_t* addr) {
@@ -44,6 +47,22 @@ int hwaddr_aton(const char* txt, uint8_t* addr) {
     }
 
     return 0;
+}
+
+struct dawn_mac str2mac(char* s)
+{
+    // Return something testable if sscanf() fails
+    struct dawn_mac tmp_mac = { .u8 = {0,0,0,0,0,0} };
+
+    // Need to scanf to an array of ints as there is no byte format specifier
+    int tmp_int_mac[ETH_ALEN];
+    if (sscanf(s, MACSTR, STR2MAC(tmp_int_mac)) == 6)
+    {
+        for (int i = 0; i < ETH_ALEN; ++i)
+            tmp_mac.u8[i] = (uint8_t)tmp_int_mac[i];
+    }
+
+    return tmp_mac;
 }
 
 void write_mac_to_file(char* path, struct dawn_mac addr) {

@@ -368,7 +368,7 @@ bool discard_entry = true;
     if (dawn_metric.eval_auth_req <= 0) {
         dawnlog_trace("Allow authentication due to not evaluating requests");
     }
-    else if (mac_in_maclist(auth_req->client_addr)) {
+    else if (mac_find_entry(auth_req->client_addr)) {
         dawnlog_trace("Allow authentication due to mac_in_maclist()");
     }
     else {
@@ -389,12 +389,6 @@ bool discard_entry = true;
             dawnlog_trace("Deny authentication due to no probe entry");
             deny_request = 1;
         }
-#if 0
-        // Already know this is false from outer test above
-        else if (mac_in_maclist(probe_req_updated->client_addr)) {
-            dawnlog_trace("Short cut due to mac_in_maclist()");
-        }
-#endif
         else if (tmp->counter < dawn_metric.min_probe_count) {
             dawnlog_trace("Deny authentication due to low probe count");
             deny_request = 1;
@@ -447,7 +441,7 @@ int discard_entry = true;
     if (dawn_metric.eval_assoc_req <= 0) {
         dawnlog_trace("Allow association due to not evaluating requests");
     }
-    else if (mac_in_maclist(assoc_req->client_addr)) {
+    else if (mac_find_entry(assoc_req->client_addr)) {
         dawnlog_trace("Allow association due to mac_in_maclist()");
     } else {
         pthread_mutex_lock(&probe_array_mutex);
@@ -467,12 +461,6 @@ int discard_entry = true;
             dawnlog_trace("Deny association due to no probe entry found");
             deny_request = 1;
         }
-#if 0
-        // Already know this is false from outer test above
-        else if (mac_in_maclist(tmp->client_addr)) {
-            dawnlog_trace("Allow due to mac_in_maclist()");
-        }
-#endif
         else if (tmp->counter < dawn_metric.min_probe_count) {
             dawnlog_trace("Deny association due to low probe count");
             deny_request = 1;
@@ -539,7 +527,7 @@ static int handle_probe_req(struct blob_attr* msg) {
         if (dawn_metric.eval_probe_req <= 0) {
             dawnlog_trace("Allow probe due to not evaluating requests");
         }
-        else if (mac_in_maclist(probe_req_updated->client_addr)) {
+        else if (mac_find_entry(probe_req_updated->client_addr)) {
             dawnlog_trace("Allow probe due to mac_in_maclist()");
         }
         else if (probe_req_updated->counter < dawn_metric.min_probe_count) {
@@ -1295,7 +1283,8 @@ int parse_add_mac_to_file(struct blob_attr *msg) {
         struct dawn_mac addr;
         hwaddr_aton(blobmsg_data(attr), addr.u8);
 
-        if (insert_to_maclist(addr) == 0) {
+        // Returns item if it was new and added
+        if (insert_to_maclist(addr)) {
             // TODO: File can grow arbitarily large.  Resource consumption risk.
             // TODO: Consolidate use of file across source: shared resource for name, single point of access?
             write_mac_to_file("/tmp/dawn_mac_list", addr);
