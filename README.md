@@ -1,121 +1,36 @@
 ![DAWN PICTURE](https://image.ibb.co/nbmNfJ/dawn_bla.png)
 
 # DAWN
-Decentralized WiFi Controller
+DAWN is a decentralized controller for wi-fi clients (eg, laptops, phones) that aims to ensure that each client is connected to an access point (AP, aka "wifi router") that will give good network throughput.  This reduces wastage of radio capacity due to weak / distant radio connections that cause transmission retry, degredation of speed, etc.
 
-## Installation
+Decentralised means that DAWN is a peer-peer network of instances - there is no controlling "master" node.  Every instance of DAWN will find its peers via uMDNS (aka Bonjour) network discovery.   Further DAWN instances can therfore be added without explicit configuration of the whole network, reducing network maintenance overhead.
 
-**You need full wpad installation and not wpad-basic**.
+## Installation and Configuration
 
-See [installation](INSTALL.md).
+Installing DAWN is quite simple.  The TL;DR version for anyone not wanting to read the [installation guide](INSTALL.md) is:
+
+- **Be sure to install a full wpad-\* version and not wpad-basic**
+- Be sure to configure extender routers as "dumb AP"
+
+Top tip from the [configuration guide](CONFIGURE.md):
+
+- Be sure to enable the DAWN functions that you want (at least "kicking")
+
+## How DAWN Works
+Each DAWN instance gathers information about two types of client: those that are currently connected to the host AP, plus those querying whether to connect.  It then shares that information with other DAWN instances.  Each then has a view of how well any AP can "see" each client device, and that then allows DAWN to steer a client to a different AP when appropriate.
+
+For example, if a device is currently connected to AP1 with a signal strength of -65dB it may be quite happy to stay there because many devices will not look to roam until the signal goes past -70dB (note the minus sign: -70dB is more negative / worse than -65dB).  However, if DAWN on AP1 knows that the same device can see AP2 at a level of -55dB then DAWN can tell the device to switch to AP2, which will improve overall radio performance if applied to multiple devices across multiple AP.
+
+DAWN can also evaluate other parameters that a device may not include in its roaming decisions, such as currently connected clients per AP, availability of speed enhancing capabilities, etc.  However, it is ultimately for a client device to decide which AP it will connect to so it may ignore DAWN's proposal, especially if it is using a significantly different algorithm to DAWN.
+
+DAWN works best with networks where AP and devices have 802.11k capailites for discovering the quality of radio signals, plus 802.11v for requesting devices to move to a different AP.  If 802.11r is enabled for fast, seamless transfer of a device across APs then it enhances the overall user experience, but DAWN doesn't directly use it.
+
+802.11k/r/v were developed to enable the type of functionality that DAWN provides, so older devices that do not have these capabilites are by definition harder to control.  DAWN will try to steer "legacy" devices if configured to do so, but it can be a less than perfect user experience due to the time taken to create connections to the new AP.
 
 ## LuCI App
-There is an luci app called [luci-app-dawn](https://github.com/openwrt/luci/tree/master/applications/luci-app-dawn).
+There is an luci app called [luci-app-dawn](https://github.com/openwrt/luci/tree/master/applications/luci-app-dawn) that adds some DAWN information to the management interface of an OpenWrt device.
 
-## Setting up Routers
-
-You can find a good guide to configure your router is [here](https://gist.github.com/braian87b/bba9da3a7ac23c35b7f1eecafecdd47d).
-I setup the OpenWRT Router as dumb APs.
-
-## Configuration
-
-
-|Option             |Standard | Meaning |
-|-------------------|---------|---------|
-|ht_support         |  '10'   |If AP and station support high throughput.|
-|vht_support        |  '100'  |If AP and station support very high throughput.|
-|no_ht_support      |  '0'    |If AP and station not supporting high throughput.|
-|no_vht_support     |  '0'    |If AP and station not supporting very high throughput.
-|rssi               |  '10'   |If RSSI is greater equal rssi_val.|
-|low_rssi           |  '-500' |If RSSI is less than low_rssi_val.|
-|freq               |  '100'  |If connection is 5Ghz.|
-|chan_util          |  '0'    |If channel utilization is lower chan_util_val.|
-|max_chan_util      |  '-500' |If channel utilization is greater max_chan_util_val.|
-|rssi_val           |  '-60'  |Threshold for an good RSSI.|
-|low_rssi_val       |  '-80'  |Threshold for an bad RSSI.|
-|chan_util_val      |  '140'  |Threshold for an good channel utilization.|
-|max_chan_util_val  |  '170'  |Threshold for a bad channel utilization.|
-|min_probe_count    |  '2'    |Minimum number of probe requests aftrer calculating if AP is best and sending a probe response.|
-|bandwidth_threshold |  '6'    |Threshold for the receiving bit rate indicating if a client is in an active transmission.|
-|use_station_count  | '1'    |Use station count as metric.|
-|max_station_diff   | '1'    |Maximal station difference that is allowed.|
-|eval_probe_req     | '1'    |Evaluate the incoming probe requests.|
-|eval_auth_req      | '1'    |Evaluate the incomning authentication reqeuests.|
-|eval_assoc_req     | '1'    |Evaluate the incoming association requests.|
-|deny_auth_reason   | '1'    |Status code for denying authentications.|
-|deny_assoc_reason  | '17'   |Status code for denying associations.|
-|use_driver_recog   | '1'    |Allow drivers to connect after a certain time.|
-| min_number_to_kick | '3' | How often a clients needs to be evaluated as bad before kicking. |
-| chan_util_avg_period | '3' | Channel Utilization Averaging |
-| set_hostapd_nr       | '1' | Feed Hostapd With NR-Reports |
-| op_class             | '0' | 802.11k beacon request parameters |
-| duration             | '0' | 802.11k beacon request parameters |
-| mode                 | '0' | 802.11k beacon request parameters |
-| scan_channel         | '0' | 802.11k beacon request parameters |
-
-
-## ubus interface
-To get an overview of all connected Clients sorted by the SSID.
-
-    root@OpenWrt:~# ubus call dawn get_network
-    {
-	    "Free-Cookies": {
-		    "00:27:19:XX:XX:XX": {
-			    "78:02:F8:XX:XX:XX": {
-				    "freq": 2452,
-				    "ht": 1,
-				    "vht": 0,
-				    "collision_count": 4
-			    }
-		    },
-		    "A4:2B:B0:XX:XX:XX": {
-			    "48:27:EA:XX:XX:XX: {
-				    "freq": 2412,
-				    "ht": 1,
-				    "vht": 0,
-				    "collision_count": 4
-			    },
-		    }
-	    },
-	    "Free-Cookies_5G": {
-    		
-	    }
-    }
-To get the hearing map you can use:
-
-    root@OpenWrt:~# ubus call dawn get_hearing_map
-    {
-	    "Free-Cookies": {
-		    "0E:5B:DB:XX:XX:XX": {
-			    "00:27:19:XX:XX:XX": {
-				    "signal": -64,
-				    "freq": 2452,
-				    "ht_support": true,
-				    "vht_support": false,
-				    "channel_utilization": 12,
-				    "num_sta": 1,
-				    "ht": 1,
-				    "vht": 0,
-				    "score": 10
-			    },
-			    "A4:2B:B0:XX:XX:XX": {
-				    "signal": -70,
-				    "freq": 2412,
-				    "ht_support": true,
-				    "vht_support": false,
-				    "channel_utilization": 71,
-				    "num_sta": 3,
-				    "ht": 1,
-				    "vht": 0,
-				    "score": 10
-			    }
-		    }
-	    }
-    }
-
-
-##  OpenWrt in a Nutshell
-
-![OpenWrtInANuthshell](https://raw.githubusercontent.com/PolynomialDivision/upload_stuff/master/dawn_pictures/openwrt_in_a_nutshell_dawn.png)
-
-
+NB: As of early-2022 it hasn't had the developer attention it needs recently, so may not be working as well as you might like.
+    
+## Developers
+If you want to use versions of DAWN that are not fully packaged yet or to work on a fork of the code yourself then see the [Developer Guide](DEVELOPER.md).
