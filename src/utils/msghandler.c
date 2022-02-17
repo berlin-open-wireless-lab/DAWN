@@ -681,7 +681,6 @@ static const struct blobmsg_policy uci_metric_policy[__UCI_METRIC_MAX] = {
         [UCI_KICKING_THRESHOLD] = {.name = "kicking_threshold", .type = BLOBMSG_TYPE_INT32},
         [UCI_DENY_AUTH_REASON] = {.name = "deny_auth_reason", .type = BLOBMSG_TYPE_INT32},
         [UCI_DENY_ASSOC_REASON] = {.name = "deny_assoc_reason", .type = BLOBMSG_TYPE_INT32},
-        [UCI_USE_DRIVER_RECOG] = {.name = "use_driver_recog", .type = BLOBMSG_TYPE_INT32},
         [UCI_MIN_NUMBER_TO_KICK] = {.name = "min_number_to_kick", .type = BLOBMSG_TYPE_INT32},
         [UCI_CHAN_UTIL_AVG_PERIOD] = {.name = "chan_util_avg_period", .type = BLOBMSG_TYPE_INT32},
         [UCI_SET_HOSTAPD_NR] = {.name = "set_hostapd_nr", .type = BLOBMSG_TYPE_INT32},
@@ -774,9 +773,6 @@ static int handle_uci_config(struct blob_attr* msg) {
     uci_set_network(cmd_buffer);
 
     sprintf(cmd_buffer, "dawn.global.deny_assoc_reason=%d", blobmsg_get_u32(tb_metric[UCI_DENY_ASSOC_REASON]));
-    uci_set_network(cmd_buffer);
-
-    sprintf(cmd_buffer, "dawn.global.use_driver_recog=%d", blobmsg_get_u32(tb_metric[UCI_USE_DRIVER_RECOG]));
     uci_set_network(cmd_buffer);
 
     sprintf(cmd_buffer, "dawn.global.min_number_to_kick=%d", blobmsg_get_u32(tb_metric[UCI_MIN_NUMBER_TO_KICK]));

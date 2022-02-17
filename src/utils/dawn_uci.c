@@ -77,7 +77,6 @@ struct time_config_s uci_get_time_config() {
         .update_hostapd = 10,
         .remove_ap = 460,
         .update_tcp_con = 10,
-        .denied_req_threshold = 30,
         .update_chan_util = 5,
         .update_beacon_reports = 20,
     };
@@ -96,7 +95,6 @@ struct time_config_s uci_get_time_config() {
             DAWN_SET_CONFIG_TIME(ret, s, update_hostapd);
             DAWN_SET_CONFIG_TIME(ret, s, remove_ap);
             DAWN_SET_CONFIG_TIME(ret, s, update_tcp_con);
-            DAWN_SET_CONFIG_TIME(ret, s, denied_req_threshold);
             DAWN_SET_CONFIG_TIME(ret, s, update_chan_util);
             DAWN_SET_CONFIG_TIME(ret, s, update_beacon_reports);
             return ret;
@@ -244,7 +242,6 @@ struct probe_metric_s uci_get_dawn_metric() {
         .disassoc_nr_length = 6,
         .max_station_diff = 1,
         .bandwidth_threshold = 6,
-        .use_driver_recog = 1,
         .chan_util_avg_period = 3,
         .duration = 0,
         .rrm_mode_mask = WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE |
@@ -299,7 +296,6 @@ struct probe_metric_s uci_get_dawn_metric() {
         DAWN_SET_CONFIG_INT(ret, global_s, disassoc_nr_length);
         DAWN_SET_CONFIG_INT(ret, global_s, max_station_diff);
         DAWN_SET_CONFIG_INT(ret, global_s, bandwidth_threshold);
-        DAWN_SET_CONFIG_INT(ret, global_s, use_driver_recog);
         DAWN_SET_CONFIG_INT(ret, global_s, chan_util_avg_period);
         DAWN_SET_CONFIG_INT(ret, global_s, duration);
         ret.rrm_mode_mask = parse_rrm_mode(ret.rrm_mode_order,
