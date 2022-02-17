@@ -446,7 +446,7 @@ static int handle_assoc_req(struct blob_attr *msg) {
             }
             else if (own_probe->counter < dawn_metric.min_probe_count) {
                 dawnlog_trace(MACSTR " Deny association due to low probe count", MAC2STR(assoc_req->client_addr.u8));
-                ret = dawn_metric.deny_auth_reason;
+                ret = dawn_metric.deny_assoc_reason;
             }
             else
             {
@@ -1009,7 +1009,6 @@ void ubus_send_beacon_request(client *c, ap *a, int id)
     struct blob_buf b = {0};
     dawnlog_debug_func("Entering...");
 
-    dawnlog_debug("Crafting Beacon Report\n");
     int timeout = 1;
 
     blob_buf_init(&b, 0);
@@ -1038,18 +1037,18 @@ void update_beacon_reports(struct uloop_timeout *t) {
     }
     dawnlog_debug("Sending beacon requests!\n");
     struct hostapd_sock_entry *sub;
+    dawn_mutex_lock(&ap_array_mutex);
+
     list_for_each_entry(sub, &hostapd_sock_list, list)
     {
-        dawn_mutex_lock(&ap_array_mutex);
-
         dawn_mutex_require(&ap_array_mutex);
         if (sub->subscribed && (a = ap_array_get_ap(sub->bssid_addr))) {
             dawnlog_debug("Sending beacon request Sub!\n");
             send_beacon_requests(a, sub->id);
         }
-
-        dawn_mutex_unlock(&ap_array_mutex);
     }
+
+    dawn_mutex_unlock(&ap_array_mutex);
     uloop_timeout_set(&beacon_reports_timer, timeout_config.update_beacon_reports * 1000);
 }
 
@@ -1713,7 +1712,6 @@ int uci_send_via_network()
     blobmsg_add_u32(&b, "kicking_threshold", dawn_metric.kicking_threshold);
     blobmsg_add_u32(&b, "deny_auth_reason", dawn_metric.deny_auth_reason);
     blobmsg_add_u32(&b, "deny_assoc_reason", dawn_metric.deny_assoc_reason);
-    blobmsg_add_u32(&b, "use_driver_recog", dawn_metric.use_driver_recog);
     blobmsg_add_u32(&b, "min_number_to_kick", dawn_metric.min_number_to_kick);
     blobmsg_add_u32(&b, "chan_util_avg_period", dawn_metric.chan_util_avg_period);
     blobmsg_add_u32(&b, "set_hostapd_nr", dawn_metric.set_hostapd_nr);
@@ -1748,7 +1746,6 @@ int uci_send_via_network()
 
     times = blobmsg_open_table(&b, "times");
     blobmsg_add_u32(&b, "update_client", timeout_config.update_client);
-    blobmsg_add_u32(&b, "denied_req_threshold", timeout_config.denied_req_threshold);
     blobmsg_add_u32(&b, "remove_client", timeout_config.remove_client);
     blobmsg_add_u32(&b, "remove_probe", timeout_config.remove_probe);
     blobmsg_add_u32(&b, "remove_ap", timeout_config.remove_ap);
@@ -1810,7 +1807,7 @@ int build_hearing_map_sort_client(struct blob_buf *b) {
     if (dawnlog_showing(DAWNLOG_DEBUG))
         print_probe_array();
 
-    // Build a linked list of probe entried in correct order for hearing map
+    // Build a linked list of probe entries in correct order for hearing map
     struct probe_sort_entry *hearing_list = NULL;
     dawn_mutex_require(&probe_array_mutex);
     probe_entry* i = probe_set.first_probe;

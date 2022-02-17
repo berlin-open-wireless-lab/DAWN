@@ -70,7 +70,6 @@ struct probe_metric_s {
     int eval_assoc_req;
     int deny_auth_reason;
     int deny_assoc_reason;
-    int use_driver_recog;
     int min_number_to_kick; // kick_clients()
     int chan_util_avg_period;
     int set_hostapd_nr;
@@ -108,7 +107,6 @@ struct time_config_s {
     time_t remove_ap;
     time_t update_hostapd;
     time_t update_tcp_con;
-    time_t denied_req_threshold;
     time_t update_chan_util;
     time_t update_beacon_reports;
 };
@@ -263,8 +261,6 @@ typedef struct ap_s {
     char neighbor_report[NEIGHBOR_REPORT_LEN + 1]; // (1)  // This is the self-NR of the AP
     uint32_t op_class; // ubus_send_beacon_report() // (1)
     uint32_t channel; // ubus_send_beacon_report() // (1)
-    //uint32_t collision_domain;  // TODO: ap_get_collision_count() never evaluated?
-    //uint32_t bandwidth; // TODO: Never evaluated?
     uint32_t ap_weight; // eval_probe_metric() // (1)
     char iface[MAX_INTERFACE_NAME]; // (1)
     char hostname[HOST_NAME_MAX]; // (1)

@@ -212,8 +212,6 @@ int eval_probe_metric(struct probe_entry_s* probe_entry, ap* ap_entry) {
 
     int band, score = 0;
 
-    dawnlog_debug_func("Entering...");
-
     // TODO: Should RCPI be used here as well?
     band = get_band(probe_entry->freq);
     score = dawn_metric.initial_score[band];

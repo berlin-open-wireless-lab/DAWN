@@ -584,7 +584,6 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                     dawn_metric.eval_assoc_req = 1;
                     dawn_metric.deny_auth_reason = 1;
                     dawn_metric.deny_assoc_reason = 17;
-                    dawn_metric.use_driver_recog = 1;
                     dawn_metric.min_number_to_kick = 3;
                     dawn_metric.chan_util_avg_period = 3;
                     dawn_metric.set_hostapd_nr = 1;
@@ -621,7 +620,6 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 else if (!strncmp(fn, "eval_assoc_req=", 15)) load_int(&dawn_metric.eval_assoc_req, fn + 15);
                 else if (!strncmp(fn, "deny_auth_reason=", 17)) load_int(&dawn_metric.deny_auth_reason, fn + 17);
                 else if (!strncmp(fn, "deny_assoc_reason=", 18)) load_int(&dawn_metric.deny_assoc_reason, fn + 18);
-                else if (!strncmp(fn, "use_driver_recog=", 17)) load_int(&dawn_metric.use_driver_recog, fn + 17);
                 else if (!strncmp(fn, "min_number_to_kick=", 19)) load_int(&dawn_metric.min_number_to_kick, fn + 19);
                 else if (!strncmp(fn, "chan_util_avg_period=", 21)) load_int(&dawn_metric.chan_util_avg_period, fn + 21);
                 else if (!strncmp(fn, "set_hostapd_nr=", 15)) load_int(&dawn_metric.set_hostapd_nr, fn + 15);
@@ -695,8 +693,6 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 else if (!strncmp(fn, "stations=", 9)) load_u32(&ap0->station_count, fn + 9);
                 else if (!strncmp(fn, "ssid=", 5)) load_ssid(ap0->ssid, fn + 5);
                 else if (!strncmp(fn, "neighbors=", 10)) load_string(NEIGHBOR_REPORT_LEN, ap0->neighbor_report, fn + 10);
-                //else if (!strncmp(fn, "col_d=", 6)) load_u32(&ap0->collision_domain, fn + 6);
-                //else if (!strncmp(fn, "bandwidth=", 10)) load_u32(&ap0->bandwidth, fn + 10);
                 else if (!strncmp(fn, "weight=", 7)) load_u32(&ap0->ap_weight, fn + 7);
                 else {
                     printf("ERROR: Loading AP, but don't recognise assignment \"%s\"\n", fn);
