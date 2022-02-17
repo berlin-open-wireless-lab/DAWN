@@ -794,16 +794,42 @@ probe_entry* probe_array_update_rssi(struct dawn_mac client_addr, struct dawn_ma
     dawnlog_debug_func("Entering...");
 
     dawn_mutex_require(&probe_array_mutex);
-    probe_entry* entry = probe_array_get_entry(client_addr, bssid_addr);
+    probe_entry* probe_req_new = dawn_malloc(sizeof(probe_entry));
 
-    if (entry) {
-        entry->signal = rssi;
+    if (probe_req_new) {
+        // Fields we will update
+        probe_req_new->client_addr = client_addr;
+        probe_req_new->bssid_addr = bssid_addr;
+        probe_req_new->signal = rssi;
+
+        // Other fields in case entry is new
+        probe_req_new->ht_capabilities = false;
+        probe_req_new->vht_capabilities = false;
+        probe_req_new->rcpi = -1;
+        probe_req_new->rsni = -1;
+
+        //FIXME: Should we put the linked list defaults in the insert function?
+        probe_req_new->next_probe = NULL;
+        probe_req_new->next_probe_skip = NULL;
+
+        probe_entry* probe_req_updated = insert_to_probe_array(probe_req_new, false, false, false, time(0));
+        if (probe_req_new != probe_req_updated)
+        {
+            dawnlog_info("RSSI PROBE used to update client / BSSID = " MACSTR " / " MACSTR " \n", MAC2STR(probe_req_updated->client_addr.u8), MAC2STR(probe_req_updated->bssid_addr.u8));
+
+            dawn_free(probe_req_new);
+            probe_req_new = NULL;
+        }
+        else
+        {
+            dawnlog_info("RSSI PROBE is new for client / BSSID = " MACSTR " / " MACSTR " \n", MAC2STR(probe_req_updated->client_addr.u8), MAC2STR(probe_req_updated->bssid_addr.u8));
+        }
 
         if (send_network)
-            ubus_send_probe_via_network(entry);
+            ubus_send_probe_via_network(probe_req_updated, false);
     }
 
-    return entry;
+    return probe_req_new;
 }
 
 probe_entry* probe_array_update_rcpi_rsni(struct dawn_mac client_addr, struct dawn_mac bssid_addr, uint32_t rcpi, uint32_t rsni, int send_network)
@@ -822,7 +848,7 @@ probe_entry* probe_array_update_rcpi_rsni(struct dawn_mac client_addr, struct da
             entry->rsni = rsni;
 
         if (send_network)
-            ubus_send_probe_via_network(entry);
+            ubus_send_probe_via_network(entry, true);
     }
 
     return entry;
@@ -897,8 +923,13 @@ probe_entry* insert_to_probe_array(probe_entry* entry, int is_local, int save_80
 
             // Beacon reports don't have these fields, so only update them from probes
             (*node_ref)->signal = entry->signal;
-            (*node_ref)->ht_capabilities = entry->ht_capabilities;
-            (*node_ref)->vht_capabilities = entry->vht_capabilities;
+
+            // Some "synthetic" PROBE entries have FALSE for these which would overwrite genuine values
+            if (entry->ht_capabilities)
+                (*node_ref)->ht_capabilities = entry->ht_capabilities;
+
+            if (entry->vht_capabilities)
+                (*node_ref)->vht_capabilities = entry->vht_capabilities;
         }
         else
         {
@@ -917,6 +948,7 @@ probe_entry* insert_to_probe_array(probe_entry* entry, int is_local, int save_80
     else
     {
         dawnlog_debug("Adding...\n");
+
         if (is_local  && !is_beacon)
             entry->counter = 1;
         else
@@ -938,9 +970,9 @@ probe_entry* insert_to_probe_array(probe_entry* entry, int is_local, int save_80
         {
             entry->next_probe_skip = NULL;
         }
-
-        entry->time = expiry;
     }
+
+    entry->time = expiry;
 
     return entry;  // return pointer to what we used, which may not be what was passed in
 }

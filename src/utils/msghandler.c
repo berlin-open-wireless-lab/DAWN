@@ -301,7 +301,7 @@ int handle_network_msg(char* msg) {
             dawn_mutex_lock(&probe_array_mutex);
 
             dawn_mutex_require(&probe_array_mutex);
-            if (entry != insert_to_probe_array(entry, false, true, false, time(0))) // use 802.11k values
+            if (entry != insert_to_probe_array(entry, false, false, false, time(0))) // use 802.11k values
             {
                 // insert found an existing entry, rather than linking in our new one
                 dawnlog_info("Remote PROBE updated client / BSSID = " MACSTR " / " MACSTR " \n",
@@ -341,13 +341,28 @@ int handle_network_msg(char* msg) {
         handle_uci_config(data_buf.head);
     }
     else if (strncmp(method, "beacon-report", 12) == 0) {
-        // TODO: Check beacon report stuff
+        probe_entry* entry = parse_to_probe_req(data_buf.head);
+        if (entry != NULL) {
+            dawn_mutex_lock(&probe_array_mutex);
 
-        dawnlog_debug("HANDLING BEACON REPORT NETWORK!\n");
-        dawnlog_debug("The Method for beacon-report is: %s\n", method);
-        // ignore beacon reports send via network!, use probe functions for it
-        //probe_entry entry; // for now just stay at probe entry stuff...
-        //parse_to_beacon_rep(data_buf.head, &entry, true);
+            dawn_mutex_require(&probe_array_mutex);
+            if (entry != insert_to_probe_array(entry, false, true, true, time(0))) // use 802.11k values
+            {
+                // insert found an existing entry, rather than linking in our new one
+                dawnlog_info("Remote BEACON updated client / BSSID = " MACSTR " / " MACSTR " \n",
+                    MAC2STR(entry->client_addr.u8), MAC2STR(entry->bssid_addr.u8));
+
+                dawn_free(entry);
+                entry = NULL;
+            }
+            else
+            {
+                dawnlog_info("Remote BEACON is for new client / BSSID = " MACSTR " / " MACSTR " \n",
+                    MAC2STR(entry->client_addr.u8), MAC2STR(entry->bssid_addr.u8));
+            }
+
+            dawn_mutex_unlock(&probe_array_mutex);
+        }
     }
     else
     {

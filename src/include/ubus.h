@@ -81,7 +81,7 @@ int handle_auth_req(struct blob_attr* msg);
  * @param probe_entry
  * @return
  */
-int ubus_send_probe_via_network(struct probe_entry_s *probe_entry);
+int ubus_send_probe_via_network(struct probe_entry_s *probe_entry, bool is_beacon);
 
 /**
  * Add mac to a list that contains addresses of clients that can not be controlled.
