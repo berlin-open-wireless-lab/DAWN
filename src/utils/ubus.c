@@ -504,7 +504,7 @@ static int handle_probe_req(struct blob_attr* msg) {
         dawn_mutex_lock(&probe_array_mutex);
 
         dawn_mutex_require(&probe_array_mutex);
-        probe_entry* probe_req_updated = insert_to_probe_array(probe_req_new, true, true, false, time(0));
+        probe_entry* probe_req_updated = insert_to_probe_array(probe_req_new, true, false, false, time(0));
         // If insert finds an existing entry, rather than linking in our new one,
         // send new probe req because we want to stay synced.
         // If not, probe_req and probe_req_updated should be equivalent
@@ -520,7 +520,7 @@ static int handle_probe_req(struct blob_attr* msg) {
             dawnlog_info("Local PROBE is new for client / BSSID = " MACSTR " / " MACSTR " \n", MAC2STR(probe_req_updated->client_addr.u8), MAC2STR(probe_req_updated->bssid_addr.u8));
         }
 
-        ubus_send_probe_via_network(probe_req_updated);
+        ubus_send_probe_via_network(probe_req_updated, false);
 
         if (dawn_metric.eval_probe_req <= 0) {
             dawnlog_trace(MACSTR " Allow probe due to not evaluating requests", MAC2STR(probe_req_updated->client_addr.u8));
@@ -600,8 +600,8 @@ static int handle_beacon_rep(struct blob_attr *msg) {
 
                 // BEACON will never set RSSI, but may have RCPI and RSNI
                 dawn_mutex_require(&probe_array_mutex);
-                entry = insert_to_probe_array(entry, false, false, true, time(0));
-                ubus_send_probe_via_network(entry);
+                entry = insert_to_probe_array(entry, true, true, true, time(0));
+                ubus_send_probe_via_network(entry, true);
 
                 ret = 0;
             }
@@ -1249,7 +1249,7 @@ int ubus_call_umdns() {
 }
 
 //TODO: ADD STUFF HERE!!!!
-int ubus_send_probe_via_network(struct probe_entry_s *probe_entry) {  // TODO: probe_entry is also a typedef - fix?
+int ubus_send_probe_via_network(struct probe_entry_s *probe_entry, bool is_beacon) {  // TODO: probe_entry is also a typedef - fix?
     struct blob_buf b = {0};
 
     dawnlog_debug_func("Entering...");
@@ -1259,27 +1259,33 @@ int ubus_send_probe_via_network(struct probe_entry_s *probe_entry) {  // TODO: p
     blobmsg_add_macaddr(&b, "bssid", probe_entry->bssid_addr);
     blobmsg_add_macaddr(&b, "address", probe_entry->client_addr);
     blobmsg_add_macaddr(&b, "target", probe_entry->target_addr);
-    blobmsg_add_u32(&b, "signal", probe_entry->signal);
-    blobmsg_add_u32(&b, "freq", probe_entry->freq);
 
-    blobmsg_add_u32(&b, "rcpi", probe_entry->rcpi);
-    blobmsg_add_u32(&b, "rsni", probe_entry->rsni);
-
-    blobmsg_add_u32(&b, "ht_capabilities", probe_entry->ht_capabilities);
-    blobmsg_add_u32(&b, "vht_capabilities", probe_entry->vht_capabilities);
-
-    /*if (probe_entry->ht_capabilities)
+    if (!is_beacon)
     {
-        void *ht_cap = blobmsg_open_table(&b, "ht_capabilities");
-        blobmsg_close_table(&b, ht_cap);
+        blobmsg_add_u32(&b, "signal", probe_entry->signal);
+        blobmsg_add_u32(&b, "freq", probe_entry->freq);
+
+        blobmsg_add_u32(&b, "ht_capabilities", probe_entry->ht_capabilities);
+        blobmsg_add_u32(&b, "vht_capabilities", probe_entry->vht_capabilities);
+
+        /*if (probe_entry->ht_capabilities)
+        {
+            void *ht_cap = blobmsg_open_table(&b, "ht_capabilities");
+            blobmsg_close_table(&b, ht_cap);
+        }
+
+        if (probe_entry->vht_capabilities) {
+            void *vht_cap = blobmsg_open_table(&b, "vht_capabilities");
+            blobmsg_close_table(&b, vht_cap);
+        }*/
+    }
+    else
+    {
+        blobmsg_add_u32(&b, "rcpi", probe_entry->rcpi);
+        blobmsg_add_u32(&b, "rsni", probe_entry->rsni);
     }
 
-    if (probe_entry->vht_capabilities) {
-        void *vht_cap = blobmsg_open_table(&b, "vht_capabilities");
-        blobmsg_close_table(&b, vht_cap);
-    }*/
-
-    send_blob_attr_via_network(b.head, "probe");
+    send_blob_attr_via_network(b.head, is_beacon ? "beacon-report" : "probe");
 
     blob_buf_free(&b);
     dawn_unregmem(&b);

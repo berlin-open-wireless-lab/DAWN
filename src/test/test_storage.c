@@ -71,7 +71,7 @@ void del_client_interface(uint32_t id, const struct dawn_mac client_addr, uint32
     printf("del_client_interface() was called...\n");
 }
 
-int ubus_send_probe_via_network(struct probe_entry_s *probe_entry)
+int ubus_send_probe_via_network(struct probe_entry_s *probe_entry, bool is_beacon)
 {
     printf("send_probe_via_network() was called...\n");
     return 0;
