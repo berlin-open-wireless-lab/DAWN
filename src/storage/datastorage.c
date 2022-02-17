@@ -536,7 +536,7 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
                     // only use rx_rate for indicating if transmission is going on
                     // <= 6MBits <- probably no transmission
                     // tx_rate has always some weird value so don't use ist
-                    if (have_bandwidth_iwinfo && rx_rate > dawn_metric.bandwidth_threshold) {
+                    if (have_bandwidth_iwinfo && dawn_metric.bandwidth_threshold != 0 && rx_rate > dawn_metric.bandwidth_threshold) {
                         dawnlog_info("Client " MACSTR ": Client is probably in active transmission. Don't kick! RxRate is: %f\n", MAC2STR(j->client_addr.u8), rx_rate);
                     }
                     else

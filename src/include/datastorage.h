@@ -101,18 +101,18 @@ struct probe_metric_s {
 };
 
 struct time_config_s {
-    time_t update_client;
-    time_t remove_client;
-    time_t remove_probe;
-    time_t remove_ap;
-    time_t update_hostapd;
-    time_t update_tcp_con;
-    time_t update_chan_util;
-    time_t update_beacon_reports;
+    time_t update_client; // Query locally connected clients
+    time_t remove_client; // Delete aged client records
+    time_t remove_probe; // Delete aged PROBE / BEACON records
+    time_t remove_ap; // Delete aged AP records
+    time_t update_hostapd; // Refresh wifi radio / SSID data from hostapd
+    time_t update_tcp_con; // Refresh network connections
+    time_t update_chan_util; // Refresh per radio / SSID channel util info
+    time_t update_beacon_reports; // Request BEACON from capable clients
 };
 
 struct local_config_s {
-    int loglevel;
+    int loglevel; // Select the level of messgae in syslog
 };
 
 // FIXME: Are these with or without NUL terminator?  Adjust values, string allocation and strncpy() to agree.
@@ -124,7 +124,7 @@ struct network_config_s {
     int broadcast_port;
     char server_ip[MAX_IP_LENGTH + 1];
     int tcp_port;
-    int network_option;
+    int network_option; // 0:Broadcast; 1:Multicast; 2:TCP+UMDNS; 3:TCP
     char shared_key[MAX_KEY_LENGTH + 1];
     char iv[MAX_KEY_LENGTH + 1];
     int use_symm_enc;

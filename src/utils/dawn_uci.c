@@ -89,13 +89,21 @@ struct time_config_s uci_get_time_config() {
         struct uci_section *s = uci_to_section(e);
 
         if (strcmp(s->type, "times") == 0) {
+            //CONFIG-T: update_client|Timer to send refresh local connection information and revised NEIGHBOR REPORT to all clients|[10]
             DAWN_SET_CONFIG_TIME(ret, s, update_client);
+            //CONFIG-T: remove_client|Timer to remove expired client entries from core data set|[15]
             DAWN_SET_CONFIG_TIME(ret, s, remove_client);
+            //CONFIG-T: remove_probe|Timer to remove expired PROBE and BEACON entries from core data set|[30]
             DAWN_SET_CONFIG_TIME(ret, s, remove_probe);
+            //CONFIG-T: update_hostapd|Timer to (re-)register for hostapd messages for each local BSSID|[10]
             DAWN_SET_CONFIG_TIME(ret, s, update_hostapd);
+            //CONFIG-T: remove_ap|Timer to remove expired AP entries from core data set|[460]
             DAWN_SET_CONFIG_TIME(ret, s, remove_ap);
+            //CONFIG-T: update_tcp_con|Timer to refresh / remove the TCP connections to other DAWN instances found via uMDNS|[10]
             DAWN_SET_CONFIG_TIME(ret, s, update_tcp_con);
+            //CONFIG-T: update_chan_util|Timer to get recent channel utilisation figure for each local BSSID|[5]
             DAWN_SET_CONFIG_TIME(ret, s, update_chan_util);
+            //CONFIG-T: update_beacon_reports|Timer to ask all connected clients for a new BEACON REPORT|[20]
             DAWN_SET_CONFIG_TIME(ret, s, update_beacon_reports);
             return ret;
         }
@@ -117,6 +125,7 @@ struct local_config_s uci_get_local_config() {
         struct uci_section* s = uci_to_section(e);
 
         if (strcmp(s->type, "local") == 0) {
+            // CONFIG-L: loglevel|Verbosity of messages in syslog|[0 = Important only - very few messages]; 1 = Show what DAWN is processing in a user friendly way; 2 = Trace certain operations - for debugging; 3 = Broad low level tracing - for debugging
             DAWN_SET_CONFIG_INT(ret, s, loglevel);
         }
     }
@@ -229,41 +238,78 @@ static struct uci_section *uci_find_metric_section(const char *name) {
 
 struct probe_metric_s uci_get_dawn_metric() {
     struct probe_metric_s ret = {
-        .kicking = 0,
-        .min_probe_count = 0,
-        .use_station_count = 1,
+        // CONFIG-G: kicking|Method to select clients to move to better AP|0 = Disabled; 1 = RSSI Comparison; 2 = Absolute RSSI; [3 = Both] See note 1.
+        .kicking = 3,
+        //CONFIG-G: kicking_threshold|Minimum score difference to consider kicking to alternate AP|[20]
+        .kicking_threshold = 20,
+        // CONFIG-G: min_probe_count|Number of times a client should retry PROBE before acceptance| [3] See Note 1.
+        .min_probe_count = 3,
+        // CONFIG-G: use_station_count|Compare connected station counts when considering kicking|[0 = Disabled]; 1 = Enabled
+        .use_station_count = 0,
+        // CONFIG-G: eval_auth_req|Control whether AUTHENTICATION frames are evaluated for rejection|[0 = No evaluation]; 1 = Evaluated. See Note 1.
         .eval_auth_req = 0,
+        // CONFIG-G: eval_assoc_req|Control whether ASSOCIATION frames are evaluated for rejection|[0 = No evaluation]; 1 = Evaluated. See Note 1.
         .eval_assoc_req = 0,
+        // CONFIG-G: deny_auth_reason|802.11 code used when AUTHENTICATION is denied|[1] (802.11 UNSPECIFIED_FAILURE). See Note 1.
         .deny_auth_reason = 1,
+        // CONFIG-G: deny_assoc_reason|802.11 code used when ASSOCIATION is denied|[17] (802.11 AP_UNABLE_TO_HANDLE_NEW_STA). See Note 1.
         .deny_assoc_reason = 17,
+        // CONFIG-G: eval_probe_req|Control whether PROBE frames are evaluated for rejection|[0 = No evaluation]; 1 = Evaluated. See Note 1.
         .eval_probe_req = 0,
+        // CONFIG-G: min_number_to_kick|Number of consecutive times a client should be evaluated as ready to kick before actually doing it|[3]
         .min_number_to_kick = 3,
-        .set_hostapd_nr = 1,
+        // CONFIG-G: set_hostapd_nr|Method used to set Neighbor Report on AP|[0 = Disabled]; 1 = "Static" based on all APs in network (plus set from configuration); 2 = "Dynamic" based on next nearest AP seen by current clients
+        .set_hostapd_nr = 0,
+        // CONFIG-G: disassoc_nr_length|Number of entries to include in a 802.11v DISASSOCIATE Neighbor Report|[6] (Documented for use by iOS)
         .disassoc_nr_length = 6,
+        // CONFIG-G: max_station_diff|Number of connected stations to consider "better" for use_station_count|[1]
         .max_station_diff = 1,
+        // CONFIG-G: bandwidth_threshold|Maximum reported AP-client bandwidth permitted when kicking. Set to zero to disable the check.|[6] (Mbits/s)
         .bandwidth_threshold = 6,
+        // CONFIG-G: chan_util_avg_period|Number of sampling periods to average channel utilization values over|[3]
         .chan_util_avg_period = 3,
-        .duration = 0,
+        // CONFIG-G: duration|802.11k BEACON request DURATION parameter|[0]
+        .duration = 600,
+        // CONFIG-G: rrm_mode|Preferred order for using Passive, Active or Table 802.11k BEACON information|[PAT] String of 'P', 'A' and / or 'T'
         .rrm_mode_mask = WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE |
                          WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE |
                          WLAN_RRM_CAPS_BEACON_REPORT_TABLE,
         .rrm_mode_order = { WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE,
                             WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE,
                             WLAN_RRM_CAPS_BEACON_REPORT_TABLE },
+        // CONFIG-B: ap_weight|Per AP weighting|[0] (Deprecated)
         .ap_weight = { 0, 0 },
-        .ht_support = { 0, 0 },
-        .vht_support = { 0, 0 },
+        // CONFIG-B: ht_support|Score increment if HT is supported|[5]
+        .ht_support = { 5, 5 },
+        // CONFIG-B: vht_support|Score increment if VHT is supported|[5]
+        .vht_support = { 5, 5 },
+        // CONFIG-B: no_ht_support|Score incrment if HT is not supported|[0] (Deprecated)
         .no_ht_support = { 0, 0 },
+        // CONFIG-B: no_vht_support|Score incrment if VHT is not supported|[0] (Deprecated)
         .no_vht_support = { 0, 0 },
-        .rssi = { 10, 10 },
+        // CONFIG-B: rssi|Score addition when signal exceeds threshold|[15] See note 2.
+        .rssi = { 15, 15 },
+        // CONFIG-B: rssi_val|Threshold for an good RSSI|[-60] See note 2.
         .rssi_val = { -60, -60 },
-        .initial_score = { 0, 100 },
+        // CONFIG-B: initial_score|Base score for AP based on operating band|[2.4GHz = 80; 5Ghz = 100]
+        .initial_score = { 80, 100 },
+        // CONFIG-B: chan_util|Score increment if channel utilization is below chan_util_val|[0]
         .chan_util = { 0, 0 },
-        .max_chan_util = { -500, -500 },
-        .chan_util_val = { 140, 140 },
+        // CONFIG-B: max_chan_util_val|Lower threshold for bad channel utilization|[170]
         .max_chan_util_val = { 170, 170 },
-        .low_rssi = { -500, -500 },
+        // CONFIG-B: chan_util_val|Upper threshold for good channel utilization|[140]
+        .chan_util_val = { 140, 140 },
+        // CONFIG-B: max_chan_util|Score increment if channel utilization is above max_chan_util_val|[-15]
+        .max_chan_util = { -15, -15 },
+        // CONFIG-B: low_rssi|Score addition when signal is below threshold|[-15] See note 2.
+        .low_rssi = { -15, -15 },
+        // CONFIG-B: low_rssi_val|Threshold for bad RSSI|[-80] See note 2.
         .low_rssi_val = { -80, -80 },
+        // CONFIG-B: rssi_center|Midpoint for weighted RSSI evaluation|[-70] See note 2.
+        .rssi_center = { -70, -70 },
+        // CONFIG-B: rssi_weight|Per dB increment for weighted RSSI evaluation|[0] See note 2.
+        .rssi_weight = { 0, 0 },
+        .neighbors = {NULL, NULL},
     };
     struct uci_section *global_s, *band_s[__DAWN_BAND_MAX];
     struct uci_option *global_neighbors = NULL, *neighbors;
@@ -337,7 +383,7 @@ struct network_config_s uci_get_dawn_network() {
         .network_option = 2,
         .shared_key = "Niiiiiiiiiiiiiik",
         .iv = "Niiiiiiiiiiiiiik",
-        .use_symm_enc = 1,
+        .use_symm_enc = 0,
         .collision_domain = -1,
         .bandwidth = -1,
     };
@@ -350,28 +396,38 @@ struct network_config_s uci_get_dawn_network() {
         struct uci_section *s = uci_to_section(e);
 
         if (strcmp(s->type, "network") == 0) {
+            // CONFIG-N: broadcast_ip|IP address for broadcast and multicast|No default
             const char* str_broadcast = uci_lookup_option_string(uci_ctx, s, "broadcast_ip");
             if (str_broadcast)
                 strncpy(ret.broadcast_ip, str_broadcast, MAX_IP_LENGTH);
 
+            // CONFIG-N: server_ip|IP address when not using UMDNS|No default
             const char* str_server_ip = uci_lookup_option_string(uci_ctx, s, "server_ip");
             if(str_server_ip)
                 strncpy(ret.server_ip, str_server_ip, MAX_IP_LENGTH);
 
+            // CONFIG-N: broadcast_port|IP port for broadcast and multicast|[1026]
             DAWN_SET_CONFIG_INT(ret, s, broadcast_port);
 
+            // CONFIG-N: shared_key|Unused|N/A
             const char* str_shared_key = uci_lookup_option_string(uci_ctx, s, "shared_key");
             if (str_shared_key)
                 strncpy(ret.shared_key, str_shared_key, MAX_KEY_LENGTH);
 
+            // CONFIG-N: iv|Unused|N/A
             const char* str_iv = uci_lookup_option_string(uci_ctx, s, "iv");
             if (str_iv)
                 strncpy(ret.iv, str_iv, MAX_KEY_LENGTH);
 
+            // CONFIG-N: network_option|Method of networking between DAWN instances|0 = Broadcast; 2 = Multicast; [2 = TCP with UMDNS discovery]; 3 = TCP w/out UMDNS discovery
             DAWN_SET_CONFIG_INT(ret, s, network_option);
+            // CONFIG-N: tcp_port|Port for TCP networking|[1025]
             DAWN_SET_CONFIG_INT(ret, s, tcp_port);
+            // CONFIG-N: use_symm_enc|Enable encryption of network traffic|[0 = Disabled]; 1 = Enabled
             DAWN_SET_CONFIG_INT(ret, s, use_symm_enc);
+            // CONFIG-N: collision_domain|Unused|N/A
             DAWN_SET_CONFIG_INT(ret, s, collision_domain);
+            // CONFIG-N: bandwidth|Unused|N/A
             DAWN_SET_CONFIG_INT(ret, s, bandwidth);
             return ret;
         }
@@ -389,11 +445,18 @@ bool uci_get_dawn_hostapd_dir() {
         struct uci_section *s = uci_to_section(e);
 
         if (strcmp(s->type, "hostapd") == 0) {
+            // CONFIG-H: hostapd_dir|Path to hostapd runtime information|[/var/run/hostapd]
             const char* str = uci_lookup_option_string(uci_ctx, s, "hostapd_dir");
-            strncpy(hostapd_dir_glob, str, HOSTAPD_DIR_LEN);
+            if (str)
+                strncpy(hostapd_dir_glob, str, HOSTAPD_DIR_LEN);
+
             return true;
         }
     }
+
+    // If we get to here we haven't set a value yet
+    strncpy(hostapd_dir_glob, "/var/run/hostapd", HOSTAPD_DIR_LEN);
+
     return false;
 }
 
@@ -451,6 +514,7 @@ int uci_init() {
 int uci_clear() {
     dawnlog_debug_func("Entering...");
 
+    // CONFIG-G: neighbors|Space seperated list of MACS to use in "static" AP Neighbor Report| None
     for (int band = 0; band < __DAWN_BAND_MAX; band++)
         free_neighbor_mac_list(dawn_metric.neighbors[band]);
 
@@ -468,10 +532,8 @@ int uci_clear() {
 
 int uci_set_network(char* uci_cmd)
 {
-    dawnlog_debug_func("Entering...");
+    dawnlog_debug_func("UCI command = \"%s\"...", uci_cmd);
 
-    struct uci_ptr ptr;
-    int ret = UCI_OK;
     struct uci_context *ctx  = uci_ctx;
 
     if (!ctx) {
@@ -482,18 +544,46 @@ int uci_set_network(char* uci_cmd)
 
     ctx->flags |= UCI_FLAG_STRICT;
 
-    if (uci_lookup_ptr(ctx, &ptr, uci_cmd, 1) != UCI_OK) {
-        return 1;
+    int ret = UCI_OK;
+    struct uci_ptr ptr;
+
+    if (ret == UCI_OK)
+    {
+        ret = uci_lookup_ptr(ctx, &ptr, uci_cmd, 1);
+    }
+   
+    if (ret == UCI_OK)
+    {
+        // Magic code to add unnamed section like 'config times' exactly once - no idea if this is quite right
+        if (ptr.target == UCI_TYPE_SECTION && ptr.value == NULL)
+        {
+            char new_cmd[1024]; // Magic number
+            sprintf(new_cmd, "%s.@%s[0]", ptr.package, ptr.section);
+            struct uci_ptr ptr2;
+            ret = uci_lookup_ptr(ctx, &ptr2, new_cmd, 1);
+
+            if (ret == UCI_OK && ptr2.s == NULL)
+            {
+                ret = uci_add_section(ctx, ptr.p, ptr.section, &ptr.s);
+            }
+        }
+        else
+        {
+            ret = uci_set(ctx, &ptr);
+        }
     }
 
-    ret = uci_set(ctx, &ptr);
-
-
-    if (uci_lookup_ptr(ctx, &ptr, "dawn", 1) != UCI_OK) {
-        return 1;
+    if (ret == UCI_OK)
+    {
+        ret = uci_lookup_ptr(ctx, &ptr, "dawn", 1);
     }
 
-    if (uci_commit(ctx, &ptr.p, 0) != UCI_OK) {
+    if (ret == UCI_OK)
+    {
+        ret = uci_commit(ctx, &ptr.p, 0);
+    }
+
+    if (ret != UCI_OK) {
         dawnlog_error("Failed to commit UCI cmd: %s\n", uci_cmd);
     }
 
