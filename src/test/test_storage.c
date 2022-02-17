@@ -34,6 +34,34 @@ int send_set_probe(struct dawn_mac client_addr)
     return 0;
 }
 
+int bss_transition_request(uint32_t id, const struct dawn_mac client_addr, struct kicking_nr* neighbor_list, uint32_t duration)
+{
+    int ret = 0;
+
+    printf("bss_transition_request() was called...\n");
+
+    if (neighbor_list != NULL)
+    {
+        // Fake a client being disassociated and then rejoining on the recommended neighbor
+        client* mc = client_array_get_client(client_addr);
+        mc = client_array_delete(mc, true);
+        // Originally, there was only one AP, not a list of them; that AP is at the tail of the list
+        // Use it to keep the results the same as before
+        while (neighbor_list && neighbor_list->next)
+            neighbor_list = neighbor_list->next;
+        for (int n = 0; n < ETH_ALEN; n++)
+            sscanf(neighbor_list->nr_ap->neighbor_report + n * 2, "%2hhx", mc->bssid_addr.u8 + n);
+        insert_client_to_array(mc, 0);
+        printf("BSS TRANSITION TO " NR_MACSTR "\n", NR_MAC2STR(neighbor_list->nr_ap->neighbor_report));
+
+        // Tell caller not to change the arrays any further
+        ret = 1;
+    }
+
+    return ret;
+}
+
+
 int wnm_disassoc_imminent(uint32_t id, const struct dawn_mac client_addr, struct kicking_nr* neighbor_list, int threshold, uint32_t duration)
 {
 int ret = 0;
