@@ -719,6 +719,22 @@ static const struct blobmsg_policy uci_times_policy[__UCI_TIMES_MAX] = {
         [UCI_UPDATE_BEACON_REPORTS] = {.name = "update_beacon_reports", .type = BLOBMSG_TYPE_INT32},
 };
 
+static void set_uci_item(char* m, struct blob_attr* a)
+{
+    // TODO: Magic number?
+    char cmd_buffer[1024];
+
+    if (!a)
+    {
+        dawnlog_trace("%s had NULL source!", m);
+    }
+    else
+    {
+        sprintf(cmd_buffer, m, blobmsg_get_u32(a));
+        uci_set_network(cmd_buffer);
+    }
+}
+
 static int handle_uci_config(struct blob_attr* msg) {
 
     dawnlog_debug_func("Entering...");
@@ -862,32 +878,26 @@ static int handle_uci_config(struct blob_attr* msg) {
     struct blob_attr* tb_times[__UCI_TIMES_MAX];
     blobmsg_parse(uci_times_policy, __UCI_TIMES_MAX, tb_times, blobmsg_data(tb[UCI_TABLE_TIMES]), blobmsg_len(tb[UCI_TABLE_TIMES]));
 
-    sprintf(cmd_buffer, "dawn.@times[0].update_client=%d", blobmsg_get_u32(tb_times[UCI_UPDATE_CLIENT]));
+    sprintf(cmd_buffer, "dawn.times");
     uci_set_network(cmd_buffer);
 
-    sprintf(cmd_buffer, "dawn.@times[0].denied_req_threshold=%d", blobmsg_get_u32(tb_times[UCI_DENIED_REQ_THRESHOLD]));
-    uci_set_network(cmd_buffer);
+    set_uci_item("dawn.@times[0].update_client=%d", tb_times[UCI_UPDATE_CLIENT]);
 
-    sprintf(cmd_buffer, "dawn.@times[0].remove_client=%d", blobmsg_get_u32(tb_times[UCI_REMOVE_CLIENT]));
-    uci_set_network(cmd_buffer);
+    set_uci_item("dawn.@times[0].remove_client=%d", tb_times[UCI_REMOVE_CLIENT]);
 
-    sprintf(cmd_buffer, "dawn.@times[0].remove_probe=%d", blobmsg_get_u32(tb_times[UCI_REMOVE_PROBE]));
-    uci_set_network(cmd_buffer);
+    set_uci_item("dawn.@times[0].remove_probe=%d", tb_times[UCI_REMOVE_PROBE]);
 
-    sprintf(cmd_buffer, "dawn.@times[0].remove_ap=%d", blobmsg_get_u32(tb_times[UCI_REMOVE_AP]));
-    uci_set_network(cmd_buffer);
+    set_uci_item("dawn.@times[0].remove_ap=%d", tb_times[UCI_REMOVE_AP]);
 
-    sprintf(cmd_buffer, "dawn.@times[0].update_hostapd=%d", blobmsg_get_u32(tb_times[UCI_UPDATE_HOSTAPD]));
-    uci_set_network(cmd_buffer);
+    set_uci_item("dawn.@times[0].denied_req_threshold=%d", tb_times[UCI_DENIED_REQ_THRESHOLD]);
 
-    sprintf(cmd_buffer, "dawn.@times[0].update_tcp_con=%d", blobmsg_get_u32(tb_times[UCI_UPDATE_TCP_CON]));
-    uci_set_network(cmd_buffer);
+    set_uci_item("dawn.@times[0].update_hostapd=%d", tb_times[UCI_UPDATE_HOSTAPD]);
 
-    sprintf(cmd_buffer, "dawn.@times[0].update_chan_util=%d", blobmsg_get_u32(tb_times[UCI_UPDATE_CHAN_UTIL]));
-    uci_set_network(cmd_buffer);
+    set_uci_item("dawn.@times[0].update_tcp_con=%d", tb_times[UCI_UPDATE_TCP_CON]);
 
-    sprintf(cmd_buffer, "dawn.@times[0].update_beacon_reports=%d", blobmsg_get_u32(tb_times[UCI_UPDATE_BEACON_REPORTS]));
-    uci_set_network(cmd_buffer);
+    set_uci_item("dawn.@times[0].update_chan_util=%d", tb_times[UCI_UPDATE_CHAN_UTIL]);
+
+    set_uci_item("dawn.@times[0].update_beacon_reports=%d", tb_times[UCI_UPDATE_BEACON_REPORTS]);
 
     uci_reset();
     dawn_metric = uci_get_dawn_metric();
