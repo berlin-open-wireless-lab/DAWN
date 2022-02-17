@@ -1149,6 +1149,46 @@ void del_client_interface(uint32_t id, const struct dawn_mac client_addr, uint32
     dawn_unregmem(&b);
 }
 
+int bss_transition_request(uint32_t id, const struct dawn_mac client_addr, struct kicking_nr* neighbor_list, uint32_t duration) {
+    struct hostapd_sock_entry* sub;
+    struct blob_buf b = { 0 };
+
+    dawnlog_debug_func("Entering...");
+
+    blob_buf_init(&b, 0);
+    dawn_regmem(&b);
+    blobmsg_add_macaddr(&b, "addr", client_addr);
+    blobmsg_add_u32(&b, "disassociation_timer", duration);
+    blobmsg_add_u32(&b, "validity_period", duration);
+    blobmsg_add_u8(&b, "abridged", 1); // prefer aps in neighborlist
+    blobmsg_add_u8(&b, "disassociation_imminent", 0); // Just a friendly request - no disassociation
+
+    void* nbs = blobmsg_open_array(&b, "neighbors");
+
+    // Add the first N AP
+    int neighbors_added = 0;
+    while (neighbors_added < dawn_metric.disassoc_nr_length && neighbor_list != NULL) {
+        dawnlog_info("BSS TRANSITION NEIGHBOR " NR_MACSTR "\n", NR_MAC2STR(neighbor_list->nr_ap->neighbor_report));
+        blobmsg_add_string(&b, NULL, neighbor_list->nr_ap->neighbor_report);
+        neighbor_list = neighbor_list->next;
+        neighbors_added++;
+    }
+
+    blobmsg_close_array(&b, nbs);
+    list_for_each_entry(sub, &hostapd_sock_list, list)
+    {
+        if (sub->subscribed) {
+            int timeout = 1; //TDO: Maybe ID is wrong?! OR CHECK HERE ID
+            ubus_invoke(ctx, id, "bss_transition_request", b.head, NULL, NULL, timeout * 1000);
+        }
+    }
+
+    blob_buf_free(&b);
+    dawn_unregmem(&b);
+
+    return 0;
+}
+
 int wnm_disassoc_imminent(uint32_t id, const struct dawn_mac client_addr, struct kicking_nr* neighbor_list, int threshold, uint32_t duration) {
     struct hostapd_sock_entry *sub;
     struct blob_buf b = {0};
@@ -1168,7 +1208,7 @@ int wnm_disassoc_imminent(uint32_t id, const struct dawn_mac client_addr, struct
     // Add the first N AP that reach threshold, where list order id high->low score
     int neighbors_added = 0;
     while(neighbors_added < dawn_metric.disassoc_nr_length && neighbor_list != NULL && neighbor_list->score >= threshold) {
-        dawnlog_info("BSS TRANSITION NEIGHBOR " NR_MACSTR ", Score=%d\n", NR_MAC2STR(neighbor_list->nr_ap->neighbor_report), neighbor_list->score);
+        dawnlog_info("WNM DISASSOC NEIGHBOR " NR_MACSTR ", Score=%d\n", NR_MAC2STR(neighbor_list->nr_ap->neighbor_report), neighbor_list->score);
         blobmsg_add_string(&b, NULL, neighbor_list->nr_ap->neighbor_report);
         neighbor_list = neighbor_list->next;
         neighbors_added++;

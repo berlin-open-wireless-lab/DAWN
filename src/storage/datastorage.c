@@ -479,11 +479,11 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
     // Seach for BSSID
     client *j = *client_find_first_bc_entry(kicking_ap->bssid_addr, dawn_mac_null, false);
 
-    // Go through clients
-    while (j  != NULL && mac_is_equal_bb(j->bssid_addr, kicking_ap->bssid_addr)) {
+    // Go through clients: only kick one each time (not sure why, was in original algorithm...)
+    while (kicked_clients == 0 && j  != NULL && mac_is_equal_bb(j->bssid_addr, kicking_ap->bssid_addr)) {
         struct kicking_nr *kick_nr_list = NULL;
 
-        int do_kick = 0;
+        int kick_type = 0;
         int own_score = 0;
 
         if (mac_find_entry(j->client_addr)) {
@@ -492,29 +492,54 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
         else {
             dawn_mutex_require(&probe_array_mutex);
             probe_entry* own_probe = probe_array_get_entry(j->client_addr, kicking_ap->bssid_addr);
+
             if (own_probe == NULL) {
                 // no entry for own ap - may happen if DAWN is started after client has connected, and then "sleeps" so sends no BEACON / PROBE
                 dawnlog_info("Current AP " MACSTR " for client " MACSTR " not found in probe array!\n", MAC2STR(kicking_ap->bssid_addr.u8), MAC2STR(j->client_addr.u8));
                 print_probe_array();
+
+                // TODO: Work out a way to handle clients that are reluctant to share a probe / beacon that doesn't become DoS for them
+                // do_kick = -1;
             }
-            else {
+           
+            if ((kick_type == 0) && own_probe && (dawn_metric.kicking & 1) == 1) {
                 own_score = eval_probe_metric(own_probe, kicking_ap);
                 dawnlog_trace("Current AP score = %d for:\n", own_score);
                 print_probe_entry(DAWNLOG_TRACE, own_probe);
 
-                do_kick = better_ap_available(kicking_ap, own_probe, own_score, &kick_nr_list);
+                kick_type = better_ap_available(kicking_ap, own_probe, own_score, &kick_nr_list);
+
+                // If we found any candidates by evaluating PROBEs (even if too low to kick to) add the highest scoring one to local AP NR set
+                if (kick_type != 0 && dawn_metric.set_hostapd_nr == 2 && kick_nr_list)
+                {
+                    dawnlog_trace("Adding " MACSTR "as local NR entry candidate\n", MAC2STR(kick_nr_list->nr_ap->bssid_addr.u8));
+                    insert_kicking_nr_by_bssid(&ap_nr_list, kick_nr_list->nr_ap);
+                }
+            }
+           
+            if ((kick_type == 0) && own_probe && (dawn_metric.kicking & 2) == 2) {
+                int band = get_band(own_probe->freq);
+
+                if (own_probe->signal < dawn_metric.rssi_center[band])
+                {
+                    dawnlog_info("Client " MACSTR ": Low asolute RSSI - proposing other APs\n", MAC2STR(j->client_addr.u8));
+                    dawn_mutex_require(&ap_array_mutex);
+
+                    // FIXME: Using all AP is OK for a small network, but should ideally use the local-to-current-AP set
+                    for (ap* candidate_ap = ap_set; candidate_ap != NULL; candidate_ap = candidate_ap->next_ap) {
+                        // Check is same SSID< but is not the current AP
+                        if (candidate_ap != kicking_ap && strcmp((char*)kicking_ap->ssid, (char*)candidate_ap->ssid) == 0) {
+                            insert_kicking_nr_by_bssid(&kick_nr_list, candidate_ap);
+                        }
+                    }
+
+                    kick_type = 2;
+                }
             }
         }
 
-        // If we found any candidates (even if too low to kick to) add the highest scoring one to local AP NR set
-        if (dawn_metric.set_hostapd_nr == 2 && kick_nr_list)
-        {
-            dawnlog_trace("Adding " MACSTR "as local NR entry candidate\n", MAC2STR(kick_nr_list->nr_ap->bssid_addr.u8));
-            insert_kicking_nr_by_bssid(&ap_nr_list, kick_nr_list->nr_ap);
-        }
-
         // better ap available
-        if (do_kick > 0) {
+        if (kick_type > 0) {
 
             // kick after algorithm decided to kick several times
             // + rssi is changing a lot
@@ -562,28 +587,31 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
                         // don't deauth station? <- deauth is better!
                         // maybe we can use handovers...
                         //del_client_interface(id, client_array[j].client_addr, NO_MORE_STAS, 1, 1000);
-                        int sync_kick = wnm_disassoc_imminent(id, j->client_addr, kick_nr_list, own_score + dawn_metric.kicking_threshold, 12);
-
-                        // Synchronous kick is a test harness feature to indicate arrays have been updated, so don't change further
-                        if (sync_kick)
+                        if (kick_type == 1)
                         {
-                            kicked_clients++;
+                            int sync_kick = wnm_disassoc_imminent(id, j->client_addr, kick_nr_list, own_score + dawn_metric.kicking_threshold, 12);
+
+                            if (!sync_kick)
+                            {
+                                client_array_delete(j, false);
+
+                                // don't delete clients in a row. use update function again...
+                                // -> chan_util update, ...
+                                //FIXME: Why / 4?
+                                add_client_update_timer(timeout_config.update_client * 1000 / 4);
+                            }
                         }
                         else
                         {
-                            client_array_delete(j, false);
-
-                            // don't delete clients in a row. use update function again...
-                            // -> chan_util update, ...
-                            //FIXME: Why / 4?
-                            add_client_update_timer(timeout_config.update_client * 1000 / 4);
-                            break;
+                            bss_transition_request(id, j->client_addr, kick_nr_list, 12);
                         }
+
+                        kicked_clients++;
                     }
                 }
             }
         }
-        else if (do_kick == -1) {
+        else if (kick_type == -1) {
             // FIXME: Causes clients to be kicked until first probe is received, which is a bit brutal for pre-802.11k clients.
             dawnlog_info("Client " MACSTR ": No Information about client. Force reconnect:\n", MAC2STR(j->client_addr.u8));
             print_client_entry(DAWNLOG_TRACE, j);
@@ -605,6 +633,7 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
     if (dawn_metric.set_hostapd_nr == 2)
         ubus_set_nr_from_clients(ap_nr_list);
 
+    // FIXME: Consider retaining this so it can be used for kick type 2 - low absolute RSSI
     remove_kicking_nr_list(ap_nr_list);
     ap_nr_list = NULL;
 
@@ -634,7 +663,7 @@ void update_iw_info(struct dawn_mac bssid_mac) {
                 iee80211_calculate_expected_throughput_mbit(get_expected_throughput_iwinfo(j->client_addr)));
 
         if (rssi != INT_MIN) {
-            if (!probe_array_update_rssi(j->client_addr, j->bssid_addr, rssi, true)) {
+            if (probe_array_update_rssi(j->client_addr, j->bssid_addr, rssi, true) == NULL) {
                 dawnlog_info("Failed to update rssi!\n");
             }
             else {
@@ -795,6 +824,7 @@ probe_entry* probe_array_update_rssi(struct dawn_mac client_addr, struct dawn_ma
 
     dawn_mutex_require(&probe_array_mutex);
     probe_entry* probe_req_new = dawn_malloc(sizeof(probe_entry));
+    probe_entry* probe_req_updated = NULL;
 
     if (probe_req_new) {
         // Fields we will update
@@ -812,7 +842,7 @@ probe_entry* probe_array_update_rssi(struct dawn_mac client_addr, struct dawn_ma
         probe_req_new->next_probe = NULL;
         probe_req_new->next_probe_skip = NULL;
 
-        probe_entry* probe_req_updated = insert_to_probe_array(probe_req_new, false, false, false, time(0));
+        probe_req_updated = insert_to_probe_array(probe_req_new, false, false, false, time(0));
         if (probe_req_new != probe_req_updated)
         {
             dawnlog_info("RSSI PROBE used to update client / BSSID = " MACSTR " / " MACSTR " \n", MAC2STR(probe_req_updated->client_addr.u8), MAC2STR(probe_req_updated->bssid_addr.u8));
@@ -829,7 +859,7 @@ probe_entry* probe_array_update_rssi(struct dawn_mac client_addr, struct dawn_ma
             ubus_send_probe_via_network(probe_req_updated, false);
     }
 
-    return probe_req_new;
+    return probe_req_updated;
 }
 
 probe_entry* probe_array_update_rcpi_rsni(struct dawn_mac client_addr, struct dawn_mac bssid_addr, uint32_t rcpi, uint32_t rsni, int send_network)
