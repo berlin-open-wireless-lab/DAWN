@@ -30,7 +30,7 @@ Top tip from the [configuration guide](CONFIGURE.md):
 ## How DAWN Works
 Each DAWN instance gathers information about two types of client: those
 that are currently connected to the host AP, plus those querying whether
-to connect.  It then shares that information with other DAWN instances. 
+to connect.  It then shares that information with other DAWN instances.
 Each then has a view of how well any AP can "see" each client device, and
 that then allows DAWN to steer a client to a different AP when appropriate.
 
@@ -68,9 +68,8 @@ that adds some DAWN information to the management interface of an OpenWrt device
 
 NB: As of early-2022 it hasn't had the developer attention it needs
 recently, so may not be working as well as you might like.
-    
+
 ## Developers
 If you want to use versions of DAWN that are not fully packaged yet or to
 work on a fork of the code yourself then see the [Developer
 Guide](DEVELOPER.md).
-

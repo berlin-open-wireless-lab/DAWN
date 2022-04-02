@@ -5,8 +5,6 @@
 #include "datastorage.h"
 #include "dawn_iwinfo.h"
 
-#define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
-
 char hostapd_dir_glob[HOSTAPD_DIR_LEN];
 
 int call_iwinfo(char *client_addr);
@@ -182,7 +180,7 @@ int get_rssi(const char *ifname, struct dawn_mac client_addr) {
         iwinfo_finish();
         return INT_MIN;
     } else if (len <= 0) {
-        dawnlog_warning("No station connected\n");
+        dawnlog_trace("No station connected to %s\n", ifname);
         iwinfo_finish();
         return INT_MIN;
     }
@@ -238,7 +236,7 @@ int get_expected_throughput(const char *ifname, struct dawn_mac client_addr) {
         iwinfo_finish();
         return INT_MIN;
     } else if (len <= 0) {
-        dawnlog_warning("No station connected\n");
+        dawnlog_trace("No station connected to %s\n", ifname);
         iwinfo_finish();
         return INT_MIN;
     }
