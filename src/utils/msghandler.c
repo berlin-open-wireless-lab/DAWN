@@ -184,9 +184,14 @@ probe_entry *parse_to_probe_req(struct blob_attr* msg) {
     if (tb[PROB_SIGNAL]) {
         prob_req->signal = blobmsg_get_u32(tb[PROB_SIGNAL]);
     }
+    else
+        prob_req->signal = 0;
 
     if (tb[PROB_FREQ]) {
         prob_req->freq = blobmsg_get_u32(tb[PROB_FREQ]);
+    }
+    else {
+        prob_req->freq = 0;
     }
 
     if (tb[PROB_RCPI]) {
@@ -301,7 +306,7 @@ int handle_network_msg(char* msg) {
             dawn_mutex_lock(&probe_array_mutex);
 
             dawn_mutex_require(&probe_array_mutex);
-            if (entry != insert_to_probe_array(entry, false, false, false, time(0))) // use 802.11k values
+            if (entry != insert_to_probe_array(entry, false, false, time(0)))
             {
                 // insert found an existing entry, rather than linking in our new one
                 dawnlog_info("Remote PROBE updated client / BSSID = " MACSTR " / " MACSTR " \n",
@@ -339,30 +344,6 @@ int handle_network_msg(char* msg) {
     else if (strncmp(method, "uci", 2) == 0) { // TODO: Should this be 3 or is something special happening?
         dawnlog_debug("HANDLING UCI!\n");
         handle_uci_config(data_buf.head);
-    }
-    else if (strncmp(method, "beacon-report", 12) == 0) {
-        probe_entry* entry = parse_to_probe_req(data_buf.head);
-        if (entry != NULL) {
-            dawn_mutex_lock(&probe_array_mutex);
-
-            dawn_mutex_require(&probe_array_mutex);
-            if (entry != insert_to_probe_array(entry, false, true, true, time(0))) // use 802.11k values
-            {
-                // insert found an existing entry, rather than linking in our new one
-                dawnlog_info("Remote BEACON updated client / BSSID = " MACSTR " / " MACSTR " \n",
-                    MAC2STR(entry->client_addr.u8), MAC2STR(entry->bssid_addr.u8));
-
-                dawn_free(entry);
-                entry = NULL;
-            }
-            else
-            {
-                dawnlog_info("Remote BEACON is for new client / BSSID = " MACSTR " / " MACSTR " \n",
-                    MAC2STR(entry->client_addr.u8), MAC2STR(entry->bssid_addr.u8));
-            }
-
-            dawn_mutex_unlock(&probe_array_mutex);
-        }
     }
     else
     {

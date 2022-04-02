@@ -209,33 +209,37 @@ int get_band(int freq) {
 // TODO: as rest of values look to be static fr any given entry.
 int eval_probe_metric(struct probe_entry_s* probe_entry, ap* ap_entry) {
     dawnlog_debug_func("Entering...");
-    dawn_mutex_require(&ap_array_mutex);
-    dawn_mutex_require(&probe_array_mutex);
+    int score = 0;
 
-    int band, score = 0;
+    if (probe_entry->signal != 0)
+    {
+        dawn_mutex_require(&ap_array_mutex);
+        dawn_mutex_require(&probe_array_mutex);
 
-    // TODO: Should RCPI be used here as well?
-    band = get_band(probe_entry->freq);
-    score = dawn_metric.initial_score[band];
-    score += probe_entry->signal >= dawn_metric.rssi_val[band] ? dawn_metric.rssi[band] : 0;
-    score += probe_entry->signal <= dawn_metric.low_rssi_val[band] ? dawn_metric.low_rssi[band] : 0;
-    score += (probe_entry->signal - dawn_metric.rssi_center[band]) * dawn_metric.rssi_weight[band];
+        // TODO: Should RCPI be used here as well?
+        int band = get_band(probe_entry->freq);
+        score = dawn_metric.initial_score[band];
 
-    // check if ap entry is available
-    if (ap_entry != NULL) {
-        score += probe_entry->ht_capabilities && ap_entry->ht_support ? dawn_metric.ht_support[band] : 0;
-        score += !probe_entry->ht_capabilities && !ap_entry->ht_support ? dawn_metric.no_ht_support[band] : 0;  // TODO: Is both devices not having a capability worthy of scoring?
+        score += probe_entry->signal >= dawn_metric.rssi_val[band] ? dawn_metric.rssi[band] : 0;
+        score += probe_entry->signal <= dawn_metric.low_rssi_val[band] ? dawn_metric.low_rssi[band] : 0;
+        score += (probe_entry->signal - dawn_metric.rssi_center[band]) * dawn_metric.rssi_weight[band];
 
-        // performance anomaly?
-        if (network_config.bandwidth >= 1000 || network_config.bandwidth == -1) {
-            score += probe_entry->vht_capabilities && ap_entry->vht_support ? dawn_metric.vht_support[band] : 0;
+        // check if ap entry is available
+        if (ap_entry != NULL) {
+            score += probe_entry->ht_capabilities && ap_entry->ht_support ? dawn_metric.ht_support[band] : 0;
+            score += !probe_entry->ht_capabilities && !ap_entry->ht_support ? dawn_metric.no_ht_support[band] : 0;  // TODO: Is both devices not having a capability worthy of scoring?
+
+            // performance anomaly?
+            if (network_config.bandwidth >= 1000 || network_config.bandwidth == -1) {
+                score += probe_entry->vht_capabilities && ap_entry->vht_support ? dawn_metric.vht_support[band] : 0;
+            }
+
+            score += !probe_entry->vht_capabilities && !ap_entry->vht_support ? dawn_metric.no_vht_support[band] : 0;  // TODO: Is both devices not having a capability worthy of scoring?
+            score += ap_entry->channel_utilization <= dawn_metric.chan_util_val[band] ? dawn_metric.chan_util[band] : 0;
+            score += ap_entry->channel_utilization > dawn_metric.max_chan_util_val[band] ? dawn_metric.max_chan_util[band] : 0;
+
+            score += ap_entry->ap_weight;
         }
-
-        score += !probe_entry->vht_capabilities && !ap_entry->vht_support ? dawn_metric.no_vht_support[band] : 0;  // TODO: Is both devices not having a capability worthy of scoring?
-        score += ap_entry->channel_utilization <= dawn_metric.chan_util_val[band] ? dawn_metric.chan_util[band] : 0;
-        score += ap_entry->channel_utilization > dawn_metric.max_chan_util_val[band] ? dawn_metric.max_chan_util[band] : 0;
-
-        score += ap_entry->ap_weight;
     }
 
     // TODO: This magic value never checked by caller.  What does it achieve?
@@ -653,6 +657,10 @@ void update_iw_info(struct dawn_mac bssid_mac) {
 
     dawn_mutex_lock(&client_array_mutex);
     dawn_mutex_lock(&probe_array_mutex);
+    dawn_mutex_lock(&ap_array_mutex);
+
+    dawn_mutex_require(&ap_array_mutex);
+    ap* this_ap = ap_array_get_ap(bssid_mac);
 
     dawnlog_trace("IW info update for AP " MACSTR "\n", MAC2STR(bssid_mac.u8));
 
@@ -665,7 +673,7 @@ void update_iw_info(struct dawn_mac bssid_mac) {
                 iee80211_calculate_expected_throughput_mbit(get_expected_throughput_iwinfo(j->client_addr)));
 
         if (rssi != INT_MIN) {
-            if (probe_array_update_rssi(j->client_addr, j->bssid_addr, rssi, true) == NULL) {
+            if (probe_array_update_rssi(j->client_addr, this_ap, rssi, true) == NULL) {
                 dawnlog_info("Failed to update rssi!\n");
             }
             else {
@@ -676,6 +684,7 @@ void update_iw_info(struct dawn_mac bssid_mac) {
 
     dawnlog_trace("---------------------------\n");
 
+    dawn_mutex_unlock(&ap_array_mutex);
     dawn_mutex_unlock(&probe_array_mutex);
     dawn_mutex_unlock(&client_array_mutex);
 }
@@ -820,7 +829,7 @@ int probe_array_set_all_probe_count(struct dawn_mac client_addr, uint32_t probe_
     return updated;
 }
 
-probe_entry* probe_array_update_rssi(struct dawn_mac client_addr, struct dawn_mac bssid_addr, uint32_t rssi, int send_network)
+probe_entry* probe_array_update_rssi(struct dawn_mac client_addr, ap* connected_ap, uint32_t rssi, int send_network)
 {
     dawnlog_debug_func("Entering...");
 
@@ -831,8 +840,9 @@ probe_entry* probe_array_update_rssi(struct dawn_mac client_addr, struct dawn_ma
     if (probe_req_new) {
         // Fields we will update
         probe_req_new->client_addr = client_addr;
-        probe_req_new->bssid_addr = bssid_addr;
+        probe_req_new->bssid_addr = connected_ap->bssid_addr;
         probe_req_new->signal = rssi;
+        probe_req_new->freq = connected_ap->freq;
 
         // Other fields in case entry is new
         probe_req_new->ht_capabilities = false;
@@ -840,11 +850,7 @@ probe_entry* probe_array_update_rssi(struct dawn_mac client_addr, struct dawn_ma
         probe_req_new->rcpi = -1;
         probe_req_new->rsni = -1;
 
-        //FIXME: Should we put the linked list defaults in the insert function?
-        probe_req_new->next_probe = NULL;
-        probe_req_new->next_probe_skip = NULL;
-
-        probe_req_updated = insert_to_probe_array(probe_req_new, false, false, false, time(0));
+        probe_req_updated = insert_to_probe_array(probe_req_new, false, false, time(0));
         if (probe_req_new != probe_req_updated)
         {
             dawnlog_info("RSSI PROBE used to update client / BSSID = " MACSTR " / " MACSTR " \n", MAC2STR(probe_req_updated->client_addr.u8), MAC2STR(probe_req_updated->bssid_addr.u8));
@@ -862,28 +868,6 @@ probe_entry* probe_array_update_rssi(struct dawn_mac client_addr, struct dawn_ma
     }
 
     return probe_req_updated;
-}
-
-probe_entry* probe_array_update_rcpi_rsni(struct dawn_mac client_addr, struct dawn_mac bssid_addr, uint32_t rcpi, uint32_t rsni, int send_network)
-{
-    dawnlog_debug_func("Entering...");
-
-    dawn_mutex_require(&probe_array_mutex);
-    probe_entry* entry = probe_array_get_entry(client_addr, bssid_addr);
-
-    if (entry) {
-        // FIXME: Do we need the -1 tests here?
-        if (rcpi != -1)
-            entry->rcpi = rcpi;
-
-        if (rsni != -1)
-            entry->rsni = rsni;
-
-        if (send_network)
-            ubus_send_probe_via_network(entry, true);
-    }
-
-    return entry;
 }
 
 probe_entry *probe_array_get_entry(struct dawn_mac client_mac, struct dawn_mac bssid_mac) {
@@ -908,7 +892,7 @@ void print_probe_array() {
     }
 }
 
-probe_entry* insert_to_probe_array(probe_entry* entry, int is_local, int save_80211k, int is_beacon, time_t expiry) {
+probe_entry* insert_to_probe_array(probe_entry* entry, int inc_probe_count, int is_beacon, time_t expiry) {
     dawnlog_debug_func("Entering...");
 
     dawn_mutex_require(&probe_array_mutex);
@@ -948,12 +932,17 @@ probe_entry* insert_to_probe_array(probe_entry* entry, int is_local, int save_80
     if (*node_ref && cmp == 0) {
         dawnlog_debug("Updating...\n");
 
+        if (entry->freq)
+            (*node_ref)->freq = entry->freq;
+
         if (!is_beacon)
         {
-            if (is_local)
+            if (inc_probe_count)
                 (*node_ref)->counter++;
 
-            // Beacon reports don't have these fields, so only update them from probes
+            entry->rssi_timestamp = expiry;
+
+            // BEACON reports don't have these fields, so only update them from PROBE
             (*node_ref)->signal = entry->signal;
 
             // Some "synthetic" PROBE entries have FALSE for these which would overwrite genuine values
@@ -967,13 +956,16 @@ probe_entry* insert_to_probe_array(probe_entry* entry, int is_local, int save_80
         {
             // FIXME: Equivalent to inserting BEACON based entry
             (*node_ref)->counter = dawn_metric.min_probe_count;
+
+            entry->rcpi_timestamp = expiry;
+
+            // PROBE reports don't have these fields, so only update them from BEACOM
+            if (entry->rcpi != -1)
+                (*node_ref)->rcpi = entry->rcpi;
+
+            if (entry->rsni != -1)
+                (*node_ref)->rsni = entry->rsni;
         }
-
-        if (save_80211k && entry->rcpi != -1)
-            (*node_ref)->rcpi = entry->rcpi;
-
-        if (save_80211k && entry->rsni != -1)
-            (*node_ref)->rsni = entry->rsni;
 
         entry = *node_ref;
     }
@@ -981,11 +973,14 @@ probe_entry* insert_to_probe_array(probe_entry* entry, int is_local, int save_80
     {
         dawnlog_debug("Adding...\n");
 
-        if (is_local  && !is_beacon)
+        if (inc_probe_count && !is_beacon)
             entry->counter = 1;
         else
             entry->counter = 0;
 
+        entry->rssi_timestamp = expiry;
+        entry->rcpi_timestamp = expiry;
+        
         entry->next_probe = *node_ref;
         *node_ref = entry;
 
@@ -1003,8 +998,6 @@ probe_entry* insert_to_probe_array(probe_entry* entry, int is_local, int save_80
             entry->next_probe_skip = NULL;
         }
     }
-
-    entry->time = expiry;
 
     return entry;  // return pointer to what we used, which may not be what was passed in
 }
@@ -1176,8 +1169,24 @@ void remove_old_probe_entries(time_t current_time, long long int threshold) {
     dawn_mutex_lock(&client_array_mutex);
 
     while (*i != NULL ) {
+        int rssi_expired = 0;
+        int rcpi_expired = 0;
+
         // FIXME: Why do we not delete the old probe just because it is a client?  Maybe because legacy devices are slow to send another?
-        if (((*i)->time < current_time - threshold) && !client_array_get_client_for_bssid((*i)->bssid_addr, (*i)->client_addr)) {
+        if (((*i)->rssi_timestamp < current_time - threshold) && !client_array_get_client_for_bssid((*i)->bssid_addr, (*i)->client_addr))
+        {
+            (*i)->signal = 0;
+            rssi_expired = 1;
+        }
+
+        if (((*i)->rcpi_timestamp < current_time - threshold))
+        {
+            (*i)->rcpi = -1;
+            (*i)->rsni = -1;
+            rcpi_expired = 1;
+        }
+
+        if (rssi_expired && rcpi_expired) {
             probe_entry* victim = *i;
 
             *i = victim->next_probe;

@@ -149,23 +149,30 @@ extern struct probe_metric_s dawn_metric;
 
 // ---------------- Structs ----------------
 typedef struct probe_entry_s {
+// List admin fields
     struct probe_entry_s* next_probe;
     struct probe_entry_s* next_probe_skip;
+    time_t rssi_timestamp; // remove_old...entries
+    time_t rcpi_timestamp; // remove_old...entries
+
+// Connection accept / reject decision fields
+    int counter; // FIXME: Never gets reset to zero.  Rely on deletion to create new for non-802.11k client?
+
+// Client status reporting fields
     struct dawn_mac client_addr;
     struct dawn_mac bssid_addr;
-    //uint8_t ssid[SSID_MAX_LEN + 1]; // parse_to_beacon_rep()
-    struct dawn_mac target_addr; // TODO: Never evaluated?
     uint32_t signal; // eval_probe_metric()
     uint32_t freq; // eval_probe_metric()
     uint8_t ht_capabilities; // eval_probe_metric()
     uint8_t vht_capabilities; // eval_probe_metric()
-    time_t time; // remove_old...entries
-    int counter; // FIXME: Never gets reset to zero.  Rely on deletion to create new for non-802.11k client?
-    int deny_counter; // TODO: Never used?
-    uint8_t max_supp_datarate; // TODO: Never used?
-    uint8_t min_supp_datarate; // TODO: Never used?
     uint32_t rcpi;
     uint32_t rsni;
+
+// FIXME: Historic fields - consider removing
+    struct dawn_mac target_addr; // TODO: Never evaluated?
+    uint8_t max_supp_datarate; // TODO: Never used?
+    uint8_t min_supp_datarate; // TODO: Never used?
+    int deny_counter; // TODO: Never used?
 } probe_entry;
 
 //struct probe_entry_s {
@@ -282,7 +289,7 @@ extern struct client_s *client_set_bc;
 extern pthread_mutex_t client_array_mutex;
 
 // ---------------- Functions ----------------
-probe_entry *insert_to_probe_array(probe_entry *entry, int is_local, int save_80211k, int is_beacon, time_t expiry);
+probe_entry *insert_to_probe_array(probe_entry *entry, int inc_probe_count, int is_beacon, time_t expiry);
 
 int probe_array_delete(struct dawn_mac client_addr, struct dawn_mac bssid_addr);
 
@@ -302,9 +309,7 @@ void print_client_req_entry(int level, client_req_entry *entry);
 
 // ---------------- Functions ----------------
 
-probe_entry* probe_array_update_rssi(struct dawn_mac client_addr, struct dawn_mac bssid_addr, uint32_t rssi, int send_network);
-
-probe_entry* probe_array_update_rcpi_rsni(struct dawn_mac client_addr, struct dawn_mac bssid_addr, uint32_t rcpi, uint32_t rsni, int send_network);
+probe_entry* probe_array_update_rssi(struct dawn_mac client_addr, ap* this_ap, uint32_t rssi, int send_network);
 
 void remove_old_client_entries(time_t current_time, long long int threshold);
 

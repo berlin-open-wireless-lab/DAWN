@@ -137,8 +137,8 @@ enum {
 static const struct blobmsg_policy beacon_rep_policy[__BEACON_REP_MAX] = {
         [BEACON_REP_ADDR] = {.name = "address", .type = BLOBMSG_TYPE_STRING},
         [BEACON_REP_OP_CLASS] = {.name = "op-class", .type = BLOBMSG_TYPE_INT16},
-        [BEACON_REP_CHANNEL] = {.name = "channel", .type = BLOBMSG_TYPE_INT64},
-        [BEACON_REP_START_TIME] = {.name = "start-time", .type = BLOBMSG_TYPE_INT32},
+        [BEACON_REP_CHANNEL] = {.name = "channel", .type = BLOBMSG_TYPE_INT16},
+        [BEACON_REP_START_TIME] = {.name = "start-time", .type = BLOBMSG_TYPE_INT64},
         [BEACON_REP_DURATION] = {.name = "duration", .type = BLOBMSG_TYPE_INT16},
         [BEACON_REP_REPORT_INFO] = {.name = "report-info", .type = BLOBMSG_TYPE_INT16},
         [BEACON_REP_RCPI] = {.name = "rcpi", .type = BLOBMSG_TYPE_INT16},
@@ -267,6 +267,59 @@ int parse_to_client_req(struct blob_attr *msg, client_req_entry *client_req) {
     return 0;
 }
 
+// FIXME: Hacky attempt to fix missing freq field in BEACON frames.  Need to untangle the whole band thing...
+static int get_freq(int band) {
+    dawnlog_debug_func("Entering...");
+    static const int band_freq_map[] = {
+    1, 2412,
+    2, 2417,
+    3, 2422,
+    4, 2427,
+    5, 2432,
+    6, 2437,
+    7, 2442,
+    8, 2447,
+    9, 2452,
+    10, 2457,
+    11, 2462,
+    12, 2467,
+    13, 2472,
+    14, 2484,
+    36, 5180,
+    40, 5200,
+    44, 5220,
+    48, 5240,
+    52, 5260,
+    56, 5280,
+    60, 5300,
+    64, 5320,
+    100, 5500,
+    104, 5520,
+    108, 5540,
+    112, 5560,
+    116, 5580,
+    120, 5600,
+    124, 5620,
+    128, 5640,
+    132, 5660,
+    136, 5680,
+    140, 5700,
+    149, 5745,
+    153, 5765,
+    157, 5785,
+    161, 5805,
+    165, 5825
+    };
+
+    for (int pos = 0; pos < (sizeof(band_freq_map) / (2 * sizeof(int))); pos += 2)
+    {
+        if (band <= band_freq_map[pos])
+            return band_freq_map[pos + 1];
+    }
+
+    return 0;
+}
+
 static probe_entry* parse_to_beacon_rep(struct blob_attr *msg) {
     probe_entry* beacon_rep = NULL;
     struct blob_attr *tb[__BEACON_REP_MAX];
@@ -282,46 +335,24 @@ static probe_entry* parse_to_beacon_rep(struct blob_attr *msg) {
         hwaddr_aton(blobmsg_data(tb[BEACON_REP_BSSID]), msg_bssid.u8) ||
         hwaddr_aton(blobmsg_data(tb[BEACON_REP_ADDR]), msg_client.u8))
     {
-        dawnlog_warning("Parse of beacon report failed!\n");
+        dawnlog_warning("Parse of BEACON failed!\n");
     }
     else
     {
-        dawn_mutex_lock(&ap_array_mutex);
-
-        dawn_mutex_require(&ap_array_mutex);
-        ap* ap_entry_rep = ap_array_get_ap(msg_bssid);
-
-        // no client from network!!
-        if (!ap_entry_rep) {
-            dawnlog_warning("No AP for beacon report entry!\n");
+        beacon_rep = dawn_malloc(sizeof(probe_entry));
+        if (beacon_rep == NULL)
+        {
+            dawnlog_error("dawn_malloc of BEACON failed!\n");
         }
         else
         {
-            beacon_rep = dawn_malloc(sizeof(probe_entry));
-            if (beacon_rep == NULL)
-            {
-                dawnlog_error("dawn_malloc of beacon report failed!\n");
-            }
-            else
-            {
-                beacon_rep->next_probe = NULL;
-                beacon_rep->bssid_addr = msg_bssid;
-                beacon_rep->client_addr = msg_client;
-                beacon_rep->counter = dawn_metric.min_probe_count;  // TODO: Why is this?  To allow a 802.11k client to meet proe count check immediately?
-                hwaddr_aton(blobmsg_data(tb[BEACON_REP_ADDR]), beacon_rep->target_addr.u8);  // TODO: What is this for?
-                beacon_rep->freq = ap_entry_rep->freq;
-                beacon_rep->rcpi = blobmsg_get_u16(tb[BEACON_REP_RCPI]);
-                beacon_rep->rsni = blobmsg_get_u16(tb[BEACON_REP_RSNI]);
-
-                // These fields, can't be set from a BEACON REPORT, so we ignore them later if updating an existing PROBE
-                // TODO: See if hostapd can send optional elements which might allow these to be set
-                beacon_rep->signal = 0;
-                beacon_rep->ht_capabilities = false; // that is very problematic!!!
-                beacon_rep->vht_capabilities = false; // that is very problematic!!!
-            }
+            beacon_rep->bssid_addr = msg_bssid;
+            beacon_rep->client_addr = msg_client;
+            hwaddr_aton(blobmsg_data(tb[BEACON_REP_ADDR]), beacon_rep->target_addr.u8);  // TODO: What is this for?
+            beacon_rep->rcpi = blobmsg_get_u16(tb[BEACON_REP_RCPI]);
+            beacon_rep->rsni = blobmsg_get_u16(tb[BEACON_REP_RSNI]);
+            beacon_rep->freq = get_freq(blobmsg_get_u16(tb[BEACON_REP_CHANNEL]));
         }
-
-        dawn_mutex_unlock(&ap_array_mutex);
     }
 
     return beacon_rep;
@@ -504,7 +535,7 @@ static int handle_probe_req(struct blob_attr* msg) {
         dawn_mutex_lock(&probe_array_mutex);
 
         dawn_mutex_require(&probe_array_mutex);
-        probe_entry* probe_req_updated = insert_to_probe_array(probe_req_new, true, false, false, time(0));
+        probe_entry* probe_req_updated = insert_to_probe_array(probe_req_new, true, false, time(0));
         // If insert finds an existing entry, rather than linking in our new one,
         // send new probe req because we want to stay synced.
         // If not, probe_req and probe_req_updated should be equivalent
@@ -578,18 +609,28 @@ static int handle_beacon_rep(struct blob_attr *msg) {
     {
         if (mac_is_null(entry->bssid_addr.u8))
         {
-            dawnlog_warning("Received NULL MAC! Client is strange!\n");
+            dawnlog_info("Received NULL MAC! Client is strange!\n");
             dawn_free(entry);
         }
         else
         {
-            // Update RxxI of current entry if it exists
+            // BEACON will never set RSSI, but may have RCPI and RSNI
+            // These fields, can't be set from a BEACON REPORT, so we ignore them later if updating an existing PROBE
+            // TODO: See if hostapd can send optional elements which might allow these to be set
+            entry->signal = 0;
+            entry->ht_capabilities = false; // that is very problematic!!!
+            entry->vht_capabilities = false; // that is very problematic!!!
+
+            // FIXME: Why is this?  To allow a 802.11k client to meet proe count check immediately?
+            entry->counter = dawn_metric.min_probe_count;
+
             dawn_mutex_lock(&probe_array_mutex);
 
+            // Update RxxI of current entry if it exists
             dawn_mutex_require(&probe_array_mutex);
-            probe_entry* entry_updated = probe_array_update_rcpi_rsni(entry->client_addr, entry->bssid_addr, entry->rcpi, entry->rsni, true);
+            probe_entry* entry_updated = insert_to_probe_array(entry, true, true, time(0));
 
-            if (entry_updated)
+            if (entry_updated != entry)
             {
                 dawnlog_info("Local BEACON used to update RCPI and RSNI for client / BSSID = " MACSTR " / " MACSTR " \n", MAC2STR(entry->client_addr.u8), MAC2STR(entry->bssid_addr.u8));
                 dawn_free(entry);
@@ -598,15 +639,12 @@ static int handle_beacon_rep(struct blob_attr *msg) {
             {
                 dawnlog_info("Local BEACON is for new client / BSSID = " MACSTR " / " MACSTR " \n", MAC2STR(entry->client_addr.u8), MAC2STR(entry->bssid_addr.u8));
 
-                // BEACON will never set RSSI, but may have RCPI and RSNI
                 dawn_mutex_require(&probe_array_mutex);
-                entry = insert_to_probe_array(entry, true, true, true, time(0));
-                ubus_send_probe_via_network(entry, true);
-
-                ret = 0;
             }
 
             dawn_mutex_unlock(&probe_array_mutex);
+
+            ret = 0;
         }
     }
 
@@ -1342,11 +1380,11 @@ int ubus_send_probe_via_network(struct probe_entry_s *probe_entry, bool is_beaco
     blobmsg_add_macaddr(&b, "bssid", probe_entry->bssid_addr);
     blobmsg_add_macaddr(&b, "address", probe_entry->client_addr);
     blobmsg_add_macaddr(&b, "target", probe_entry->target_addr);
+    blobmsg_add_u32(&b, "freq", probe_entry->freq);
 
     if (!is_beacon)
     {
         blobmsg_add_u32(&b, "signal", probe_entry->signal);
-        blobmsg_add_u32(&b, "freq", probe_entry->freq);
 
         blobmsg_add_u32(&b, "ht_capabilities", probe_entry->ht_capabilities);
         blobmsg_add_u32(&b, "vht_capabilities", probe_entry->vht_capabilities);

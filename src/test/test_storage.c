@@ -255,14 +255,14 @@ static int array_auto_helper(int action, int i0, int i1)
                 probe0->client_addr = this_mac;
                 probe0->bssid_addr = this_mac;
 
-                insert_to_probe_array(probe0, true, true, true, 0); // TODO: Check bool flags
+                insert_to_probe_array(probe0, true, true, 0); // TODO: Check bool flags
             }
             else if ((action & HELPER_ACTION_MASK) == HELPER_ACTION_STRESS) {
                 probe0 = dawn_malloc(sizeof(probe_entry));
                 set_random_mac(probe0->client_addr.u8);
                 set_random_mac(probe0->bssid_addr.u8);
 
-                insert_to_probe_array(probe0, true, true, true, faketime);
+                insert_to_probe_array(probe0, true, true, faketime);
                 remove_old_probe_entries(faketime, 10);
                 time_moves_on();
             }
@@ -826,7 +826,8 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 else if (!strncmp(fn, "freq=", 5)) load_u32(&pr0->freq, fn + 5);
                 else if (!strncmp(fn, "ht_cap=", 7)) load_u8(&pr0->ht_capabilities, fn + 7);
                 else if (!strncmp(fn, "vht_cap=", 8)) load_u8(&pr0->vht_capabilities, fn + 8);
-                else if (!strncmp(fn, "time=", 5)) load_time(&pr0->time, fn + 5);
+                else if (!strncmp(fn, "time=", 5)) load_time(&pr0->rssi_timestamp, fn + 5);
+                else if (!strncmp(fn, "time2=", 5)) load_time(&pr0->rcpi_timestamp, fn + 5);
                 else if (!strncmp(fn, "counter=", 8)) load_int(&pr0->counter, fn + 8);
                 else if (!strncmp(fn, "deny=", 5)) load_int(&pr0->deny_counter, fn + 5);
                 else if (!strncmp(fn, "max_rate=", 9)) load_u8(&pr0->max_supp_datarate, fn + 9);
@@ -867,7 +868,8 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                         pr0->freq = 0;
                         pr0->ht_capabilities = 0;
                         pr0->vht_capabilities = 0;
-                        pr0->time = faketime;
+                        pr0->rssi_timestamp = faketime;
+                        pr0->rcpi_timestamp = 0;
                         pr0->counter = 0;
                         pr0->deny_counter = 0;
                         pr0->max_supp_datarate = 0;
@@ -875,7 +877,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                         pr0->rcpi = 0;
                         pr0->rsni = 0;
 
-                        insert_to_probe_array(pr0, true, true, true, pr0->time);
+                        insert_to_probe_array(pr0, true, true, pr0->rssi_timestamp);
                     }
                 }
 
