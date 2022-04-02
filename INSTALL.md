@@ -147,4 +147,3 @@ kicking_threshold parameter.
 		    }
 	    }
     }
-

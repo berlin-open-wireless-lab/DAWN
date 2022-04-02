@@ -16,8 +16,6 @@ struct network_config_s network_config;
 struct time_config_s timeout_config;
 struct local_config_s local_config;
 
-#define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
-
 static client* client_array_get_client_for_bssid(struct dawn_mac bssid_mac, struct dawn_mac client_mac);
 
 static int compare_station_count(ap* ap_entry_own, ap* ap_entry_to_compare, struct dawn_mac client_addr);

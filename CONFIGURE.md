@@ -27,11 +27,11 @@ remove any items that are no longer used.  To do this:
     ubus call dawn reload_config
 
 The configuration file on the original DAWN instance should
-now have newly written sections containing only current parameter values. 
+now have newly written sections containing only current parameter values.
 You can also start two instances of DAWN with an empty configuration file
 then use this method to write the default configuration for the relevant
 sections.
-   
+
 ## What Can Be Configured?
 The parameters that control DAWN are listed alphabetically below.  This
 section describes how they are grouped to provide various features.
@@ -286,4 +286,3 @@ grep 'CONFIG-H:' `find . -type f -name "*.[ch]"`|sed 's/^.*CONFIG-.: *\(.*\)$/|\
 |Parameter|Purpose|Notes [Default is bracketed]|
 |---------|-------|-----|
 |hostapd_dir|Path to hostapd runtime information|[/var/run/hostapd]|
-

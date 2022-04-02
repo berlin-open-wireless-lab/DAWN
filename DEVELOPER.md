@@ -7,8 +7,7 @@ DAWN collects and shares information about the APs and clients in the
 network by using several standard components.  The below assumes it is
 running on an OpenWrt device.
 
-![OpenWrtInANuthshell](https://raw.githubusercontent.com/PolynomialDivision
-/upload_stuff/master/dawn_pictures/openwrt_in_a_nutshell_dawn.png)
+![OpenWrtInANuthshell](https://raw.githubusercontent.com/PolynomialDivision/upload_stuff/master/dawn_pictures/openwrt_in_a_nutshell_dawn.png)
 
 Information about capability of the AP and current clients is discovered
 via the hostapd and iwinfo.  The task to do this is scheduled by a timer.
@@ -105,7 +104,7 @@ Now you need to clone DAWN, e.g. into your home directory
 
 You must then add a symlink. In the OpenWrt branch do something like
 
-    ln -s ~/DAWN/.git/ ~openwrt/feeds/packages/net/dawn/git-src
+    ln -s ~/DAWN/.git/ ~/openwrt/feeds/packages/net/dawn/git-src
 
 Now compile dawn
 
@@ -179,4 +178,3 @@ algorithms to ensure that expected behaviour occurs.  At the time of
 writing a number of *.script files exist that can be passed to
 test_storage, but these haven't necessarily been maintained as the code
 has evolved from when they were originally written.
-

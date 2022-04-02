@@ -707,11 +707,11 @@ static int hostapd_notify(struct ubus_context* ctx_local, struct ubus_object* ob
 
     dawnlog_debug_func("Entering...");
 
-    if (dawnlog_showing(DAWNLOG_DEBUG))
+    if (dawnlog_showing(DAWNLOG_TRACE))
     {
         char* str = blobmsg_format_json(msg, true);
         dawn_regmem(str);
-        dawnlog_info("hostapd sent %s = %s\n", method, str);
+        dawnlog_trace("hostapd sent %s = %s\n", method, str);
         dawn_free(str);
         str = NULL;
     }
@@ -1572,7 +1572,15 @@ static int get_network(struct ubus_context *ctx_local, struct ubus_object *obj,
 
     blob_buf_init(&b, 0);
     dawn_regmem(&b);
+
+    dawn_mutex_lock(&ap_array_mutex);
+    dawn_mutex_lock(&client_array_mutex);
+
     build_network_overview(&b);
+
+    dawn_mutex_unlock(&client_array_mutex);
+    dawn_mutex_unlock(&ap_array_mutex);
+
     ret = ubus_send_reply(ctx_local, req, b.head);
     if (ret)
         dawnlog_error("Failed to send network overview: %s\n", ubus_strerror(ret));
@@ -2061,7 +2069,6 @@ int build_hearing_map_sort_client(struct blob_buf *b) {
 }
 
 
-// FIXME: Should we have more mutex protection while accessing these lists?
 int build_network_overview(struct blob_buf *b) {
     dawnlog_debug_func("Entering...");
 
