@@ -269,7 +269,7 @@ struct probe_metric_s uci_get_dawn_metric() {
         // CONFIG-G: chan_util_avg_period|Number of sampling periods to average channel utilization values over|[3]
         .chan_util_avg_period = 3,
         // CONFIG-G: duration|802.11k BEACON request DURATION parameter|[0]
-        .duration = 600,
+        .duration = 150,
         // CONFIG-G: rrm_mode|Preferred order for using Passive, Active or Table 802.11k BEACON information|[PAT] String of 'P', 'A' and / or 'T'
         .rrm_mode_mask = WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE |
                          WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE |
@@ -551,7 +551,7 @@ int uci_set_network(char* uci_cmd)
     {
         ret = uci_lookup_ptr(ctx, &ptr, uci_cmd, 1);
     }
-   
+
     if (ret == UCI_OK)
     {
         // Magic code to add unnamed section like 'config times' exactly once - no idea if this is quite right

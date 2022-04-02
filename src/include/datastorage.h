@@ -275,6 +275,7 @@ typedef struct ap_s {
 
 // ---------------- Global variables ----------------
 extern struct ap_s* ap_set;
+extern int ap_entry_last;
 extern pthread_mutex_t ap_array_mutex;
 
 extern struct client_s *client_set_bc;
@@ -338,7 +339,7 @@ ap *ap_array_get_ap(struct dawn_mac bssid_mac);
 int probe_array_set_all_probe_count(struct dawn_mac client_addr, uint32_t probe_count);
 
 //int ap_get_collision_count(int col_domain);
-void send_beacon_requests(ap *a, int id);
+void send_beacon_requests(ap* h, ap* a, int id);
 
 /* Utils */
 struct kicking_nr {
