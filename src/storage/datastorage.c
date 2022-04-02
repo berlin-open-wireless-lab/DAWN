@@ -568,14 +568,14 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
                     // <= 6MBits <- probably no transmission
                     // tx_rate has always some weird value so don't use ist
                     if (have_bandwidth_iwinfo && dawn_metric.bandwidth_threshold != 0 && rx_rate > dawn_metric.bandwidth_threshold) {
-                        dawnlog_info("Client " MACSTR ": Client is probably in active transmission. Don't kick! RxRate is: %f\n", MAC2STR(j->client_addr.u8), rx_rate);
+                        dawnlog_info("Client " MACSTR ": Don't kick due to active data transfer: RX rate %f exceeds %d limit\n", MAC2STR(j->client_addr.u8), rx_rate, dawn_metric.bandwidth_threshold);
                     }
                     else
                     {
-                        if (have_bandwidth_iwinfo)
-                            dawnlog_always("Client " MACSTR ": Kicking as probably NOT in active transmission. RxRate is: %f\n", MAC2STR(j->client_addr.u8), rx_rate);
+                        if (have_bandwidth_iwinfo && dawn_metric.bandwidth_threshold != 0)
+                            dawnlog_always("Client " MACSTR ": Kicking due to low active data transfer: RX rate %f below %d limit\n", MAC2STR(j->client_addr.u8), rx_rate, dawn_metric.bandwidth_threshold);
                         else
-                            dawnlog_always("Client " MACSTR ": Kicking as no active transmission data for client, but bandwidth_threshold=%d is OK.\n",
+                            dawnlog_always("Client " MACSTR ": Kicking as no active transmission data for client, and / or limit of %d is OK.\n",
                                 MAC2STR(j->client_addr.u8), dawn_metric.bandwidth_threshold);
 
                         print_client_entry(DAWNLOG_TRACE, j);
@@ -595,7 +595,7 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
                         //del_client_interface(id, client_array[j].client_addr, NO_MORE_STAS, 1, 1000);
                         if (kick_type == 1)
                         {
-                            int sync_kick = wnm_disassoc_imminent(id, j->client_addr, kick_nr_list, own_score + dawn_metric.kicking_threshold, 12);
+                            int sync_kick = wnm_disassoc_imminent(id, j->client_addr, kick_nr_list, own_score + dawn_metric.kicking_threshold, dawn_metric.duration);
 
                             if (!sync_kick)
                             {
@@ -607,9 +607,9 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
                                 add_client_update_timer(timeout_config.update_client * 1000 / 4);
                             }
                         }
-                        else
+                        else if (kick_type == 2)
                         {
-                            bss_transition_request(id, j->client_addr, kick_nr_list, 12);
+                            bss_transition_request(id, j->client_addr, kick_nr_list, dawn_metric.duration);
                         }
 
                         kicked_clients++;
