@@ -42,7 +42,7 @@ struct probe_head_s probe_set = { 0, 0, 4, NULL, NULL };
 pthread_mutex_t probe_array_mutex;
 
 struct ap_s *ap_set = NULL;
-static int ap_entry_last = 0;
+int ap_entry_last = 0;
 pthread_mutex_t ap_array_mutex;
 
 struct client_s* client_set_bc = NULL; // Ordered by BSSID + client MAC
@@ -162,17 +162,15 @@ struct mac_entry_s* mac_find_entry(struct dawn_mac mac)
     return ret;
 }
 
-void send_beacon_requests(ap *a, int id) {
-    dawn_mutex_require(&ap_array_mutex);
-    dawn_mutex_lock(&client_array_mutex);
-
+void send_beacon_requests(ap* target_ap, ap* host_ap, int sub_id) {
     dawnlog_debug_func("Entering...");
 
+    dawn_mutex_require(&client_array_mutex);
     // Seach for BSSID
-    client* i = *client_find_first_bc_entry(a->bssid_addr, dawn_mac_null, false);
+    client* i = *client_find_first_bc_entry(host_ap->bssid_addr, dawn_mac_null, false);
 
-    // Go through clients
-    while (i != NULL && mac_is_equal_bb(i->bssid_addr, a->bssid_addr)) {
+    // Go through clients to request BEACON
+    while (i != NULL && mac_is_equal_bb(i->bssid_addr, host_ap->bssid_addr)) {
         if (dawnlog_showing(DAWNLOG_DEBUG))
             dawnlog_debug("Client " MACSTR ": rrm_enabled_capa=%02x: PASSIVE=%d, ACTIVE=%d, TABLE=%d\n",
                 MAC2STR(i->client_addr.u8), i->rrm_enabled_capa,
@@ -180,13 +178,17 @@ void send_beacon_requests(ap *a, int id) {
                 !!(i->rrm_enabled_capa & WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE),
                 !!(i->rrm_enabled_capa & WLAN_RRM_CAPS_BEACON_REPORT_TABLE));
 
+        // Bitwise AND to check for overlap in RRM capabilities
         if (i->rrm_enabled_capa & dawn_metric.rrm_mode_mask)
-            ubus_send_beacon_request(i, a, id);
+        {
+            int ubus_status = ubus_send_beacon_request(i, target_ap, dawn_metric.duration, sub_id);
+            if (ubus_status)
+                dawnlog_warning("Client / BSSID = " MACSTR " / " MACSTR ": BEACON REQUEST failed",
+                    MAC2STR(i->client_addr.u8), MAC2STR(target_ap->bssid_addr.u8));
+        }
 
         i = i->next_entry_bc;
     }
-
-    dawn_mutex_unlock(&client_array_mutex);
 }
 
 int get_band(int freq) {
@@ -1409,9 +1411,9 @@ void print_client_array() {
 
 static void print_ap_entry(int level, ap *entry) {
     dawn_mutex_require(&ap_array_mutex);
-    if (dawnlog_showing(DAWNLOG_INFO))
+    if (dawnlog_showing(level))
     {
-        dawnlog_info("ssid: %s, bssid_addr: " MACSTR ", freq: %d, ht: %d, vht: %d, chan_utilz: %d, neighbor_report: %s\n",
+        dawnlog(level,"ssid: %s, bssid_addr: " MACSTR ", freq: %d, ht: %d, vht: %d, chan_utilz: %d, neighbor_report: %s\n",
             entry->ssid, MAC2STR(entry->bssid_addr.u8), entry->freq, entry->ht_support, entry->vht_support, entry->channel_utilization,
 	        //entry->collision_domain, ap_get_collision_count(entry->collision_domain), // TODO: Fix format string if readding
 	        entry->neighbor_report
@@ -1420,12 +1422,12 @@ static void print_ap_entry(int level, ap *entry) {
 }
 
 void print_ap_array() {
-    if (dawnlog_showing(DAWNLOG_DEBUG))
+    if (dawnlog_showing(DAWNLOG_TRACE))
     {
-        dawnlog_debug("--------APs------\n");
+        dawnlog_trace("--------APs------\n");
         dawn_mutex_require(&ap_array_mutex);
         for (ap* i = ap_set; i != NULL; i = i->next_ap) {
-            print_ap_entry(DAWNLOG_DEBUG, i);
+            print_ap_entry(DAWNLOG_TRACE, i);
         }
         dawnlog_debug("------------------\n");
     }

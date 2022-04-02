@@ -23,9 +23,11 @@ void ubus_set_nr_from_clients(struct kicking_nr* ap_list) {
 }
 
 
-void ubus_send_beacon_request(client *c, ap *a, int id)
+int ubus_send_beacon_request(client *c, ap *a, int d, int id)
 {
     printf("ubus_send_beacon_request() was called...\n");
+
+    return 0;
 }
 
 int send_set_probe(struct dawn_mac client_addr)

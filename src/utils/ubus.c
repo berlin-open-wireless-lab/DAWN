@@ -1003,11 +1003,11 @@ static int get_mode_from_capability(int capability) {
     return -1;
 }
 
-void ubus_send_beacon_request(client *c, ap *a, int id)
+int ubus_send_beacon_request(client *c, ap *a, int d, int id)
 {
+    dawnlog_debug_func("Entering...");
     dawn_mutex_require(&ap_array_mutex);
     struct blob_buf b = {0};
-    dawnlog_debug_func("Entering...");
 
     int timeout = 1;
 
@@ -1016,40 +1016,83 @@ void ubus_send_beacon_request(client *c, ap *a, int id)
     blobmsg_add_macaddr(&b, "addr", c->client_addr);
     blobmsg_add_u32(&b, "op_class", a->op_class);
     blobmsg_add_u32(&b, "channel", a->channel);
-    blobmsg_add_u32(&b, "duration", dawn_metric.duration);
+    blobmsg_add_u32(&b, "duration", d);
     blobmsg_add_u32(&b, "mode", get_mode_from_capability(c->rrm_enabled_capa));
+    blobmsg_add_macaddr(&b, "bssid", a->bssid_addr);
     blobmsg_add_string(&b, "ssid", (char*)a->ssid);
 
-    dawnlog_debug("Invoking beacon request!\n");
-    ubus_invoke(ctx, id, "rrm_beacon_req", b.head, NULL, NULL, timeout * 1000);
+    if (dawnlog_showing(DAWNLOG_TRACE))
+    {
+        char* str = blobmsg_format_json(b.head, true);
+        dawn_regmem(str);
+        dawnlog_debug("Invoking rrm_beacon_req: %s", str);
+        dawn_free(str);
+        str = NULL;
+    }
+
+    int ret = ubus_invoke(ctx, id, "rrm_beacon_req", b.head, NULL, NULL, timeout * 1000);
     blob_buf_free(&b);
     dawn_unregmem(&b);
+
+    return ret;
 }
 
 void update_beacon_reports(struct uloop_timeout *t) {
-    ap *a;
+static int target_ap = 0;
+dawnlog_debug_func("Entering (to target AP %d)...", target_ap);
 
-    dawnlog_debug_func("Entering...");
-
-    if(!timeout_config.update_beacon_reports) // if 0 just return
+    if (timeout_config.update_beacon_reports) // if 0 just return
     {
-        return;
-    }
-    dawnlog_debug("Sending beacon requests!\n");
-    struct hostapd_sock_entry *sub;
-    dawn_mutex_lock(&ap_array_mutex);
-
-    list_for_each_entry(sub, &hostapd_sock_list, list)
-    {
+        dawn_mutex_lock(&ap_array_mutex);
         dawn_mutex_require(&ap_array_mutex);
-        if (sub->subscribed && (a = ap_array_get_ap(sub->bssid_addr))) {
-            dawnlog_debug("Sending beacon request Sub!\n");
-            send_beacon_requests(a, sub->id);
-        }
-    }
 
-    dawn_mutex_unlock(&ap_array_mutex);
-    uloop_timeout_set(&beacon_reports_timer, timeout_config.update_beacon_reports * 1000);
+        // FIXME: We should make this the set of AP in the NR of local AP.  For now just use all AP...
+        ap* beacon_ap = ap_set;
+        int count_ap = target_ap;
+        while (count_ap-- > 0 && beacon_ap)
+        {
+            beacon_ap = beacon_ap->next_ap;
+        }
+
+        if (!beacon_ap)
+        {
+            target_ap = 0;
+            beacon_ap = ap_set;
+        }
+
+        if (beacon_ap)
+        {
+            target_ap++;
+
+            dawn_mutex_lock(&client_array_mutex);
+
+            // For each local AP providing same SSID, request BEACONS from each current client
+            struct hostapd_sock_entry* sub;
+            list_for_each_entry(sub, &hostapd_sock_list, list)
+            {
+                dawn_mutex_require(&ap_array_mutex);
+
+                if (sub->subscribed) {
+                    ap* host_ap = ap_array_get_ap(sub->bssid_addr);
+                    if (host_ap && strcmp((char*)host_ap->ssid, (char*)beacon_ap->ssid) == 0)
+                    {
+                        send_beacon_requests(beacon_ap, host_ap, sub->id);
+                    }
+                }
+            }
+
+            dawn_mutex_unlock(&client_array_mutex);
+        }
+
+        dawn_mutex_unlock(&ap_array_mutex);
+        int inter_ap_delay = timeout_config.update_beacon_reports;
+        inter_ap_delay *= 1000;
+
+        if (ap_entry_last > 1)
+            inter_ap_delay /= ap_entry_last;
+
+        uloop_timeout_set(&beacon_reports_timer, inter_ap_delay);
+    }
 }
 
 void update_tcp_connections(struct uloop_timeout *t) {
