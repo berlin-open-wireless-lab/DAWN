@@ -1124,7 +1124,9 @@ int wnm_disassoc_imminent(uint32_t id, const struct dawn_mac client_addr, struct
     blob_buf_init(&b, 0);
     dawn_regmem(&b);
     blobmsg_add_macaddr(&b, "addr", client_addr);
-    blobmsg_add_u32(&b, "duration", duration);
+    blobmsg_add_u8(&b, "disassociation_imminent", 1);
+    blobmsg_add_u32(&b, "disassociation_timer", duration);
+    blobmsg_add_u32(&b, "validity_period", duration);
     blobmsg_add_u8(&b, "abridged", 1); // prefer aps in neighborlist
 
     void* nbs = blobmsg_open_array(&b, "neighbors");
@@ -1139,7 +1141,7 @@ int wnm_disassoc_imminent(uint32_t id, const struct dawn_mac client_addr, struct
     {
         if (sub->subscribed) {
             int timeout = 1; //TDO: Maybe ID is wrong?! OR CHECK HERE ID
-            ubus_invoke(ctx, id, "wnm_disassoc_imminent", b.head, NULL, NULL, timeout * 1000);
+            ubus_invoke(ctx, id, "bss_transition_request", b.head, NULL, NULL, timeout * 1000);
         }
     }
 
