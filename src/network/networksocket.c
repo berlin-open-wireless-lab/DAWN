@@ -70,11 +70,6 @@ void *receive_msg(void *args) {
             continue;
         }
 
-        // TODO: recv_string is a fixed array.  Should test be here?
-        if (recv_string == NULL) {
-            return 0;
-        }
-
         if (strlen(recv_string) <= 0) {
             return 0;
         }
@@ -91,11 +86,6 @@ void *receive_msg_enc(void *args) {
                      recvfrom(sock, recv_string, MAX_RECV_STRING, 0, NULL, 0)) < 0) {
             dawnlog_error("Could not receive message!\n");
             continue;
-        }
-
-        // TODO: recv_string is a fixed array.  Should test be here?
-        if (recv_string == NULL) {
-            return 0;
         }
 
         if (strlen(recv_string) <= 0) {

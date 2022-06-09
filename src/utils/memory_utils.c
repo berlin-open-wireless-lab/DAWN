@@ -33,7 +33,7 @@ void* ret = NULL;
     case DAWN_REALLOC:
         ret = realloc(ptr, size);
         if (ret != NULL)
-          dawn_memory_unregister(DAWN_REALLOC, file, line, ptr);
+          dawn_memory_unregister(DAWN_REALLOC, file, line, ret);
         break;
     case DAWN_CALLOC:
         ret = calloc(nmemb, size);
