@@ -33,7 +33,21 @@ void* ret = NULL;
     case DAWN_REALLOC:
         ret = realloc(ptr, size);
         if (ret != NULL)
-          dawn_memory_unregister(DAWN_REALLOC, file, line, ret);
+/*
+GCC v12 has a new Wuse-after-free error. We can not unregister 
+the memory before doing a reallocation. The call can fail, so
+ptr is never freed. However, the warning can be ignored, since
+ptr is only used in the unregister function as a reference to
+remove it from our memory auditing.
+*/
+#if (__GNUC__ >= 12)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wuse-after-free"
+            dawn_memory_unregister(DAWN_REALLOC, file, line, ptr);
+#pragma GCC diagnostic pop
+#else
+            dawn_memory_unregister(DAWN_REALLOC, file, line, ptr);
+#endif
         break;
     case DAWN_CALLOC:
         ret = calloc(nmemb, size);
