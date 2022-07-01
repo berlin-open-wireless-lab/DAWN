@@ -75,7 +75,7 @@ client should be moved.  The score includes several factors:
 This is enabled if the `kicking` parameter is set to 2 or 3.
 
 This is a simpler method where DAWN simply looks at the current RSSI radio
-signal strength for the client device.  If it is below the `rssi_centre`
+signal strength for the client device.  If it is below the `rssi_center`
 value then a "soft" kick is done, which asks the device to look at other APs
 but does not enforce this through a disconnection. Forced disconnection would be disruptive to legacy clients that may not be able to find a suitable AP to
 connect to.
@@ -131,7 +131,7 @@ three "zones" of RSSI score, which may be sufficient for many cases.  To
 disable this mode set both increment values to zero.
 
 Mechanism 2 is "graduated".  For each dB that the RSSI signal differs from
-the `rssi_centre` value the increment `rssi_weight` is applied.  This can
+the `rssi_center` value the increment `rssi_weight` is applied.  This can
 provide a more refined score, but may require more effort to get the
 parameters optimised.  To disable this mode set the increment value to
 zero.
