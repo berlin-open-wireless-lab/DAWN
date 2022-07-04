@@ -244,7 +244,7 @@ grep 'CONFIG-L:' `find . -type f -name "*.[ch]"`|sed 's/^.*CONFIG-.: *\(.*\)$/|\
 -->
 |Parameter|Purpose|Notes [Default is bracketed]|
 |---------|-------|-----|
-|loglevel|Verbosity of messages in syslog|[0 = Important only - very few messages]; 1 = Show what DAWN is processing in a user friendly way; 2 = Trace certain operations - for debugging; 3 = Broad low level tracing - for debugging|
+|loglevel|Verbosity of messages in syslog|[0 = Deeper tracing to fix bugs - for debugging]; 1 = More info to help trace where algorithms may be going wrong - for debugging; 2 = Reporting on standard behaviour; 3 = Standard behaviour always worth reporting; 4 = Something appears wrong, but recoverable; 5 = Serious malfunction / unexpected behaviour|
 
 
 ## Timing / Scheduling Parameters
