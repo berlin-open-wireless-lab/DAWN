@@ -2000,8 +2000,9 @@ int build_hearing_map_sort_client(struct blob_buf *b) {
         }
 
         // Find the client if it is actually connected somewhere...
-        dawn_mutex_require(&client_array_mutex);
+        dawn_mutex_lock(&client_array_mutex);
         client* this_client = client_array_get_client(this_entry->k->client_addr);
+        dawn_mutex_unlock(&client_array_mutex);
 
         // Add the probe details
         char ap_mac_buf[20];
