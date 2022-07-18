@@ -2236,7 +2236,7 @@ int ap_get_nr(struct blob_buf* b_local, struct dawn_mac own_bssid_addr, const ch
         for (struct mac_entry_s* n = preferred_list; n; n = n->next_mac) {
             dawn_mutex_require(&ap_array_mutex);
             ap* j = ap_array_get_ap(n->mac);
-            if (j)
+            if (j && !strncmp((char*)j->ssid, ssid, SSID_MAX_LEN))
                 blobmsg_add_nr(b_local, j);
         }
 
