@@ -79,7 +79,7 @@ struct time_config_s uci_get_time_config() {
         .update_tcp_con = 10,
         .update_chan_util = 5,
         .update_beacon_reports = 20,
-        .client_timeout = 60,
+        .con_timeout = 60,
     };
 
     dawnlog_debug_func("Entering...");
@@ -106,8 +106,8 @@ struct time_config_s uci_get_time_config() {
             DAWN_SET_CONFIG_TIME(ret, s, update_chan_util);
             //CONFIG-T: update_beacon_reports|Timer to ask all connected clients for a new BEACON REPORT|[20]
             DAWN_SET_CONFIG_TIME(ret, s, update_beacon_reports);
-            //CONFIG-T: client_timeout|Timespan to check if a client timed out|[60]
-            DAWN_SET_CONFIG_TIME(ret, s, client_timeout);
+            //CONFIG-T: con_timeout|Timespan to check if a connection timed out|[60]
+            DAWN_SET_CONFIG_TIME(ret, s, con_timeout);
             return ret;
         }
     }

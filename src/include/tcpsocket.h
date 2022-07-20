@@ -5,7 +5,7 @@
 #include <netinet/in.h>
 
 #define ARRAY_NETWORK_LEN 50
-#define CHECK_CLIENT_TIMEOUT 5
+#define CHECK_TIMEOUT 10
 
 struct network_con_s {
     struct list_head list;
@@ -14,6 +14,7 @@ struct network_con_s {
     struct ustream_fd stream;
     struct sockaddr_in sock_addr;
     int connected;
+    time_t time_alive;
 };
 
 /**
@@ -38,9 +39,14 @@ int run_server(int port);
 void send_tcp(char *msg);
 
 /**
- * Check sockets for client timeouts.
+ * Send ping to clients
  */
-void check_client_timeout(int timeout);
+void server_to_clients_ping(void);
+
+/**
+ * Check sockets timeouts.
+ */
+void check_timeout(int timeout);
 
 /**
  * Debug message.
