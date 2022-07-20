@@ -656,7 +656,7 @@ enum {
     UCI_UPDATE_TCP_CON,
     UCI_UPDATE_CHAN_UTIL,
     UCI_UPDATE_BEACON_REPORTS,
-    UCI_CLIENT_TIMEOUT,
+    UCI_CON_TIMEOUT,
     __UCI_TIMES_MAX,
 };
 
@@ -714,7 +714,7 @@ static const struct blobmsg_policy uci_times_policy[__UCI_TIMES_MAX] = {
         [UCI_UPDATE_TCP_CON] = {.name = "update_tcp_con", .type = BLOBMSG_TYPE_INT32},
         [UCI_UPDATE_CHAN_UTIL] = {.name = "update_chan_util", .type = BLOBMSG_TYPE_INT32},
         [UCI_UPDATE_BEACON_REPORTS] = {.name = "update_beacon_reports", .type = BLOBMSG_TYPE_INT32},
-        [UCI_CLIENT_TIMEOUT] = {.name = "client_timeout", .type = BLOBMSG_TYPE_INT32},
+        [UCI_CON_TIMEOUT] = {.name = "con_timeout", .type = BLOBMSG_TYPE_INT32},
 };
 
 static void set_uci_item(char* m, struct blob_attr* a)
@@ -897,7 +897,7 @@ static int handle_uci_config(struct blob_attr* msg) {
 
     set_uci_item("dawn.@times[0].update_beacon_reports=%d", tb_times[UCI_UPDATE_BEACON_REPORTS]);
 
-    set_uci_item("dawn.@times[0].client_timeout=%d", tb_times[UCI_CLIENT_TIMEOUT]);
+    set_uci_item("dawn.@times[0].con_timeout=%d", tb_times[UCI_CON_TIMEOUT]);
 
     uci_reset();
     dawn_metric = uci_get_dawn_metric();

@@ -263,7 +263,7 @@ grep 'CONFIG-T:' `find . -type f -name "*.[ch]"`|sed 's/^.*CONFIG-.: *\(.*\)$/|\
 -->
 |Parameter|Purpose|Notes [Default is bracketed]|
 |---------|-------|-----|
-|client_timeout|Timespan until a client is seen as disconnected|[60]|
+|con_timeout|Timespan until a connection is seen as disconnected|[60]|
 |remove_ap|Timer to remove expired AP entries from core data set|[460]|
 |remove_client|Timer to remove expired client entries from core data set|[15]|
 |remove_probe|Timer to remove expired PROBE and BEACON entries from core data set|[30]|
