@@ -109,6 +109,7 @@ struct time_config_s {
     time_t update_tcp_con; // Refresh network connections
     time_t update_chan_util; // Refresh per radio / SSID channel util info
     time_t update_beacon_reports; // Request BEACON from capable clients
+    time_t client_timeout; // Check for client timeouts.
 };
 
 struct local_config_s {
