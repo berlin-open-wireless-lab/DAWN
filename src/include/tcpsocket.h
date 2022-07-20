@@ -5,6 +5,7 @@
 #include <netinet/in.h>
 
 #define ARRAY_NETWORK_LEN 50
+#define CHECK_CLIENT_TIMEOUT 5
 
 struct network_con_s {
     struct list_head list;
@@ -35,6 +36,11 @@ int run_server(int port);
  * @param msg
  */
 void send_tcp(char *msg);
+
+/**
+ * Check sockets for client timeouts.
+ */
+void check_client_timeout(int timeout);
 
 /**
  * Debug message.

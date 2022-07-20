@@ -23,6 +23,8 @@ void update_clients(struct uloop_timeout *t);
 
 void update_tcp_connections(struct uloop_timeout *t);
 
+void check_client_timeouts(struct uloop_timeout *t);
+
 void update_channel_utilization(struct uloop_timeout *t);
 
 void run_server_update(struct uloop_timeout *t);
@@ -37,6 +39,9 @@ struct uloop_timeout hostapd_timer = {
 };
 struct uloop_timeout tcp_con_timer = {
         .cb = update_tcp_connections
+};
+struct uloop_timeout client_timeout_timer = {
+        .cb = check_client_timeouts
 };
 struct uloop_timeout channel_utilization_timer = {
         .cb = update_channel_utilization
@@ -1148,11 +1153,20 @@ void update_tcp_connections(struct uloop_timeout *t) {
     uloop_timeout_set(&tcp_con_timer, timeout_config.update_tcp_con * 1000);
 }
 
+void check_client_timeouts(struct uloop_timeout *t) {
+    dawnlog_debug_func("Entering...");
+
+    check_client_timeout(timeout_config.client_timeout);
+
+    uloop_timeout_set(&client_timeout_timer, CHECK_CLIENT_TIMEOUT * 1000);
+}
+
 void start_tcp_con_update() {
     dawnlog_debug_func("Entering...");
 
     // update connections
     uloop_timeout_add(&tcp_con_timer); // callback = update_tcp_connections
+    uloop_timeout_add(&client_timeout_timer); // callback = client_timeout
 }
 
 void update_hostapd_sockets(struct uloop_timeout *t) {
@@ -1888,6 +1902,7 @@ int uci_send_via_network()
     blobmsg_add_u32(&b, "update_tcp_con", timeout_config.update_tcp_con);
     blobmsg_add_u32(&b, "update_chan_util", timeout_config.update_chan_util);
     blobmsg_add_u32(&b, "update_beacon_reports", timeout_config.update_beacon_reports);
+    blobmsg_add_u32(&b, "client_timeout", timeout_config.client_timeout);
     blobmsg_close_table(&b, times);
 
     send_blob_attr_via_network(b.head, "uci");

@@ -14,6 +14,7 @@
 #define HEADER_SIZE sizeof(uint32_t)
 
 LIST_HEAD(tcp_sock_list);
+LIST_HEAD(cli_list);
 
 struct network_con_s *tcp_list_contains_address(struct sockaddr_in entry);
 
@@ -27,6 +28,7 @@ enum socket_read_status {
 };
 
 struct client {
+    struct list_head list;
     struct sockaddr_in sin;
 
     struct ustream_fd s;
@@ -36,6 +38,7 @@ struct client {
     enum socket_read_status state; // messge read state
     uint32_t final_len; // full message length
     uint32_t curr_len; // bytes read so far
+    time_t time_alive;
 };
 
 
@@ -48,6 +51,7 @@ static void client_close(struct ustream *s) {
     ustream_free(s);
     dawn_unregmem(s);
     close(cl->s.fd.fd);
+    list_del(&cl->list);
     dawn_free(cl);
     cl = NULL;
 }
@@ -199,6 +203,7 @@ static void client_read_cb(struct ustream *s, int bytes) {
             cl->final_len = 0;
             dawn_free(cl->str);
             cl->str = NULL;
+            cl->time_alive = time(0);
         }
     }
 
@@ -228,6 +233,8 @@ static void server_cb(struct uloop_fd *fd, unsigned int events) {
     cl->s.stream.notify_read = client_read_cb;
     cl->s.stream.notify_state = client_notify_state;
     cl->s.stream.notify_write = client_notify_write;
+    cl->time_alive = time(0);
+    list_add(&cl->list, &cli_list);
     ustream_fd_init(&cl->s, sfd);
     dawn_regmem(&cl->s);
     next_client = NULL;  // TODO: Why is this here?  To avoid resetting if above return happens?
@@ -419,6 +426,18 @@ void send_tcp(char *msg) {
         }
         dawn_free(final_str);
         final_str = NULL;
+    }
+}
+
+void check_client_timeout(int timeout) {
+    struct client *cl, *tmp;
+    time_t now = time(0);
+    list_for_each_entry_safe(cl, tmp, &cli_list, list)
+    {
+        if (now - cl->time_alive > timeout || now - cl->time_alive < -timeout) {
+            dawnlog_debug("Ustream client_close: timeout=%d\n", (int)(now - cl->time_alive));
+            client_close(&cl->s.stream);
+        }
     }
 }
 
