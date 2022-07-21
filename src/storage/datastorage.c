@@ -1004,7 +1004,6 @@ static __inline__ ap* ap_array_unlink_entry(ap** i)
 {
     ap* entry = *i;
     *i = entry->next_ap;
-    entry = NULL;
     ap_entry_last--;
 
     return entry;
