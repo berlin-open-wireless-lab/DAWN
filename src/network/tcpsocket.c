@@ -190,6 +190,7 @@ static void client_read_cb(struct ustream *s, int bytes) {
 
             /* received pong */
             if (cl->final_len == HEADER_SIZE + PONG_SIZE && memcmp(cl->str + HEADER_SIZE, PONG_STR, PONG_SIZE) == 0) {
+                dawnlog_info("Server: received pong from %s:%u, now=%d\n", inet_ntoa(cl->sin.sin_addr), ntohs(cl->sin.sin_port), (int)time(0));
                 goto process_done;
             }
 
@@ -288,6 +289,7 @@ static void client_ping_read_cb(struct ustream *s, int bytes) {
         char final_str[HEADER_SIZE + PONG_SIZE];
         uint32_t *msg_header = (uint32_t *)final_str;
 
+        dawnlog_info("Client: received ping from %s:%u, now=%d\n", inet_ntoa(con->sock_addr.sin_addr), ntohs(con->sock_addr.sin_port), (int)time(0));
         con->time_alive = time(0);
 
         *msg_header = htonl(final_len);
@@ -504,7 +506,7 @@ void check_timeout(int timeout) {
         list_for_each_entry_safe(cl, tmp, &cli_list, list)
         {
             if (now - cl->time_alive > timeout || now - cl->time_alive < -timeout) {
-                dawnlog_info("server: close client connection! timeout=%d\n", (int)(now - cl->time_alive));
+                dawnlog_info("Client: close client connection! timeout=%d\n", (int)(now - cl->time_alive));
                 client_close(&cl->s.stream);
             }
         }
@@ -513,10 +515,10 @@ void check_timeout(int timeout) {
     do {
         struct network_con_s *con, *tmp;
         time_t now = time(0);
-        list_for_each_entry_safe(con, tmp, &cli_list, list)
+        list_for_each_entry_safe(con, tmp, &tcp_sock_list, list)
         {
             if (now - con->time_alive > timeout || now - con->time_alive < -timeout) {
-                dawnlog_info("client: close client_to_server connection! timeout=%d\n", (int)(now - con->time_alive));
+                dawnlog_info("Server: close client_to_server connection! timeout=%d\n", (int)(now - con->time_alive));
                 ustream_free(&con->stream.stream);
                 dawn_unregmem(&con->stream.stream);
                 close(con->fd.fd);
