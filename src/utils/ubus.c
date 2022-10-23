@@ -212,7 +212,7 @@ static int get_network(struct ubus_context *ctx_local, struct ubus_object *obj,
                        struct ubus_request_data *req, const char *method,
                        struct blob_attr *msg);
 
-static void ubus_add_oject();
+static void ubus_add_dawn_object();
 
 static void respond_to_notify(uint32_t id);
 
@@ -795,7 +795,7 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
     if(timeout_config.update_beacon_reports) // allow setting timeout to 0
         uloop_timeout_add(&beacon_reports_timer); // callback = update_beacon_reports
 
-    ubus_add_oject();
+    ubus_add_dawn_object();
 
     if (network_config.network_option == 2
         || network_config.network_option == 3)
@@ -1618,7 +1618,7 @@ static int get_network(struct ubus_context *ctx_local, struct ubus_object *obj,
     return 0;
 }
 
-static void ubus_add_oject() {
+static void ubus_add_dawn_object() {
     int ret;
 
     dawnlog_debug_func("Entering...");
