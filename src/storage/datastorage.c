@@ -1332,8 +1332,8 @@ void insert_macs_from_file() {
         }
     }
 
-    fclose(fp);
     dawn_unregmem(fp);
+    fclose(fp);
     if (line)
     {
         free(line);
