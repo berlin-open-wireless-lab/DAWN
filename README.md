@@ -7,9 +7,9 @@ aka "wifi router") that will give good network throughput.  This reduces
 wastage of radio capacity due to weak / distant radio connections that
 cause transmission retry, degradation of speed, etc.
 
-Decentralised means that DAWN is a peer-peer network of instances - there
+Decentralized means that DAWN is a peer-peer network of instances - there
 is no controlling "master" node.  Every instance of DAWN will find its
-peers via uMDNS (aka Bonjour) network discovery.   Further DAWN instances
+peers via uMDNS (aka Bonjour) network discovery. Further DAWN instances
 can therefore be added without explicit configuration of the whole
 network, reducing network maintenance overhead.
 
@@ -18,7 +18,7 @@ network, reducing network maintenance overhead.
 Installing DAWN is quite simple.  The TL;DR version for anyone not wanting
 to read the [installation guide](INSTALL.md) is:
 
-- Install DAWN on each AP that you want to be a part of the optimisation
+- Install DAWN on each AP that you want to be a part of the optimization
 network
 - **Be sure to install a full wpad-\* version and not wpad-basic**
 - Be sure to configure extender routers as "dumb AP"
