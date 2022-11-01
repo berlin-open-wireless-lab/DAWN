@@ -42,7 +42,7 @@ AP.  This is enabled via the `kicking` parameter.  If it is zero you will
 see no devices being moved, but can use the log messages to see what would
 happen.
 
-See the following secions for details of the two main ways that DAWN may
+See the following sections for details of the two main ways that DAWN may
 decide to move a client device. If both methods are enabled RSSI Comparison
 is evaluated first, and if it identifies a better target AP then the Absolute
 RSSI method is not used.
@@ -104,8 +104,8 @@ during the PROBE / ASSOCIATE / AUTHENTICATE process by returning status
 codes that indicate errors or unwillingness to accept.  It can also force
 disconnection of a connected client by "tearing down" the connection,
 however this is quite brutal as the client then must start a search for a
-new AP, and it may just want to come back to the same AP.  If DAWN
-continues to try to not accept the client it is effectively denied wifi
+new AP, and it may just want to come back to the same AP. If DAWN
+continues to try to not accept the client it is effectively denied WiFi
 access.
 
 If you enable this legacy client behaviour via parameters indicated then
@@ -158,12 +158,12 @@ grep 'CONFIG-G:' `find . -type f -name "*.[ch]"`| sed 's/^.*CONFIG-.: *\(.*\)$/|
 |eval_assoc_req|Control whether ASSOCIATION frames are evaluated for rejection|[0 = No evaluation]; 1 = Evaluated. See Note 1.|
 |eval_auth_req|Control whether AUTHENTICATION frames are evaluated for rejection|[0 = No evaluation]; 1 = Evaluated. See Note 1.|
 |eval_probe_req|Control whether PROBE frames are evaluated for rejection|[0 = No evaluation]; 1 = Evaluated. See Note 1.|
-|kicking|Method to select clients to move to better AP|0 = Disabled; 1 = RSSI Comparison; 2 = Absolute RSSI; [3 = Both] See note 1.|
+|kicking|Method to select clients to move to better AP|0 = Disabled; 1 = RSSI Comparison; 2 = Absolute RSSI; [3 = Both]. See note 1.|
 |kicking_threshold|Minimum score difference to consider kicking to alternate AP|[20]|
 |max_station_diff|Number of connected stations to consider "better" for use_station_count|[1]|
 |min_number_to_kick|Number of consecutive times a client should be evaluated as ready to kick before actually doing it|[3]|
 |min_probe_count|Number of times a client should retry PROBE before acceptance| [3] See Note 1.|
-|neighbors|Space seperated list of MACS to use in "static" AP Neighbor Report| None|
+|neighbors|Space separated list of MACS to use in "static" AP Neighbor Report| None|
 |rrm_mode|Preferred order for using Passive, Active or Table 802.11k BEACON information|[PAT] String of 'P', 'A' and / or 'T'|
 |set_hostapd_nr|Method used to set Neighbor Report on AP|[0 = Disabled]; 1 = "Static" based on all APs in network (plus set from configuration); 2 = "Dynamic" based on next nearest AP seen by current clients|
 |use_station_count|Compare connected station counts when considering kicking|[0 = Disabled]; 1 = Enabled|
@@ -191,11 +191,11 @@ grep 'CONFIG-B:' `find . -type f -name "*.[ch]"`| sed 's/^.*CONFIG-.: *\(.*\)$/|
 |low_rssi_val|Threshold for bad RSSI|[-80] See note 2.|
 |max_chan_util|Score increment if channel utilization is above max_chan_util_val|[-15]|
 |max_chan_util_val|Lower threshold for bad channel utilization|[170]|
-|no_ht_support|Score incrment if HT is not supported|[0] (Deprecated)|
-|no_vht_support|Score incrment if VHT is not supported|[0] (Deprecated)|
+|no_ht_support|Score increment if HT is not supported|[0] (Deprecated)|
+|no_vht_support|Score increment if VHT is not supported|[0] (Deprecated)|
 |rssi_center|Midpoint for weighted RSSI evaluation|[-70] See note 2.|
 |rssi|Score addition when signal exceeds threshold|[15] See note 2.|
-|rssi_val|Threshold for an good RSSI|[-60] See note 2.|
+|rssi_val|Threshold for a good RSSI|[-60] See note 2.|
 |rssi_weight|Per dB increment for weighted RSSI evaluation|[0] See note 2.|
 |vht_support|Score increment if VHT is supported|[5]|
 
@@ -268,7 +268,7 @@ grep 'CONFIG-T:' `find . -type f -name "*.[ch]"`|sed 's/^.*CONFIG-.: *\(.*\)$/|\
 |remove_client|Timer to remove expired client entries from core data set|[15]|
 |remove_probe|Timer to remove expired PROBE and BEACON entries from core data set|[30]|
 |update_beacon_reports|Timer to ask all connected clients for a new BEACON REPORT|[20]|
-|update_chan_util|Timer to get recent channel utilisation figure for each local BSSID|[5]|
+|update_chan_util|Timer to get recent channel utilization figure for each local BSSID|[5]|
 |update_client|Timer to refresh local connection information and send revised NEIGHBOR REPORT to all clients|[10]|
 |update_hostapd|Timer to (re-)register for hostapd messages for each local BSSID|[10]|
 |update_tcp_con|Timer to refresh / remove the TCP connections to other DAWN instances found via uMDNS|[10]|
