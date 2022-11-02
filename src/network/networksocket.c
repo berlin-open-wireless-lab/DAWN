@@ -148,7 +148,7 @@ int send_string(char *msg, bool is_enc) {
         }
 
         size_t b64_max_len = B64_ENCODE_LEN(gcrypt_len);
-        char* final_msg = dawn_malloc(b64_max_len);
+        final_msg = dawn_malloc(b64_max_len);
         if (!final_msg) {
             dawnlog_error("sendto() error: not enough memory\n");
             dawn_free(gcrypt_buf);
