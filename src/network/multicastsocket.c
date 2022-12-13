@@ -45,7 +45,7 @@ int setup_multicast_socket(const char *_multicast_ip, unsigned short _multicast_
     }
 
     // allow broadcast
-    loop = 1;
+    loop = 0;
     if (setsockopt(sock,
                    IPPROTO_IP,
                    IP_MULTICAST_LOOP,
