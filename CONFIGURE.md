@@ -221,13 +221,13 @@ grep 'CONFIG-N:' `find . -type f -name "*.[ch]"`|sed 's/^.*CONFIG-.: *\(.*\)$/|\
 |---------|-------|-----|
 |bandwidth|Unused|N/A|
 |broadcast_ip|IP address for broadcast and multicast|No default|
-|broadcast_port|IP port for broadcast and multicast|[1026]|
+|broadcast_port|IP port for broadcast and multicast|[1025]|
 |collision_domain|Unused|N/A|
 |iv|Unused|N/A|
 |network_option|Method of networking between DAWN instances|0 = Broadcast; 2 = Multicast; [2 = TCP with UMDNS discovery]; 3 = TCP w/out UMDNS discovery|
 |server_ip|IP address when not using UMDNS|No default|
 |shared_key|Unused|N/A|
-|tcp_port|Port for TCP networking|[1025]|
+|tcp_port|Port for TCP networking|[1026]|
 |use_symm_enc|Enable encryption of network traffic|[0 = Disabled]; 1 = Enabled|
 
 
