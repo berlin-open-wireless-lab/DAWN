@@ -802,7 +802,7 @@ int dawn_init_ubus(const char *ubus_socket, const char *hostapd_dir) {
         || network_config.network_option == 3)
     {
         start_tcp_con_update();
-        if(run_server(network_config.tcp_port))
+        if(run_server(network_config.tcp_ip, network_config.tcp_port))
             uloop_timeout_set(&usock_timer, 1 * 1000);
     }
 
@@ -1009,7 +1009,7 @@ void update_clients(struct uloop_timeout *t) {
 void run_server_update(struct uloop_timeout *t) {
     dawnlog_debug_func("Entering...");
 
-    if(run_server(network_config.tcp_port))
+    if(run_server(network_config.tcp_ip, network_config.tcp_port))
         uloop_timeout_set(&usock_timer, 1 * 1000);
 }
 

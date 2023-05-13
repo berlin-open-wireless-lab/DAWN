@@ -30,7 +30,7 @@ int add_tcp_connection(char *ipv4, int port);
  * @param port
  * @return
  */
-int run_server(int port);
+int run_server(char *ipv4, int port);
 
 /**
  * Send message via tcp to all other hosts.

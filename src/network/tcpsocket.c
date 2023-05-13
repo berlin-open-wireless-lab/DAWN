@@ -247,13 +247,13 @@ static void server_cb(struct uloop_fd *fd, unsigned int events) {
     dawnlog_info("New connection\n");
 }
 
-int run_server(int port) {
+int run_server(char *ipv4, int port) {
     dawnlog_debug("Adding socket!\n");
     char port_str[12];
     sprintf(port_str, "%d", port); // TODO: Manage buffer length
 
     server.cb = server_cb;
-    server.fd = usock(USOCK_TCP | USOCK_SERVER | USOCK_IPV4ONLY | USOCK_NUMERIC, INADDR_ANY, port_str);
+    server.fd = usock(USOCK_TCP | USOCK_SERVER | USOCK_IPV4ONLY | USOCK_NUMERIC, ipv4, port_str);
     if (server.fd < 0) {
         dawnlog_perror("usock");
         return 1;
