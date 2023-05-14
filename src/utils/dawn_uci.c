@@ -382,6 +382,7 @@ struct network_config_s uci_get_dawn_network() {
         .broadcast_ip = "",
         .broadcast_port = 1025,
         .server_ip = "",
+        .tcp_ip = "0.0.0.0",
         .tcp_port = 1026,
         .network_option = 2,
         .shared_key = "Niiiiiiiiiiiiiik",
@@ -424,6 +425,10 @@ struct network_config_s uci_get_dawn_network() {
 
             // CONFIG-N: network_option|Method of networking between DAWN instances|0 = Broadcast; 2 = Multicast; [2 = TCP with UMDNS discovery]; 3 = TCP w/out UMDNS discovery
             DAWN_SET_CONFIG_INT(ret, s, network_option);
+            // CONFIG-N: tcp_ip|IP address for TCP networking|[0.0.0.0]
+            const char* str_tcp_ip = uci_lookup_option_string(uci_ctx, s, "tcp_ip");
+            if (str_tcp_ip)
+                strncpy(ret.tcp_ip, str_tcp_ip, MAX_IP_LENGTH);
             // CONFIG-N: tcp_port|Port for TCP networking|[1025]
             DAWN_SET_CONFIG_INT(ret, s, tcp_port);
             // CONFIG-N: use_symm_enc|Enable encryption of network traffic|[0 = Disabled]; 1 = Enabled

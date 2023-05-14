@@ -227,6 +227,7 @@ grep 'CONFIG-N:' `find . -type f -name "*.[ch]"`|sed 's/^.*CONFIG-.: *\(.*\)$/|\
 |network_option|Method of networking between DAWN instances|0 = Broadcast; 2 = Multicast; [2 = TCP with UMDNS discovery]; 3 = TCP w/out UMDNS discovery|
 |server_ip|IP address when not using UMDNS|No default|
 |shared_key|Unused|N/A|
+|tcp_ip|IP address for TCP networking|[0.0.0.0]|
 |tcp_port|Port for TCP networking|[1026]|
 |use_symm_enc|Enable encryption of network traffic|[0 = Disabled]; 1 = Enabled|
 
