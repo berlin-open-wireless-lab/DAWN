@@ -484,6 +484,7 @@ static int handle_assoc_req(struct blob_attr *msg) {
             // block if entry was not already found in probe database
             if (own_probe == NULL) {
                 dawnlog_trace(MACSTR " Deny association due to no probe entry found", MAC2STR(assoc_req->client_addr.u8));
+                ret = dawn_metric.deny_assoc_reason;
             }
             else if (own_probe->counter < dawn_metric.min_probe_count) {
                 dawnlog_trace(MACSTR " Deny association due to low probe count", MAC2STR(assoc_req->client_addr.u8));
