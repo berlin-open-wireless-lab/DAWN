@@ -571,7 +571,7 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
                     else
                     {
                         if (have_bandwidth_iwinfo && dawn_metric.bandwidth_threshold != 0)
-                            dawnlog_always("Client " MACSTR ": Kicking due to low active data transfer: RX rate %f below %d limit\n", MAC2STR(j->client_addr.u8), rx_rate, dawn_metric.bandwidth_threshold);
+                            dawnlog_always("Client " MACSTR ": Kicking due to low active data transfer: RX rate %f is at or below the %d limit\n", MAC2STR(j->client_addr.u8), rx_rate, dawn_metric.bandwidth_threshold);
                         else
                             dawnlog_always("Client " MACSTR ": Kicking as no active transmission data for client, and / or limit of %d is OK.\n",
                                 MAC2STR(j->client_addr.u8), dawn_metric.bandwidth_threshold);
