@@ -1,32 +1,91 @@
 name: Build DAWN
+
 on:
   push:
   pull_request:
     types: [opened, synchronize, reopened]
+
 jobs:
   build:
-    name: build
+    name: Build DAWN
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v2
+      # Step 1: Checkout the repository
+      - uses: actions/checkout@v4
         with:
           path: dawn
+
+      # Step 2: Install dependencies and cache them
       - name: Install dependencies
-        run: sudo apt install git subversion build-essential python3 gawk unzip libncurses5-dev zlib1g-dev libssl-dev wget time libncurses-dev
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            git subversion build-essential python3 gawk unzip \
+            libncurses5-dev zlib1g-dev libssl-dev wget time \
+            libncurses-dev zstd curl jq
+
+      # Step 3: Cache OpenWrt SDK
+      - name: Cache OpenWrt SDK
+        uses: actions/cache@v4
+        with:
+          path: /tmp/openwrt-sdk
+          key: openwrt-sdk-${{ runner.os }}-${{ hashFiles('**/openwrt-sdk-ath79-generic_*.tar.zst') }}
+          restore-keys: |
+            openwrt-sdk-${{ runner.os }}-
+
+      # Step 4: Determine the latest OpenWrt SDK version
+      - name: Determine latest OpenWrt SDK version
+        id: sdk_version
+        run: |
+          # Use curl to scrape the OpenWrt download server and extract the latest SDK tar file URL
+          SDK_URL=$(curl -s https://downloads.openwrt.org/snapshots/targets/ath79/generic/ | \
+                    grep -oP 'href="openwrt-sdk-[^"]+\.tar\.zst"' | \
+                    sort -V | tail -n 1 | \
+                    sed 's/href="//' | sed 's/"//')
+
+          echo "Latest OpenWrt SDK URL: https://downloads.openwrt.org/snapshots/targets/ath79/generic/$SDK_URL"
+
+          # Save the SDK URL into an environment variable so it can be used in the next steps
+          echo "sdk_url=https://downloads.openwrt.org/snapshots/targets/ath79/generic/$SDK_URL" >> $GITHUB_ENV
+
+      # Step 5: Download OpenWrt SDK if not cached
       - name: Download OpenWrt SDK
-        run: curl -o openwrt-sdk.tar.xz https://downloads.openwrt.org/snapshots/targets/ath79/generic/openwrt-sdk-ath79-generic_gcc-12.3.0_musl.Linux-x86_64.tar.xz
-      - name: Extract OpenWrt SDK
-        run: tar xf openwrt-sdk.tar.xz && mv openwrt-sdk-ath79-generic_gcc-12.3.0_musl.Linux-x86_64 sdk
+        run: |
+          if [ ! -d "/tmp/openwrt-sdk" ]; then
+            echo "OpenWrt SDK not cached, downloading..."
+            curl -L -o openwrt-sdk.tar.zst ${{ env.sdk_url }}
+            mkdir -p /tmp/openwrt-sdk
+            tar -I zstd -xvf openwrt-sdk.tar.zst -C /tmp/openwrt-sdk --strip-components=1
+          fi
+
+      # Step 6: Create config for DAWN
       - name: Create config
-        run: make -C sdk defconfig && echo "CONFIG_SRC_TREE_OVERRIDE=y" >> sdk/.config
-      - name: Update package feed
-        run: ./sdk/scripts/feeds update -a && ./sdk/scripts/feeds install -a
+        run: |
+          cd /tmp/openwrt-sdk
+          make defconfig
+          echo "CONFIG_SRC_TREE_OVERRIDE=y" >> .config
+
+      # Step 7: Update and install feeds
+      - name: Update package feeds
+        run: |
+          cd /tmp/openwrt-sdk
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      # Step 8: Link DAWN source
       - name: Link DAWN source
-        run: ln -s $GITHUB_WORKSPACE/dawn/.git sdk/feeds/packages/net/dawn/git-src
+        run: |
+          ln -s $GITHUB_WORKSPACE/dawn/.git /tmp/openwrt-sdk/feeds/packages/net/dawn/git-src
+
+      # Step 9: Compile DAWN package
       - name: Compile DAWN
-        run: make -C sdk package/dawn/{clean,compile} V=s
-      - name: Archive build output
-        uses: actions/upload-artifact@v1
+        run: |
+          cd /tmp/openwrt-sdk
+          make package/dawn/{clean,compile} V=s
+
+      # Step 10: Archive build output
+      - uses: actions/upload-artifact@v4
         with:
           name: output
-          path: sdk/bin/packages/mips_24kc/packages
+          path: /tmp/openwrt-sdk/bin/packages/mips_24kc/packages
