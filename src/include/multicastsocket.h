@@ -1,5 +1,5 @@
 #ifndef __DAWN_MULTICASTSTSOCKET_H
-#define __DAWN_MULTICASTSSOCKET_H
+#define __DAWN_MULTICASTSTSOCKET_H
 
 #include <arpa/inet.h>
 
