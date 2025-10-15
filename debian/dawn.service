@@ -1,0 +1,36 @@
+[Unit]
+Description=DAWN decentralized Wi-Fi controller
+Documentation=https://github.com/berlin-open-wireless-lab/DAWN
+After=network-online.target ubusd.service
+Wants=network-online.target ubusd.service
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/default/dawn
+User=dawn
+Group=dawn
+ExecStart=/usr/sbin/dawn $DAWN_OPTS
+Restart=on-failure
+RestartSec=3
+SupplementaryGroups=ubus
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+PrivateDevices=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+ReadOnlyPaths=/etc/dawn /run/ubus/ubus.sock
+ReadWritePaths=/var/lib/dawn
+
+[Install]
+WantedBy=multi-user.target

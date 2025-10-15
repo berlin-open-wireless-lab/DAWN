@@ -1,0 +1,3 @@
+# Create runtime/state directories
+d /var/lib/dawn 0750 dawn dawn -
+d /etc/dawn     0750 root dawn -

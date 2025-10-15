@@ -1,0 +1,33 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+  configure)
+    if ! getent group dawn >/dev/null; then
+      addgroup --system dawn
+    fi
+    if ! id dawn >/dev/null 2>&1; then
+      adduser --system --ingroup dawn --home /var/lib/dawn --no-create-home \
+        --disabled-login --shell /usr/sbin/nologin dawn
+    fi
+
+    # Ensure dirs exist with right perms
+    install -d -o dawn -g dawn -m 0750 /var/lib/dawn
+    install -d -o root -g dawn -m 0750 /etc/dawn
+
+    # Drop a minimal config if none exists yet
+    if [ ! -e /etc/dawn/dawn.json ] && [ -f /usr/share/doc/dawn/examples/dawn.json.example ]; then
+      cp /usr/share/doc/dawn/examples/dawn.json.example /etc/dawn/dawn.json
+      chown root:dawn /etc/dawn/dawn.json
+      chmod 0640 /etc/dawn/dawn.json
+    fi
+
+    # Register tmpfiles + service (don’t auto-enable on install)
+    if command -v systemd-tmpfiles >/dev/null 2>&1; then
+      systemd-tmpfiles --create /usr/lib/tmpfiles.d/dawn.conf 2>/dev/null || true
+    fi
+    systemctl --system daemon-reload >/dev/null 2>&1 || true
+  ;;
+esac
+
+exit 0
