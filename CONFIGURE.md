@@ -245,8 +245,18 @@ grep 'CONFIG-L:' `find . -type f -name "*.[ch]"`|sed 's/^.*CONFIG-.: *\(.*\)$/|\
 -->
 |Parameter|Purpose|Notes [Default is bracketed]|
 |---------|-------|-----|
-|loglevel|Verbosity of messages in syslog|[0 = Deeper tracing to fix bugs - for debugging]; 1 = More info to help trace where algorithms may be going wrong - for debugging; 2 = Reporting on standard behaviour; 3 = Standard behaviour always worth reporting; 4 = Something appears wrong, but recoverable; 5 = Serious malfunction / unexpected behaviour|
+|loglevel|Verbosity of messages in syslog|[0 = ERROR, WARNING, ALWAYS]; 1 = INFO; 2 = TRACE; 3 = DEBUG.  See [Detailed logging levels](#detailed-logging-levels) below for more information |
 
+### Detailed logging levels
+Each increment in logging level will include progressively higher levels of logging.
+| Level | Shortname | Description |
+|-------|-----------|-------------|
+| 0 | ERROR | A significant runtime failure, such as memory exhaustion or unexpected ability to write to a network socket. |
+| 0 | WARNING | An algorithmically unexpected event, such as no AP seeming to be the host for a client device. |
+| 0 | ALWAYS | An infrequent information message that a user or administrator will want to see, such as a device being kicked from one AP to another. |
+| 1 | INFO | Reasonably frequent messages that indicate normal operation, such as the arrival of hostapd messages. The log should still be "user friendly" at this level. |
+| 2 | TRACE | Messages that help indicate why a decision or code path was taken. |
+| 3 | DEBUG | Verbose tracing of code paths, etc. |
 
 ## Timing / Scheduling Parameters
 All timer values are in seconds.  They are the main mechanism for DAWN
