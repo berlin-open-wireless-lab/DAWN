@@ -1,0 +1,13 @@
+#!/usr/bin/make -f
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+%:
+	dh $@ --buildsystem=cmake
+
+override_dh_auto_configure:
+	dh_auto_configure -- \
+	  -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+	  -DDAWN_DEFAULT_CONFIG_DIR=/etc/dawn
+
+override_dh_installsystemd:
+	dh_installsystemd --name=dawn --no-enable --no-start

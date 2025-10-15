@@ -1,0 +1,27 @@
+Source: dawn
+Section: net
+Priority: optional
+Maintainer: Berlin Open Wireless Lab <maintainers@example.org>
+Build-Depends: debhelper-compat (= 13),
+               cmake,
+               pkg-config,
+               libnl-3-dev,
+               libnl-genl-3-dev,
+               libjson-c-dev,
+               libubus-dev,
+               libubox-dev,
+               libiwinfo-dev,
+               libuci-dev,
+               libgcrypt20-dev
+Standards-Version: 4.7.0
+Homepage: https://github.com/berlin-open-wireless-lab/DAWN
+Rules-Requires-Root: no
+
+Package: dawn
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, adduser, ubus, ubusd
+Recommends: hostapd
+Description: Decentralized Wi-Fi controller (client steering, 802.11k/v helper)
+ DAWN is a decentralized Wi-Fi controller intended to steer clients to the
+ best AP. This package installs the dawn daemon and a systemd service.
+ Assumes ubus/ubusd are present. Hostapd integration is recommended.

@@ -1,0 +1,5 @@
+# Extra flags for DAWN. Examples:
+#  -c /etc/dawn/dawn.json
+#  --log-level debug
+#  --ubus-socket /run/ubus.sock
+DAWN_OPTS="-c /etc/dawn/dawn.json"

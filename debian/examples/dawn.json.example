@@ -1,0 +1,15 @@
+{
+  "ubus": {
+    "socket": "/run/ubus.sock",
+    "timeout_ms": 2000
+  },
+  "logging": {
+    "level": "info",
+    "syslog": true
+  },
+  "steering": {
+    "enabled": true,
+    "rssi_threshold": -72
+  }
+}
+
