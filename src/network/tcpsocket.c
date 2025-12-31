@@ -375,7 +375,7 @@ int add_tcp_connection(char *ipv4, int port) {
     tcp_entry->fd.cb = connect_cb;
     uloop_fd_add(&tcp_entry->fd, ULOOP_WRITE | ULOOP_EDGE_TRIGGER);
 
-    dawnlog_debug("New TCP connection to %s:%d\n", ipv4, port);
+    dawnlog_warning("New TCP connection to %s:%d\n", ipv4, port);
     tcp_entry->time_alive = time(0);
     list_add(&tcp_entry->list, &tcp_sock_list);
 
