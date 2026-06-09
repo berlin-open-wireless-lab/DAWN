@@ -1818,6 +1818,20 @@ void subscribe_to_new_interfaces(const char *hostapd_sock_path) {
                     break;
                 }
             }
+            // Honour the optional steering_ssid allow-list: if we can read the
+            // BSS's SSID and it is not permitted, leave the interface entirely
+            // unmanaged (no subscription, no probes, not shared with peers).
+            // Fail open: if the SSID cannot be determined, manage it as before.
+            if (do_subscribe) {
+                char iface_ssid[SSID_MAX_LEN + 1] = {0};
+                get_ssid(entry->d_name, iface_ssid, SSID_MAX_LEN);
+                if (iface_ssid[0] != '\0' && !dawn_ssid_is_managed(iface_ssid)) {
+                    dawnlog_info("[SUBSCRIBING] Skipping %s: SSID '%s' not in steering_ssid list\n",
+                                 entry->d_name, iface_ssid);
+                    do_subscribe = false;
+                }
+            }
+
             if (do_subscribe) {
                 subscriber_to_interface(entry->d_name);
             }

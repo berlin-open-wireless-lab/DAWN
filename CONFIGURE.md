@@ -288,3 +288,16 @@ grep 'CONFIG-H:' `find . -type f -name "*.[ch]"`|sed 's/^.*CONFIG-.: *\(.*\)$/|\
 |Parameter|Purpose|Notes [Default is bracketed]|
 |---------|-------|-----|
 |hostapd_dir|Path to hostapd runtime information|[/var/run/hostapd]|
+|steering_ssid|SSID that DAWN is allowed to manage (repeatable; empty = all)|[]|
+
+By default DAWN manages every BSS it discovers under `hostapd_dir`. To limit
+DAWN to a subset of your networks, add one `list steering_ssid '<SSID>'` entry
+per SSID you want managed. Any BSS whose SSID is not listed is left entirely
+alone: DAWN never subscribes to it, so it neither steers/kicks its clients nor
+shares their measurements with peer APs. When no `steering_ssid` is configured
+the list is empty and the historic "manage everything" behaviour is preserved.
+
+    config hostapd
+        option hostapd_dir '/var/run/hostapd'
+        list steering_ssid 'MyMainNetwork'
+        list steering_ssid 'MyRoamingNetwork'

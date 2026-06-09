@@ -46,6 +46,18 @@ struct network_config_s uci_get_dawn_network();
  */
 bool uci_get_dawn_hostapd_dir();
 
+/**
+ * Load the optional allow-list of SSIDs that DAWN may manage from the config
+ * file. When no 'steering_ssid' entries are present DAWN manages every BSS.
+ */
+void uci_get_dawn_steering_ssids();
+
+/**
+ * Test whether a given SSID is in the configured steering allow-list.
+ * @return true if the SSID may be managed (always true when the list is empty).
+ */
+bool dawn_ssid_is_managed(const char *ssid);
+
 int uci_set_network(char* uci_cmd);
 
 /**

@@ -468,6 +468,65 @@ bool uci_get_dawn_hostapd_dir() {
     return false;
 }
 
+// Optional allow-list of SSIDs that DAWN is permitted to manage.  When the
+// list is empty DAWN keeps its default behaviour of managing every BSS it
+// finds, so the feature is opt-in and backwards compatible.
+struct steering_ssid_s {
+    char ssid[SSID_MAX_LEN + 1];
+    struct steering_ssid_s *next;
+};
+
+static struct steering_ssid_s *steering_ssid_list = NULL;
+
+void uci_get_dawn_steering_ssids() {
+    dawnlog_debug_func("Entering...");
+
+    // Drop any previously loaded list (e.g. on config reload)
+    while (steering_ssid_list) {
+        struct steering_ssid_s *tmp = steering_ssid_list;
+        steering_ssid_list = steering_ssid_list->next;
+        dawn_free(tmp);
+    }
+
+    struct uci_element *e;
+    uci_foreach_element(&uci_pkg->sections, e)
+    {
+        struct uci_section *s = uci_to_section(e);
+
+        if (strcmp(s->type, "hostapd") == 0) {
+            // CONFIG-H: steering_ssid|SSID that DAWN is allowed to manage (repeatable; empty = all)|[]
+            struct uci_option *o = uci_lookup_option(uci_ctx, s, "steering_ssid");
+            if (o && o->type == UCI_TYPE_LIST) {
+                struct uci_element *le;
+                uci_foreach_element(&o->v.list, le)
+                {
+                    struct steering_ssid_s *entry = dawn_calloc(1, sizeof(struct steering_ssid_s));
+                    if (!entry)
+                        continue;
+                    strncpy(entry->ssid, le->name, SSID_MAX_LEN);
+                    entry->ssid[SSID_MAX_LEN] = '\0';
+                    entry->next = steering_ssid_list;
+                    steering_ssid_list = entry;
+                }
+            }
+            return;
+        }
+    }
+}
+
+bool dawn_ssid_is_managed(const char *ssid) {
+    // Empty allow-list => manage everything (default DAWN behaviour)
+    if (steering_ssid_list == NULL)
+        return true;
+
+    for (struct steering_ssid_s *e = steering_ssid_list; e; e = e->next) {
+        if (strncmp(e->ssid, ssid, SSID_MAX_LEN) == 0)
+            return true;
+    }
+
+    return false;
+}
+
 int uci_reset()
 {
     dawnlog_debug_func("Entering...");
