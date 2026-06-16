@@ -1289,7 +1289,7 @@ int bss_transition_request(uint32_t id, const struct dawn_mac client_addr, struc
     {
         if (sub->subscribed) {
             int timeout = 1; //TDO: Maybe ID is wrong?! OR CHECK HERE ID
-            ubus_invoke(ctx, id, "bss_transition_request", b.head, NULL, NULL, timeout * 1000);
+            if(!ubus_invoke(ctx, id, "bss_transition_request", b.head, NULL, NULL, timeout * 1000)) break;
         }
     }
 
@@ -1329,7 +1329,7 @@ int wnm_disassoc_imminent(uint32_t id, const struct dawn_mac client_addr, struct
     {
         if (sub->subscribed) {
             int timeout = 1; //TDO: Maybe ID is wrong?! OR CHECK HERE ID
-            ubus_invoke(ctx, id, "bss_transition_request", b.head, NULL, NULL, timeout * 1000);
+            if(!ubus_invoke(ctx, id, "bss_transition_request", b.head, NULL, NULL, timeout * 1000)) break;
         }
     }
 
