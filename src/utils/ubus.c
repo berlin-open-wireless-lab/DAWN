@@ -1190,7 +1190,6 @@ void del_client_all_interfaces(const struct dawn_mac client_addr, uint32_t reaso
 }
 
 void del_client_interface(uint32_t id, const struct dawn_mac client_addr, uint32_t reason, uint8_t deauth, uint32_t ban_time) {
-    struct hostapd_sock_entry *sub;
     struct blob_buf b = {0};
 
     blob_buf_init(&b, 0);
@@ -1208,7 +1207,6 @@ void del_client_interface(uint32_t id, const struct dawn_mac client_addr, uint32
 }
 
 int bss_transition_request(uint32_t id, const struct dawn_mac client_addr, struct kicking_nr* neighbor_list, uint32_t duration) {
-    struct hostapd_sock_entry* sub;
     struct blob_buf b = { 0 };
 
     dawnlog_debug_func("Entering...");
@@ -1246,7 +1244,6 @@ int bss_transition_request(uint32_t id, const struct dawn_mac client_addr, struc
 }
 
 int wnm_disassoc_imminent(uint32_t id, const struct dawn_mac client_addr, struct kicking_nr* neighbor_list, int threshold, uint32_t duration) {
-    struct hostapd_sock_entry *sub;
     struct blob_buf b = {0};
 
     dawnlog_debug_func("Entering...");
