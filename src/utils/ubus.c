@@ -1247,14 +1247,9 @@ void del_client_interface(uint32_t id, const struct dawn_mac client_addr, uint32
     blobmsg_add_u8(&b, "deauth", deauth);
     blobmsg_add_u32(&b, "ban_time", ban_time);
 
+    int timeout = 1;
+    ubus_invoke(ctx, id, "del_client", b.head, NULL, NULL, timeout * 1000);
 
-    list_for_each_entry(sub, &hostapd_sock_list, list)
-    {
-        if (sub->subscribed) {
-            int timeout = 1;
-            ubus_invoke(ctx, id, "del_client", b.head, NULL, NULL, timeout * 1000);
-        }
-    }
     blob_buf_free(&b);
     dawn_unregmem(&b);
 }
