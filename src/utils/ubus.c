@@ -1285,13 +1285,8 @@ int bss_transition_request(uint32_t id, const struct dawn_mac client_addr, struc
     }
 
     blobmsg_close_array(&b, nbs);
-    list_for_each_entry(sub, &hostapd_sock_list, list)
-    {
-        if (sub->subscribed) {
-            int timeout = 1; //TDO: Maybe ID is wrong?! OR CHECK HERE ID
-            if(!ubus_invoke(ctx, id, "bss_transition_request", b.head, NULL, NULL, timeout * 1000)) break;
-        }
-    }
+    int timeout = 1;
+    ubus_invoke(ctx, id, "bss_transition_request", b.head, NULL, NULL, timeout * 1000);
 
     blob_buf_free(&b);
     dawn_unregmem(&b);
@@ -1325,13 +1320,8 @@ int wnm_disassoc_imminent(uint32_t id, const struct dawn_mac client_addr, struct
     }
 
     blobmsg_close_array(&b, nbs);
-    list_for_each_entry(sub, &hostapd_sock_list, list)
-    {
-        if (sub->subscribed) {
-            int timeout = 1; //TDO: Maybe ID is wrong?! OR CHECK HERE ID
-            if(!ubus_invoke(ctx, id, "bss_transition_request", b.head, NULL, NULL, timeout * 1000)) break;
-        }
-    }
+    int timeout = 1;
+    ubus_invoke(ctx, id, "bss_transition_request", b.head, NULL, NULL, timeout * 1000);
 
     blob_buf_free(&b);
     dawn_unregmem(&b);
