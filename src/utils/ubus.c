@@ -1280,8 +1280,11 @@ int bss_transition_request(uint32_t id, const struct dawn_mac client_addr, struc
     }
 
     blobmsg_close_array(&b, nbs);
-    int timeout = 1;
-    ubus_invoke(ctx, id, "bss_transition_request", b.head, NULL, NULL, timeout * 1000);
+    // do not ask to leave without providing candidates, unless NR explicitly disabled or unavailable (consider empty rrm_mode)
+    if (neighbors_added || (dawn_metric.disassoc_nr_length <= 0) || (dawn_metric.set_hostapd_nr <= 0) || (timeout_config.update_beacon_reports <= 0) ) {
+        int timeout = 1;
+        ubus_invoke(ctx, id, "bss_transition_request", b.head, NULL, NULL, timeout * 1000);
+    }
 
     blob_buf_free(&b);
     dawn_unregmem(&b);
