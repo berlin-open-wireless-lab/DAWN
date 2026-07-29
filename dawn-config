@@ -47,7 +47,7 @@ config metric 'global'
 	option min_number_to_kick '3'
 	option chan_util_avg_period '3'
 	option set_hostapd_nr '0'
-	option duration '0'
+	option duration '150'
 	option rrm_mode 'pat'
 
 config metric '802_11g'
