@@ -271,7 +271,7 @@ struct probe_metric_s uci_get_dawn_metric() {
         .bandwidth_threshold = 6,
         // CONFIG-G: chan_util_avg_period|Number of sampling periods to average channel utilization values over|[3]
         .chan_util_avg_period = 3,
-        // CONFIG-G: duration|802.11k BEACON request DURATION parameter|[0]
+        // CONFIG-G: duration|802.11k BEACON request measurement duration (TUs), also used as the 802.11v BSS-TM disassociation_timer and validity_period.  Must not be 0 because some clients refuse a zero-length measurement, leaving DAWN with no BEACON REPORT data to steer on|[150]
         .duration = 150,
         // CONFIG-G: rrm_mode|Preferred order for using Passive, Active or Table 802.11k BEACON information|[PAT] String of 'P', 'A' and / or 'T'
         .rrm_mode_mask = WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE |

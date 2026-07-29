@@ -154,7 +154,7 @@ grep 'CONFIG-G:' `find . -type f -name "*.[ch]"`| sed 's/^.*CONFIG-.: *\(.*\)$/|
 |deny_assoc_reason|802.11 code used when ASSOCIATION is denied|[17] (802.11 AP_UNABLE_TO_HANDLE_NEW_STA). See Note 1.|
 |deny_auth_reason|802.11 code used when AUTHENTICATION is denied|[1] (802.11 UNSPECIFIED_FAILURE). See Note 1.|
 |disassoc_nr_length|Number of entries to include in a 802.11v DISASSOCIATE Neighbor Report|[6] (Documented for use by iOS)|
-|duration|802.11k BEACON request DURATION parameter|[0]|
+|duration|802.11k BEACON request measurement duration (TUs), also used as the 802.11v BSS-TM disassociation_timer and validity_period.  Must not be 0 because some clients refuse a zero-length measurement, leaving DAWN with no BEACON REPORT data to steer on|[150]|
 |eval_assoc_req|Control whether ASSOCIATION frames are evaluated for rejection|[0 = No evaluation]; 1 = Evaluated. See Note 1.|
 |eval_auth_req|Control whether AUTHENTICATION frames are evaluated for rejection|[0 = No evaluation]; 1 = Evaluated. See Note 1.|
 |eval_probe_req|Control whether PROBE frames are evaluated for rejection|[0 = No evaluation]; 1 = Evaluated. See Note 1.|
