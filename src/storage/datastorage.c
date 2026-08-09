@@ -5,6 +5,7 @@
 #include "dawn_iwinfo.h"
 #include "dawn_uci.h"
 #include "mac_utils.h"
+#include "ieee80211_utils.h"
 
 #include "datastorage.h"
 #include "test_storage.h"
@@ -208,19 +209,27 @@ int get_band(int freq) {
 int eval_probe_metric(struct probe_entry_s* probe_entry, ap* ap_entry) {
     dawnlog_debug_func("Entering...");
     int score = 0;
+    int signal = probe_entry->signal;
+    bool signal_available = signal != 0;
 
-    if (probe_entry->signal != 0)
+    if (!signal_available && probe_entry->rcpi <= 220) {
+        signal = rcpi_to_rssi(probe_entry->rcpi);
+        signal_available = true;
+        dawnlog_trace("Scoring beacon report using RCPI %u as signal %d dBm\n",
+                      probe_entry->rcpi, signal);
+    }
+
+    if (signal_available)
     {
         dawn_mutex_require(&ap_array_mutex);
         dawn_mutex_require(&probe_array_mutex);
 
-        // TODO: Should RCPI be used here as well?
         int band = get_band(probe_entry->freq);
         score = dawn_metric.initial_score[band];
 
-        score += probe_entry->signal >= dawn_metric.rssi_val[band] ? dawn_metric.rssi[band] : 0;
-        score += probe_entry->signal <= dawn_metric.low_rssi_val[band] ? dawn_metric.low_rssi[band] : 0;
-        score += (probe_entry->signal - dawn_metric.rssi_center[band]) * dawn_metric.rssi_weight[band];
+        score += signal >= dawn_metric.rssi_val[band] ? dawn_metric.rssi[band] : 0;
+        score += signal <= dawn_metric.low_rssi_val[band] ? dawn_metric.low_rssi[band] : 0;
+        score += (signal - dawn_metric.rssi_center[band]) * dawn_metric.rssi_weight[band];
 
         // check if ap entry is available
         if (ap_entry != NULL) {
