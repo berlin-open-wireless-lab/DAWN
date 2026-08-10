@@ -1187,8 +1187,6 @@ void remove_old_probe_entries(time_t current_time, long long int threshold) {
 
         if (((*i)->rcpi_timestamp < current_time - threshold))
         {
-            (*i)->rcpi = -1;
-            (*i)->rsni = -1;
             rcpi_expired = 1;
         }
 
