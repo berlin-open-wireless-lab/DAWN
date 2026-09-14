@@ -455,10 +455,10 @@ bool uci_get_dawn_hostapd_dir() {
         if (strcmp(s->type, "hostapd") == 0) {
             // CONFIG-H: hostapd_dir|Path to hostapd runtime information|[/var/run/hostapd]
             const char* str = uci_lookup_option_string(uci_ctx, s, "hostapd_dir");
-            if (str)
+            if (str) {
                 strncpy(hostapd_dir_glob, str, HOSTAPD_DIR_LEN);
-
-            return true;
+                return true;
+            }
         }
     }
 
