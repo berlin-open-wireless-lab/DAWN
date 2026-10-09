@@ -249,6 +249,9 @@ int parse_to_client_req(struct blob_attr *msg, client_req_entry *client_req) {
 
     blobmsg_parse(auth_policy, __AUTH_MAX, tb, blob_data(msg), blob_len(msg));
 
+    // Not every field has to be there, and the caller allocates with dawn_malloc()
+    memset(client_req, 0, sizeof(*client_req));
+
     if (hwaddr_aton(blobmsg_data(tb[AUTH_BSSID_ADDR]), client_req->bssid_addr.u8))
         return UBUS_STATUS_INVALID_ARGUMENT;
 
@@ -332,10 +335,14 @@ int handle_auth_req(struct blob_attr* msg) {
     {
         dawnlog_error("Memory allocation of auth req failed!");
     }
+    else if (parse_to_client_req(msg, auth_req))
+    {
+        dawnlog_warning("Parse of auth req failed!\n");
+        dawn_free(auth_req);
+        auth_req = NULL;
+    }
     else
     {
-        parse_to_client_req(msg, auth_req);
-
         dawnlog_debug("Auth entry: ");
         print_client_req_entry(DAWNLOG_DEBUG, auth_req);
 
@@ -413,9 +420,14 @@ static int handle_assoc_req(struct blob_attr *msg) {
     {
         dawnlog_error("Memory allocation of assoc req failed!");
     }
+    else if (parse_to_client_req(msg, assoc_req))
+    {
+        dawnlog_warning("Parse of assoc req failed!\n");
+        dawn_free(assoc_req);
+        assoc_req = NULL;
+    }
     else
     {
-        parse_to_client_req(msg, assoc_req);
         dawnlog_debug("Association entry: ");
         print_client_req_entry(DAWNLOG_DEBUG, assoc_req);
 
