@@ -206,12 +206,14 @@ static int array_auto_helper(int action, int i0, int i1)
             if ((action & HELPER_ACTION_MASK) == HELPER_ACTION_ADD)
             {
                 ap* ap0 = dawn_malloc(sizeof(struct ap_s));
+                memset(ap0, 0, sizeof(*ap0));
                 ap0->bssid_addr = this_mac;
 
                 insert_to_ap_array(ap0, 0);
             }
             else if ((action & HELPER_ACTION_MASK) == HELPER_ACTION_STRESS) {
                 ap* ap0 = dawn_malloc(sizeof(struct ap_s));
+                memset(ap0, 0, sizeof(*ap0));
                 set_random_mac(ap0->bssid_addr.u8);
 
                 insert_to_ap_array(ap0, faketime);
@@ -226,6 +228,7 @@ static int array_auto_helper(int action, int i0, int i1)
             if ((action & HELPER_ACTION_MASK) == HELPER_ACTION_ADD)
             {
                 client* client0 = dawn_malloc(sizeof(struct client_s));
+                memset(client0, 0, sizeof(*client0));
                 client0->bssid_addr = this_mac;
                 client0->client_addr = this_mac;
 
@@ -233,6 +236,7 @@ static int array_auto_helper(int action, int i0, int i1)
             }
             else if ((action & HELPER_ACTION_MASK) == HELPER_ACTION_STRESS) {
                 client* client0 = dawn_malloc(sizeof(struct client_s));
+                memset(client0, 0, sizeof(*client0));
                 set_random_mac(client0->client_addr.u8);
                 set_random_mac(client0->bssid_addr.u8);
 
@@ -254,6 +258,7 @@ static int array_auto_helper(int action, int i0, int i1)
 
             if ((action & HELPER_ACTION_MASK) == HELPER_ACTION_ADD) {
                 probe0 = dawn_malloc(sizeof(probe_entry));
+                memset(probe0, 0, sizeof(*probe0));
                 probe0->client_addr = this_mac;
                 probe0->bssid_addr = this_mac;
 
@@ -261,6 +266,7 @@ static int array_auto_helper(int action, int i0, int i1)
             }
             else if ((action & HELPER_ACTION_MASK) == HELPER_ACTION_STRESS) {
                 probe0 = dawn_malloc(sizeof(probe_entry));
+                memset(probe0, 0, sizeof(*probe0));
                 set_random_mac(probe0->client_addr.u8);
                 set_random_mac(probe0->bssid_addr.u8);
 
