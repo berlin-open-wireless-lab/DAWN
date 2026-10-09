@@ -286,22 +286,29 @@ int freq_from_op_class(int op_class, int channel) {
     return channel_to_freq_legacy(channel);
 }
 
+// Signal of a probe entry in dBm: the PROBE / station signal, or the RCPI of
+// a BEACON report if that is unknown.  0 if neither is known.
+static int probe_entry_get_signal(probe_entry *entry)
+{
+    int signal = (int)entry->signal;
+
+    if (signal == 0 && entry->rcpi <= 220)
+    {
+        signal = rcpi_to_rssi(entry->rcpi);
+        dawnlog_trace("Using beacon report RCPI %u as signal %d dBm\n", entry->rcpi, signal);
+    }
+
+    return signal;
+}
+
 // TODO: Can metric be cached once calculated? Add score_fresh indicator and reset when signal changes
 // TODO: as rest of values look to be static fr any given entry.
 int eval_probe_metric(struct probe_entry_s* probe_entry, ap* ap_entry) {
     dawnlog_debug_func("Entering...");
     int score = 0;
-    int signal = probe_entry->signal;
-    bool signal_available = signal != 0;
+    int signal = probe_entry_get_signal(probe_entry);
 
-    if (!signal_available && probe_entry->rcpi <= 220) {
-        signal = rcpi_to_rssi(probe_entry->rcpi);
-        signal_available = true;
-        dawnlog_trace("Scoring beacon report using RCPI %u as signal %d dBm\n",
-                      probe_entry->rcpi, signal);
-    }
-
-    if (signal_available)
+    if (signal != 0)
     {
         dawn_mutex_require(&ap_array_mutex);
         dawn_mutex_require(&probe_array_mutex);
@@ -615,9 +622,13 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
             if ((kick_type == 0) && own_probe && (dawn_metric.kicking & 2) == 2) {
                 int band = get_band(own_probe->freq);
 
-                if (own_probe->signal < dawn_metric.rssi_center[band])
+                // signal is unsigned and 0 if unknown, which used to count as low
+                int signal = probe_entry_get_signal(own_probe);
+
+                if (signal != 0 && signal < dawn_metric.rssi_center[band])
                 {
-                    dawnlog_info("Client " MACSTR ": Low asolute RSSI - proposing other APs\n", MAC2STR(j->client_addr.u8));
+                    dawnlog_info("Client " MACSTR ": Low absolute RSSI %d dBm - proposing other APs\n",
+                        MAC2STR(j->client_addr.u8), signal);
                     dawn_mutex_require(&ap_array_mutex);
 
                     // FIXME: Using all AP is OK for a small network, but should ideally use the local-to-current-AP set

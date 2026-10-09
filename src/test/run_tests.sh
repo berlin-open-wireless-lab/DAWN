@@ -9,7 +9,7 @@ fail=0
 
 mkdir -p "$LOGDIR" || exit 1
 
-for s in ieee80211_freq; do
+for s in ieee80211_freq kick_absolute_rssi; do
 	log="$LOGDIR/$s.log"
 	if "$TEST_STORAGE" -q --script "$DIR/$s.script" > "$log" 2>&1 && ! grep -q "FAIL" "$log"; then
 		echo "PASS $s ($(grep -c PASS "$log") checks)"

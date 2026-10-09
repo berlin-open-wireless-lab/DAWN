@@ -1,0 +1,30 @@
+# Absolute RSSI kick (kicking=2)
+dawn default
+dawn kicking=2 min_number_to_kick=1 bandwidth_threshold=0 set_hostapd_nr=0 rssi_center=-70
+
+ap bssid=11:11:11:00:00:01 freq=5180 ssid=abs neighbors=111111000001
+ap bssid=11:11:11:00:00:02 freq=5500 ssid=abs neighbors=111111000002
+
+# Unknown signal (0) and no RCPI: not a low signal, no kick
+client client=c1:00:00:00:00:01 bssid=11:11:11:00:00:01 freq=5180
+probe bssid=11:11:11:00:00:01 client=c1:00:00:00:00:01 signal=0 freq=5180
+kick 11:11:11:00:00:01 0
+expect_btm 0
+expect_client c1:00:00:00:00:01 11:11:11:00:00:01
+
+# Unknown signal, BEACON report RCPI 60 = -80 dBm: kick to the other AP
+client client=c1:00:00:00:00:02 bssid=11:11:11:00:00:01 freq=5180
+probe bssid=11:11:11:00:00:01 client=c1:00:00:00:00:02 signal=0 freq=5180 rcpi=60
+kick 11:11:11:00:00:01 0
+expect_btm 1
+expect_client c1:00:00:00:00:02 11:11:11:00:00:02
+
+# Good signal: no kick, low signal: kick
+client client=c1:00:00:00:00:03 bssid=11:11:11:00:00:01 freq=5180
+probe bssid=11:11:11:00:00:01 client=c1:00:00:00:00:03 signal=-60 freq=5180
+kick 11:11:11:00:00:01 0
+expect_btm 0
+probe bssid=11:11:11:00:00:01 client=c1:00:00:00:00:03 signal=-80 freq=5180
+kick 11:11:11:00:00:01 0
+expect_btm 1
+expect_client c1:00:00:00:00:03 11:11:11:00:00:02
