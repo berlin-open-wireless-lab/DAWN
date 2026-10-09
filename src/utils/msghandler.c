@@ -51,8 +51,9 @@ static const struct blobmsg_policy prob_policy[__PROB_MAX] = {
         [PROB_TARGET_ADDR] = {.name = "target", .type = BLOBMSG_TYPE_STRING},
         [PROB_SIGNAL] = {.name = "signal", .type = BLOBMSG_TYPE_INT32},
         [PROB_FREQ] = {.name = "freq", .type = BLOBMSG_TYPE_INT32},
-        [PROB_HT_CAPABILITIES] = {.name = "ht_capabilities", .type = BLOBMSG_TYPE_TABLE}, //ToDo: Change to int8?
-        [PROB_VHT_CAPABILITIES] = {.name = "vht_capabilities", .type = BLOBMSG_TYPE_TABLE}, //ToDo: Change to int8?
+        // hostapd sends a table, DAWN peers send an integer: see dawn_get_capability()
+        [PROB_HT_CAPABILITIES] = {.name = "ht_capabilities", .type = BLOBMSG_TYPE_UNSPEC},
+        [PROB_VHT_CAPABILITIES] = {.name = "vht_capabilities", .type = BLOBMSG_TYPE_UNSPEC},
         [PROB_RCPI] = {.name = "rcpi", .type = BLOBMSG_TYPE_INT32},
         [PROB_RSNI] = {.name = "rsni", .type = BLOBMSG_TYPE_INT32},
 };
@@ -146,6 +147,29 @@ int parse_to_hostapd_notify(struct blob_attr* msg, hostapd_notify_entry* notify_
     return 0;
 }
 
+// A capability is either a table of capability details (hostapd) or an
+// integer flag (DAWN peers, see ubus_send_probe_via_network()).  Peer
+// messages go through JSON, which gives INT8 (bool), INT32 or INT64.
+static uint8_t dawn_get_capability(struct blob_attr* attr)
+{
+    if (!attr)
+        return 0;
+
+    switch (blobmsg_type(attr)) {
+    case BLOBMSG_TYPE_TABLE:
+    case BLOBMSG_TYPE_ARRAY:
+        return 1;
+    case BLOBMSG_TYPE_INT8:
+        return blobmsg_get_u8(attr) ? 1 : 0;
+    case BLOBMSG_TYPE_INT32:
+        return blobmsg_get_u32(attr) ? 1 : 0;
+    case BLOBMSG_TYPE_INT64:
+        return blobmsg_get_u64(attr) ? 1 : 0;
+    default:
+        return 0;
+    }
+}
+
 probe_entry *parse_to_probe_req(struct blob_attr* msg) {
     struct blob_attr* tb[__PROB_MAX];
 
@@ -208,21 +232,8 @@ probe_entry *parse_to_probe_req(struct blob_attr* msg) {
         prob_req->rsni = -1;
     }
 
-    if (tb[PROB_HT_CAPABILITIES]) {
-        prob_req->ht_capabilities = true;
-    }
-    else
-    {
-        prob_req->ht_capabilities = false;
-    }
-
-    if (tb[PROB_VHT_CAPABILITIES]) {
-        prob_req->vht_capabilities = true;
-    }
-    else
-    {
-        prob_req->vht_capabilities = false;
-    }
+    prob_req->ht_capabilities = dawn_get_capability(tb[PROB_HT_CAPABILITIES]);
+    prob_req->vht_capabilities = dawn_get_capability(tb[PROB_VHT_CAPABILITIES]);
 
     return prob_req;
 }
