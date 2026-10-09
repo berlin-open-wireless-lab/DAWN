@@ -25,9 +25,14 @@ void ubus_set_nr_from_clients(struct kicking_nr* ap_list) {
 }
 
 
+// Calls of the stubs below, checked and reset by expect_btm / expect_beacon_requests
+static int btm_requests = 0;
+static int beacon_requests = 0;
+
 int ubus_send_beacon_request(client *c, ap *a, int d, int id)
 {
     printf("ubus_send_beacon_request() was called...\n");
+    beacon_requests++;
 
     return 0;
 }
@@ -43,6 +48,7 @@ int bss_transition_request(uint32_t id, const struct dawn_mac client_addr, struc
     int ret = 0;
 
     printf("bss_transition_request() was called...\n");
+    btm_requests++;
 
     if (neighbor_list != NULL)
     {
@@ -673,6 +679,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 else if (!strncmp(fn, "low_rssi=", 9)) load_int_band(dawn_metric.low_rssi, fn + 9);
                 else if (!strncmp(fn, "freq=", 5)) load_int(&dawn_metric.initial_score[1], fn + 5);
                 else if (!strncmp(fn, "initial_score=", 14)) load_int_band(dawn_metric.initial_score, fn + 14);
+                else if (!strncmp(fn, "rssi_center=", 12)) load_int_band(dawn_metric.rssi_center, fn + 12);
                 else if (!strncmp(fn, "chan_util=", 10)) load_int_band(dawn_metric.chan_util, fn + 10);
                 else if (!strncmp(fn, "max_chan_util=", 14)) load_int_band(dawn_metric.max_chan_util, fn + 14);
                 else if (!strncmp(fn, "rssi_val=", 9)) load_int_band(dawn_metric.rssi_val, fn + 9);
@@ -741,6 +748,8 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
             memset(ap0->ssid, '*', SSID_MAX_LEN);
             ap0->ssid[SSID_MAX_LEN] = '\0';
             ap0->neighbor_report[0] = 0;
+            ap0->op_class = 0;
+            ap0->channel = 0;
             //ap0->collision_domain = 0;
             //ap0->bandwidth = 0;
             ap0->ap_weight = 0;
@@ -762,6 +771,8 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 else if (!strncmp(fn, "ssid=", 5)) load_ssid(ap0->ssid, fn + 5);
                 else if (!strncmp(fn, "neighbors=", 10)) load_string(NEIGHBOR_REPORT_LEN, ap0->neighbor_report, fn + 10);
                 else if (!strncmp(fn, "weight=", 7)) load_u32(&ap0->ap_weight, fn + 7);
+                else if (!strncmp(fn, "op_class=", 9)) load_u32(&ap0->op_class, fn + 9);
+                else if (!strncmp(fn, "channel=", 8)) load_u32(&ap0->channel, fn + 8);
                 else {
                     printf("ERROR: Loading AP, but don't recognise assignment \"%s\"\n", fn);
                     ret = 1;
@@ -800,6 +811,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
             cl0->time = faketime;
             cl0->aid = 0;
             cl0->kick_count = 0;
+            cl0->rrm_enabled_capa = 0;
 
             args_required = 1;
             while (ret == 0 && curr_arg + args_required < argc)
@@ -827,6 +839,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 else if (!strncmp(fn, "time=", 5)) load_time(&cl0->time, fn + 5);
                 else if (!strncmp(fn, "aid=", 4)) load_u32(&cl0->aid, fn + 4);
                 else if (!strncmp(fn, "kick=", 5)) load_u32(&cl0->kick_count, fn + 5);
+                else if (!strncmp(fn, "rrm=", 4)) load_u8(&cl0->rrm_enabled_capa, fn + 4);
                 else {
                     printf("ERROR: Loading CLIENT, but don't recognise assignment \"%s\"\n", fn);
                     ret = 1;
@@ -912,8 +925,8 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                         pr0->deny_counter = 0;
                         pr0->max_supp_datarate = 0;
                         pr0->min_supp_datarate = 0;
-                        pr0->rcpi = 0;
-                        pr0->rsni = 0;
+                        pr0->rcpi = -1;
+                        pr0->rsni = -1;
 
                         insert_to_probe_array(pr0, true, true, pr0->rssi_timestamp);
                     }
@@ -963,6 +976,67 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 printf("better_ap_available returned %d\n", tr);
                 for (struct kicking_nr* n = neighbor_list; n; n = n->next)
                     printf("  nr " MACSTR " score %d\n", MAC2STR(n->nr_ap->bssid_addr.u8), n->score);
+            }
+        }
+        else if (strcmp(*argv, "beacon_requests") == 0)
+        {
+            // beacon_requests <target bssid> <host bssid>: BEACON requests to the clients of host for target
+            args_required = 3;
+            if (curr_arg + args_required <= argc)
+            {
+                struct dawn_mac target_mac;
+                struct dawn_mac host_mac;
+
+                hwaddr_aton(argv[1], target_mac.u8);
+                hwaddr_aton(argv[2], host_mac.u8);
+
+                ap* target_ap = ap_array_get_ap(target_mac);
+                ap* host_ap = ap_array_get_ap(host_mac);
+
+                if (target_ap == NULL || host_ap == NULL)
+                {
+                    printf("beacon_requests: unknown AP FAIL\n");
+                    ret = -1;
+                }
+                else
+                    send_beacon_requests(target_ap, host_ap, 0);
+            }
+        }
+        else if (strcmp(*argv, "expect_btm") == 0 || strcmp(*argv, "expect_beacon_requests") == 0)
+        {
+            // expect_btm <n> / expect_beacon_requests <n>: calls since the last check
+            args_required = 2;
+            if (curr_arg + args_required <= argc)
+            {
+                int* count = strcmp(*argv, "expect_btm") == 0 ? &btm_requests : &beacon_requests;
+                int expected = atoi(argv[1]);
+
+                printf("%s: %d (expected %d) %s\n", *argv, *count, expected, *count == expected ? "PASS" : "FAIL");
+                if (*count != expected)
+                    ret = -1;
+
+                *count = 0;
+            }
+        }
+        else if (strcmp(*argv, "expect_client") == 0)
+        {
+            // expect_client <client> <bssid>: client is associated to bssid
+            args_required = 3;
+            if (curr_arg + args_required <= argc)
+            {
+                struct dawn_mac client_mac;
+                struct dawn_mac bssid_mac;
+
+                hwaddr_aton(argv[1], client_mac.u8);
+                hwaddr_aton(argv[2], bssid_mac.u8);
+
+                client* c = client_array_get_client(client_mac);
+                bool ok = c && mac_is_equal_bb(c->bssid_addr, bssid_mac);
+
+                printf("expect_client: %s on " MACSTR " (expected %s) %s\n", argv[1],
+                    MAC2STR(c ? c->bssid_addr.u8 : dawn_mac_null.u8), argv[2], ok ? "PASS" : "FAIL");
+                if (!ok)
+                    ret = -1;
             }
         }
         else if (strcmp(*argv, "eval_probe_metric") == 0)
