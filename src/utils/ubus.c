@@ -353,6 +353,7 @@ int handle_auth_req(struct blob_attr* msg) {
             dawnlog_trace(MACSTR " Allow authentication due to whitelisted MAC", MAC2STR(auth_req->client_addr.u8));
         }
         else {
+            dawn_mutex_lock(&client_array_mutex);
             dawn_mutex_lock(&probe_array_mutex);
 
             if (dawnlog_showing(DAWNLOG_DEBUG))
@@ -400,6 +401,7 @@ int handle_auth_req(struct blob_attr* msg) {
             }
 
             dawn_mutex_unlock(&probe_array_mutex);
+            dawn_mutex_unlock(&client_array_mutex);
         }
 
         dawn_free(auth_req);
@@ -438,6 +440,7 @@ static int handle_assoc_req(struct blob_attr *msg) {
             dawnlog_trace(MACSTR " Allow association due to whitelisted MAC", MAC2STR(assoc_req->client_addr.u8));
         }
         else {
+            dawn_mutex_lock(&client_array_mutex);
             dawn_mutex_lock(&probe_array_mutex);
 
             if (dawnlog_showing(DAWNLOG_DEBUG))
@@ -485,6 +488,7 @@ static int handle_assoc_req(struct blob_attr *msg) {
             }
 
             dawn_mutex_unlock(&probe_array_mutex);
+            dawn_mutex_unlock(&client_array_mutex);
         }
 
         dawn_free(assoc_req);
@@ -508,6 +512,7 @@ static int handle_probe_req(struct blob_attr* msg) {
     }
     else
     {
+        dawn_mutex_lock(&client_array_mutex);
         dawn_mutex_lock(&probe_array_mutex);
 
         dawn_mutex_require(&probe_array_mutex);
@@ -570,6 +575,7 @@ static int handle_probe_req(struct blob_attr* msg) {
         }
 
         dawn_mutex_unlock(&probe_array_mutex);
+        dawn_mutex_unlock(&client_array_mutex);
     }
 
     return ret;
