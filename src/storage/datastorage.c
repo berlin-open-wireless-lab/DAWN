@@ -167,6 +167,13 @@ struct mac_entry_s* mac_find_entry(struct dawn_mac mac)
 void send_beacon_requests(ap* target_ap, ap* host_ap, int sub_id) {
     dawnlog_debug_func("Entering...");
 
+    // Without a neighbor report of the target the op class / channel are unknown
+    if (!target_ap->op_class || !target_ap->channel) {
+        dawnlog_debug("BEACON REQUEST for " MACSTR " skipped: op_class / channel unknown\n",
+            MAC2STR(target_ap->bssid_addr.u8));
+        return;
+    }
+
     dawn_mutex_require(&client_array_mutex);
     // Seach for BSSID
     client* i = *client_find_first_bc_entry(host_ap->bssid_addr, dawn_mac_null, false);

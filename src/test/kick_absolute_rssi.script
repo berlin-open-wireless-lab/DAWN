@@ -36,3 +36,12 @@ probe bssid=22:22:22:00:00:01 client=c2:00:00:00:00:01 signal=-85 freq=5180
 kick 22:22:22:00:00:01 0
 expect_btm 0
 expect_client c2:00:00:00:00:01 22:22:22:00:00:01
+
+# BEACON requests need the op class / channel of the target
+ap bssid=33:33:33:00:00:01 freq=5180 ssid=br neighbors=333333000001 op_class=115 channel=36
+ap bssid=33:33:33:00:00:02 freq=5500 ssid=br neighbors=333333000002
+client client=c3:00:00:00:00:01 bssid=33:33:33:00:00:01 freq=5180 rrm=16
+beacon_requests 33:33:33:00:00:01 33:33:33:00:00:01
+expect_beacon_requests 1
+beacon_requests 33:33:33:00:00:02 33:33:33:00:00:01
+expect_beacon_requests 0
