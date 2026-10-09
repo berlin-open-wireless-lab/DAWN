@@ -820,8 +820,8 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 else if (!strncmp(fn, "preauth=", 8)) load_u8(&cl0->preauth, fn + 8);
                 else if (!strncmp(fn, "wds=", 4)) load_u8(&cl0->wds, fn + 4);
                 else if (!strncmp(fn, "wmm=", 4)) load_u8(&cl0->wmm, fn + 4);
-                else if (!strncmp(fn, "ht_cap=", 3)) load_u8(&cl0->ht, fn + 3);
-                else if (!strncmp(fn, "vht_cap=", 4)) load_u8(&cl0->vht, fn + 4);
+                else if (!strncmp(fn, "ht_cap=", 7)) load_u8(&cl0->ht, fn + 7);
+                else if (!strncmp(fn, "vht_cap=", 8)) load_u8(&cl0->vht, fn + 8);
                 else if (!strncmp(fn, "wps=", 4)) load_u8(&cl0->wps, fn + 4);
                 else if (!strncmp(fn, "mfp=", 4)) load_u8(&cl0->mfp, fn + 4);
                 else if (!strncmp(fn, "time=", 5)) load_time(&cl0->time, fn + 5);
