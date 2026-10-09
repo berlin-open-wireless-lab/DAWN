@@ -639,7 +639,11 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
                         }
                     }
 
-                    kick_type = 2;
+                    // A BSS transition request without candidates gives the client nowhere to go
+                    if (kick_nr_list)
+                        kick_type = 2;
+                    else
+                        dawnlog_info("Client " MACSTR ": No other AP to propose\n", MAC2STR(j->client_addr.u8));
                 }
             }
         }

@@ -28,3 +28,11 @@ probe bssid=11:11:11:00:00:01 client=c1:00:00:00:00:03 signal=-80 freq=5180
 kick 11:11:11:00:00:01 0
 expect_btm 1
 expect_client c1:00:00:00:00:03 11:11:11:00:00:02
+
+# No other AP with the SSID: no BSS transition request without candidates
+ap bssid=22:22:22:00:00:01 freq=5180 ssid=lonely neighbors=222222000001
+client client=c2:00:00:00:00:01 bssid=22:22:22:00:00:01 freq=5180
+probe bssid=22:22:22:00:00:01 client=c2:00:00:00:00:01 signal=-85 freq=5180
+kick 22:22:22:00:00:01 0
+expect_btm 0
+expect_client c2:00:00:00:00:01 22:22:22:00:00:01
