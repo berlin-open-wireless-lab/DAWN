@@ -342,6 +342,11 @@ static probe_entry* parse_to_beacon_rep(struct blob_attr *msg) {
 
     if (!tb[BEACON_REP_BSSID] ||
         !tb[BEACON_REP_ADDR] ||
+        /* Refused/incapable measurements may have no measurement body.
+         * Validate every field below before using blobmsg_get_u16(). */
+        !tb[BEACON_REP_RCPI] ||
+        !tb[BEACON_REP_RSNI] ||
+        !tb[BEACON_REP_CHANNEL] ||
         hwaddr_aton(blobmsg_data(tb[BEACON_REP_BSSID]), msg_bssid.u8) ||
         hwaddr_aton(blobmsg_data(tb[BEACON_REP_ADDR]), msg_client.u8))
     {
