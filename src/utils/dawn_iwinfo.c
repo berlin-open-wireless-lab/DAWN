@@ -40,6 +40,10 @@ int compare_essid_iwinfo(struct dawn_mac bssid_addr, struct dawn_mac bssid_addr_
                 continue;
 
             iw = iwinfo_backend(entry->d_name);
+            if (iw == NULL) {
+                iwinfo_finish();
+                continue;
+            }
 
             // FIXME: Try to reduce string conversion and comparison here by using byte array compares
             // TODO: Magic number
@@ -118,7 +122,7 @@ int get_bandwidth(const char *ifname, struct dawn_mac client_addr, float *rx_rat
 
         char buf[IWINFO_BUFSIZE];
         int len;
-        if (iw->assoclist(ifname, buf, &len) == 0 && len > 0)
+        if (iw != NULL && iw->assoclist(ifname, buf, &len) == 0 && len > 0)
         {
             struct iwinfo_assoclist_entry* e = (struct iwinfo_assoclist_entry*)buf;
             for (int i = 0; ret == 0 && i < len; i += sizeof(struct iwinfo_assoclist_entry)) {
@@ -173,7 +177,7 @@ int get_rssi(const char *ifname, struct dawn_mac client_addr) {
         return INT_MIN;
     iw = iwinfo_backend(ifname);
 
-    if (iw->assoclist(ifname, buf, &len)) {
+    if (iw == NULL || iw->assoclist(ifname, buf, &len)) {
         dawnlog_warning("No information available\n");
         iwinfo_finish();
         return INT_MIN;
@@ -229,7 +233,7 @@ int get_expected_throughput(const char *ifname, struct dawn_mac client_addr) {
         return INT_MIN;
     iw = iwinfo_backend(ifname);
 
-    if (iw->assoclist(ifname, buf, &len)) {
+    if (iw == NULL || iw->assoclist(ifname, buf, &len)) {
         dawnlog_warning("No information available\n");
         iwinfo_finish();
         return INT_MIN;
@@ -260,7 +264,7 @@ int get_bssid(const char *ifname, uint8_t bssid_addr[]) {
 
     static char buf[18] = { 0 };
 
-    if (iw->bssid(ifname, buf))
+    if (iw == NULL || iw->bssid(ifname, buf))
         snprintf(buf, sizeof(buf), "00:00:00:00:00:00");
 
     hwaddr_aton(buf,bssid_addr);
@@ -275,7 +279,7 @@ int get_ssid(const char *ifname, char* ssid, size_t ssidmax) {
     if (strcmp(ifname, "global") == 0)
         return 0;
     iw = iwinfo_backend(ifname);
-    if (iw->ssid(ifname, buf))
+    if (iw == NULL || iw->ssid(ifname, buf))
         memset(buf, 0, sizeof(buf));
 
     strncpy(ssid, buf, ssidmax);
@@ -295,7 +299,7 @@ int get_channel_utilization(const char *ifname, uint64_t *last_channel_time, uin
     iw = iwinfo_backend(ifname);
 
     int freq;
-    if (iw->frequency(ifname, &freq))
+    if (iw == NULL || iw->frequency(ifname, &freq))
     {
         iwinfo_finish();
         return 0;
@@ -343,7 +347,7 @@ int support_ht(const char *ifname) {
     iw = iwinfo_backend(ifname);
     int htmodes = 0;
 
-    if (iw->htmodelist(ifname, &htmodes))
+    if (iw == NULL || iw->htmodelist(ifname, &htmodes))
     {
         dawnlog_debug("No HT mode information available\n");
         iwinfo_finish();
@@ -363,7 +367,7 @@ int support_vht(const char *ifname) {
     iw = iwinfo_backend(ifname);
     int htmodes = 0;
 
-    if (iw->htmodelist(ifname, &htmodes))
+    if (iw == NULL || iw->htmodelist(ifname, &htmodes))
     {
         dawnlog_error("No VHT mode information available\n");
         iwinfo_finish();
