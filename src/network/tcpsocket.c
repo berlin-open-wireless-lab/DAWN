@@ -1,6 +1,7 @@
 #include <libubox/usock.h>
 #include <arpa/inet.h>
 #include <inttypes.h>
+#include <netdb.h>
 
 #include "memory_utils.h"
 #include "msghandler.h"
@@ -21,7 +22,24 @@
 LIST_HEAD(tcp_sock_list);
 LIST_HEAD(cli_list);
 
-struct network_con_s *tcp_list_contains_address(struct sockaddr_in entry);
+struct network_con_s *tcp_list_contains_address(const struct sockaddr_storage *entry);
+
+/* Render an address (either family) and extract the port, for logging */
+static const char *addr_to_str(const struct sockaddr_storage *ss, char *buf,
+                               size_t len, uint16_t *port) {
+    if (ss->ss_family == AF_INET6) {
+        const struct sockaddr_in6 *s6 = (const struct sockaddr_in6 *)ss;
+        inet_ntop(AF_INET6, &s6->sin6_addr, buf, len);
+        if (port)
+            *port = ntohs(s6->sin6_port);
+    } else {
+        const struct sockaddr_in *s4 = (const struct sockaddr_in *)ss;
+        inet_ntop(AF_INET, &s4->sin_addr, buf, len);
+        if (port)
+            *port = ntohs(s4->sin_port);
+    }
+    return buf;
+}
 
 static struct uloop_fd server;
 static struct client *next_client = NULL; // TODO: Why here? Only used in sever_cb()
@@ -34,7 +52,7 @@ enum socket_read_status {
 
 struct client {
     struct list_head list;
-    struct sockaddr_in sin;
+    struct sockaddr_storage sin;
 
     struct ustream_fd s;
     int ctr;
@@ -191,7 +209,11 @@ static void client_read_cb(struct ustream *s, int bytes) {
 
             /* received pong */
             if (cl->final_len == HEADER_SIZE + PONG_SIZE && memcmp(cl->str + HEADER_SIZE, PONG_STR, PONG_SIZE) == 0) {
-                dawnlog_info("Server: received pong from %s:%u, now=%d\n", inet_ntoa(cl->sin.sin_addr), ntohs(cl->sin.sin_port), (int)time(0));
+                char abuf[INET6_ADDRSTRLEN];
+                uint16_t aport;
+
+                addr_to_str(&cl->sin, abuf, sizeof(abuf), &aport);
+                dawnlog_info("Server: received pong from %s:%u, now=%d\n", abuf, aport, (int)time(0));
                 goto process_done;
             }
 
@@ -226,7 +248,7 @@ process_done:
 
 static void server_cb(struct uloop_fd *fd, unsigned int events) {
     struct client *cl; //MUSTDO: check free() of this
-    unsigned int sl = sizeof(struct sockaddr_in);
+    unsigned int sl = sizeof(struct sockaddr_storage);
     int sfd;
 
     dawnlog_debug_func("Entering...");
@@ -260,7 +282,7 @@ int run_server(char *ipv4, int port) {
     sprintf(port_str, "%d", port); // TODO: Manage buffer length
 
     server.cb = server_cb;
-    server.fd = usock(USOCK_TCP | USOCK_SERVER | USOCK_IPV4ONLY | USOCK_NUMERIC, ipv4, port_str);
+    server.fd = usock(USOCK_TCP | USOCK_SERVER | USOCK_NUMERIC, ipv4, port_str);
     if (server.fd < 0) {
         dawnlog_perror("usock");
         return 1;
@@ -290,7 +312,11 @@ static void client_ping_read_cb(struct ustream *s, int bytes) {
         char final_str[HEADER_SIZE + PONG_SIZE];
         uint32_t *msg_header = (uint32_t *)final_str;
 
-        dawnlog_info("Client: received ping from %s:%u, now=%d\n", inet_ntoa(con->sock_addr.sin_addr), ntohs(con->sock_addr.sin_port), (int)time(0));
+        char abuf[INET6_ADDRSTRLEN];
+        uint16_t aport;
+
+        addr_to_str(&con->sock_addr, abuf, sizeof(abuf), &aport);
+        dawnlog_info("Client: received ping from %s:%u, now=%d\n", abuf, aport, (int)time(0));
         con->time_alive = time(0);
 
         *msg_header = htonl(final_len);
@@ -344,19 +370,29 @@ static void connect_cb(struct uloop_fd *f, unsigned int events) {
 }
 
 int add_tcp_connection(char *ipv4, int port) {
-    struct sockaddr_in serv_addr;
+    struct addrinfo hints = {
+        .ai_family = AF_UNSPEC,
+        .ai_socktype = SOCK_STREAM,
+        .ai_flags = AI_NUMERICHOST | AI_NUMERICSERV,
+    };
+    struct addrinfo *res = NULL;
+    struct sockaddr_storage serv_addr;
 
     dawnlog_debug_func("Entering...");
 
     char port_str[12];
     sprintf(port_str, "%d", port); // TODO: Manage buffer length
 
-    memset(&serv_addr, 0, sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = inet_addr(ipv4);
-    serv_addr.sin_port = htons(port);
+    if (getaddrinfo(ipv4, port_str, &hints, &res) || !res) {
+        dawnlog_error("Failed to parse peer address %s\n", ipv4);
+        return -1;
+    }
 
-    struct network_con_s *tmp = tcp_list_contains_address(serv_addr);
+    memset(&serv_addr, 0, sizeof(serv_addr));
+    memcpy(&serv_addr, res->ai_addr, res->ai_addrlen);
+    freeaddrinfo(res);
+
+    struct network_con_s *tmp = tcp_list_contains_address(&serv_addr);
     if (tmp != NULL) {
         if(tmp->connected == true)
         {
@@ -530,14 +566,31 @@ void check_timeout(int timeout) {
     } while (0);
 }
 
-struct network_con_s* tcp_list_contains_address(struct sockaddr_in entry) {
+static int sockaddr_equal(const struct sockaddr_storage *a,
+                          const struct sockaddr_storage *b) {
+    if (a->ss_family != b->ss_family)
+        return 0;
+
+    if (a->ss_family == AF_INET6) {
+        const struct sockaddr_in6 *a6 = (const struct sockaddr_in6 *)a;
+        const struct sockaddr_in6 *b6 = (const struct sockaddr_in6 *)b;
+
+        return !memcmp(&a6->sin6_addr, &b6->sin6_addr, sizeof(a6->sin6_addr)) &&
+               a6->sin6_scope_id == b6->sin6_scope_id;
+    }
+
+    return ((const struct sockaddr_in *)a)->sin_addr.s_addr ==
+           ((const struct sockaddr_in *)b)->sin_addr.s_addr;
+}
+
+struct network_con_s* tcp_list_contains_address(const struct sockaddr_storage *entry) {
     struct network_con_s *con;
 
     dawnlog_debug_func("Entering...");
 
     list_for_each_entry(con, &tcp_sock_list, list)
     {
-        if(entry.sin_addr.s_addr == con->sock_addr.sin_addr.s_addr)
+        if (sockaddr_equal(entry, &con->sock_addr))
         {
             return con;
         }
@@ -550,7 +603,11 @@ void print_tcp_array() {
     dawnlog_debug("--------Connections------\n");
     list_for_each_entry(con, &tcp_sock_list, list)
     {
-        dawnlog_debug("Connecting to Port: %d, Connected: %s\n", ntohs(con->sock_addr.sin_port), con->connected ? "True" : "False");
+        char abuf[INET6_ADDRSTRLEN];
+        uint16_t aport;
+
+        addr_to_str(&con->sock_addr, abuf, sizeof(abuf), &aport);
+        dawnlog_debug("Connecting to %s:%u, Connected: %s\n", abuf, aport, con->connected ? "True" : "False");
     }
     dawnlog_debug("------------------\n");
 }
