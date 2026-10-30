@@ -12,7 +12,7 @@ struct network_con_s {
 
     struct uloop_fd fd;
     struct ustream_fd stream;
-    struct sockaddr_in sock_addr;
+    struct sockaddr_storage sock_addr;
     int connected;
     time_t time_alive;
 };
