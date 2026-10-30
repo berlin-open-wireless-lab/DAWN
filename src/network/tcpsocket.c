@@ -12,6 +12,7 @@
 #define STR_QUOTE(x) STR_EVAL(x)
 
 #define HEADER_SIZE sizeof(uint32_t)
+#define MAX_MSG_LEN (1024 * 1024)
 #define PING_STR "ping"
 #define PONG_STR "pong"
 #define PING_SIZE (strlen(PING_STR)+1)
@@ -138,6 +139,12 @@ static void client_read_cb(struct ustream *s, int bytes) {
 
             cl->curr_len += HEADER_SIZE;
             cl->final_len = ntohl(*(uint32_t *)cl->str);
+
+            if (cl->final_len <= HEADER_SIZE || cl->final_len > MAX_MSG_LEN) {
+                dawnlog_error("implausible message length %" PRIu32 ", closing connection\n", cl->final_len);
+                client_close(s);
+                return;
+            }
 
             // On failure, dawn_realloc returns a null pointer. The original pointer str
             // remains valid and may need to be deallocated.
