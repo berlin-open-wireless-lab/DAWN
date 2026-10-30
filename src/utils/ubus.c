@@ -1344,7 +1344,7 @@ static void ubus_umdns_cb(struct ubus_request *req, int type, struct blob_attr *
     if (!msg)
         return;
 
-    blobmsg_parse(dawn_umdns_table_policy, __DAWN_UMDNS_MAX, tb, blob_data(msg), blob_len(msg));
+    blobmsg_parse(dawn_umdns_table_policy, __DAWN_UMDNS_TABLE_MAX, tb, blob_data(msg), blob_len(msg));
 
     if (!tb[DAWN_UMDNS_TABLE]) {
         return;
