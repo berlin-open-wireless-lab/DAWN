@@ -126,6 +126,7 @@ struct network_config_s {
     char server_ip[MAX_IP_LENGTH + 1];
     char tcp_ip[MAX_IP_LENGTH + 1];
     int tcp_port;
+    int tcp_local; // restrict TCP sync to the local network
     int network_option; // 0:Broadcast; 1:Multicast; 2:TCP+UMDNS; 3:TCP
     char shared_key[MAX_KEY_LENGTH + 1];
     char iv[MAX_KEY_LENGTH + 1];

@@ -1,5 +1,8 @@
 #include <dirent.h>
 #include <libubus.h>
+#include <arpa/inet.h>
+#include <net/if.h>
+#include <netinet/in.h>
 
 #include "memory_utils.h"
 #include "networksocket.h"
@@ -166,17 +169,6 @@ enum {
 
 static const struct blobmsg_policy dawn_umdns_table_policy[__DAWN_UMDNS_TABLE_MAX] = {
         [DAWN_UMDNS_TABLE] = {.name = "_dawn._tcp", .type = BLOBMSG_TYPE_TABLE},
-};
-
-enum {
-    DAWN_UMDNS_IPV4,
-    DAWN_UMDNS_PORT,
-    __DAWN_UMDNS_MAX,
-};
-
-static const struct blobmsg_policy dawn_umdns_policy[__DAWN_UMDNS_MAX] = {
-        [DAWN_UMDNS_IPV4] = {.name = "ipv4", .type = BLOBMSG_TYPE_STRING},
-        [DAWN_UMDNS_PORT] = {.name = "port", .type = BLOBMSG_TYPE_INT32},
 };
 
 enum {
@@ -1368,16 +1360,64 @@ static void ubus_umdns_cb(struct ubus_request *req, int type, struct blob_attr *
         dawnlog_debug("Hostname: %s\n", hdr->name);
 #endif
 
-        struct blob_attr *tb_dawn[__DAWN_UMDNS_MAX];
-        blobmsg_parse(dawn_umdns_policy, __DAWN_UMDNS_MAX, tb_dawn, blobmsg_data(attr), blobmsg_len(attr));
+        /* umdns emits multiple "ipv6" members for a host with more than
+         * one address, so a one-shot blobmsg_parse() policy cannot see
+         * them all.  Walk the attributes by hand. */
+        struct blob_attr *cur;
+        int rem = blobmsg_len(attr);
+        const char *ipv4 = NULL, *ll6 = NULL, *gua6 = NULL, *iface = NULL;
+        uint32_t port = 0;
+        bool has_port = false;
 
-        if (tb_dawn[DAWN_UMDNS_IPV4] && tb_dawn[DAWN_UMDNS_PORT]) {
-            dawnlog_debug("IPV4: %s\n", blobmsg_get_string(tb_dawn[DAWN_UMDNS_IPV4]));
-            dawnlog_debug("Port: %d\n", blobmsg_get_u32(tb_dawn[DAWN_UMDNS_PORT]));
-        } else {
-            return; // TODO: We're in a loop. Should this be return or continue?
+        __blob_for_each_attr(cur, blobmsg_data(attr), rem)
+        {
+            const char *name = blobmsg_name(cur);
+
+            if (blobmsg_type(cur) == BLOBMSG_TYPE_STRING && !strcmp(name, "ipv4")) {
+                ipv4 = blobmsg_get_string(cur);
+            } else if (blobmsg_type(cur) == BLOBMSG_TYPE_STRING && !strcmp(name, "iface")) {
+                iface = blobmsg_get_string(cur);
+            } else if (blobmsg_type(cur) == BLOBMSG_TYPE_INT32 && !strcmp(name, "port")) {
+                port = blobmsg_get_u32(cur);
+                has_port = true;
+            } else if (blobmsg_type(cur) == BLOBMSG_TYPE_STRING && !strcmp(name, "ipv6")) {
+                struct in6_addr a6;
+                const char *v = blobmsg_get_string(cur);
+
+                if (inet_pton(AF_INET6, v, &a6) != 1)
+                    continue;
+                if (IN6_IS_ADDR_LINKLOCAL(&a6)) {
+                    if (!ll6)
+                        ll6 = v;
+                } else if (!gua6) {
+                    gua6 = v;
+                }
+            }
         }
-        add_tcp_connection(blobmsg_get_string(tb_dawn[DAWN_UMDNS_IPV4]), blobmsg_get_u32(tb_dawn[DAWN_UMDNS_PORT]));
+
+        if (!has_port)
+            continue;
+
+        /* Candidates in getaddrinfo() style order of preference:
+         * link-local IPv6 (renumbering-proof), global IPv6, Legacy IP.
+         * A peer which cannot accept the preferred address is reached
+         * through connect-time fallback down the list. */
+        char cand[DAWN_CON_MAX_ADDRS][DAWN_CON_ADDR_LEN];
+        int ncand = 0;
+
+        if (ll6 && iface)
+            snprintf(cand[ncand++], DAWN_CON_ADDR_LEN, "%s%%%s", ll6, iface);
+        if (gua6)
+            snprintf(cand[ncand++], DAWN_CON_ADDR_LEN, "%s", gua6);
+        if (ipv4)
+            snprintf(cand[ncand++], DAWN_CON_ADDR_LEN, "%s", ipv4);
+
+        if (ncand) {
+            dawnlog_debug("peer candidates: %s%s%s%s%s port %u\n",
+                          cand[0], ncand > 1 ? ", " : "", ncand > 1 ? cand[1] : "",
+                          ncand > 2 ? ", " : "", ncand > 2 ? cand[2] : "", port);
+            add_tcp_connection_list(cand, ncand, port);
+        }
     }
 }
 
