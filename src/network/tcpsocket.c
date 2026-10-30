@@ -2,6 +2,7 @@
 #include <arpa/inet.h>
 #include <inttypes.h>
 #include <netdb.h>
+#include <ifaddrs.h>
 
 #include "memory_utils.h"
 #include "msghandler.h"
@@ -23,6 +24,7 @@ LIST_HEAD(tcp_sock_list);
 LIST_HEAD(cli_list);
 
 struct network_con_s *tcp_list_contains_address(const struct sockaddr_storage *entry);
+static int con_dial(struct network_con_s *con);
 
 /* Render an address (either family) and extract the port, for logging */
 static const char *addr_to_str(const struct sockaddr_storage *ss, char *buf,
@@ -246,6 +248,63 @@ process_done:
     return;
 }
 
+/* Is the peer link-local, or a unicast address within a prefix which is
+ * directly attached to a local interface? An off-link attacker can spoof
+ * such a source address but can never complete a TCP handshake with it,
+ * because the return path leads back to the local link. */
+static int peer_is_local(const struct sockaddr_storage *peer) {
+    struct in_addr a4 = { 0 };
+    const struct in6_addr *a6 = NULL;
+    struct ifaddrs *ifa0, *ifa;
+    int ok = 0;
+
+    if (peer->ss_family == AF_INET6) {
+        const struct sockaddr_in6 *p6 = (const struct sockaddr_in6 *)peer;
+
+        if (IN6_IS_ADDR_LINKLOCAL(&p6->sin6_addr))
+            return 1;
+        if (IN6_IS_ADDR_V4MAPPED(&p6->sin6_addr))
+            memcpy(&a4, &p6->sin6_addr.s6_addr[12], 4);
+        else
+            a6 = &p6->sin6_addr;
+    } else if (peer->ss_family == AF_INET) {
+        a4 = ((const struct sockaddr_in *)peer)->sin_addr;
+    } else {
+        return 0;
+    }
+
+    if (getifaddrs(&ifa0) < 0)
+        return 0;
+
+    for (ifa = ifa0; ifa && !ok; ifa = ifa->ifa_next) {
+        if (!ifa->ifa_addr || !ifa->ifa_netmask)
+            continue;
+
+        if (!a6 && ifa->ifa_addr->sa_family == AF_INET) {
+            struct sockaddr_in *ia = (struct sockaddr_in *)ifa->ifa_addr;
+            struct sockaddr_in *im = (struct sockaddr_in *)ifa->ifa_netmask;
+
+            if ((a4.s_addr & im->sin_addr.s_addr) ==
+                (ia->sin_addr.s_addr & im->sin_addr.s_addr))
+                ok = 1;
+        } else if (a6 && ifa->ifa_addr->sa_family == AF_INET6) {
+            struct sockaddr_in6 *ia = (struct sockaddr_in6 *)ifa->ifa_addr;
+            struct sockaddr_in6 *im = (struct sockaddr_in6 *)ifa->ifa_netmask;
+            int i;
+
+            for (i = 0; i < 16; i++) {
+                if ((a6->s6_addr[i] & im->sin6_addr.s6_addr[i]) !=
+                    (ia->sin6_addr.s6_addr[i] & im->sin6_addr.s6_addr[i]))
+                    break;
+            }
+            if (i == 16)
+                ok = 1;
+        }
+    }
+    freeifaddrs(ifa0);
+    return ok;
+}
+
 static void server_cb(struct uloop_fd *fd, unsigned int events) {
     struct client *cl; //MUSTDO: check free() of this
     unsigned int sl = sizeof(struct sockaddr_storage);
@@ -261,6 +320,15 @@ static void server_cb(struct uloop_fd *fd, unsigned int events) {
     sfd = accept(server.fd, (struct sockaddr *) &cl->sin, &sl);
     if (sfd < 0) {
         dawnlog_error("Accept failed\n");
+        return;
+    }
+
+    if (network_config.tcp_local && !peer_is_local(&cl->sin)) {
+        char abuf[INET6_ADDRSTRLEN];
+
+        addr_to_str(&cl->sin, abuf, sizeof(abuf), NULL);
+        dawnlog_warning("Rejecting non-local connection from %s\n", abuf);
+        close(sfd);
         return;
     }
 
@@ -280,6 +348,12 @@ int run_server(char *ipv4, int port) {
     dawnlog_debug("Adding socket!\n");
     char port_str[12];
     sprintf(port_str, "%d", port); // TODO: Manage buffer length
+
+    /* To accept IPv6 peers, listen on the v6 wildcard (dual-stack)
+     * instead of the Legacy IP default, unless the user configured
+     * something explicit. */
+    if (network_config.tcp_local && !strcmp(ipv4, "0.0.0.0"))
+        ipv4 = "::";
 
     server.cb = server_cb;
     server.fd = usock(USOCK_TCP | USOCK_SERVER | USOCK_NUMERIC, ipv4, port_str);
@@ -349,8 +423,16 @@ static void connect_cb(struct uloop_fd *f, unsigned int events) {
     dawnlog_debug_func("Entering...");
 
     if (f->eof || f->error) {
-        dawnlog_error("Connection failed (%s)\n", f->eof ? "EOF" : "ERROR");
+        uloop_fd_delete(&entry->fd);
         close(entry->fd.fd);
+        while (++entry->cur_addr < entry->naddrs) {
+            dawnlog_warning("Connection to %s:%d failed, trying %s\n",
+                            entry->addrs[entry->cur_addr - 1], entry->port,
+                            entry->addrs[entry->cur_addr]);
+            if (con_dial(entry) == 0)
+                return;
+        }
+        dawnlog_error("Connection failed (%s)\n", f->eof ? "EOF" : "ERROR");
         list_del(&entry->list);
         dawn_free(entry);
         entry = NULL;
@@ -369,35 +451,67 @@ static void connect_cb(struct uloop_fd *f, unsigned int events) {
     entry->connected = 1;
 }
 
-int add_tcp_connection(char *ipv4, int port) {
+/* Dial the current candidate address of a connection entry. Returns 0
+ * if a connection attempt is in flight, -1 if the address was unusable. */
+static int con_dial(struct network_con_s *con) {
     struct addrinfo hints = {
         .ai_family = AF_UNSPEC,
         .ai_socktype = SOCK_STREAM,
         .ai_flags = AI_NUMERICHOST | AI_NUMERICSERV,
     };
     struct addrinfo *res = NULL;
-    struct sockaddr_storage serv_addr;
-
-    dawnlog_debug_func("Entering...");
-
+    char *addr = con->addrs[con->cur_addr];
     char port_str[12];
-    sprintf(port_str, "%d", port); // TODO: Manage buffer length
 
-    if (getaddrinfo(ipv4, port_str, &hints, &res) || !res) {
-        dawnlog_error("Failed to parse peer address %s\n", ipv4);
+    sprintf(port_str, "%d", con->port); // TODO: Manage buffer length
+
+    if (getaddrinfo(addr, port_str, &hints, &res) || !res) {
+        dawnlog_error("Failed to parse peer address %s\n", addr);
         return -1;
     }
 
-    memset(&serv_addr, 0, sizeof(serv_addr));
-    memcpy(&serv_addr, res->ai_addr, res->ai_addrlen);
+    memset(&con->sock_addr, 0, sizeof(con->sock_addr));
+    memcpy(&con->sock_addr, res->ai_addr, res->ai_addrlen);
     freeaddrinfo(res);
 
-    struct network_con_s *tmp = tcp_list_contains_address(&serv_addr);
+    con->fd.fd = usock(USOCK_TCP | USOCK_NONBLOCK, addr, port_str);
+    if (con->fd.fd < 0)
+        return -1;
+
+    con->fd.cb = connect_cb;
+    uloop_fd_add(&con->fd, ULOOP_WRITE | ULOOP_EDGE_TRIGGER);
+
+    dawnlog_warning("New TCP connection to %s:%d\n", addr, con->port);
+    con->time_alive = time(0);
+    return 0;
+}
+
+int add_tcp_connection_list(char (*addrs)[DAWN_CON_ADDR_LEN], int naddrs, int port) {
+    struct network_con_s *con, *tmp = NULL;
+    int i, j;
+
+    dawnlog_debug_func("Entering...");
+
+    if (naddrs < 1)
+        return -1;
+    if (naddrs > DAWN_CON_MAX_ADDRS)
+        naddrs = DAWN_CON_MAX_ADDRS;
+
+    /* An entry for this peer may exist under any of its addresses */
+    list_for_each_entry(con, &tcp_sock_list, list) {
+        for (i = 0; i < naddrs && !tmp; i++)
+            for (j = 0; j < con->naddrs && !tmp; j++)
+                if (con->port == port && !strcmp(con->addrs[j], addrs[i]))
+                    tmp = con;
+        if (tmp)
+            break;
+    }
+
     if (tmp != NULL) {
-        if(tmp->connected == true)
+        if (tmp->connected == true)
         {
             return 0;
-        } else{
+        } else {
             // Delete already existing entry
             close(tmp->fd.fd);
             list_del(&tmp->list);
@@ -407,22 +521,35 @@ int add_tcp_connection(char *ipv4, int port) {
     }
 
     struct network_con_s *tcp_entry = dawn_calloc(1, sizeof(struct network_con_s));
-    tcp_entry->fd.fd = usock(USOCK_TCP | USOCK_NONBLOCK, ipv4, port_str);
-    tcp_entry->sock_addr = serv_addr;
-
-    if (tcp_entry->fd.fd < 0) {
-        dawn_free(tcp_entry);
-        tcp_entry = NULL;
+    if (!tcp_entry)
         return -1;
+
+    tcp_entry->port = port;
+    tcp_entry->naddrs = naddrs;
+    for (i = 0; i < naddrs; i++) {
+        strncpy(tcp_entry->addrs[i], addrs[i], DAWN_CON_ADDR_LEN - 1);
+        tcp_entry->addrs[i][DAWN_CON_ADDR_LEN - 1] = 0;
     }
-    tcp_entry->fd.cb = connect_cb;
-    uloop_fd_add(&tcp_entry->fd, ULOOP_WRITE | ULOOP_EDGE_TRIGGER);
 
-    dawnlog_warning("New TCP connection to %s:%d\n", ipv4, port);
-    tcp_entry->time_alive = time(0);
-    list_add(&tcp_entry->list, &tcp_sock_list);
+    while (tcp_entry->cur_addr < tcp_entry->naddrs) {
+        if (con_dial(tcp_entry) == 0) {
+            list_add(&tcp_entry->list, &tcp_sock_list);
+            return 0;
+        }
+        tcp_entry->cur_addr++;
+    }
 
-    return 0;
+    dawn_free(tcp_entry);
+    return -1;
+}
+
+int add_tcp_connection(char *ipv4, int port) {
+    char addrs[1][DAWN_CON_ADDR_LEN];
+
+    strncpy(addrs[0], ipv4, DAWN_CON_ADDR_LEN - 1);
+    addrs[0][DAWN_CON_ADDR_LEN - 1] = 0;
+
+    return add_tcp_connection_list(addrs, 1, port);
 }
 
 void send_tcp(char *msg) {

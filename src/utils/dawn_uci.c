@@ -384,6 +384,7 @@ struct network_config_s uci_get_dawn_network() {
         .server_ip = "",
         .tcp_ip = "0.0.0.0",
         .tcp_port = 1026,
+        .tcp_local = 0,
         .network_option = 2,
         .shared_key = "Niiiiiiiiiiiiiik",
         .iv = "Niiiiiiiiiiiiiik",
@@ -431,6 +432,8 @@ struct network_config_s uci_get_dawn_network() {
                 strncpy(ret.tcp_ip, str_tcp_ip, MAX_IP_LENGTH);
             // CONFIG-N: tcp_port|Port for TCP networking|[1025]
             DAWN_SET_CONFIG_INT(ret, s, tcp_port);
+            // CONFIG-N: tcp_local|Restrict TCP networking to the local network|[0 = Disabled]; 1 = Enabled
+            DAWN_SET_CONFIG_INT(ret, s, tcp_local);
             // CONFIG-N: use_symm_enc|Enable encryption of network traffic|[0 = Disabled]; 1 = Enabled
             DAWN_SET_CONFIG_INT(ret, s, use_symm_enc);
             // CONFIG-N: collision_domain|Unused|N/A
