@@ -1011,6 +1011,25 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                        freq_from_op_class(op_class, channel));
             }
         }
+        else if (strcmp(*argv, "test_null_guards") == 0)
+        {
+            args_required = 1;
+
+            struct dawn_mac test_mac = { .u8 = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55 } };
+            dawn_mutex_lock(&probe_array_mutex);
+            probe_entry *p = probe_array_update_rssi(test_mac, NULL, -50, false);
+            dawn_mutex_unlock(&probe_array_mutex);
+            if (p != NULL) {
+                printf("ERROR: probe_array_update_rssi with NULL connected_ap returned non-NULL\n");
+                ret = -1;
+            } else {
+                printf("PASS: probe_array_update_rssi returned NULL when connected_ap is NULL\n");
+            }
+
+            struct dawn_mac non_existent_bssid = { .u8 = { 0xde, 0xad, 0xbe, 0xef, 0x00, 0x01 } };
+            update_iw_info(non_existent_bssid);
+            printf("PASS: update_iw_info returned safely for non-existent BSSID\n");
+        }
         else
         {
             args_required = 1;
