@@ -751,24 +751,29 @@ void update_iw_info(struct dawn_mac bssid_mac) {
     dawn_mutex_require(&ap_array_mutex);
     ap* this_ap = ap_array_get_ap(bssid_mac);
 
-    dawnlog_trace("IW info update for AP " MACSTR "\n", MAC2STR(bssid_mac.u8));
+    if (this_ap) {
+        dawnlog_trace("IW info update for AP " MACSTR "\n", MAC2STR(bssid_mac.u8));
 
-    // Go through clients for BSSID
-    for (client* j = *client_find_first_bc_entry(bssid_mac, dawn_mac_null, false);
-            j != NULL && mac_is_equal_bb(j->bssid_addr, bssid_mac); j = j->next_entry_bc) {
-        // update rssi
-        int rssi = get_rssi_iwinfo(j->client_addr);
-        dawnlog_trace("Expected throughput %f Mbit/sec\n",
-                iee80211_calculate_expected_throughput_mbit(get_expected_throughput_iwinfo(j->client_addr)));
+        // Go through clients for BSSID
+        for (client* j = *client_find_first_bc_entry(bssid_mac, dawn_mac_null, false);
+                j != NULL && mac_is_equal_bb(j->bssid_addr, bssid_mac); j = j->next_entry_bc) {
+            // update rssi
+            int rssi = get_rssi_iwinfo(j->client_addr);
+            dawnlog_trace("Expected throughput %f Mbit/sec\n",
+                    iee80211_calculate_expected_throughput_mbit(get_expected_throughput_iwinfo(j->client_addr)));
 
-        if (rssi != INT_MIN) {
-            if (probe_array_update_rssi(j->client_addr, this_ap, rssi, true) == NULL) {
-                dawnlog_info("Failed to update rssi!\n");
-            }
-            else {
-                dawnlog_trace("Updated rssi: %d\n", rssi);
+            if (rssi != INT_MIN) {
+                if (probe_array_update_rssi(j->client_addr, this_ap, rssi, true) == NULL) {
+                    dawnlog_info("Failed to update rssi!\n");
+                }
+                else {
+                    dawnlog_trace("Updated rssi: %d\n", rssi);
+                }
             }
         }
+    } else {
+        dawnlog_warning("IW info update: AP " MACSTR " not found in storage, skipping client update\n",
+                MAC2STR(bssid_mac.u8));
     }
 
     dawnlog_trace("---------------------------\n");
@@ -921,6 +926,12 @@ int probe_array_set_all_probe_count(struct dawn_mac client_addr, uint32_t probe_
 probe_entry* probe_array_update_rssi(struct dawn_mac client_addr, ap* connected_ap, uint32_t rssi, int send_network)
 {
     dawnlog_debug_func("Entering...");
+
+    if (!connected_ap) {
+        dawnlog_error("probe_array_update_rssi called with NULL connected_ap for client " MACSTR "\n",
+                      MAC2STR(client_addr.u8));
+        return NULL;
+    }
 
     dawn_mutex_require(&probe_array_mutex);
     probe_entry* probe_req_new = dawn_malloc(sizeof(probe_entry));
