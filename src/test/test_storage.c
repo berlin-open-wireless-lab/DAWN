@@ -1,5 +1,7 @@
 #include <inttypes.h>
 #include <ctype.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "dawn_iwinfo.h"
 #include "memory_utils.h"
@@ -312,8 +314,23 @@ static int load_int_band(int* v, char* s);
 static int load_int_band(int* v, char* s)
 {
   int ret = 0;
-  sscanf(s, "%" "d", v);
-  v[1] = v[0];
+  int n = 0;
+  char* tok = s;
+
+  /* One value applies to every band. A comma-separated list sets bands in order. */
+  while (n < __DAWN_BAND_MAX && tok && *tok) {
+    sscanf(tok, "%d", &v[n]);
+    n++;
+    tok = strchr(tok, ',');
+    if (tok)
+      tok++;
+  }
+
+  if (n == 1) {
+    for (int b = 1; b < __DAWN_BAND_MAX; b++)
+      v[b] = v[0];
+  }
+
   return ret;
 }
 
@@ -593,6 +610,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                     dawn_metric.low_rssi[1] = -500; // Sum component
                     dawn_metric.initial_score[0] = 0; // Sum component
                     dawn_metric.initial_score[1] = 100; // Sum component
+                    dawn_metric.initial_score[2] = 110; // 6 GHz base score
                     dawn_metric.chan_util[0] = 0; // Sum component
                     dawn_metric.chan_util[1] = 0; // Sum component
                     dawn_metric.max_chan_util[0] = -500; // Sum component
@@ -605,6 +623,19 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                     dawn_metric.chan_util_val[1] = 140;
                     dawn_metric.max_chan_util_val[0] = 170;
                     dawn_metric.max_chan_util_val[1] = 170;
+                    dawn_metric.ap_weight[2] = dawn_metric.ap_weight[1];
+                    dawn_metric.ht_support[2] = dawn_metric.ht_support[1];
+                    dawn_metric.vht_support[2] = dawn_metric.vht_support[1];
+                    dawn_metric.no_ht_support[2] = dawn_metric.no_ht_support[1];
+                    dawn_metric.no_vht_support[2] = dawn_metric.no_vht_support[1];
+                    dawn_metric.rssi[2] = dawn_metric.rssi[1];
+                    dawn_metric.low_rssi[2] = dawn_metric.low_rssi[1];
+                    dawn_metric.chan_util[2] = dawn_metric.chan_util[1];
+                    dawn_metric.max_chan_util[2] = dawn_metric.max_chan_util[1];
+                    dawn_metric.rssi_val[2] = dawn_metric.rssi_val[1];
+                    dawn_metric.low_rssi_val[2] = dawn_metric.low_rssi_val[1];
+                    dawn_metric.chan_util_val[2] = dawn_metric.chan_util_val[1];
+                    dawn_metric.max_chan_util_val[2] = dawn_metric.max_chan_util_val[1];
                     dawn_metric.min_probe_count = 2;
                     dawn_metric.bandwidth_threshold = 6;
                     dawn_metric.use_station_count = 1;
@@ -635,6 +666,7 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                 else if (!strncmp(fn, "rssi=", 5)) load_int_band(dawn_metric.rssi, fn + 5);
                 else if (!strncmp(fn, "low_rssi=", 9)) load_int_band(dawn_metric.low_rssi, fn + 9);
                 else if (!strncmp(fn, "freq=", 5)) load_int(&dawn_metric.initial_score[1], fn + 5);
+                else if (!strncmp(fn, "initial_score=", 14)) load_int_band(dawn_metric.initial_score, fn + 14);
                 else if (!strncmp(fn, "chan_util=", 10)) load_int_band(dawn_metric.chan_util, fn + 10);
                 else if (!strncmp(fn, "max_chan_util=", 14)) load_int_band(dawn_metric.max_chan_util, fn + 14);
                 else if (!strncmp(fn, "rssi_val=", 9)) load_int_band(dawn_metric.rssi_val, fn + 9);
@@ -922,7 +954,9 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
 
                 tr = better_ap_available(ap_array_get_ap(bssid_mac), probe_array_get_entry(client_mac, bssid_mac), 100, with_nr ? &neighbor_list : NULL);
 
-                printf("better_ap_available returned %d (with neighbour report %s)\n", tr, neighbor_list ? neighbor_list->nr_ap->neighbor_report : "NONE");
+                printf("better_ap_available returned %d\n", tr);
+                for (struct kicking_nr* n = neighbor_list; n; n = n->next)
+                    printf("  nr " MACSTR " score %d\n", MAC2STR(n->nr_ap->bssid_addr.u8), n->score);
             }
         }
         else if (strcmp(*argv, "eval_probe_metric") == 0)
@@ -953,6 +987,28 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                     printf("eval_probe_metric: Returned %d\n", this_metric);
                 }
 
+            }
+        }
+        else if (strcmp(*argv, "get_band") == 0)
+        {
+            args_required = 2;
+            if (curr_arg + args_required <= argc)
+            {
+                int freq = atoi(argv[1]);
+                int band = get_band(freq);
+                printf("get_band(%d) = %d (%s)\n", freq, band,
+                       band >= 0 && band < __DAWN_BAND_MAX ? band_config_name[band] : "?");
+            }
+        }
+        else if (strcmp(*argv, "freq_from_op_class") == 0)
+        {
+            args_required = 3;
+            if (curr_arg + args_required <= argc)
+            {
+                int op_class = atoi(argv[1]);
+                int channel = atoi(argv[2]);
+                printf("freq_from_op_class(%d, %d) = %d\n", op_class, channel,
+                       freq_from_op_class(op_class, channel));
             }
         }
         else

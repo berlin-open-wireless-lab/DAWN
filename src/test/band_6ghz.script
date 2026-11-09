@@ -1,0 +1,36 @@
+# 2.4, 5 and 6 GHz stay enabled together. Scores are the base initial_score
+# for each band: rssi bonuses are zeroed so the result is the band base.
+dawn default
+dawn rssi=0
+dawn low_rssi=0
+dawn initial_score=80,100,110
+
+get_band 2412
+get_band 5180
+get_band 5745
+get_band 5955
+get_band 7115
+get_band 5935
+
+freq_from_op_class 81 1
+freq_from_op_class 82 14
+freq_from_op_class 128 36
+freq_from_op_class 128 149
+freq_from_op_class 131 1
+freq_from_op_class 131 2
+freq_from_op_class 131 233
+freq_from_op_class 0 36
+freq_from_op_class 0 100
+freq_from_op_class 0 165
+
+ap bssid=10:00:00:00:00:24 freq=2412 ssid=tri
+ap bssid=10:00:00:00:00:50 freq=5180 ssid=tri
+ap bssid=10:00:00:00:00:60 freq=5955 ssid=tri
+probe bssid=10:00:00:00:00:24 client=aa:bb:cc:dd:ee:ff signal=50 freq=2412
+probe bssid=10:00:00:00:00:50 client=aa:bb:cc:dd:ee:ff signal=50 freq=5180
+probe bssid=10:00:00:00:00:60 client=aa:bb:cc:dd:ee:ff signal=50 freq=5955
+
+eval_probe_metric 10:00:00:00:00:24 aa:bb:cc:dd:ee:ff
+eval_probe_metric 10:00:00:00:00:50 aa:bb:cc:dd:ee:ff
+eval_probe_metric 10:00:00:00:00:60 aa:bb:cc:dd:ee:ff
+better_ap_available 10:00:00:00:00:50 aa:bb:cc:dd:ee:ff 0 1
