@@ -48,6 +48,10 @@ int get_band(int freq);
 enum dawn_bands {
     DAWN_BAND_80211G,
     DAWN_BAND_80211A,
+    /* 6 GHz (Wi-Fi 6E/7). The name matches the 802_11g / 802_11a UCI sections.
+     * It is not every 802.11ax radio: 802.11ax on 2.4 and 5 GHz stays in the
+     * bands above. */
+    DAWN_BAND_80211AX,
     __DAWN_BAND_MAX
 };
 
