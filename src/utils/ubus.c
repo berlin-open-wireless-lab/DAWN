@@ -269,59 +269,6 @@ int parse_to_client_req(struct blob_attr *msg, client_req_entry *client_req) {
     return 0;
 }
 
-// FIXME: Hacky attempt to fix missing freq field in BEACON frames.  Need to untangle the whole band thing...
-static int get_freq(int band) {
-    dawnlog_debug_func("Entering...");
-    static const int band_freq_map[] = {
-    1, 2412,
-    2, 2417,
-    3, 2422,
-    4, 2427,
-    5, 2432,
-    6, 2437,
-    7, 2442,
-    8, 2447,
-    9, 2452,
-    10, 2457,
-    11, 2462,
-    12, 2467,
-    13, 2472,
-    14, 2484,
-    36, 5180,
-    40, 5200,
-    44, 5220,
-    48, 5240,
-    52, 5260,
-    56, 5280,
-    60, 5300,
-    64, 5320,
-    100, 5500,
-    104, 5520,
-    108, 5540,
-    112, 5560,
-    116, 5580,
-    120, 5600,
-    124, 5620,
-    128, 5640,
-    132, 5660,
-    136, 5680,
-    140, 5700,
-    149, 5745,
-    153, 5765,
-    157, 5785,
-    161, 5805,
-    165, 5825
-    };
-
-    for (int pos = 0; pos < (sizeof(band_freq_map) / (2 * sizeof(int))); pos += 2)
-    {
-        if (band <= band_freq_map[pos])
-            return band_freq_map[pos + 1];
-    }
-
-    return 0;
-}
-
 static probe_entry* parse_to_beacon_rep(struct blob_attr *msg) {
     probe_entry* beacon_rep = NULL;
     struct blob_attr *tb[__BEACON_REP_MAX];
@@ -353,12 +300,21 @@ static probe_entry* parse_to_beacon_rep(struct blob_attr *msg) {
         }
         else
         {
+            int op_class = tb[BEACON_REP_OP_CLASS] ? blobmsg_get_u16(tb[BEACON_REP_OP_CLASS]) : 0;
+            int channel = blobmsg_get_u16(tb[BEACON_REP_CHANNEL]);
+
             beacon_rep->bssid_addr = msg_bssid;
             beacon_rep->client_addr = msg_client;
             hwaddr_aton(blobmsg_data(tb[BEACON_REP_ADDR]), beacon_rep->target_addr.u8);  // TODO: What is this for?
             beacon_rep->rcpi = blobmsg_get_u16(tb[BEACON_REP_RCPI]);
             beacon_rep->rsni = blobmsg_get_u16(tb[BEACON_REP_RSNI]);
-            beacon_rep->freq = get_freq(blobmsg_get_u16(tb[BEACON_REP_CHANNEL]));
+            beacon_rep->freq = freq_from_op_class(op_class, channel);
+            if (!beacon_rep->freq) {
+                dawnlog_warning("BEACON report has no frequency for op-class %d channel %d\n",
+                                op_class, channel);
+                dawn_free(beacon_rep);
+                beacon_rep = NULL;
+            }
         }
     }
 

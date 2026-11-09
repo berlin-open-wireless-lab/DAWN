@@ -207,6 +207,85 @@ int get_band(int freq) {
     return band;
 }
 
+/* 20 MHz channel numbers used when a beacon report has no operating class.
+ * The search returns the first listed channel that is >= the requested one. */
+static int channel_to_freq_legacy(int channel) {
+    static const int band_freq_map[] = {
+        1, 2412,
+        2, 2417,
+        3, 2422,
+        4, 2427,
+        5, 2432,
+        6, 2437,
+        7, 2442,
+        8, 2447,
+        9, 2452,
+        10, 2457,
+        11, 2462,
+        12, 2467,
+        13, 2472,
+        14, 2484,
+        36, 5180,
+        40, 5200,
+        44, 5220,
+        48, 5240,
+        52, 5260,
+        56, 5280,
+        60, 5300,
+        64, 5320,
+        100, 5500,
+        104, 5520,
+        108, 5540,
+        112, 5560,
+        116, 5580,
+        120, 5600,
+        124, 5620,
+        128, 5640,
+        132, 5660,
+        136, 5680,
+        140, 5700,
+        149, 5745,
+        153, 5765,
+        157, 5785,
+        161, 5805,
+        165, 5825
+    };
+
+    for (int pos = 0; pos < (int)(sizeof(band_freq_map) / sizeof(band_freq_map[0])); pos += 2) {
+        if (channel <= band_freq_map[pos])
+            return band_freq_map[pos + 1];
+    }
+
+    return 0;
+}
+
+int freq_from_op_class(int op_class, int channel) {
+    dawnlog_debug_func("Entering...");
+
+    if (channel <= 0)
+        return 0;
+
+    /* Global operating classes. The channel is the primary 20 MHz channel. */
+    if (op_class == 81 && channel >= 1 && channel <= 13)
+        return 2407 + 5 * channel;
+    if (op_class == 82 && channel == 14)
+        return 2484;
+    if (op_class >= 115 && op_class <= 130 && channel <= 200)
+        return 5000 + 5 * channel;
+    if (op_class >= 131 && op_class <= 137) {
+        if (channel == 2)
+            return 5935;
+        if (channel <= 233)
+            return 5950 + 5 * channel;
+        return 0;
+    }
+
+    /* Country-specific classes, and reports that omit op-class, keep the
+     * 2.4/5 GHz table. Channel numbers alone are not treated as 6 GHz,
+     * because 1-14 are also 2.4 GHz. */
+    return channel_to_freq_legacy(channel);
+}
+
 // TODO: Can metric be cached once calculated? Add score_fresh indicator and reset when signal changes
 // TODO: as rest of values look to be static fr any given entry.
 int eval_probe_metric(struct probe_entry_s* probe_entry, ap* ap_entry) {

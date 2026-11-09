@@ -35,6 +35,10 @@ void mac_array_delete(struct mac_entry_s* entry);
 
 int get_band(int freq);
 
+/* Center frequency in MHz for a beacon-report operating class and primary channel.
+ * Returns 0 when the pair cannot be mapped. */
+int freq_from_op_class(int op_class, int channel);
+
 // ---------------- Global variables ----------------
 /*** Metrics and configuration data ***/
 
