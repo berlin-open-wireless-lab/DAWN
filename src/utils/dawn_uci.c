@@ -281,38 +281,38 @@ struct probe_metric_s uci_get_dawn_metric() {
                             WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE,
                             WLAN_RRM_CAPS_BEACON_REPORT_TABLE },
         // CONFIG-B: ap_weight|Per AP weighting|[0] (Deprecated)
-        .ap_weight = { 0, 0 },
+        .ap_weight = { 0, 0, 0 },
         // CONFIG-B: ht_support|Score increment if HT is supported|[5]
-        .ht_support = { 5, 5 },
+        .ht_support = { 5, 5, 5 },
         // CONFIG-B: vht_support|Score increment if VHT is supported|[5]
-        .vht_support = { 5, 5 },
+        .vht_support = { 5, 5, 5 },
         // CONFIG-B: no_ht_support|Score incrment if HT is not supported|[0] (Deprecated)
-        .no_ht_support = { 0, 0 },
+        .no_ht_support = { 0, 0, 0 },
         // CONFIG-B: no_vht_support|Score incrment if VHT is not supported|[0] (Deprecated)
-        .no_vht_support = { 0, 0 },
+        .no_vht_support = { 0, 0, 0 },
         // CONFIG-B: rssi|Score addition when signal exceeds threshold|[15] See note 2.
-        .rssi = { 15, 15 },
+        .rssi = { 15, 15, 15 },
         // CONFIG-B: rssi_val|Threshold for an good RSSI|[-60] See note 2.
-        .rssi_val = { -60, -60 },
-        // CONFIG-B: initial_score|Base score for AP based on operating band|[2.4GHz = 80; 5Ghz = 100]
-        .initial_score = { 80, 100 },
+        .rssi_val = { -60, -60, -60 },
+        // CONFIG-B: initial_score|Base score for AP based on operating band|[2.4GHz = 80; 5Ghz = 100; 6GHz = 110]
+        .initial_score = { 80, 100, 110 },
         // CONFIG-B: chan_util|Score increment if channel utilization is below chan_util_val|[0]
-        .chan_util = { 0, 0 },
+        .chan_util = { 0, 0, 0 },
         // CONFIG-B: max_chan_util_val|Lower threshold for bad channel utilization|[170]
-        .max_chan_util_val = { 170, 170 },
+        .max_chan_util_val = { 170, 170, 170 },
         // CONFIG-B: chan_util_val|Upper threshold for good channel utilization|[140]
-        .chan_util_val = { 140, 140 },
+        .chan_util_val = { 140, 140, 140 },
         // CONFIG-B: max_chan_util|Score increment if channel utilization is above max_chan_util_val|[-15]
-        .max_chan_util = { -15, -15 },
+        .max_chan_util = { -15, -15, -15 },
         // CONFIG-B: low_rssi|Score addition when signal is below threshold|[-15] See note 2.
-        .low_rssi = { -15, -15 },
+        .low_rssi = { -15, -15, -15 },
         // CONFIG-B: low_rssi_val|Threshold for bad RSSI|[-80] See note 2.
-        .low_rssi_val = { -80, -80 },
+        .low_rssi_val = { -80, -80, -80 },
         // CONFIG-B: rssi_center|Midpoint for weighted RSSI evaluation|[-70] See note 2.
-        .rssi_center = { -70, -70 },
+        .rssi_center = { -70, -70, -70 },
         // CONFIG-B: rssi_weight|Per dB increment for weighted RSSI evaluation|[0] See note 2.
-        .rssi_weight = { 0, 0 },
-        .neighbors = {NULL, NULL},
+        .rssi_weight = { 0, 0, 0 },
+        .neighbors = {NULL, NULL, NULL},
     };
     struct uci_section *global_s, *band_s[__DAWN_BAND_MAX];
     struct uci_option *global_neighbors = NULL, *neighbors;

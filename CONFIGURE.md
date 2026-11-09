@@ -171,8 +171,9 @@ grep 'CONFIG-G:' `find . -type f -name "*.[ch]"`| sed 's/^.*CONFIG-.: *\(.*\)$/|
 ## Per Band Metric Parameters
 These parameters are repeated in the following sections for each band:
 
-    config metric '802_11a'
     config metric '802_11g'
+    config metric '802_11a'
+    config metric '802_11ax'
 
 These sections are shared by `ubus call dawn reload_config`.
 
@@ -186,7 +187,7 @@ grep 'CONFIG-B:' `find . -type f -name "*.[ch]"`| sed 's/^.*CONFIG-.: *\(.*\)$/|
 |chan_util|Score increment if channel utilization is below chan_util_val|[0]|
 |chan_util_val|Upper threshold for good channel utilization|[140]|
 |ht_support|Score increment if HT is supported|[5]|
-|initial_score|Base score for AP based on operating band|[2.4GHz = 80; 5Ghz = 100]|
+|initial_score|Base score for AP based on operating band|[2.4GHz = 80; 5Ghz = 100; 6GHz = 110]|
 |low_rssi|Score addition when signal is below threshold|[-15] See note 2.|
 |low_rssi_val|Threshold for bad RSSI|[-80] See note 2.|
 |max_chan_util|Score increment if channel utilization is above max_chan_util_val|[-15]|
