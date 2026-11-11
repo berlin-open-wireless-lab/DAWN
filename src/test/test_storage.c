@@ -1039,6 +1039,21 @@ static int consume_actions(int argc, char* argv[], int harness_verbosity)
                     ret = -1;
             }
         }
+        else if (strcmp(*argv, "chan2freq") == 0)
+        {
+            // chan2freq <op_class> <channel> <expected freq>
+            args_required = 4;
+            if (curr_arg + args_required <= argc)
+            {
+                int freq = freq_from_op_class(atoi(argv[1]), atoi(argv[2]));
+                int expected = atoi(argv[3]);
+
+                printf("chan2freq: op_class %s channel %s -> %d MHz (expected %d) %s\n",
+                    argv[1], argv[2], freq, expected, freq == expected ? "PASS" : "FAIL");
+                if (freq != expected)
+                    ret = -1;
+            }
+        }
         else if (strcmp(*argv, "eval_probe_metric") == 0)
         {
             args_required = 3;

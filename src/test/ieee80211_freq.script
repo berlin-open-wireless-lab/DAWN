@@ -1,0 +1,39 @@
+# Channel / operating class to frequency mapping used for BEACON reports
+# 2.4 GHz
+chan2freq 81 1 2412
+chan2freq 81 6 2437
+chan2freq 81 13 2472
+chan2freq 82 14 2484
+chan2freq 83 9 2452
+# 5 GHz
+chan2freq 115 36 5180
+chan2freq 118 64 5320
+chan2freq 121 100 5500
+chan2freq 121 140 5700
+chan2freq 124 149 5745
+chan2freq 125 165 5825
+chan2freq 125 177 5885
+chan2freq 128 42 5210
+chan2freq 129 50 5250
+# 6 GHz: same channel numbers as 2.4 / 5 GHz, told apart by op class
+chan2freq 131 1 5955
+chan2freq 131 5 5975
+chan2freq 131 37 6135
+chan2freq 131 233 7115
+chan2freq 132 3 5965
+chan2freq 133 7 5985
+chan2freq 134 15 6025
+chan2freq 135 7 5985
+chan2freq 137 31 6105
+chan2freq 136 2 5935
+# No or a country specific op class: channel number only, never 6 GHz
+chan2freq 12 36 5180
+chan2freq 30 1 2412
+chan2freq 0 1 2412
+chan2freq 0 14 2484
+chan2freq 0 36 5180
+chan2freq 0 56 5280
+chan2freq 0 165 5825
+chan2freq 0 5 2432
+chan2freq 0 0 0
+chan2freq 0 200 0
