@@ -273,7 +273,8 @@ int freq_from_op_class(int op_class, int channel) {
         return 0;
 
     /* Global operating classes. The channel is the primary 20 MHz channel. */
-    if (op_class == 81 && channel >= 1 && channel <= 13)
+    /* 83 and 84 are the 40 MHz classes of the same channels. */
+    if ((op_class == 81 || op_class == 83 || op_class == 84) && channel >= 1 && channel <= 13)
         return 2407 + 5 * channel;
     if (op_class == 82 && channel == 14)
         return 2484;
@@ -286,6 +287,12 @@ int freq_from_op_class(int op_class, int channel) {
             return 5950 + 5 * channel;
         return 0;
     }
+
+    /* Any other global class, e.g. 60 GHz or one not assigned yet, is not a
+     * band DAWN knows.  Guessing from the channel number would map it to
+     * 2.4 or 5 GHz. */
+    if (op_class >= 81)
+        return 0;
 
     /* Country-specific classes, and reports that omit op-class, keep the
      * 2.4/5 GHz table. Channel numbers alone are not treated as 6 GHz,

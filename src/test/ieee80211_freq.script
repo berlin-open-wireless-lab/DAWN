@@ -37,3 +37,10 @@ chan2freq 0 165 5825
 chan2freq 0 5 2432
 chan2freq 0 0 0
 chan2freq 0 200 0
+# Other global op classes are not guessed (85-114, 138+, 60 GHz 180+)
+chan2freq 85 6 0
+chan2freq 94 36 0
+chan2freq 114 1 0
+chan2freq 138 1 0
+chan2freq 180 1 0
+chan2freq 180 2 0
