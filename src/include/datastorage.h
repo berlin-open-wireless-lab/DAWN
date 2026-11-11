@@ -299,6 +299,19 @@ extern pthread_mutex_t ap_array_mutex;
 extern struct client_s *client_set_bc;
 extern pthread_mutex_t client_array_mutex;
 
+/*
+ * Lock order: client_array_mutex -> probe_array_mutex -> ap_array_mutex
+ * (C -> P -> A), e.g. kick_clients() and the PROBE / AUTH / ASSOC handlers.
+ * Older code takes them in another order, this list is not exhaustive:
+ * update_beacon_reports() and get_network() A -> C,
+ * build_hearing_map_sort_client() P -> A -> C,
+ * remove_probe_array_cb() / remove_old_probe_entries() P -> C.
+ * That is only deadlock free because everything that holds more than one of
+ * them runs in the uloop main thread: the only other thread, the UDP receiver
+ * (broadcast / multicast networking), holds at most one at a time.
+ * New code should use C -> P -> A.
+ */
+
 // ---------------- Functions ----------------
 probe_entry *insert_to_probe_array(probe_entry *entry, int inc_probe_count, int is_beacon, time_t expiry);
 

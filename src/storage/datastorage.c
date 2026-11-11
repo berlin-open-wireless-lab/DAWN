@@ -167,6 +167,13 @@ struct mac_entry_s* mac_find_entry(struct dawn_mac mac)
 void send_beacon_requests(ap* target_ap, ap* host_ap, int sub_id) {
     dawnlog_debug_func("Entering...");
 
+    // Without a neighbor report of the target the op class / channel are unknown
+    if (!target_ap->op_class || !target_ap->channel) {
+        dawnlog_debug("BEACON REQUEST for " MACSTR " skipped: op_class / channel unknown\n",
+            MAC2STR(target_ap->bssid_addr.u8));
+        return;
+    }
+
     dawn_mutex_require(&client_array_mutex);
     // Seach for BSSID
     client* i = *client_find_first_bc_entry(host_ap->bssid_addr, dawn_mac_null, false);
@@ -266,7 +273,8 @@ int freq_from_op_class(int op_class, int channel) {
         return 0;
 
     /* Global operating classes. The channel is the primary 20 MHz channel. */
-    if (op_class == 81 && channel >= 1 && channel <= 13)
+    /* 83 and 84 are the 40 MHz classes of the same channels. */
+    if ((op_class == 81 || op_class == 83 || op_class == 84) && channel >= 1 && channel <= 13)
         return 2407 + 5 * channel;
     if (op_class == 82 && channel == 14)
         return 2484;
@@ -280,10 +288,31 @@ int freq_from_op_class(int op_class, int channel) {
         return 0;
     }
 
+    /* Any other global class, e.g. 60 GHz or one not assigned yet, is not a
+     * band DAWN knows.  Guessing from the channel number would map it to
+     * 2.4 or 5 GHz. */
+    if (op_class >= 81)
+        return 0;
+
     /* Country-specific classes, and reports that omit op-class, keep the
      * 2.4/5 GHz table. Channel numbers alone are not treated as 6 GHz,
      * because 1-14 are also 2.4 GHz. */
     return channel_to_freq_legacy(channel);
+}
+
+// Signal of a probe entry in dBm: the PROBE / station signal, or the RCPI of
+// a BEACON report if that is unknown.  0 if neither is known.
+static int probe_entry_get_signal(probe_entry *entry)
+{
+    int signal = (int)entry->signal;
+
+    if (signal == 0 && entry->rcpi <= 220)
+    {
+        signal = rcpi_to_rssi(entry->rcpi);
+        dawnlog_trace("Using beacon report RCPI %u as signal %d dBm\n", entry->rcpi, signal);
+    }
+
+    return signal;
 }
 
 // TODO: Can metric be cached once calculated? Add score_fresh indicator and reset when signal changes
@@ -291,17 +320,9 @@ int freq_from_op_class(int op_class, int channel) {
 int eval_probe_metric(struct probe_entry_s* probe_entry, ap* ap_entry) {
     dawnlog_debug_func("Entering...");
     int score = 0;
-    int signal = probe_entry->signal;
-    bool signal_available = signal != 0;
+    int signal = probe_entry_get_signal(probe_entry);
 
-    if (!signal_available && probe_entry->rcpi <= 220) {
-        signal = rcpi_to_rssi(probe_entry->rcpi);
-        signal_available = true;
-        dawnlog_trace("Scoring beacon report using RCPI %u as signal %d dBm\n",
-                      probe_entry->rcpi, signal);
-    }
-
-    if (signal_available)
+    if (signal != 0)
     {
         dawn_mutex_require(&ap_array_mutex);
         dawn_mutex_require(&probe_array_mutex);
@@ -615,9 +636,13 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
             if ((kick_type == 0) && own_probe && (dawn_metric.kicking & 2) == 2) {
                 int band = get_band(own_probe->freq);
 
-                if (own_probe->signal < dawn_metric.rssi_center[band])
+                // signal is unsigned and 0 if unknown, which used to count as low
+                int signal = probe_entry_get_signal(own_probe);
+
+                if (signal != 0 && signal < dawn_metric.rssi_center[band])
                 {
-                    dawnlog_info("Client " MACSTR ": Low asolute RSSI - proposing other APs\n", MAC2STR(j->client_addr.u8));
+                    dawnlog_info("Client " MACSTR ": Low absolute RSSI %d dBm - proposing other APs\n",
+                        MAC2STR(j->client_addr.u8), signal);
                     dawn_mutex_require(&ap_array_mutex);
 
                     // FIXME: Using all AP is OK for a small network, but should ideally use the local-to-current-AP set
@@ -628,7 +653,11 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
                         }
                     }
 
-                    kick_type = 2;
+                    // A BSS transition request without candidates gives the client nowhere to go
+                    if (kick_nr_list)
+                        kick_type = 2;
+                    else
+                        dawnlog_info("Client " MACSTR ": No other AP to propose\n", MAC2STR(j->client_addr.u8));
                 }
             }
         }
