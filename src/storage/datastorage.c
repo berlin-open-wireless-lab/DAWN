@@ -722,6 +722,10 @@ int kick_clients(struct dawn_mac bssid_mac, uint32_t id) {
         remove_kicking_nr_list(kick_nr_list);
         kick_nr_list = NULL;
 
+        /* A successful 802.11v kick deletes j; do not dereference it below. */
+        if (kicked_clients)
+            break;
+
         j = j->next_entry_bc;
     }
 
