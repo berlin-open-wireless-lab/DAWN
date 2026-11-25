@@ -340,6 +340,10 @@ int get_channel_utilization(const char *ifname, uint64_t *last_channel_time, uin
     return ret;
 }
 
+#define DAWN_HTMODES_HT (IWINFO_HTMODE_HT20 | IWINFO_HTMODE_HT40)
+#define DAWN_HTMODES_VHT (IWINFO_HTMODE_VHT20 | IWINFO_HTMODE_VHT40 | IWINFO_HTMODE_VHT80 | \
+                          IWINFO_HTMODE_VHT80_80 | IWINFO_HTMODE_VHT160)
+
 int support_ht(const char *ifname) {
     const struct iwinfo_ops *iw;
     if (strcmp(ifname, "global") == 0)
@@ -354,8 +358,7 @@ int support_ht(const char *ifname) {
         return 0;
     }
 
-    uint32_t ht_support_bitmask = (1 << 0) | (1 << 2);
-    int ret = htmodes & ht_support_bitmask ? 1 : 0;
+    int ret = htmodes & DAWN_HTMODES_HT ? 1 : 0;
     iwinfo_finish();
     return ret;
 }
@@ -374,9 +377,7 @@ int support_vht(const char *ifname) {
         return 0;
     }
 
-    // TODO: 1 << 2 duplicated here, and also appears as HT mode mask
-    uint32_t vht_support_bitmask = (1 << 2) | (1 << 2) | (1 << 3) | (1 << 4) | (1 << 5) | (1 << 6);
-    int ret = htmodes & vht_support_bitmask ? 1 : 0;
+    int ret = htmodes & DAWN_HTMODES_VHT ? 1 : 0;
     iwinfo_finish();
     return ret;
 }

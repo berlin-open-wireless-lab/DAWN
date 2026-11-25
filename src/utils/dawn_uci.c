@@ -224,7 +224,7 @@ static struct uci_section *uci_find_metric_section(const char *name) {
     uci_foreach_element(&uci_pkg->sections, e) {
         s = uci_to_section(e);
         if (strcmp(s->type, "metric") == 0 &&
-            ((!name && s->anonymous) || strcmp(e->name, name) == 0)) {
+            (name ? strcmp(e->name, name) == 0 : s->anonymous)) {
             return s;
         }
     }

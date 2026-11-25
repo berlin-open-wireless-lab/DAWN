@@ -1,0 +1,47 @@
+# Absolute RSSI kick (kicking=2)
+dawn default
+dawn kicking=2 min_number_to_kick=1 bandwidth_threshold=0 set_hostapd_nr=0 rssi_center=-70
+
+ap bssid=11:11:11:00:00:01 freq=5180 ssid=abs neighbors=111111000001
+ap bssid=11:11:11:00:00:02 freq=5500 ssid=abs neighbors=111111000002
+
+# Unknown signal (0) and no RCPI: not a low signal, no kick
+client client=c1:00:00:00:00:01 bssid=11:11:11:00:00:01 freq=5180
+probe bssid=11:11:11:00:00:01 client=c1:00:00:00:00:01 signal=0 freq=5180
+kick 11:11:11:00:00:01 0
+expect_btm 0
+expect_client c1:00:00:00:00:01 11:11:11:00:00:01
+
+# Unknown signal, BEACON report RCPI 60 = -80 dBm: kick to the other AP
+client client=c1:00:00:00:00:02 bssid=11:11:11:00:00:01 freq=5180
+probe bssid=11:11:11:00:00:01 client=c1:00:00:00:00:02 signal=0 freq=5180 rcpi=60
+kick 11:11:11:00:00:01 0
+expect_btm 1
+expect_client c1:00:00:00:00:02 11:11:11:00:00:02
+
+# Good signal: no kick, low signal: kick
+client client=c1:00:00:00:00:03 bssid=11:11:11:00:00:01 freq=5180
+probe bssid=11:11:11:00:00:01 client=c1:00:00:00:00:03 signal=-60 freq=5180
+kick 11:11:11:00:00:01 0
+expect_btm 0
+probe bssid=11:11:11:00:00:01 client=c1:00:00:00:00:03 signal=-80 freq=5180
+kick 11:11:11:00:00:01 0
+expect_btm 1
+expect_client c1:00:00:00:00:03 11:11:11:00:00:02
+
+# No other AP with the SSID: no BSS transition request without candidates
+ap bssid=22:22:22:00:00:01 freq=5180 ssid=lonely neighbors=222222000001
+client client=c2:00:00:00:00:01 bssid=22:22:22:00:00:01 freq=5180
+probe bssid=22:22:22:00:00:01 client=c2:00:00:00:00:01 signal=-85 freq=5180
+kick 22:22:22:00:00:01 0
+expect_btm 0
+expect_client c2:00:00:00:00:01 22:22:22:00:00:01
+
+# BEACON requests need the op class / channel of the target
+ap bssid=33:33:33:00:00:01 freq=5180 ssid=br neighbors=333333000001 op_class=115 channel=36
+ap bssid=33:33:33:00:00:02 freq=5500 ssid=br neighbors=333333000002
+client client=c3:00:00:00:00:01 bssid=33:33:33:00:00:01 freq=5180 rrm=16
+beacon_requests 33:33:33:00:00:01 33:33:33:00:00:01
+expect_beacon_requests 1
+beacon_requests 33:33:33:00:00:02 33:33:33:00:00:01
+expect_beacon_requests 0

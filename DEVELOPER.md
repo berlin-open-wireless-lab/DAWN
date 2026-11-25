@@ -178,3 +178,9 @@ algorithms to ensure that expected behaviour occurs.  At the time of
 writing a number of *.script files exist that can be passed to
 test_storage, but these haven't necessarily been maintained as the code
 has evolved from when they were originally written.
+
+The scripts listed in src/test/run_tests.sh check their own results
+(commands like chan2freq and expect_* report PASS / FAIL) and can be run
+with:
+
+    src/test/run_tests.sh <path to test_storage> [log directory]
